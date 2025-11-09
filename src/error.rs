@@ -1,0 +1,84 @@
+//! Error types for the Boticelli library.
+
+/// Crate-level error variants.
+#[derive(Debug, derive_more::From)]
+pub enum BoticelliErrorKind {
+    /// HTTP error from reqwest
+    Http(reqwest::Error),
+    /// JSON serialization/deserialization error
+    Json(serde_json::Error),
+    /// Generic backend error (deprecated - use specific error types)
+    Backend(String),
+    /// Gemini-specific error
+    #[cfg(feature = "gemini")]
+    Gemini(crate::models::gemini::GeminiError),
+    /// Database error
+    #[cfg(feature = "database")]
+    Database(crate::database::error::DatabaseError),
+}
+
+impl std::fmt::Display for BoticelliErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BoticelliErrorKind::Http(e) => write!(f, "{}", e),
+            BoticelliErrorKind::Json(e) => write!(f, "{}", e),
+            BoticelliErrorKind::Backend(msg) => write!(f, "{}", msg),
+            #[cfg(feature = "gemini")]
+            BoticelliErrorKind::Gemini(e) => write!(f, "{}", e),
+            #[cfg(feature = "database")]
+            BoticelliErrorKind::Database(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+/// Boticelli error with kind discrimination.
+#[derive(Debug)]
+pub struct BoticelliError(Box<BoticelliErrorKind>);
+
+impl BoticelliError {
+    /// Create a new error from a kind.
+    pub fn new(kind: BoticelliErrorKind) -> Self {
+        Self(Box::new(kind))
+    }
+
+    /// Get the error kind.
+    pub fn kind(&self) -> &BoticelliErrorKind {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for BoticelliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Boticelli Error: {}", self.0)
+    }
+}
+
+impl std::error::Error for BoticelliError {}
+
+impl From<BoticelliErrorKind> for BoticelliError {
+    fn from(kind: BoticelliErrorKind) -> Self {
+        Self::new(kind)
+    }
+}
+
+impl From<reqwest::Error> for BoticelliError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+impl From<serde_json::Error> for BoticelliError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+#[cfg(feature = "gemini")]
+impl From<crate::models::gemini::GeminiError> for BoticelliError {
+    fn from(err: crate::models::gemini::GeminiError) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+/// Result type for Boticelli operations.
+pub type BoticelliResult<T> = std::result::Result<T, BoticelliError>;

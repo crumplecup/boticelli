@@ -1,0 +1,2 @@
+-- Diesel initial setup
+-- This migration is created automatically by Diesel

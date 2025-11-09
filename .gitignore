@@ -1,0 +1,35 @@
+# Rust build artifacts
+/target
+Cargo.lock
+*.pdb
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Testing and coverage
+*.profraw
+*.profdata
+lcov.info
+coverage/
+
+# Documentation build
+/doc
+
+# Backup files
+*.bak
+*.tmp

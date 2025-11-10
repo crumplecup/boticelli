@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use boticelli::{
     BoticelliDriver, BoticelliResult, GenerateRequest, GenerateResponse, Narrative,
-    NarrativeExecutor, Output,
+    NarrativeExecutor, NarrativeProvider, Output,
 };
 
 /// Mock LLM driver for testing that echoes the prompt with a prefix.
@@ -215,4 +215,59 @@ async fn test_executor_driver_access() {
     // Verify we can access the driver
     assert_eq!(executor.driver().provider_name(), "mock");
     assert_eq!(executor.driver().model_name(), "mock-model-v1");
+}
+
+#[tokio::test]
+async fn test_trait_abstraction_with_simple_provider() {
+    // This test demonstrates that the executor works with any NarrativeProvider,
+    // not just TOML-based configurations. This proves the trait abstraction works.
+
+    // Create a simple provider with hardcoded acts (no TOML parsing!)
+    struct InMemoryProvider {
+        narrative_name: String,
+        act_order: Vec<String>,
+        act_prompts: std::collections::HashMap<String, String>,
+    }
+
+    impl NarrativeProvider for InMemoryProvider {
+        fn name(&self) -> &str {
+            &self.narrative_name
+        }
+
+        fn act_names(&self) -> &[String] {
+            &self.act_order
+        }
+
+        fn get_act_prompt(&self, act_name: &str) -> Option<&str> {
+            self.act_prompts.get(act_name).map(|s| s.as_str())
+        }
+    }
+
+    let provider = InMemoryProvider {
+        narrative_name: "in_memory_test".to_string(),
+        act_order: vec!["greeting".to_string(), "farewell".to_string()],
+        act_prompts: [
+            ("greeting".to_string(), "Say hello".to_string()),
+            ("farewell".to_string(), "Say goodbye".to_string()),
+        ]
+        .into_iter()
+        .collect(),
+    };
+
+    let driver = MockDriver::new("Mock");
+    let executor = NarrativeExecutor::new(driver);
+
+    let result = executor
+        .execute(&provider)
+        .await
+        .expect("Execution failed");
+
+    assert_eq!(result.narrative_name, "in_memory_test");
+    assert_eq!(result.act_executions.len(), 2);
+    assert_eq!(result.act_executions[0].act_name, "greeting");
+    assert_eq!(result.act_executions[0].prompt, "Say hello");
+    assert_eq!(result.act_executions[0].response, "Mock: Say hello");
+    assert_eq!(result.act_executions[1].act_name, "farewell");
+    assert_eq!(result.act_executions[1].prompt, "Say goodbye");
+    assert_eq!(result.act_executions[1].response, "Mock: Say goodbye");
 }

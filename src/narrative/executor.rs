@@ -4,7 +4,7 @@
 //! by calling LLM APIs in sequence, passing context between acts.
 
 use crate::{BoticelliDriver, GenerateRequest, Input, Message, Output, Role};
-use crate::{BoticelliResult, Narrative};
+use crate::{BoticelliResult, NarrativeProvider};
 use serde::{Deserialize, Serialize};
 
 /// Execution result for a single act in a narrative.
@@ -58,19 +58,23 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
     /// Returns an error if:
     /// - Any LLM API call fails
     /// - The response format is unexpected
-    pub async fn execute(&self, narrative: &Narrative) -> BoticelliResult<NarrativeExecution> {
+    pub async fn execute<N: NarrativeProvider>(
+        &self,
+        narrative: &N,
+    ) -> BoticelliResult<NarrativeExecution> {
         let mut act_executions = Vec::new();
         let mut conversation_history: Vec<Message> = Vec::new();
 
-        for (sequence_number, act_name) in narrative.toc.order.iter().enumerate() {
+        for (sequence_number, act_name) in narrative.act_names().iter().enumerate() {
             // Get the prompt for this act
-            let prompt = narrative.acts.get(act_name)
-                .expect("Narrative validation should ensure all acts exist");
+            let prompt = narrative
+                .get_act_prompt(act_name)
+                .expect("NarrativeProvider should ensure all acts exist");
 
             // Build the request with conversation history + current prompt
             conversation_history.push(Message {
                 role: Role::User,
-                content: vec![Input::Text(prompt.clone())],
+                content: vec![Input::Text(prompt.to_string())],
             });
 
             let request = GenerateRequest {
@@ -89,7 +93,7 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
             // Store the act execution
             act_executions.push(ActExecution {
                 act_name: act_name.clone(),
-                prompt: prompt.clone(),
+                prompt: prompt.to_string(),
                 response: response_text.clone(),
                 sequence_number,
             });
@@ -102,7 +106,7 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
         }
 
         Ok(NarrativeExecution {
-            narrative_name: narrative.metadata.name.clone(),
+            narrative_name: narrative.name().to_string(),
             act_executions,
         })
     }

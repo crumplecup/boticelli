@@ -1,6 +1,6 @@
 //! Core data structures for narratives.
 
-use crate::narrative::{NarrativeError, NarrativeErrorKind};
+use crate::narrative::{NarrativeError, NarrativeErrorKind, NarrativeProvider};
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
@@ -138,5 +138,19 @@ impl FromStr for Narrative {
 
         narrative.validate()?;
         Ok(narrative)
+    }
+}
+
+impl NarrativeProvider for Narrative {
+    fn name(&self) -> &str {
+        &self.metadata.name
+    }
+
+    fn act_names(&self) -> &[String] {
+        &self.toc.order
+    }
+
+    fn get_act_prompt(&self, act_name: &str) -> Option<&str> {
+        self.acts.get(act_name).map(|s| s.as_str())
     }
 }

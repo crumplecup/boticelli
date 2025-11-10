@@ -57,33 +57,56 @@ This creates an act with:
 
 #### Structured Acts (Full Configuration)
 
+Use TOML's array-of-tables syntax (`[[...]]`) for multimodal inputs:
+
 ```toml
 [acts.act_name]
-inputs = [...]      # Required: array of input objects
 model = "..."       # Optional: model override
 temperature = 0.7   # Optional: temperature override (0.0 - 1.0)
 max_tokens = 1000   # Optional: max tokens override
+
+[[acts.act_name.input]]
+type = "text"
+content = "First input"
+
+[[acts.act_name.input]]
+type = "image"
+mime = "image/png"
+url = "https://example.com/image.png"
 ```
 
 ## Input Types
 
+Each input is defined as an array-of-tables entry using `[[acts.act_name.input]]`.
+
 ### Text Input
 
 ```toml
-{ type = "text", content = "The text content" }
+[[acts.act_name.input]]
+type = "text"
+content = "The text content"
 ```
 
 ### Image Input
 
 ```toml
 # From URL
-{ type = "image", mime = "image/png", source = { url = "https://example.com/image.png" } }
+[[acts.act_name.input]]
+type = "image"
+mime = "image/png"
+url = "https://example.com/image.png"
 
 # From base64
-{ type = "image", mime = "image/jpeg", source = { base64 = "iVBORw0KGgo..." } }
+[[acts.act_name.input]]
+type = "image"
+mime = "image/jpeg"
+base64 = "iVBORw0KGgo..."
 
 # From file path
-{ type = "image", mime = "image/png", source = { file = "/path/to/image.png" } }
+[[acts.act_name.input]]
+type = "image"
+mime = "image/png"
+file = "/path/to/image.png"
 ```
 
 Supported MIME types: `image/png`, `image/jpeg`, `image/webp`, `image/gif`
@@ -91,7 +114,10 @@ Supported MIME types: `image/png`, `image/jpeg`, `image/webp`, `image/gif`
 ### Audio Input
 
 ```toml
-{ type = "audio", mime = "audio/mp3", source = { url = "https://example.com/audio.mp3" } }
+[[acts.act_name.input]]
+type = "audio"
+mime = "audio/mp3"
+url = "https://example.com/audio.mp3"
 ```
 
 Supported MIME types: `audio/mp3`, `audio/wav`, `audio/ogg`, `audio/webm`
@@ -99,7 +125,10 @@ Supported MIME types: `audio/mp3`, `audio/wav`, `audio/ogg`, `audio/webm`
 ### Video Input
 
 ```toml
-{ type = "video", mime = "video/mp4", source = { url = "https://example.com/video.mp4" } }
+[[acts.act_name.input]]
+type = "video"
+mime = "video/mp4"
+url = "https://example.com/video.mp4"
 ```
 
 Supported MIME types: `video/mp4`, `video/webm`, `video/avi`, `video/mov`
@@ -107,34 +136,24 @@ Supported MIME types: `video/mp4`, `video/webm`, `video/avi`, `video/mov`
 ### Document Input
 
 ```toml
-{
-    type = "document",
-    mime = "application/pdf",
-    source = { url = "https://example.com/doc.pdf" },
-    filename = "doc.pdf"  # Optional
-}
+[[acts.act_name.input]]
+type = "document"
+mime = "application/pdf"
+url = "https://example.com/doc.pdf"
+filename = "doc.pdf"  # Optional
 ```
 
 Supported MIME types: `application/pdf`, `text/plain`, `text/markdown`, `application/json`
 
 ## Source Types
 
-Media sources can be specified in three ways:
+Media sources are specified by including one of these fields:
 
-### URL Source
-```toml
-source = { url = "https://example.com/media.png" }
-```
+- `url = "https://..."` - Fetch from URL
+- `base64 = "..."` - Embedded base64 data
+- `file = "/path/..."` - Load from local file
 
-### Base64 Source
-```toml
-source = { base64 = "iVBORw0KGgoAAAANSUhEUgAAA..." }
-```
-
-### File Source
-```toml
-source = { file = "/absolute/path/to/media.png" }
-```
+The source type is inferred from which field is present.
 
 ## Configuration Overrides
 
@@ -208,33 +227,52 @@ description = "Analyze a logo design"
 order = ["analyze", "suggest_improvements"]
 
 [acts.analyze]
-inputs = [
-    { type = "text", content = "Analyze this logo for visual appeal, memorability, and brand alignment" },
-    { type = "image", mime = "image/png", source = { url = "https://example.com/logo.png" } }
-]
 model = "gemini-pro-vision"
 temperature = 0.3
 
+[[acts.analyze.input]]
+type = "text"
+content = "Analyze this logo for visual appeal, memorability, and brand alignment"
+
+[[acts.analyze.input]]
+type = "image"
+mime = "image/png"
+url = "https://example.com/logo.png"
+
 [acts.suggest_improvements]
-inputs = [
-    { type = "text", content = "Suggest 5 specific improvements to make this logo more effective" }
-]
 temperature = 0.7
+
+[[acts.suggest_improvements.input]]
+type = "text"
+content = "Suggest 5 specific improvements to make this logo more effective"
 ```
 
 ### Example 3: Multi-Modal Act
 
 ```toml
 [acts.comprehensive_analysis]
-inputs = [
-    { type = "text", content = "Analyze these materials together" },
-    { type = "image", mime = "image/png", source = { url = "https://example.com/chart.png" } },
-    { type = "document", mime = "application/pdf", source = { url = "https://example.com/report.pdf" } },
-    { type = "audio", mime = "audio/mp3", source = { url = "https://example.com/interview.mp3" } }
-]
 model = "claude-3-opus-20240229"
 temperature = 0.3
 max_tokens = 2000
+
+[[acts.comprehensive_analysis.input]]
+type = "text"
+content = "Analyze these materials together"
+
+[[acts.comprehensive_analysis.input]]
+type = "image"
+mime = "image/png"
+url = "https://example.com/chart.png"
+
+[[acts.comprehensive_analysis.input]]
+type = "document"
+mime = "application/pdf"
+url = "https://example.com/report.pdf"
+
+[[acts.comprehensive_analysis.input]]
+type = "audio"
+mime = "audio/mp3"
+url = "https://example.com/interview.mp3"
 ```
 
 ### Example 4: Per-Act Model Selection
@@ -249,21 +287,30 @@ order = ["creative", "analytical", "technical"]
 
 # GPT-4 for creative tasks
 [acts.creative]
-inputs = [{ type = "text", content = "Brainstorm 10 innovative features" }]
 model = "gpt-4"
 temperature = 0.9
 
+[[acts.creative.input]]
+type = "text"
+content = "Brainstorm 10 innovative features"
+
 # Claude for analytical tasks
 [acts.analytical]
-inputs = [{ type = "text", content = "Analyze the feasibility of each feature" }]
 model = "claude-3-opus-20240229"
 temperature = 0.3
 
+[[acts.analytical.input]]
+type = "text"
+content = "Analyze the feasibility of each feature"
+
 # Gemini for technical tasks
 [acts.technical]
-inputs = [{ type = "text", content = "Create a technical implementation plan" }]
 model = "gemini-pro"
 temperature = 0.2
+
+[[acts.technical.input]]
+type = "text"
+content = "Create a technical implementation plan"
 ```
 
 ## Best Practices
@@ -288,11 +335,16 @@ temperature = 0.2
    simple_act = "Just text"
 
    [acts.complex_act]
-   inputs = [...]
    model = "gpt-4"
+
+   [[acts.complex_act.input]]
+   type = "text"
+   content = "Complex prompt"
    ```
 
 5. **Act Naming**: Use descriptive act names that indicate their purpose.
+
+6. **TOML Syntax**: Use array-of-tables `[[acts.act_name.input]]` for multiple inputs. This is idiomatic TOML and much more readable than inline tables.
 
 ## See Also
 

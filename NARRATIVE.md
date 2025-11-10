@@ -139,8 +139,44 @@ The `narrations/mint.toml` file defines a three-act narrative for generating soc
   - Document review, creative brainstorming, technical synthesis
   - Different models per act (GPT-4, Claude, Gemini, Whisper)
 
-**Note:** TOML parsing for new multimodal format not yet implemented.
-Current parser only handles simple text acts. Parsing implementation deferred to future work.
+### Step 3.6: TOML Parsing Implementation ✓ COMPLETE
+
+**Multimodal TOML Deserialization:**
+- Created `src/narrative/toml.rs` - TOML parsing layer (168 lines)
+  - `TomlNarrative`, `TomlToc`, `TomlNarration` - Root structures
+  - `TomlAct` enum - Supports Simple(String) and Structured(TomlActConfig)
+  - `TomlActConfig` - Structured act with input array and optional overrides
+  - `TomlInput` - Input type with flexible source detection
+  - Source detection logic: checks for `url`, `base64`, or `file` field
+  - Conversion methods: `to_input()`, `to_act_config()`
+- Updated `Narrative` structure:
+  - Changed `acts` from `HashMap<String, String>` to `HashMap<String, ActConfig>`
+  - Updated validation for multimodal inputs (checks inputs.is_empty())
+  - Rewrote `FromStr` to parse via intermediate `TomlNarrative`
+  - Smart error handling (distinguishes empty prompts from parse errors)
+- Features:
+  - Supports mixed simple and structured acts in same file
+  - Backward compatible with simple text format (mint.toml)
+  - Validates empty text prompts during parsing
+  - Proper error messages with act name context
+  - File source support (reads file into Binary MediaSource)
+
+**Testing:**
+- Added `test_multimodal_toml_parsing` - Comprehensive inline TOML test
+  - Tests simple text acts
+  - Tests vision acts (text + image with model/temp/max_tokens)
+  - Tests mixed media acts (text + image + document)
+  - Verifies source types, MIME types, filenames
+- Added `test_load_showcase_narrative` - Real file parsing test
+  - Successfully parses narrations/showcase.toml
+  - Verifies all 8 acts with different input types
+  - Tests audio, video, document parsing
+- All 13 tests passing (7 narrative + 6 executor)
+- Zero clippy warnings
+
+**TOML Parsing Now Fully Functional:**
+The complete pipeline works end-to-end:
+TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
 
 ### Step 4: Database Schema for Narrative Executions
 
@@ -230,24 +266,21 @@ Current parser only handles simple text acts. Parsing implementation deferred to
 
 ### ✅ Completed (Fully Functional)
 - Core data structures (`Narrative`, `NarrativeMetadata`, `NarrativeToc`)
-- Simple text TOML parsing (`mint.toml` format)
+- TOML parsing (both simple and multimodal formats)
+  - Simple text acts: `act = "text"`
+  - Structured acts with `[[acts.name.input]]` arrays
+  - Mixed formats in same file
+  - Source detection (url/base64/file)
 - Narrative executor with conversation history
 - Trait-based architecture (`NarrativeProvider`, `ActConfig`)
-- Multimodal input support (architecture ready)
+- Multimodal input support (text, image, audio, video, document)
 - Per-act configuration (model, temperature, max_tokens)
-- Comprehensive test suite (11 tests passing)
+- Comprehensive test suite (13 tests passing)
 - TOML specification document
 - Example narratives (mint.toml, showcase.toml)
+- **End-to-end functional**: TOML → Parse → Execute → LLM
 
 ### 🚧 Next Implementation Tasks
-
-**Immediate (Implement Multimodal TOML Parsing):**
-1. Create serde deserialization for `ActConfig` from TOML
-2. Implement custom deserializer for `Input` enum with `[[input]]` tables
-3. Handle source type detection (url/base64/file)
-4. Support mixed simple/structured acts in same narrative
-5. Add validation for multimodal inputs
-6. Update tests to parse and execute showcase.toml
 
 **Near-term (Database Integration):**
 1. Database schema (Step 4)
@@ -265,15 +298,24 @@ Current parser only handles simple text acts. Parsing implementation deferred to
 ## Files and Locations
 
 **Core Implementation:**
-- `src/narrative/core.rs` - Data structures and simple TOML parsing
+- `src/narrative/core.rs` - Data structures and Narrative implementation
 - `src/narrative/provider.rs` - NarrativeProvider trait and ActConfig
 - `src/narrative/executor.rs` - NarrativeExecutor implementation
+- `src/narrative/toml.rs` - TOML deserialization layer
 - `src/narrative/error.rs` - Error types
 - `src/narrative/mod.rs` - Module exports
 
 **Tests:**
-- `tests/narrative_test.rs` - Parser and validation tests (5 tests)
+- `tests/narrative_test.rs` - Parser and validation tests (7 tests)
+  - Simple text parsing
+  - Validation tests (empty toc, missing act, empty prompt)
+  - Multimodal TOML parsing
+  - showcase.toml parsing
 - `tests/narrative_executor_test.rs` - Executor tests (6 tests)
+  - Simple/multiple act execution
+  - Context passing verification
+  - Trait abstraction
+  - Multimodal configuration
 
 **Documentation:**
 - `NARRATIVE.md` - This file (implementation plan)

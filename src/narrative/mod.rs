@@ -9,10 +9,16 @@
 mod core;
 mod error;
 mod executor;
+mod in_memory_repository;
 mod provider;
+mod repository;
 mod toml;
 
 pub use core::{Narrative, NarrativeMetadata, NarrativeToc};
 pub use error::{NarrativeError, NarrativeErrorKind};
 pub use executor::{ActExecution, NarrativeExecution, NarrativeExecutor};
+pub use in_memory_repository::InMemoryNarrativeRepository;
 pub use provider::{ActConfig, NarrativeProvider};
+pub use repository::{
+    ExecutionFilter, ExecutionStatus, ExecutionSummary, NarrativeRepository, VideoMetadata,
+};

@@ -1,7 +1,7 @@
 //! Error types for the Boticelli library.
 
 /// Crate-level error variants.
-#[derive(Debug, derive_more::From)]
+#[derive(Debug)]
 pub enum BoticelliErrorKind {
     /// HTTP error from reqwest
     Http(reqwest::Error),
@@ -17,6 +17,41 @@ pub enum BoticelliErrorKind {
     Database(crate::database::error::DatabaseError),
     /// Narrative error
     Narrative(crate::narrative::NarrativeError),
+    /// Feature not yet implemented
+    NotImplemented(String),
+}
+
+// Manual From implementations to avoid conflicts with multiple String variants
+impl From<reqwest::Error> for BoticelliErrorKind {
+    fn from(err: reqwest::Error) -> Self {
+        BoticelliErrorKind::Http(err)
+    }
+}
+
+impl From<serde_json::Error> for BoticelliErrorKind {
+    fn from(err: serde_json::Error) -> Self {
+        BoticelliErrorKind::Json(err)
+    }
+}
+
+#[cfg(feature = "gemini")]
+impl From<crate::models::gemini::GeminiError> for BoticelliErrorKind {
+    fn from(err: crate::models::gemini::GeminiError) -> Self {
+        BoticelliErrorKind::Gemini(err)
+    }
+}
+
+#[cfg(feature = "database")]
+impl From<crate::database::error::DatabaseError> for BoticelliErrorKind {
+    fn from(err: crate::database::error::DatabaseError) -> Self {
+        BoticelliErrorKind::Database(err)
+    }
+}
+
+impl From<crate::narrative::NarrativeError> for BoticelliErrorKind {
+    fn from(err: crate::narrative::NarrativeError) -> Self {
+        BoticelliErrorKind::Narrative(err)
+    }
 }
 
 impl std::fmt::Display for BoticelliErrorKind {
@@ -30,6 +65,7 @@ impl std::fmt::Display for BoticelliErrorKind {
             #[cfg(feature = "database")]
             BoticelliErrorKind::Database(e) => write!(f, "{}", e),
             BoticelliErrorKind::Narrative(e) => write!(f, "{}", e),
+            BoticelliErrorKind::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
         }
     }
 }

@@ -1,0 +1,11 @@
+[narration]
+name = "mint"
+description = "Generate social media content to support the MINT homeless shelter."
+
+[toc]
+order = ["act1", "act2", "act3"]
+
+[acts]
+act1 = "Create short-form social media posts to support the MINT (Mobile Integrative Navigation Team) homeless navigation center, which needs more visiblity and donations."
+act2 = "Critique the list of posts for quality, impact and professionalism."
+act3 = "Offer an improved set of options, feeling free to keep what works."

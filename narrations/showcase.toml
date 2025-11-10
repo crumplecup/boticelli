@@ -1,0 +1,152 @@
+# Showcase narrative demonstrating all ActConfig capabilities
+# This narrative analyzes a product presentation across multiple modalities
+
+[narration]
+name = "product_presentation_analysis"
+description = "Multi-modal analysis of a product presentation using different AI models and configurations"
+
+[toc]
+order = [
+    "initial_brief",
+    "analyze_slides",
+    "transcribe_pitch",
+    "analyze_demo_video",
+    "review_business_plan",
+    "creative_brainstorm",
+    "technical_synthesis",
+    "final_recommendation"
+]
+
+# ============================================================================
+# SIMPLE TEXT ACTS (backward compatible with mint.toml style)
+# ============================================================================
+
+[acts]
+# Act 1: Simple text prompt (no special config)
+initial_brief = "You are a product analyst. Your task is to evaluate a new product presentation across multiple formats (slides, video, audio, documents). Provide a structured approach to this analysis."
+
+# ============================================================================
+# MULTIMODAL ACTS WITH IMAGES
+# ============================================================================
+
+# Act 2: Analyze presentation slides (text + image)
+[acts.analyze_slides]
+# Multimodal input: text prompt + image
+inputs = [
+    { type = "text", content = "Analyze these product presentation slides for clarity, visual design, and key messaging. Focus on the value proposition and target market." },
+    { type = "image", mime = "image/png", source = { url = "https://example.com/slides/deck-overview.png" } }
+]
+# Use a vision-capable model
+model = "gemini-pro-vision"
+temperature = 0.3  # Lower temperature for analytical task
+max_tokens = 500
+
+# ============================================================================
+# MULTIMODAL ACTS WITH AUDIO
+# ============================================================================
+
+# Act 3: Transcribe and analyze pitch audio
+[acts.transcribe_pitch]
+inputs = [
+    { type = "text", content = "Transcribe this pitch recording and analyze the speaker's confidence, clarity, and persuasiveness. Note any concerns or red flags." },
+    { type = "audio", mime = "audio/mp3", source = { url = "https://example.com/audio/pitch.mp3" } }
+]
+model = "whisper-large-v3"
+temperature = 0.0  # Deterministic for transcription
+
+# ============================================================================
+# MULTIMODAL ACTS WITH VIDEO
+# ============================================================================
+
+# Act 4: Analyze product demo video
+[acts.analyze_demo_video]
+inputs = [
+    { type = "text", content = "Watch this product demo video and evaluate: (1) user experience flow, (2) product-market fit, (3) technical feasibility based on what you see." },
+    { type = "video", mime = "video/mp4", source = { url = "https://example.com/video/demo.mp4" } }
+]
+model = "gemini-pro-vision"
+temperature = 0.4
+max_tokens = 800
+
+# ============================================================================
+# MULTIMODAL ACTS WITH DOCUMENTS
+# ============================================================================
+
+# Act 5: Review business plan PDF
+[acts.review_business_plan]
+inputs = [
+    { type = "text", content = "Review this business plan document. Assess the financial projections, market analysis, competitive landscape, and go-to-market strategy. Identify strengths and weaknesses." },
+    { type = "document", mime = "application/pdf", source = { url = "https://example.com/docs/business-plan.pdf" }, filename = "business-plan.pdf" }
+]
+model = "claude-3-opus-20240229"  # Claude excels at document analysis
+temperature = 0.3
+max_tokens = 1500
+
+# ============================================================================
+# CREATIVE ACT (high temperature)
+# ============================================================================
+
+# Act 6: Creative brainstorming
+[acts.creative_brainstorm]
+inputs = [
+    { type = "text", content = "Based on the analysis so far, brainstorm 10 creative ideas to improve the product positioning, messaging, or feature set. Think outside the box." }
+]
+model = "gpt-4"
+temperature = 0.9  # High creativity
+max_tokens = 800
+
+# ============================================================================
+# TECHNICAL SYNTHESIS (specific model)
+# ============================================================================
+
+# Act 7: Technical deep-dive synthesis
+[acts.technical_synthesis]
+inputs = [
+    { type = "text", content = "Synthesize the technical aspects from all previous analyses. What are the key technical risks? What engineering challenges need to be solved? Be specific and prioritize." }
+]
+model = "claude-3-5-sonnet-20241022"  # Claude for technical reasoning
+temperature = 0.2  # Low temperature for technical accuracy
+max_tokens = 1000
+
+# ============================================================================
+# FINAL RECOMMENDATION (no overrides, uses executor defaults)
+# ============================================================================
+
+# Act 8: Final recommendation (simple text, no config overrides)
+final_recommendation = "Provide a final investment recommendation: INVEST, PASS, or NEEDS MORE INFO. Include: (1) overall score out of 10, (2) top 3 strengths, (3) top 3 concerns, (4) key conditions for investment if applicable."
+
+# ============================================================================
+# ALTERNATIVE SOURCE TYPES (commented out - for reference)
+# ============================================================================
+
+# Example: Image from base64
+# [acts.logo_analysis]
+# inputs = [
+#     { type = "text", content = "Analyze this logo" },
+#     { type = "image", mime = "image/png", source = { base64 = "iVBORw0KGgoAAAANS..." } }
+# ]
+
+# Example: Image from local file (for file-based configs)
+# [acts.screenshot_analysis]
+# inputs = [
+#     { type = "text", content = "Analyze this screenshot" },
+#     { type = "image", mime = "image/png", source = { file = "/path/to/screenshot.png" } }
+# ]
+
+# Example: Multiple images in one act
+# [acts.compare_designs]
+# inputs = [
+#     { type = "text", content = "Compare these two design mockups" },
+#     { type = "image", mime = "image/png", source = { url = "https://example.com/design-a.png" } },
+#     { type = "image", mime = "image/png", source = { url = "https://example.com/design-b.png" } }
+# ]
+
+# Example: Mixed media act (text + image + document)
+# [acts.comprehensive_review]
+# inputs = [
+#     { type = "text", content = "Review all these materials together" },
+#     { type = "image", mime = "image/png", source = { url = "https://example.com/chart.png" } },
+#     { type = "document", mime = "application/pdf", source = { url = "https://example.com/report.pdf" } }
+# ]
+# model = "claude-3-opus-20240229"
+# temperature = 0.3

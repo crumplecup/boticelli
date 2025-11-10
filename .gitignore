@@ -27,8 +27,10 @@ Cargo.lock
 lcov.info
 coverage/
 
-# Narration configs
-narrations/
+# Narration configs (ignore user narratives, but keep examples)
+narrations/*
+!narrations/mint.toml
+!narrations/showcase.toml
 
 # Documentation build
 /doc

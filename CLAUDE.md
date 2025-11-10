@@ -168,6 +168,7 @@ impl From<CanvasError> for FormError {
 
 - When a module file exceeds ~500-1000 lines, consider splitting it into a module directory with focused submodules organized by responsibility (e.g., core, io, tools, rendering).
 - Create a mod.rs file to re-export the public API and keep internal organization private.
+- Only put mod and export statements in the mod.rs file, not types, traits or impl blocks.
 - Export types from lib.rs at the crate level, then import them using `use crate::{Type}` in any modules that need them. This provides a single, consistent import path throughout the codebase.
 - Add helper methods (setters, mut accessors) to core structs for clean cross-module communication instead of directly accessing fields.
 

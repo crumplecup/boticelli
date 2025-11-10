@@ -53,6 +53,8 @@ mod models;
 #[cfg(feature = "database")]
 pub mod database;
 
+pub mod narrative;
+
 // Re-export core types
 pub use core::{
     GenerateRequest, GenerateResponse, Input, MediaSource, Message, Output, Role, ToolCall,
@@ -82,3 +84,6 @@ pub use interface::{
 // Re-export model implementations
 #[cfg(feature = "gemini")]
 pub use models::GeminiClient;
+
+// Re-export narrative types
+pub use narrative::{Narrative, NarrativeError, NarrativeErrorKind, NarrativeMetadata, NarrativeToc};

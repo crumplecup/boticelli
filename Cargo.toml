@@ -6,7 +6,7 @@ description = "Unified library for bot-driver interaction with multiple LLM APIs
 license = "MIT OR Apache-2.0"
 authors = ["Erik Rose <erik.w.rose@gmail.com>"]
 repository = "https://github.com/crumplecup/boticelli"
-readme = "README.md"
+# readme = "README.md"
 keywords = ["llm", "chatbot", "ai", "nlp", "api"]
 categories = ["api-bindings", "asynchronous", "ai"]
 
@@ -51,7 +51,7 @@ diesel = { version = "2.3", features = [
 ], optional = true }
 diesel_migrations = { version = "2.3", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
-uuid = { version = "1.0", features = ["v4", "serde"], optional = true }
+uuid = { version = "1.18", features = ["v4", "serde"], optional = true }
 
 # Optional backend SDKs
 # Enable via features: e.g. `--features gemini`
@@ -62,7 +62,10 @@ groqai = { version = "0.1", optional = true }
 perplexity = { version = "0.1", optional = true }
 
 derive_more = { version = "2", features = ["display", "from"] }
+derive-new = "0.7"                                              # Derive new constructors
 anyhow = "1"                                                    # Internal utils
+toml = "0.8"                                                    # TOML parsing for narratives
+clap = { version = "4", features = ["derive"] }                # CLI argument parsing
 
 [features]
 default = []

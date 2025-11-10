@@ -27,6 +27,9 @@ Cargo.lock
 lcov.info
 coverage/
 
+# Narration configs
+narrations/
+
 # Documentation build
 /doc
 

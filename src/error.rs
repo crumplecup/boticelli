@@ -15,6 +15,8 @@ pub enum BoticelliErrorKind {
     /// Database error
     #[cfg(feature = "database")]
     Database(crate::database::error::DatabaseError),
+    /// Narrative error
+    Narrative(crate::narrative::NarrativeError),
 }
 
 impl std::fmt::Display for BoticelliErrorKind {
@@ -27,6 +29,7 @@ impl std::fmt::Display for BoticelliErrorKind {
             BoticelliErrorKind::Gemini(e) => write!(f, "{}", e),
             #[cfg(feature = "database")]
             BoticelliErrorKind::Database(e) => write!(f, "{}", e),
+            BoticelliErrorKind::Narrative(e) => write!(f, "{}", e),
         }
     }
 }
@@ -76,6 +79,12 @@ impl From<serde_json::Error> for BoticelliError {
 #[cfg(feature = "gemini")]
 impl From<crate::models::gemini::GeminiError> for BoticelliError {
     fn from(err: crate::models::gemini::GeminiError) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+impl From<crate::narrative::NarrativeError> for BoticelliError {
+    fn from(err: crate::narrative::NarrativeError) -> Self {
         Self::new(BoticelliErrorKind::from(err))
     }
 }

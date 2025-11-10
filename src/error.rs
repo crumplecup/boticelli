@@ -125,5 +125,15 @@ impl From<crate::narrative::NarrativeError> for BoticelliError {
     }
 }
 
+#[cfg(feature = "database")]
+impl From<diesel::result::Error> for BoticelliError {
+    fn from(err: diesel::result::Error) -> Self {
+        Self::new(BoticelliErrorKind::Backend(format!(
+            "Database error: {}",
+            err
+        )))
+    }
+}
+
 /// Result type for Boticelli operations.
 pub type BoticelliResult<T> = std::result::Result<T, BoticelliError>;

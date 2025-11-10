@@ -1,7 +1,10 @@
-//! Database module for storing and retrieving model responses.
+//! Database module for storing and retrieving model responses and narrative executions.
 
 pub mod error;
 pub mod models;
+pub mod narrative_conversions;
+pub mod narrative_models;
+pub mod narrative_repository;
 pub mod schema;
 
 use diesel::prelude::*;
@@ -9,6 +12,11 @@ use diesel::pg::PgConnection;
 
 pub use error::{DatabaseError, DatabaseErrorKind, DatabaseResult};
 pub use models::{ModelResponse, NewModelResponse, SerializableModelResponse};
+pub use narrative_models::{
+    ActExecutionRow, ActInputRow, NarrativeExecutionRow, NewActExecutionRow, NewActInputRow,
+    NewNarrativeExecutionRow,
+};
+pub use narrative_repository::PostgresNarrativeRepository;
 
 use crate::{GenerateRequest, GenerateResponse};
 

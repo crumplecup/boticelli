@@ -1,0 +1,291 @@
+//! PostgreSQL implementation of NarrativeRepository.
+
+use crate::database::narrative_conversions::*;
+use crate::database::narrative_models::*;
+use crate::database::schema::*;
+use crate::{
+    BoticelliError, BoticelliErrorKind, BoticelliResult, ExecutionFilter, ExecutionStatus,
+    ExecutionSummary, NarrativeExecution, NarrativeRepository,
+};
+use async_trait::async_trait;
+use chrono::Utc;
+use diesel::prelude::*;
+use diesel::pg::PgConnection;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+/// PostgreSQL implementation of NarrativeRepository using Diesel ORM.
+///
+/// This repository stores narrative executions in a PostgreSQL database using
+/// three tables: narrative_executions, act_executions, and act_inputs.
+///
+/// # Example
+/// ```no_run
+/// use boticelli::database::{PostgresNarrativeRepository, establish_connection};
+/// use boticelli::NarrativeRepository;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let mut conn = establish_connection()?;
+///     let repo = PostgresNarrativeRepository::new(conn);
+///     // Use repo.save_execution(), load_execution(), etc.
+///     Ok(())
+/// }
+/// ```
+pub struct PostgresNarrativeRepository {
+    /// Database connection wrapped in Arc<Mutex> for async safety.
+    ///
+    /// Note: This is a simple implementation. For production use, consider using
+    /// a connection pool like r2d2 or deadpool.
+    conn: Arc<Mutex<PgConnection>>,
+}
+
+impl PostgresNarrativeRepository {
+    /// Create a new PostgreSQL narrative repository.
+    ///
+    /// # Arguments
+    /// * `conn` - A PostgreSQL connection
+    ///
+    /// # Note
+    /// The connection is wrapped in Arc<Mutex> to allow async access.
+    /// For better performance with concurrent access, consider using a connection pool.
+    pub fn new(conn: PgConnection) -> Self {
+        Self {
+            conn: Arc::new(Mutex::new(conn)),
+        }
+    }
+
+    /// Create a repository from an Arc<Mutex<PgConnection>> (for sharing connections).
+    pub fn from_arc(conn: Arc<Mutex<PgConnection>>) -> Self {
+        Self { conn }
+    }
+}
+
+#[async_trait]
+impl NarrativeRepository for PostgresNarrativeRepository {
+    async fn save_execution(&self, execution: &NarrativeExecution) -> BoticelliResult<i32> {
+        let mut conn = self.conn.lock().await;
+
+        // Use a transaction for atomicity
+        conn.transaction(|conn| {
+            // Insert narrative_execution
+            let new_execution = execution_to_new_row(execution, ExecutionStatus::Completed);
+            let execution_row: NarrativeExecutionRow = diesel::insert_into(narrative_executions::table)
+                .values(&new_execution)
+                .get_result(conn)
+                .map_err(|e| {
+                    BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                        "Failed to insert narrative execution: {}",
+                        e
+                    )))
+                })?;
+
+            let execution_id = execution_row.id;
+
+            // Insert all acts
+            for act in &execution.act_executions {
+                let new_act = act_execution_to_new_row(act, execution_id);
+                let act_row: ActExecutionRow = diesel::insert_into(act_executions::table)
+                    .values(&new_act)
+                    .get_result(conn)
+                    .map_err(|e| {
+                        BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                            "Failed to insert act execution: {}",
+                            e
+                        )))
+                    })?;
+
+                // Insert all inputs for this act
+                for (order, input) in act.inputs.iter().enumerate() {
+                    let new_input = input_to_new_row(input, act_row.id, order)?;
+                    diesel::insert_into(act_inputs::table)
+                        .values(&new_input)
+                        .execute(conn)
+                        .map_err(|e| {
+                            BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                                "Failed to insert act input: {}",
+                                e
+                            )))
+                        })?;
+                }
+            }
+
+            Ok(execution_id)
+        })
+    }
+
+    async fn load_execution(&self, id: i32) -> BoticelliResult<NarrativeExecution> {
+        let mut conn = self.conn.lock().await;
+
+        // Load the narrative execution
+        let execution_row: NarrativeExecutionRow = narrative_executions::table
+            .find(id)
+            .first(&mut *conn)
+            .map_err(|e| {
+                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                    "Failed to load narrative execution {}: {}",
+                    id, e
+                )))
+            })?;
+
+        // Load all acts for this execution
+        let act_rows: Vec<ActExecutionRow> = ActExecutionRow::belonging_to(&execution_row)
+            .order(act_executions::sequence_number.asc())
+            .load(&mut *conn)
+            .map_err(|e| {
+                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                    "Failed to load act executions: {}",
+                    e
+                )))
+            })?;
+
+        // Load all inputs for all acts
+        let input_rows: Vec<ActInputRow> = ActInputRow::belonging_to(&act_rows)
+            .load(&mut *conn)
+            .map_err(|e| {
+                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                    "Failed to load act inputs: {}",
+                    e
+                )))
+            })?;
+
+        // Group inputs by act
+        let inputs_by_act = input_rows
+            .into_iter()
+            .fold(std::collections::HashMap::new(), |mut acc, input| {
+                acc.entry(input.act_execution_id)
+                    .or_insert_with(Vec::new)
+                    .push(input);
+                acc
+            });
+
+        // Reconstruct ActExecutions
+        let mut act_executions = Vec::new();
+        for act_row in act_rows {
+            let inputs = inputs_by_act.get(&act_row.id).cloned().unwrap_or_default();
+            let act = rows_to_act_execution(act_row, inputs)?;
+            act_executions.push(act);
+        }
+
+        Ok(rows_to_narrative_execution(
+            &execution_row,
+            execution_row.narrative_name.clone(),
+            act_executions,
+        ))
+    }
+
+    async fn list_executions(
+        &self,
+        filter: &ExecutionFilter,
+    ) -> BoticelliResult<Vec<ExecutionSummary>> {
+        let mut conn = self.conn.lock().await;
+
+        let mut query = narrative_executions::table.into_boxed();
+
+        // Apply filters
+        if let Some(ref name) = filter.narrative_name {
+            query = query.filter(narrative_executions::narrative_name.eq(name));
+        }
+
+        if let Some(ref status) = filter.status {
+            query = query.filter(narrative_executions::status.eq(status_to_string(*status)));
+        }
+
+        if let Some(ref after) = filter.started_after {
+            query = query.filter(narrative_executions::started_at.ge(after.naive_utc()));
+        }
+
+        if let Some(ref before) = filter.started_before {
+            query = query.filter(narrative_executions::started_at.le(before.naive_utc()));
+        }
+
+        // Order by started_at descending (most recent first)
+        query = query.order(narrative_executions::started_at.desc());
+
+        // Apply offset and limit
+        if let Some(offset) = filter.offset {
+            query = query.offset(offset as i64);
+        }
+
+        if let Some(limit) = filter.limit {
+            query = query.limit(limit as i64);
+        }
+
+        let execution_rows: Vec<NarrativeExecutionRow> = query.load(&mut *conn).map_err(|e| {
+            BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                "Failed to list executions: {}",
+                e
+            )))
+        })?;
+
+        // Count acts for each execution
+        let mut summaries = Vec::new();
+        for row in execution_rows {
+            let act_count: i64 = act_executions::table
+                .filter(act_executions::execution_id.eq(row.id))
+                .count()
+                .get_result(&mut *conn)
+                .map_err(|e| {
+                    BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                        "Failed to count acts: {}",
+                        e
+                    )))
+                })?;
+
+            summaries.push(ExecutionSummary {
+                id: row.id,
+                narrative_name: row.narrative_name,
+                narrative_description: row.narrative_description,
+                status: string_to_status(&row.status)?,
+                started_at: row.started_at.and_utc(),
+                completed_at: row.completed_at.map(|dt| dt.and_utc()),
+                act_count: act_count as usize,
+                error_message: row.error_message,
+            });
+        }
+
+        Ok(summaries)
+    }
+
+    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BoticelliResult<()> {
+        let mut conn = self.conn.lock().await;
+
+        let status_str = status_to_string(status);
+        let completed_at = match status {
+            ExecutionStatus::Completed | ExecutionStatus::Failed => Some(Utc::now().naive_utc()),
+            ExecutionStatus::Running => None,
+        };
+
+        diesel::update(narrative_executions::table.find(id))
+            .set((
+                narrative_executions::status.eq(status_str),
+                narrative_executions::completed_at.eq(completed_at),
+            ))
+            .execute(&mut *conn)
+            .map_err(|e| {
+                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                    "Failed to update execution status: {}",
+                    e
+                )))
+            })?;
+
+        Ok(())
+    }
+
+    async fn delete_execution(&self, id: i32) -> BoticelliResult<()> {
+        let mut conn = self.conn.lock().await;
+
+        diesel::delete(narrative_executions::table.find(id))
+            .execute(&mut *conn)
+            .map_err(|e| {
+                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                    "Failed to delete execution: {}",
+                    e
+                )))
+            })?;
+
+        Ok(())
+    }
+
+    // Video methods use default implementations from trait (return NotImplemented)
+}

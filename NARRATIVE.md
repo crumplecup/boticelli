@@ -178,14 +178,71 @@ The `narrations/mint.toml` file defines a three-act narrative for generating soc
 The complete pipeline works end-to-end:
 TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
 
-### Step 4: Database Schema for Narrative Executions
+### Step 4: Narrative Repository Abstraction and Database Implementation
 
-**Schema Design Goals:**
-- Store complete execution history with full reproducibility
-- Preserve multimodal input configurations
-- Track per-act model selection and parameters
-- Handle media sources (URL, Base64, Binary) efficiently
-- Enable querying and analysis of execution patterns
+**Architecture Goals:**
+- Define trait interface to decouple from storage implementation
+- Enable multiple storage backends (database, filesystem, hybrid)
+- Support future extensibility (video storage, deduplication, etc.)
+- Allow easy testing with in-memory implementations
+- Preserve complete execution history with full reproducibility
+
+**Repository Trait Design:**
+
+```rust
+/// Repository for storing and retrieving narrative executions.
+pub trait NarrativeRepository {
+    /// Save a complete narrative execution.
+    async fn save_execution(&self, execution: &NarrativeExecution) -> BoticelliResult<i32>;
+
+    /// Load a narrative execution by ID.
+    async fn load_execution(&self, id: i32) -> BoticelliResult<NarrativeExecution>;
+
+    /// List executions with optional filtering.
+    async fn list_executions(&self, filter: ExecutionFilter) -> BoticelliResult<Vec<ExecutionSummary>>;
+
+    /// Update execution status (for long-running executions).
+    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BoticelliResult<()>;
+
+    /// Delete an execution and all associated data.
+    async fn delete_execution(&self, id: i32) -> BoticelliResult<()>;
+
+    // Video storage methods - defined in trait, implemented later
+    /// Store video input separately (large file handling).
+    async fn store_video(&self, video_data: &[u8], metadata: VideoMetadata) -> BoticelliResult<String>;
+
+    /// Retrieve video input by reference.
+    async fn load_video(&self, video_ref: &str) -> BoticelliResult<Vec<u8>>;
+}
+
+/// Filter criteria for querying executions.
+pub struct ExecutionFilter {
+    pub narrative_name: Option<String>,
+    pub status: Option<ExecutionStatus>,
+    pub date_range: Option<(DateTime, DateTime)>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
+/// Summary of an execution (without full act details).
+pub struct ExecutionSummary {
+    pub id: i32,
+    pub narrative_name: String,
+    pub status: ExecutionStatus,
+    pub started_at: DateTime,
+    pub completed_at: Option<DateTime>,
+    pub act_count: usize,
+}
+
+/// Execution status enumeration.
+pub enum ExecutionStatus {
+    Running,
+    Completed,
+    Failed { error: String },
+}
+```
+
+**Database Schema Design (PostgreSQL Implementation):**
 
 **Proposed Tables:**
 
@@ -230,12 +287,27 @@ TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
    - INDEX on (content_hash) - For future deduplication queries
 
 **Implementation Tasks:**
-- [ ] Create Diesel migration for all three tables with proper constraints
-- [ ] Create Diesel schema in `src/schema.rs`
-- [ ] Create DB models in `src/db/` module:
-  - `models.rs` - Diesel models (`NarrativeExecutionRow`, `ActExecutionRow`, `ActInputRow`)
-  - `operations.rs` - Database operations (save, load, query)
-  - `conversions.rs` - Convert between domain types and DB models
+
+**Phase 1: Trait Definition (in `src/narrative/repository.rs`)**
+- [ ] Define `NarrativeRepository` trait with core methods
+- [ ] Define `ExecutionFilter` struct for query parameters
+- [ ] Define `ExecutionSummary` struct for list operations
+- [ ] Define `ExecutionStatus` enum (Running, Completed, Failed)
+- [ ] Define `VideoMetadata` struct (for future video support)
+- [ ] Export trait and types at crate level
+
+**Phase 2: Database Implementation (in `src/db/`)**
+- [ ] Create `src/db/mod.rs` - Module organization
+- [ ] Create `src/db/models.rs` - Diesel models:
+  - `NarrativeExecutionRow`
+  - `ActExecutionRow`
+  - `ActInputRow`
+- [ ] Create `src/db/schema.rs` - Diesel schema definitions
+- [ ] Create `src/db/conversions.rs` - Convert between domain types and DB rows
+- [ ] Create `src/db/repository.rs` - `PostgresNarrativeRepository` struct
+
+**Phase 3: PostgresNarrativeRepository Implementation**
+- [ ] Implement `NarrativeRepository` trait for `PostgresNarrativeRepository`
 - [ ] Implement `save_execution()`:
   - Insert into narrative_executions
   - For each act: insert into act_executions
@@ -245,21 +317,55 @@ TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
   - Join across all three tables
   - Reconstruct NarrativeExecution with all ActExecutions and Inputs
 - [ ] Implement `list_executions()` with filtering:
-  - Filter by narrative_name
-  - Filter by date range
-  - Filter by status
-  - Pagination support
-- [ ] Add unit tests using in-memory SQLite for CI
-- [ ] Add integration tests with PostgreSQL (optional, requires DB)
+  - Apply filter criteria (narrative_name, status, date_range)
+  - Pagination (limit, offset)
+  - Return ExecutionSummary list
+- [ ] Implement `update_status()` - Update execution status field
+- [ ] Implement `delete_execution()` - CASCADE delete handles acts and inputs
+- [ ] Implement `store_video()` - Return `Err(NotImplemented)` initially
+- [ ] Implement `load_video()` - Return `Err(NotImplemented)` initially
+
+**Phase 4: Diesel Migrations**
+- [ ] Create migration for narrative_executions table
+- [ ] Create migration for act_executions table
+- [ ] Create migration for act_inputs table
+- [ ] Add indexes for common queries
+
+**Phase 5: Testing**
+- [ ] Create `InMemoryNarrativeRepository` for testing
+- [ ] Unit tests for trait interface
+- [ ] Integration tests with PostgreSQL (optional, requires DB)
+- [ ] Test video methods return NotImplemented errors
+
+**Architectural Benefits:**
+
+This trait-based approach provides:
+- **Decoupling**: Executor doesn't depend on storage implementation
+- **Testability**: Easy to create mock/in-memory implementations
+- **Flexibility**: Can implement multiple backends (Postgres, SQLite, filesystem, S3)
+- **Future-proofing**: Video methods defined in trait, implemented when needed
+- **Progressive enhancement**: Start with simple DB storage, add sophisticated backends later
+
+Example usage:
+```rust
+// In executor or CLI
+let repo: Box<dyn NarrativeRepository> = Box::new(PostgresNarrativeRepository::new(pool));
+let execution = executor.execute(&narrative).await?;
+let execution_id = repo.save_execution(&execution).await?;
+
+// Later: switch to hybrid storage
+let repo: Box<dyn NarrativeRepository> = Box::new(HybridRepository::new(db_pool, s3_client));
+```
 
 **Design Decisions:**
 
 1. **Binary Media Storage**: ✓ RESOLVED
-   - Store everything in PostgreSQL using Diesel
+   - Initial implementation: PostgreSQL using Diesel
    - URLs stored as TEXT (source_url)
    - Base64 stored as TEXT (source_base64)
    - Binary data stored as BYTEA (source_binary)
    - Focus on text and images (video support deferred to future work)
+   - Trait allows adding filesystem/S3 backends later without breaking changes
    - Trade-off: Simplicity and ACID guarantees over performance at massive scale
 
 2. **Supported Media Types (Initial Implementation)**:
@@ -327,6 +433,12 @@ TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
    - TOML spec uses idiomatic array-of-tables syntax
    - Easy to add YAML, JSON, or database sources later
 
+5. **Storage Architecture** ✓ RESOLVED: Trait-based abstraction with PostgreSQL implementation.
+   - `NarrativeRepository` trait decouples storage from application logic
+   - Initial implementation: `PostgresNarrativeRepository` using Diesel
+   - Video methods defined in trait, implemented when needed
+   - Easy to add filesystem, S3, or hybrid backends later
+
 ## Open Questions
 
 1. **Streaming**: Should we support streaming outputs for narrative execution?
@@ -375,18 +487,22 @@ TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
 
 ### 🚧 Next Implementation Tasks
 
-**Near-term (Database Integration):**
-1. Database schema (Step 4)
-2. Diesel migrations
-3. Models for narrative_executions and narrative_act_outputs
-4. Save/load execution history
+**Near-term (Repository Trait and Database Integration - Step 4):**
+1. Define `NarrativeRepository` trait and supporting types
+2. Implement `PostgresNarrativeRepository` using Diesel
+3. Create Diesel migrations for three tables
+4. Create DB models and conversion logic
+5. Add save/load/list/update/delete operations
+6. Create `InMemoryNarrativeRepository` for testing
 
 **Future (CLI and Advanced Features):**
 1. CLI interface (Step 5)
-2. Streaming support
-3. Checkpoint/resume for long narratives
-4. Variable substitution
-5. Parallel execution for independent acts
+2. Video storage implementation (filesystem or S3 backend)
+3. Media deduplication using content hashes
+4. Streaming support for act execution
+5. Checkpoint/resume for long narratives
+6. Variable substitution in prompts
+7. Parallel execution for independent acts
 
 ## Files and Locations
 
@@ -395,8 +511,16 @@ TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
 - `src/narrative/provider.rs` - NarrativeProvider trait and ActConfig
 - `src/narrative/executor.rs` - NarrativeExecutor implementation
 - `src/narrative/toml.rs` - TOML deserialization layer
+- `src/narrative/repository.rs` - NarrativeRepository trait and types (TODO)
 - `src/narrative/error.rs` - Error types
 - `src/narrative/mod.rs` - Module exports
+
+**Database Implementation (TODO):**
+- `src/db/mod.rs` - Database module organization
+- `src/db/models.rs` - Diesel ORM models (NarrativeExecutionRow, etc.)
+- `src/db/schema.rs` - Diesel schema definitions
+- `src/db/conversions.rs` - Convert between domain types and DB rows
+- `src/db/repository.rs` - PostgresNarrativeRepository implementation
 
 **Tests:**
 - `tests/narrative_test.rs` - Parser and validation tests (7 tests)

@@ -20,10 +20,14 @@ order = [
 # ============================================================================
 # SIMPLE TEXT ACTS (backward compatible with mint.toml style)
 # ============================================================================
+# NOTE: In TOML, all simple key-value pairs must come BEFORE subtables
 
 [acts]
 # Act 1: Simple text prompt (no special config)
 initial_brief = "You are a product analyst. Your task is to evaluate a new product presentation across multiple formats (slides, video, audio, documents). Provide a structured approach to this analysis."
+
+# Act 8: Final recommendation (simple text, no config overrides)
+final_recommendation = "Provide a final investment recommendation: INVEST, PASS, or NEEDS MORE INFO. Include: (1) overall score out of 10, (2) top 3 strengths, (3) top 3 concerns, (4) key conditions for investment if applicable."
 
 # ============================================================================
 # MULTIMODAL ACTS WITH IMAGES
@@ -128,13 +132,6 @@ max_tokens = 1000
 [[acts.technical_synthesis.input]]
 type = "text"
 content = "Synthesize the technical aspects from all previous analyses. What are the key technical risks? What engineering challenges need to be solved? Be specific and prioritize."
-
-# ============================================================================
-# FINAL RECOMMENDATION (no overrides, uses executor defaults)
-# ============================================================================
-
-# Act 8: Final recommendation (simple text, no config overrides)
-final_recommendation = "Provide a final investment recommendation: INVEST, PASS, or NEEDS MORE INFO. Include: (1) overall score out of 10, (2) top 3 strengths, (3) top 3 concerns, (4) key conditions for investment if applicable."
 
 # ============================================================================
 # ALTERNATIVE SOURCE TYPES (commented out - for reference)

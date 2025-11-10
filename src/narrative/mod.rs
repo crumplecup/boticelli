@@ -10,6 +10,7 @@ mod core;
 mod error;
 mod executor;
 mod provider;
+mod toml;
 
 pub use core::{Narrative, NarrativeMetadata, NarrativeToc};
 pub use error::{NarrativeError, NarrativeErrorKind};

@@ -1,6 +1,7 @@
 //! Core data structures for narratives.
 
 use crate::narrative::{ActConfig, NarrativeError, NarrativeErrorKind, NarrativeProvider};
+use crate::narrative::toml as toml_parsing;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
@@ -25,6 +26,7 @@ pub struct NarrativeToc {
 ///
 /// # Example TOML Structure
 ///
+/// Simple text acts:
 /// ```toml
 /// [narration]
 /// name = "example"
@@ -37,17 +39,33 @@ pub struct NarrativeToc {
 /// act1 = "First prompt"
 /// act2 = "Second prompt"
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+///
+/// Structured multimodal acts:
+/// ```toml
+/// [acts.analyze]
+/// model = "gemini-pro-vision"
+/// temperature = 0.3
+///
+/// [[acts.analyze.input]]
+/// type = "text"
+/// content = "Analyze this image"
+///
+/// [[acts.analyze.input]]
+/// type = "image"
+/// mime = "image/png"
+/// url = "https://example.com/image.png"
+/// ```
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct Narrative {
     /// Narrative metadata
-    #[serde(rename = "narration")]
     pub metadata: NarrativeMetadata,
 
     /// Table of contents defining execution order
     pub toc: NarrativeToc,
 
-    /// Map of act names to their prompts
-    pub acts: HashMap<String, String>,
+    /// Map of act names to their configurations
+    #[serde(skip)]
+    pub acts: HashMap<String, ActConfig>,
 }
 
 impl Narrative {
@@ -72,7 +90,7 @@ impl Narrative {
     /// Ensures:
     /// - Table of contents is not empty
     /// - All acts referenced in toc exist in the acts map
-    /// - All act prompts are non-empty
+    /// - All acts have at least one input
     ///
     /// # Errors
     ///
@@ -98,9 +116,9 @@ impl Narrative {
             }
         }
 
-        // Check that all act prompts are non-empty
-        for (act_name, prompt) in &self.acts {
-            if prompt.trim().is_empty() {
+        // Check that all acts have at least one input
+        for (act_name, config) in &self.acts {
+            if config.inputs.is_empty() {
                 return Err(NarrativeError::new(
                     NarrativeErrorKind::EmptyPrompt(act_name.clone()),
                     line!(),
@@ -114,15 +132,15 @@ impl Narrative {
 
     /// Returns the acts in the order specified by the table of contents.
     ///
-    /// Each tuple contains the act name and its prompt.
-    pub fn ordered_acts(&self) -> Vec<(&str, &str)> {
+    /// Each tuple contains the act name and its configuration.
+    pub fn ordered_acts(&self) -> Vec<(&str, &ActConfig)> {
         self.toc
             .order
             .iter()
             .filter_map(|name| {
                 self.acts
                     .get(name)
-                    .map(|prompt| (name.as_str(), prompt.as_str()))
+                    .map(|config| (name.as_str(), config))
             })
             .collect()
     }
@@ -132,10 +150,43 @@ impl FromStr for Narrative {
     type Err = NarrativeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let narrative: Narrative = toml::from_str(s).map_err(|e| {
+        // Parse TOML into intermediate structure
+        let toml_narrative: toml_parsing::TomlNarrative = toml::from_str(s).map_err(|e| {
             NarrativeError::new(NarrativeErrorKind::TomlParse(e.to_string()), line!(), file!())
         })?;
 
+        // Convert to domain types
+        let metadata = NarrativeMetadata {
+            name: toml_narrative.narration.name,
+            description: toml_narrative.narration.description,
+        };
+
+        let toc = NarrativeToc {
+            order: toml_narrative.toc.order,
+        };
+
+        let mut acts = HashMap::new();
+        for (act_name, toml_act) in toml_narrative.acts {
+            let act_config = toml_act.to_act_config().map_err(|e| {
+                // Check if this is an empty prompt error
+                if e.contains("empty") || e.contains("whitespace") {
+                    NarrativeError::new(
+                        NarrativeErrorKind::EmptyPrompt(act_name.clone()),
+                        line!(),
+                        file!(),
+                    )
+                } else {
+                    NarrativeError::new(
+                        NarrativeErrorKind::TomlParse(format!("Act '{}': {}", act_name, e)),
+                        line!(),
+                        file!(),
+                    )
+                }
+            })?;
+            acts.insert(act_name, act_config);
+        }
+
+        let narrative = Narrative { metadata, toc, acts };
         narrative.validate()?;
         Ok(narrative)
     }
@@ -151,8 +202,6 @@ impl NarrativeProvider for Narrative {
     }
 
     fn get_act_config(&self, act_name: &str) -> Option<ActConfig> {
-        self.acts
-            .get(act_name)
-            .map(|prompt| ActConfig::from_text(prompt.clone()))
+        self.acts.get(act_name).cloned()
     }
 }

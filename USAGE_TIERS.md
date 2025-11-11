@@ -267,146 +267,154 @@ impl Tier for OpenAITier {
 
 ## Rate Limiter Implementation (📋 Planned - Step 4)
 
-### Token Bucket Algorithm
+### Using Governor Crate (GCRA Algorithm)
+
+The [`governor`](https://crates.io/crates/governor) crate provides efficient rate limiting using the Generic Cell Rate Algorithm (GCRA), which is functionally equivalent to a leaky bucket but ~10x faster than mutex-based approaches on multi-threaded workloads.
+
+**Why Governor over manual token buckets:**
+- **Lock-free**: Uses atomic compare-and-swap operations (64-bit state)
+- **No background tasks**: GCRA doesn't require periodic refills
+- **Async-friendly**: Integrated `until_ready()` for waiting
+- **Composable**: Combine multiple limiters for different quota types
 
 ```rust
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use governor::{Quota, RateLimiter as GovernorRateLimiter};
+use std::num::NonZeroU32;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 pub struct RateLimiter {
     tier: Box<dyn Tier>,
 
-    // Token bucket for RPM
-    rpm_tokens: Mutex<f64>,
-    rpm_last_refill: Mutex<Instant>,
+    // RPM limiter (requests per minute)
+    rpm_limiter: Option<Arc<GovernorRateLimiter<governor::state::direct::NotKeyed, governor::clock::DefaultClock>>>,
 
-    // Token bucket for TPM
-    tpm_tokens: Mutex<f64>,
-    tpm_last_refill: Mutex<Instant>,
+    // TPM limiter (tokens per minute)
+    tpm_limiter: Option<Arc<GovernorRateLimiter<governor::state::direct::NotKeyed, governor::clock::DefaultClock>>>,
 
-    // Daily request counter
-    rpd_count: Mutex<u32>,
-    rpd_reset_time: Mutex<Instant>,
+    // RPD counter (requests per day) - using AtomicU32
+    rpd_limiter: Option<Arc<GovernorRateLimiter<governor::state::direct::NotKeyed, governor::clock::DefaultClock>>>,
 
     // Concurrent request semaphore
-    concurrent_semaphore: tokio::sync::Semaphore,
+    concurrent_semaphore: Arc<Semaphore>,
 }
 
 impl RateLimiter {
     pub fn new(tier: Box<dyn Tier>) -> Self {
+        // Create RPM limiter
+        let rpm_limiter = tier.rpm().map(|rpm| {
+            let quota = Quota::per_minute(NonZeroU32::new(rpm).unwrap());
+            Arc::new(GovernorRateLimiter::direct(quota))
+        });
+
+        // Create TPM limiter
+        let tpm_limiter = tier.tpm().and_then(|tpm| {
+            // Governor uses u32, so we need to handle large TPM values
+            NonZeroU32::new(tpm.min(u32::MAX as u64) as u32)
+                .map(|n| Arc::new(GovernorRateLimiter::direct(Quota::per_minute(n))))
+        });
+
+        // Create RPD limiter (per day = per 1440 minutes)
+        let rpd_limiter = tier.rpd().map(|rpd| {
+            let quota = Quota::per_minute(NonZeroU32::new(rpd).unwrap())
+                .allow_burst(NonZeroU32::new(rpd).unwrap());  // Allow full daily burst
+            Arc::new(GovernorRateLimiter::direct(quota))
+        });
+
+        // Create concurrent semaphore
         let max_concurrent = tier.max_concurrent().unwrap_or(u32::MAX) as usize;
+        let concurrent_semaphore = Arc::new(Semaphore::new(max_concurrent));
 
         Self {
-            rpm_tokens: Mutex::new(tier.rpm().unwrap_or(u32::MAX) as f64),
-            tpm_tokens: Mutex::new(tier.tpm().unwrap_or(u64::MAX) as f64),
-            rpm_last_refill: Mutex::new(Instant::now()),
-            tpm_last_refill: Mutex::new(Instant::now()),
-            rpd_count: Mutex::new(0),
-            rpd_reset_time: Mutex::new(Instant::now() + Duration::from_secs(86400)),
-            concurrent_semaphore: tokio::sync::Semaphore::new(max_concurrent),
             tier,
+            rpm_limiter,
+            tpm_limiter,
+            rpd_limiter,
+            concurrent_semaphore,
         }
     }
 
-    /// Wait until we can make a request with the given token count.
+    /// Acquire rate limit permission for a request.
+    ///
+    /// This waits until all rate limits allow the request:
+    /// - RPM (requests per minute)
+    /// - TPM (tokens per minute, based on estimated_tokens)
+    /// - RPD (requests per day)
+    /// - Concurrent request limit
+    ///
+    /// Returns a guard that releases the concurrent slot when dropped.
     pub async fn acquire(&self, estimated_tokens: u64) -> RateLimiterGuard {
-        // Acquire concurrent request slot
-        let permit = self.concurrent_semaphore.acquire().await.unwrap();
+        // Wait for RPM quota
+        if let Some(limiter) = &self.rpm_limiter {
+            limiter.until_ready().await;
+        }
 
-        // Refill RPM tokens
-        self.refill_rpm().await;
+        // Wait for TPM quota (consume estimated tokens)
+        if let Some(limiter) = &self.tpm_limiter {
+            let tokens = (estimated_tokens.min(u32::MAX as u64) as u32).max(1);
+            for _ in 0..tokens {
+                limiter.until_ready().await;
+            }
+        }
 
-        // Refill TPM tokens
-        self.refill_tpm().await;
+        // Wait for RPD quota
+        if let Some(limiter) = &self.rpd_limiter {
+            limiter.until_ready().await;
+        }
+
+        // Acquire concurrent request slot (last to avoid holding slot while waiting)
+        let permit = self.concurrent_semaphore.clone()
+            .acquire_owned()
+            .await
+            .expect("Semaphore should not be closed");
+
+        RateLimiterGuard {
+            _permit: permit,
+        }
+    }
+
+    /// Try to acquire without waiting.
+    /// Returns None if any rate limit would block.
+    pub fn try_acquire(&self, estimated_tokens: u64) -> Option<RateLimiterGuard> {
+        // Check RPM
+        if let Some(limiter) = &self.rpm_limiter {
+            limiter.check().ok()?;
+        }
+
+        // Check TPM
+        if let Some(limiter) = &self.tpm_limiter {
+            let tokens = (estimated_tokens.min(u32::MAX as u64) as u32).max(1);
+            for _ in 0..tokens {
+                limiter.check().ok()?;
+            }
+        }
 
         // Check RPD
-        self.check_rpd().await;
-
-        // Wait for RPM token
-        while !self.try_acquire_rpm().await {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            self.refill_rpm().await;
+        if let Some(limiter) = &self.rpd_limiter {
+            limiter.check().ok()?;
         }
 
-        // Wait for TPM tokens
-        while !self.try_acquire_tpm(estimated_tokens).await {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            self.refill_tpm().await;
-        }
+        // Try to acquire concurrent slot
+        let permit = self.concurrent_semaphore.clone().try_acquire_owned().ok()?;
 
-        RateLimiterGuard { _permit: permit }
-    }
-
-    async fn refill_rpm(&self) {
-        if let Some(rpm) = self.tier.rpm() {
-            let mut tokens = self.rpm_tokens.lock().await;
-            let mut last_refill = self.rpm_last_refill.lock().await;
-
-            let elapsed = last_refill.elapsed();
-            let refill_amount = (rpm as f64 / 60.0) * elapsed.as_secs_f64();
-
-            *tokens = (*tokens + refill_amount).min(rpm as f64);
-            *last_refill = Instant::now();
-        }
-    }
-
-    async fn refill_tpm(&self) {
-        if let Some(tpm) = self.tier.tpm() {
-            let mut tokens = self.tpm_tokens.lock().await;
-            let mut last_refill = self.tpm_last_refill.lock().await;
-
-            let elapsed = last_refill.elapsed();
-            let refill_amount = (tpm as f64 / 60.0) * elapsed.as_secs_f64();
-
-            *tokens = (*tokens + refill_amount).min(tpm as f64);
-            *last_refill = Instant::now();
-        }
-    }
-
-    async fn check_rpd(&self) {
-        if let Some(_rpd) = self.tier.rpd() {
-            let mut reset_time = self.rpd_reset_time.lock().await;
-
-            // Reset daily counter if needed
-            if Instant::now() >= *reset_time {
-                let mut count = self.rpd_count.lock().await;
-                *count = 0;
-                *reset_time = Instant::now() + Duration::from_secs(86400);
-            }
-        }
-    }
-
-    async fn try_acquire_rpm(&self) -> bool {
-        if let Some(_rpm) = self.tier.rpm() {
-            let mut tokens = self.rpm_tokens.lock().await;
-            if *tokens >= 1.0 {
-                *tokens -= 1.0;
-                return true;
-            }
-            false
-        } else {
-            true // No RPM limit
-        }
-    }
-
-    async fn try_acquire_tpm(&self, estimated_tokens: u64) -> bool {
-        if let Some(_tpm) = self.tier.tpm() {
-            let mut tokens = self.tpm_tokens.lock().await;
-            if *tokens >= estimated_tokens as f64 {
-                *tokens -= estimated_tokens as f64;
-                return true;
-            }
-            false
-        } else {
-            true // No TPM limit
-        }
+        Some(RateLimiterGuard { _permit: permit })
     }
 }
 
+/// RAII guard for rate limiter.
+/// Automatically releases the concurrent slot when dropped.
 pub struct RateLimiterGuard {
-    _permit: tokio::sync::SemaphorePermit<'static>,
+    _permit: tokio::sync::OwnedSemaphorePermit,
 }
 ```
+
+**Key advantages of this approach:**
+
+1. **No mutexes** - Governor uses atomic operations, avoiding lock contention
+2. **No polling loops** - `until_ready()` waits efficiently without busy-waiting
+3. **RAII safety** - Semaphore permit is automatically released via Drop
+4. **Composable** - Each quota type has its own independent limiter
+5. **Accurate** - GCRA provides mathematically precise rate limiting
 
 ## Integration with BoticelliDriver (📋 Planned - Step 6)
 

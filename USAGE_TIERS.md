@@ -732,9 +732,13 @@ impl Default for BoticelliConfig {
 Configuration is loaded in the following order (highest priority first):
 
 1. **CLI flags** - Runtime overrides via command-line arguments
-2. **Environment variables** - `GEMINI_TIER`, `ANTHROPIC_TIER`, etc.
-3. **User config file** - `./boticelli.toml` or `~/.config/boticelli/boticelli.toml`
-4. **Bundled defaults** - The `boticelli.toml` shipped with Boticelli
+2. **Auto-detected from API headers** - Provider response headers (most accurate)
+3. **Environment variables** - `GEMINI_TIER`, `ANTHROPIC_TIER`, etc.
+4. **User config file** - `./boticelli.toml` or `~/.config/boticelli/boticelli.toml`
+5. **Bundled defaults** - The `boticelli.toml` shipped with Boticelli
+
+Header detection is preferred because it reflects the actual current limits from the provider,
+automatically updates when you upgrade tiers, and never goes stale.
 
 ### CLI Override Flags
 
@@ -973,23 +977,342 @@ async fn run_narrative(cmd: RunCommand) -> BoticelliResult<()> {
 }
 ```
 
-### Programmatic tier detection
+### Auto-Detection from Response Headers
 
-Some providers return rate limit headers that can be used to auto-detect tier:
+Most providers return rate limit information in response headers. This is the most accurate
+source of truth since it reflects your actual current limits and automatically updates when
+you upgrade tiers.
+
+#### Common Header Formats
+
+Different providers use different header conventions:
+
+**Gemini/Google AI:**
+```
+x-ratelimit-limit: 10          # Requests allowed in current window
+x-ratelimit-remaining: 9       # Requests remaining
+x-ratelimit-reset: 1705012345  # Unix timestamp when limit resets
+```
+
+**Anthropic:**
+```
+anthropic-ratelimit-requests-limit: 50
+anthropic-ratelimit-requests-remaining: 47
+anthropic-ratelimit-requests-reset: 2024-01-11T12:34:56Z
+anthropic-ratelimit-tokens-limit: 40000
+anthropic-ratelimit-tokens-remaining: 35000
+anthropic-ratelimit-tokens-reset: 2024-01-11T12:34:56Z
+```
+
+**OpenAI:**
+```
+x-ratelimit-limit-requests: 500
+x-ratelimit-limit-tokens: 200000
+x-ratelimit-remaining-requests: 495
+x-ratelimit-remaining-tokens: 195000
+x-ratelimit-reset-requests: 12s
+x-ratelimit-reset-tokens: 18s
+```
+
+#### Header Detection Implementation
 
 ```rust
-impl GeminiClient {
-    /// Detect tier from API response headers
-    fn detect_tier_from_headers(&self, headers: &reqwest::header::HeaderMap) -> GeminiTier {
-        if let Some(rpm) = headers.get("x-ratelimit-requests-per-minute") {
-            if rpm.to_str().unwrap_or("0").parse::<u32>().unwrap_or(0) > 100 {
-                return GeminiTier::PayAsYouGo;
-            }
+use reqwest::header::HeaderMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+/// Detects and caches rate limits from API response headers
+pub struct HeaderRateLimitDetector {
+    /// Cached detected limits (updated on each API call)
+    detected_limits: Arc<RwLock<Option<TierConfig>>>,
+}
+
+impl HeaderRateLimitDetector {
+    pub fn new() -> Self {
+        Self {
+            detected_limits: Arc::new(RwLock::new(None)),
         }
-        GeminiTier::Free
+    }
+
+    /// Detect rate limits from Gemini response headers
+    pub async fn detect_gemini(&self, headers: &HeaderMap) -> Option<TierConfig> {
+        // Parse rate limit headers
+        let rpm = parse_header_u32(headers, "x-ratelimit-limit")?;
+
+        // Gemini doesn't expose TPM/RPD in headers, so we infer from RPM
+        let (tpm, rpd, tier_name) = if rpm <= 10 {
+            (Some(250_000), Some(250), "Free")
+        } else if rpm <= 360 {
+            (Some(4_000_000), None, "Pay-as-you-go")
+        } else {
+            (None, None, "Unknown")
+        };
+
+        let config = TierConfig {
+            name: tier_name.to_string(),
+            rpm: Some(rpm),
+            tpm,
+            rpd,
+            max_concurrent: Some(1), // Gemini doesn't expose this
+            daily_quota_usd: None,
+            cost_per_million_input_tokens: if rpm <= 10 { Some(0.0) } else { Some(0.075) },
+            cost_per_million_output_tokens: if rpm <= 10 { Some(0.0) } else { Some(0.30) },
+        };
+
+        // Cache for future use
+        *self.detected_limits.write().await = Some(config.clone());
+
+        Some(config)
+    }
+
+    /// Detect rate limits from Anthropic response headers
+    pub async fn detect_anthropic(&self, headers: &HeaderMap) -> Option<TierConfig> {
+        let rpm = parse_header_u32(headers, "anthropic-ratelimit-requests-limit")?;
+        let tpm = parse_header_u64(headers, "anthropic-ratelimit-tokens-limit")?;
+
+        // Determine tier name from limits
+        let tier_name = match (rpm, tpm) {
+            (5, 20_000) => "Tier 1",
+            (50, 40_000) => "Tier 2",
+            (1000, 80_000) => "Tier 3",
+            (2000, 160_000) => "Tier 4",
+            _ => "Custom",
+        };
+
+        let config = TierConfig {
+            name: tier_name.to_string(),
+            rpm: Some(rpm),
+            tpm: Some(tpm),
+            rpd: None, // Anthropic doesn't have daily limits
+            max_concurrent: Some(5), // Not exposed in headers
+            daily_quota_usd: None,
+            cost_per_million_input_tokens: Some(3.0), // Varies by model
+            cost_per_million_output_tokens: Some(15.0),
+        };
+
+        *self.detected_limits.write().await = Some(config.clone());
+
+        Some(config)
+    }
+
+    /// Detect rate limits from OpenAI response headers
+    pub async fn detect_openai(&self, headers: &HeaderMap) -> Option<TierConfig> {
+        let rpm = parse_header_u32(headers, "x-ratelimit-limit-requests")?;
+        let tpm = parse_header_u64(headers, "x-ratelimit-limit-tokens")?;
+
+        // Determine tier from limits
+        let (tier_name, rpd) = match (rpm, tpm) {
+            (3, 40_000) => ("Free", Some(200)),
+            (500, 200_000) => ("Tier 1", None),
+            (5000, 2_000_000) => ("Tier 2", None),
+            (10000, 10_000_000) => ("Tier 3", None),
+            (10000, 30_000_000) => ("Tier 4", None),
+            (10000, 100_000_000) => ("Tier 5", None),
+            _ => ("Custom", None),
+        };
+
+        let config = TierConfig {
+            name: tier_name.to_string(),
+            rpm: Some(rpm),
+            tpm: Some(tpm),
+            rpd,
+            max_concurrent: Some(50),
+            daily_quota_usd: None,
+            cost_per_million_input_tokens: Some(2.50), // Varies by model
+            cost_per_million_output_tokens: Some(10.0),
+        };
+
+        *self.detected_limits.write().await = Some(config.clone());
+
+        Some(config)
+    }
+
+    /// Get last detected limits (from cache)
+    pub async fn get_cached(&self) -> Option<TierConfig> {
+        self.detected_limits.read().await.clone()
+    }
+}
+
+/// Helper to parse u32 from header
+fn parse_header_u32(headers: &HeaderMap, key: &str) -> Option<u32> {
+    headers
+        .get(key)?
+        .to_str()
+        .ok()?
+        .parse()
+        .ok()
+}
+
+/// Helper to parse u64 from header
+fn parse_header_u64(headers: &HeaderMap, key: &str) -> Option<u64> {
+    headers
+        .get(key)?
+        .to_str()
+        .ok()?
+        .parse()
+        .ok()
+}
+```
+
+#### Integration with Client
+
+```rust
+pub struct GeminiClient {
+    client: gemini_rust::Client,
+    tier: Arc<RwLock<TierConfig>>,
+    rate_limiter: Arc<RateLimiter>,
+    header_detector: HeaderRateLimitDetector,
+}
+
+impl GeminiClient {
+    pub fn new_with_overrides(
+        tier_override: Option<String>,
+        cli_overrides: Option<&RunCommand>,
+    ) -> BoticelliResult<Self> {
+        // Load initial config (CLI > Env > User Config > Defaults)
+        let config = BoticelliConfig::load()?;
+        let tier_name = tier_override
+            .or_else(|| std::env::var("GEMINI_TIER").ok());
+
+        let mut tier_config = config
+            .get_tier("gemini", tier_name.as_deref())
+            .ok_or_else(|| BoticelliError::new(BoticelliErrorKind::Config(
+                "No tier configuration found for Gemini".to_string()
+            )))?;
+
+        // Apply CLI overrides
+        if let Some(cmd) = cli_overrides {
+            tier_config = cmd.apply_overrides(tier_config);
+        }
+
+        let api_key = std::env::var("GEMINI_API_KEY")
+            .map_err(|_| BoticelliError::new(BoticelliErrorKind::Config(
+                "GEMINI_API_KEY not provided".to_string()
+            )))?;
+
+        let client = gemini_rust::Client::new(&api_key);
+
+        Ok(Self {
+            client,
+            tier: Arc::new(RwLock::new(tier_config.clone())),
+            rate_limiter: Arc::new(RateLimiter::new(Box::new(tier_config))),
+            header_detector: HeaderRateLimitDetector::new(),
+        })
+    }
+
+    /// Update rate limits from response headers if available
+    async fn update_from_headers(&self, response: &reqwest::Response) {
+        if let Some(detected) = self.header_detector.detect_gemini(response.headers()).await {
+            tracing::info!(
+                "Detected rate limits from headers: {} RPM, {} TPM",
+                detected.rpm.unwrap_or(0),
+                detected.tpm.unwrap_or(0)
+            );
+
+            // Update tier config
+            *self.tier.write().await = detected.clone();
+
+            // Update rate limiter with new limits
+            // Note: Would need to add update method to RateLimiter
+            // self.rate_limiter.update_limits(detected);
+        }
+    }
+}
+
+#[async_trait]
+impl BoticelliDriver for GeminiClient {
+    async fn generate(&self, request: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+        // Make API request
+        let response = self.client.generate(request).await?;
+
+        // Update limits from headers (auto-detection in background)
+        if let Ok(http_response) = &response {
+            self.update_from_headers(http_response).await;
+        }
+
+        // Process and return response
+        Ok(response)
     }
 }
 ```
+
+#### Persistent Header Detection Cache
+
+To avoid re-detecting on every request, cache detected limits to disk:
+
+```rust
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DetectedLimitsCache {
+    provider: String,
+    detected_at: chrono::DateTime<chrono::Utc>,
+    tier_config: TierConfig,
+}
+
+impl HeaderRateLimitDetector {
+    /// Save detected limits to cache file
+    async fn save_cache(&self, provider: &str) -> BoticelliResult<()> {
+        if let Some(config) = self.detected_limits.read().await.as_ref() {
+            let cache = DetectedLimitsCache {
+                provider: provider.to_string(),
+                detected_at: chrono::Utc::now(),
+                tier_config: config.clone(),
+            };
+
+            let cache_path = dirs::cache_dir()
+                .ok_or_else(|| BoticelliError::new(BoticelliErrorKind::Config(
+                    "Cannot determine cache directory".to_string()
+                )))?
+                .join("boticelli")
+                .join(format!("{}_limits.json", provider));
+
+            if let Some(parent) = cache_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
+            let json = serde_json::to_string_pretty(&cache)?;
+            std::fs::write(cache_path, json)?;
+        }
+
+        Ok(())
+    }
+
+    /// Load detected limits from cache file
+    fn load_cache(provider: &str) -> Option<TierConfig> {
+        let cache_path = dirs::cache_dir()?
+            .join("boticelli")
+            .join(format!("{}_limits.json", provider));
+
+        let content = std::fs::read_to_string(cache_path).ok()?;
+        let cache: DetectedLimitsCache = serde_json::from_str(&content).ok()?;
+
+        // Only use cache if less than 24 hours old
+        let age = chrono::Utc::now() - cache.detected_at;
+        if age < chrono::Duration::hours(24) {
+            Some(cache.tier_config)
+        } else {
+            None
+        }
+    }
+}
+```
+
+#### Benefits of Header Detection
+
+1. **Always Accurate**: Reflects actual current limits from provider
+2. **Auto-Updates**: Detects tier upgrades without manual configuration
+3. **No Staleness**: Never out of date like TOML config can be
+4. **Transparent**: User doesn't need to know their tier name
+5. **Fallback Safe**: TOML config used when headers unavailable
+
+#### When Headers Aren't Available
+
+Some scenarios where TOML fallback is used:
+- First request (before any headers seen)
+- Provider doesn't send rate limit headers
+- Network errors prevent header parsing
+- User explicitly disables detection with CLI flag
 
 ## Error Handling
 

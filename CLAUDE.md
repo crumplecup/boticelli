@@ -166,10 +166,130 @@ impl From<CanvasError> for FormError {
 
 ## Module Organization
 
+### Module Structure
+
 - When a module file exceeds ~500-1000 lines, consider splitting it into a module directory with focused submodules organized by responsibility (e.g., core, io, tools, rendering).
 - Create a mod.rs file to re-export the public API and keep internal organization private.
 - Only put mod and export statements in the mod.rs file, not types, traits or impl blocks.
-- Export types from lib.rs at the crate level, then import them using `use crate::{Type}` in any modules that need them. This provides a single, consistent import path throughout the codebase.
+
+### Visibility and Export Patterns
+
+**Module declarations:**
+- Use private `mod` declarations (not `pub mod`) in both lib.rs and module mod.rs files
+- Keep internal module structure hidden from external users
+
+```rust
+// src/lib.rs or src/mymodule/mod.rs
+mod error;           // Private module
+mod models;          // Private module
+mod internal_helper; // Private module
+```
+
+**Module-level exports (mod.rs):**
+- Re-export public types from submodules using `pub use`
+- This creates the public API for the module
+
+```rust
+// src/mymodule/mod.rs
+mod error;
+mod models;
+mod helper;
+
+pub use error::{MyError, MyErrorKind, MyResult};
+pub use models::{Model, NewModel, ModelRow};
+// helper module stays private, not exported
+```
+
+**Crate-level exports (lib.rs):**
+- Re-export ALL public types from all modules at the crate root
+- This ensures a single, consistent import path throughout the codebase
+
+```rust
+// src/lib.rs
+mod mymodule;
+
+pub use mymodule::{
+    Model, MyError, MyErrorKind, MyResult, NewModel, ModelRow,
+};
+```
+
+### Import Patterns
+
+**For crate-level types (exported from lib.rs):**
+- Always use `use crate::{Type1, Type2}` syntax
+- Never use module paths like `crate::module::Type`
+- Never use `super::` paths
+- Never use wildcard imports like `use module::*`
+
+```rust
+// ✅ GOOD: Import from crate root
+use crate::{Model, MyError, MyResult};
+
+// ❌ BAD: Module path imports
+use crate::mymodule::Model;
+
+// ❌ BAD: Super paths
+use super::models::Model;
+
+// ❌ BAD: Wildcard imports
+use crate::mymodule::*;
+```
+
+**For internal module helpers (not exported at crate level):**
+- Use explicit module paths: `use crate::module::helper::function`
+- For schema tables or module-private items: `use crate::module::schema::table_name`
+
+```rust
+// ✅ GOOD: Internal helper functions
+use crate::database::schema::{users, posts};
+use crate::database::conversions::{row_to_model, model_to_row};
+```
+
+### Complete Example
+
+```rust
+// src/database/mod.rs
+mod error;
+mod models;
+mod conversions;  // Internal helpers
+mod schema;       // Diesel schema
+
+pub use error::{DatabaseError, DatabaseErrorKind, DatabaseResult};
+pub use models::{User, NewUser, UserRow};
+
+// src/lib.rs
+mod database;
+
+pub use database::{
+    DatabaseError, DatabaseErrorKind, DatabaseResult,
+    User, NewUser, UserRow,
+};
+
+// src/database/conversions.rs
+use crate::{User, UserRow, DatabaseResult};  // Crate-level types
+use crate::database::schema::users;          // Internal schema
+
+pub fn row_to_user(row: UserRow) -> DatabaseResult<User> {
+    // ...
+}
+
+// src/database/repository.rs
+use crate::{User, UserRow, DatabaseResult};  // Crate-level types
+use crate::database::conversions::row_to_user;  // Internal helper
+use crate::database::schema::users;             // Internal schema
+```
+
+### Benefits
+
+This pattern provides:
+1. **Single import path** - All types imported as `use crate::{Type}`
+2. **No ambiguity** - Only one way to import each type
+3. **Clean public API** - Internal module structure is hidden
+4. **Easier refactoring** - Module reorganization doesn't break imports
+5. **Better IDE support** - Auto-completion works consistently
+
+### Cross-Module Communication
+
 - Add helper methods (setters, mut accessors) to core structs for clean cross-module communication instead of directly accessing fields.
 
 ## Common Refactoring Patterns

@@ -5,10 +5,12 @@
 //! detects limits from API response headers when possible.
 
 pub mod config;
+pub mod limiter;
 pub mod tier;
 pub mod tiers;
 
 pub use config::{BoticelliConfig, ProviderConfig, TierConfig};
+pub use limiter::{RateLimiter, RateLimiterGuard};
 pub use tier::Tier;
 
 // Re-export provider-specific tier enums

@@ -23,14 +23,14 @@ This document serves as both design specification and implementation guide. Sect
 - 🚧 **In Progress** - Currently being implemented
 - 📋 **Planned** - Designed but not yet implemented
 
-### Current Status (Step 3 of 8 Complete)
+### Current Status (Step 4 of 8 Complete)
 
 | Step | Component | Status | Location |
 |------|-----------|--------|----------|
 | 1 | Core Tier trait | ✅ Implemented | `src/rate_limit/tier.rs` |
 | 2 | TierConfig & BoticelliConfig | ✅ Implemented | `src/rate_limit/config.rs` |
 | 3 | Provider tier enums | ✅ Implemented | `src/rate_limit/tiers.rs` |
-| 4 | RateLimiter (governor/GCRA) | 📋 Planned | - |
+| 4 | RateLimiter (governor/GCRA) | ✅ Implemented | `src/rate_limit/limiter.rs` |
 | 5 | HeaderRateLimitDetector | 📋 Planned | - |
 | 6 | GeminiClient integration | 📋 Planned | - |
 | 7 | CLI override flags | 📋 Planned | - |
@@ -265,7 +265,7 @@ impl Tier for OpenAITier {
 }
 ```
 
-## Rate Limiter Implementation (📋 Planned - Step 4)
+## Rate Limiter Implementation (✅ Implemented - Step 4)
 
 ### Using Governor Crate (GCRA Algorithm)
 

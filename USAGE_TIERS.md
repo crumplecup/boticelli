@@ -15,7 +15,28 @@ For e.g., the type GeminiClient could have a field called tier containing an enu
 
 As an alternative, we could define a Tier trait with methods that define a common language of rate limits among different models.
 
-### Core Trait
+## Implementation Status
+
+This document serves as both design specification and implementation guide. Sections are marked with their implementation status:
+
+- ✅ **Implemented** - Code is written, tested, and committed
+- 🚧 **In Progress** - Currently being implemented
+- 📋 **Planned** - Designed but not yet implemented
+
+### Current Status (Step 1 of 8 Complete)
+
+| Step | Component | Status | Location |
+|------|-----------|--------|----------|
+| 1 | Core Tier trait | ✅ Implemented | `src/rate_limit/tier.rs` |
+| 2 | TierConfig & BoticelliConfig | 📋 Planned | - |
+| 3 | Provider tier enums | 📋 Planned | - |
+| 4 | RateLimiter (token bucket) | 📋 Planned | - |
+| 5 | HeaderRateLimitDetector | 📋 Planned | - |
+| 6 | GeminiClient integration | 📋 Planned | - |
+| 7 | CLI override flags | 📋 Planned | - |
+| 8 | Testing & validation | 📋 Planned | - |
+
+### Core Trait (✅ Implemented)
 
 ```rust
 /// Represents rate limiting constraints for an API tier.
@@ -46,7 +67,7 @@ pub trait Tier: Send + Sync {
 }
 ```
 
-## Provider-Specific Tier Implementations
+## Provider-Specific Tier Implementations (📋 Planned - Step 3)
 
 ### Gemini Tiers
 
@@ -244,7 +265,7 @@ impl Tier for OpenAITier {
 }
 ```
 
-## Rate Limiter Implementation
+## Rate Limiter Implementation (📋 Planned - Step 4)
 
 ### Token Bucket Algorithm
 
@@ -387,7 +408,7 @@ pub struct RateLimiterGuard {
 }
 ```
 
-## Integration with BoticelliDriver
+## Integration with BoticelliDriver (📋 Planned - Step 6)
 
 ### Option 1: Add Rate Limiting to Driver Trait
 
@@ -448,7 +469,7 @@ fn estimate_tokens(request: &GenerateRequest) -> u64 {
 }
 ```
 
-## Usage Tracking and Cost Estimation
+## Usage Tracking and Cost Estimation (📋 Planned)
 
 ### Track actual usage in database
 
@@ -481,7 +502,7 @@ pub fn calculate_cost(tier: &dyn Tier, input_tokens: u64, output_tokens: u64) ->
 }
 ```
 
-## Configuration
+## Configuration (📋 Planned - Step 2)
 
 ### Configuration File: boticelli.toml
 
@@ -740,7 +761,7 @@ Configuration is loaded in the following order (highest priority first):
 Header detection is preferred because it reflects the actual current limits from the provider,
 automatically updates when you upgrade tiers, and never goes stale.
 
-### CLI Override Flags
+### CLI Override Flags (📋 Planned - Step 7)
 
 Override rate limits at runtime for quick testing or one-off adjustments:
 
@@ -977,7 +998,7 @@ async fn run_narrative(cmd: RunCommand) -> BoticelliResult<()> {
 }
 ```
 
-### Auto-Detection from Response Headers
+### Auto-Detection from Response Headers (📋 Planned - Step 5)
 
 Most providers return rate limit information in response headers. This is the most accurate
 source of truth since it reflects your actual current limits and automatically updates when
@@ -1314,7 +1335,7 @@ Some scenarios where TOML fallback is used:
 - Network errors prevent header parsing
 - User explicitly disables detection with CLI flag
 
-## Error Handling
+## Error Handling (📋 Planned)
 
 ### Rate limit errors
 

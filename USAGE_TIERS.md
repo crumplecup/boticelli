@@ -30,7 +30,7 @@ This document serves as both design specification and implementation guide. Sect
 | 1 | Core Tier trait | ✅ Implemented | `src/rate_limit/tier.rs` |
 | 2 | TierConfig & BoticelliConfig | ✅ Implemented | `src/rate_limit/config.rs` |
 | 3 | Provider tier enums | 📋 Planned | - |
-| 4 | RateLimiter (token bucket) | 📋 Planned | - |
+| 4 | RateLimiter (governor/GCRA) | 📋 Planned | - |
 | 5 | HeaderRateLimitDetector | 📋 Planned | - |
 | 6 | GeminiClient integration | 📋 Planned | - |
 | 7 | CLI override flags | 📋 Planned | - |

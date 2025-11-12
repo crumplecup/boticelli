@@ -1,13 +1,15 @@
 //! Google Gemini API implementation.
 
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::env;
+use std::sync::{Arc, Mutex};
 
 use gemini_rust::Gemini;
 
 use crate::{
-    BoticelliConfig, BoticelliDriver, BoticelliResult, GenerateRequest, GenerateResponse, Input,
-    Metadata, ModelMetadata, Output, RateLimiter, Role, Tier, Vision,
+    BoticelliConfig, BoticelliDriver, BoticelliResult, GenerateRequest, GenerateResponse,
+    GeminiTier, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier, Vision,
 };
 
 //
@@ -164,25 +166,35 @@ impl<T: Tier> Tier for TieredGemini<T> {
 // ─── CLIENT ─────────────────────────────────────────────────────────────────────
 //
 
-/// Client for Google Gemini API.
+/// Client for Google Gemini API with per-model client pooling.
+///
+/// This client maintains a cache of model-specific Gemini clients, each with its own
+/// rate limiter. Clients are created lazily on first use for each model.
+///
+/// # Architecture
+///
+/// - **Client Pool**: `HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>`
+/// - **Lazy Creation**: Clients are created on first request for each model
+/// - **Rate Limiting**: Each model has its own rate limiter with tier-specific limits
+/// - **Thread-Safe**: Uses `Arc<Mutex<HashMap>>` for concurrent access
 pub struct GeminiClient {
-    client: Gemini,
+    /// Cache of model-specific clients with rate limiting
+    clients: Arc<Mutex<HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>>>,
+    /// API key for creating new clients
+    api_key: String,
+    /// Default model name when req.model is None
     model_name: String,
-    rate_limiter: Option<RateLimiter>,
+    /// Default tier for rate limiting
+    default_tier: GeminiTier,
 }
 
 impl std::fmt::Debug for GeminiClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let client_count = self.clients.lock().unwrap().len();
         f.debug_struct("GeminiClient")
             .field("model_name", &self.model_name)
-            .field(
-                "rate_limiter",
-                &if self.rate_limiter.is_some() {
-                    "Some(RateLimiter)"
-                } else {
-                    "None"
-                },
-            )
+            .field("default_tier", &self.default_tier)
+            .field("cached_clients", &client_count)
             .finish_non_exhaustive()
     }
 }
@@ -212,12 +224,16 @@ impl GeminiClient {
     /// Reads the API key from the `GEMINI_API_KEY` environment variable.
     /// Applies rate limiting according to the provided tier.
     ///
+    /// The tier is converted to a `GeminiTier` by matching on the tier name.
+    /// Supported tier names: "Free", "Pay-as-you-go". Defaults to Free for unknown names.
+    ///
     /// # Example
     ///
     /// ```no_run
     /// use boticelli::{GeminiClient, GeminiTier};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// // Using GeminiTier directly is preferred
     /// let client = GeminiClient::new_with_tier(Some(Box::new(GeminiTier::Free)))?;
     /// # Ok(())
     /// # }
@@ -266,16 +282,24 @@ impl GeminiClient {
         let api_key = env::var("GEMINI_API_KEY")
             .map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
 
-        let client = Gemini::new(api_key)
-            .map_err(|e| GeminiError::new(GeminiErrorKind::ClientCreation(e.to_string())))?;
-
-        // Create rate limiter if tier provided
-        let rate_limiter = tier.map(RateLimiter::new);
+        // Convert Box<dyn Tier> to GeminiTier by matching on tier name
+        // This is a pragmatic approach to handle the architecture mismatch
+        // between generic RateLimiter<T> and the Box<dyn Tier> API
+        let default_tier = if let Some(tier) = tier {
+            match tier.name() {
+                "Free" => GeminiTier::Free,
+                "Pay-as-you-go" => GeminiTier::PayAsYouGo,
+                _ => GeminiTier::Free, // Default to Free for unknown tier names
+            }
+        } else {
+            GeminiTier::Free // Default when no tier specified
+        };
 
         Ok(Self {
-            client,
+            clients: Arc::new(Mutex::new(HashMap::new())),
+            api_key,
             model_name: "gemini-2.0-flash".to_string(),
-            rate_limiter,
+            default_tier,
         })
     }
 

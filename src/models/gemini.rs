@@ -192,12 +192,11 @@ impl GeminiClient {
         // Load .env file if present
         let _ = dotenvy::dotenv();
 
-        let api_key =
-            env::var("GEMINI_API_KEY").map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
+        let api_key = env::var("GEMINI_API_KEY")
+            .map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
 
-        let client = Gemini::new(api_key).map_err(|e| {
-            GeminiError::new(GeminiErrorKind::ClientCreation(e.to_string()))
-        })?;
+        let client = Gemini::new(api_key)
+            .map_err(|e| GeminiError::new(GeminiErrorKind::ClientCreation(e.to_string())))?;
 
         // Create rate limiter if tier provided
         let rate_limiter = tier.map(RateLimiter::new);
@@ -303,9 +302,10 @@ impl GeminiClient {
         }
 
         // Execute the request
-        let response = builder.execute().await.map_err(|e| {
-            GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string()))
-        })?;
+        let response = builder
+            .execute()
+            .await
+            .map_err(|e| GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string())))?;
 
         // Extract text from response
         let text = response.text();
@@ -357,7 +357,13 @@ impl Vision for GeminiClient {
     }
 
     fn supported_image_formats(&self) -> &[&'static str] {
-        &["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"]
+        &[
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "image/heic",
+            "image/heif",
+        ]
     }
 
     fn max_image_size_bytes(&self) -> usize {

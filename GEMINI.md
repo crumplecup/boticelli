@@ -1,97 +1,77 @@
-# Gemini Model Selection Issue
+# Gemini Client Architecture Guide
 
-## Quick Summary
+## Overview
 
-**Status**: Tests written, implementation plan finalized
-**Priority**: High (blocks multi-model narratives)
+The `GeminiClient` implementation enables per-request model selection for Google's Gemini API, allowing multi-model narratives where different acts can use different Gemini models (e.g., `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-2.5-flash`).
 
-**The Bug**: `GeminiClient` ignores the `model` field in `GenerateRequest`, causing all API calls to use the same default model instead of the requested model.
+**Status**: Phases 1-5 complete. Core functionality implemented and working.
 
-**The Fix**:
-1. Make `RateLimiter<T: Tier>` generic to take ownership of any tier type
-2. Create `TieredGemini<T>` that couples `Gemini` client with tier
-3. Store single `HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>` in `GeminiClient`
-4. Each model gets its own rate-limited client, created lazily via `Gemini::with_model()`
+## Architecture
 
-**Architecture Benefits**:
-- Type-safe: Cannot access client without going through rate limiter
-- Efficient: One HashMap, no `Box<dyn Tier>` overhead
-- Clean ownership: RateLimiter owns the TieredGemini
+### The Problem We Solved
 
-**Next Steps**: See Phase 2 in Implementation Plan below (make RateLimiter generic).
+**Original Issue**: The `gemini-rust` crate requires model selection at client creation time via `Gemini::with_model(api_key, model_name)`, but Boticelli's API design expects per-request model selection via `GenerateRequest.model`. This architectural mismatch meant all requests used the same model regardless of what was specified in the request.
 
----
+**Impact**:
+- Multi-model narratives broken
+- Cost unpredictability (may use expensive models when cheap ones requested)
+- Violated `BoticelliDriver` trait contract
 
-## Problem Statement
+### The Solution: Three-Layer Architecture
 
-The `GeminiClient` implementation has a critical bug where the model specified in `GenerateRequest.model` or the narrative's per-act model configuration is completely ignored. All API calls use whatever default model the `gemini-rust` crate provides (likely `gemini-2.5-flash`), regardless of what model name is requested.
+We implemented a three-layer architecture that couples clients with rate limiting:
 
-## Root Cause Analysis
-
-### Architecture Mismatch
-
-1. **Boticelli API Design**: Supports per-request model selection via `GenerateRequest.model`
-2. **gemini-rust Crate**: Sets model at client creation time via `Gemini::with_model(api_key, model_name)`
-
-### Current Implementation Issues
-
-**File**: `src/models/gemini.rs`
-
-**Line 206**: Default model set but never used
-```rust
-model_name: "gemini-2.0-flash".to_string(),
+```
+┌─────────────────────────────────────────────────────────────┐
+│ GeminiClient                                                │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>  │ │
+│ │                                                           │ │
+│ │  "gemini-2.0-flash" ──► RateLimiter ──► TieredGemini    │ │
+│ │                                          ├─ Gemini       │ │
+│ │                                          └─ GeminiTier   │ │
+│ │                                                           │ │
+│ │  "gemini-2.5-flash" ──► RateLimiter ──► TieredGemini    │ │
+│ │                                          ├─ Gemini       │ │
+│ │                                          └─ GeminiTier   │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Line 198**: Client created without model specification
+#### Layer 1: `TieredGemini<T: Tier>`
+
+**File**: `src/models/gemini.rs` (lines 96-161)
+
+Couples a Gemini API client with its rate limit tier:
+
 ```rust
-let client = Gemini::new(api_key)
-    .map_err(|e| GeminiError::new(GeminiErrorKind::ClientCreation(e.to_string())))?;
-```
-
-**Line 232-316**: `generate_internal()` method ignores `req.model`
-- Uses `req.max_tokens` (lines 245, 301) ✓
-- Uses `req.temperature` (lines 296-298) ✓
-- **Never uses `req.model`** ✗
-
-## Example of the Problem
-
-**Narrative**: `narrations/text_models.toml`
-- Act 1: Requests `gemini-2.0-flash-lite`
-- Act 2: Requests `gemini-2.0-flash`
-- Act 3: Requests `gemini-2.5-flash-lite`
-
-**Actual Behavior**: All three acts use the same model (likely `gemini-2.5-flash` default)
-
-## Impact
-
-1. **Narrative system broken**: Cannot execute multi-model workflows
-2. **Cost unpredictability**: May be using more expensive models than intended
-3. **Feature testing impossible**: Cannot validate behavior across different Gemini models
-4. **API contract violation**: `BoticelliDriver` trait promises to respect `GenerateRequest.model`
-
-## Solution: TieredGemini with Generic RateLimiter
-
-Use a `TieredGemini` type that couples the model client with its tier, and make `RateLimiter` generic over `T: Tier` to take ownership of the tier.
-
-### Architecture Overview
-
-**TieredGemini** - Couples client with tier:
-```rust
-struct TieredGemini<T: Tier> {
-    client: Gemini,
-    tier: T,
+#[derive(Clone)]
+pub struct TieredGemini<T: Tier> {
+    pub client: Gemini,
+    pub tier: T,
 }
 
 impl<T: Tier> Tier for TieredGemini<T> {
-    // Delegate all Tier methods to self.tier
+    // Delegates all Tier methods to self.tier
     fn rpm(&self) -> Option<u32> { self.tier.rpm() }
     fn tpm(&self) -> Option<u64> { self.tier.tpm() }
     // ... etc
 }
 ```
 
-**Generic RateLimiter** - Takes ownership of any `T: Tier`:
+**Purpose**:
+- Couples the client with its rate limit configuration
+- Implements `Tier` so it can be used with `RateLimiter<T>`
+- Enables type-safe access control
+
+#### Layer 2: `RateLimiter<T: Tier>`
+
+**File**: `src/rate_limit/limiter.rs` (lines 21-219)
+
+Generic rate limiter that takes ownership of any type implementing `Tier`:
+
 ```rust
+#[derive(Clone)]
 pub struct RateLimiter<T: Tier> {
     inner: T,
     rpm_limiter: Option<Arc<DirectRateLimiter>>,
@@ -101,342 +81,301 @@ pub struct RateLimiter<T: Tier> {
 }
 
 impl<T: Tier> RateLimiter<T> {
-    pub fn new(tier: T) -> Self {
-        // Extract rate limits from tier to build governor limiters
-        // Store tier as self.inner
-    }
-
-    pub fn inner(&self) -> &T {
-        &self.inner
-    }
+    pub fn new(tier: T) -> Self { /* ... */ }
+    pub fn inner(&self) -> &T { &self.inner }
+    pub async fn acquire(&self, estimated_tokens: u64) -> RateLimiterGuard { /* ... */ }
 }
 ```
 
-**GeminiClient** - Single HashMap storing rate-limited clients:
+**Purpose**:
+- Enforces rate limits (RPM, TPM, RPD, concurrent requests)
+- Owns the inner value (TieredGemini)
+- Provides controlled access via `inner()` method
+- Generic over `T: Tier` - no dynamic dispatch overhead
+
+**Key Property**: Cheap to clone (all internal state is Arc-wrapped)
+
+#### Layer 3: `GeminiClient`
+
+**File**: `src/models/gemini.rs` (lines 169-189)
+
+Client pool that manages model-specific rate-limited clients:
+
 ```rust
-struct GeminiClient {
-    // Single HashMap: model name -> rate-limited client
+pub struct GeminiClient {
     clients: Arc<Mutex<HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>>>,
     api_key: String,
-    default_model: String,
+    model_name: String,      // Default model
     default_tier: GeminiTier,
 }
-
-async fn generate_internal(&self, req: &GenerateRequest) -> GeminiResult<GenerateResponse> {
-    let model_name = req.model.as_ref().unwrap_or(&self.default_model);
-
-    // Get or create rate-limited client for this model
-    let rate_limited_client = {
-        let mut clients = self.clients.lock().unwrap();
-        clients.entry(model_name.clone())
-            .or_insert_with(|| {
-                let gemini = Gemini::with_model(&self.api_key, model_name).unwrap();
-                let tiered = TieredGemini {
-                    client: gemini,
-                    tier: self.default_tier.clone(), // Or model-specific tier
-                };
-                RateLimiter::new(tiered)
-            })
-            .clone() // TODO: Check if RateLimiter needs Arc or Clone
-    };
-
-    // Acquire rate limit
-    let _guard = rate_limited_client.acquire(estimated_tokens).await;
-
-    // Access the client through the rate limiter
-    let response = rate_limited_client.inner().client.generate_content()...;
-}
 ```
 
-### Benefits
+**Purpose**:
+- Lazy client creation (only create clients for models actually used)
+- One client per model, each with independent rate limiting
+- Thread-safe access via `Arc<Mutex<HashMap>>`
+- Minimal lock contention (held only during get-or-create)
 
-1. **Type safety**: Cannot access client without going through rate limiter
-2. **Single source of truth**: Model + tier + rate limits are coupled
-3. **Ownership model**: RateLimiter owns the TieredGemini, enforcing controlled access
-4. **Cleaner code**: One HashMap instead of two
-5. **Generic pattern**: Can use `RateLimiter<T>` for other providers too
-6. **No Box<dyn Trait>**: Direct storage eliminates dynamic dispatch overhead
+### Request Flow
 
-## Testing Requirements
+When `generate_internal()` is called:
 
-### Unit Tests Needed
+1. **Extract model name**:
+   ```rust
+   let model_name = req.model.as_ref().unwrap_or(&self.model_name);
+   ```
 
-1. **Model name validation**: Verify correct model is used for each request
-2. **Model override**: Test that `GenerateRequest.model` overrides default
-3. **Model caching**: Verify clients are reused correctly for same model
-4. **Default model fallback**: When `req.model` is None
-5. **Per-model rate limiting**: Each model has independent rate limiter with correct limits
+2. **Get or create rate-limited client**:
+   ```rust
+   let rate_limited_client = {
+       let mut clients = self.clients.lock().unwrap();
+       clients.entry(model_name.clone())
+           .or_insert_with(|| {
+               let client = Gemini::with_model(&self.api_key, model_name.clone())
+                   .expect("Failed to create client");
+               let tiered = TieredGemini { client, tier: self.default_tier };
+               RateLimiter::new(tiered)
+           })
+           .clone()  // Cheap - all Arc internals
+   };
+   ```
 
-### Integration Tests Needed
+3. **Acquire rate limit**:
+   ```rust
+   let _guard = rate_limited_client.acquire(estimated_tokens).await;
+   ```
 
-1. **Narrative multi-model execution**: Run `narrations/text_models.toml`
-2. **Model metadata**: Verify `model_name()` returns correct value
-3. **Rate limit independence**: Verify different models don't share rate limits
+4. **Access client through rate limiter**:
+   ```rust
+   let client = &rate_limited_client.inner().client;
+   let mut builder = client.generate_content();
+   ```
 
-## Implementation Plan
+5. **Execute request** (existing message processing logic)
 
-### Phase 1: Tests ✓
+## Usage
 
-- [x] Create `tests/gemini_model_test.rs`
-- [x] Test: Model name is respected in API calls
-- [x] Test: Default model is used when `req.model` is None
-- [x] Test: Model override works in narrative execution
+### Basic Usage
 
-### Phase 2: Make RateLimiter Generic
+```rust
+use boticelli::{GeminiClient, GenerateRequest, Input, Message, Role};
 
-**File**: `src/rate_limit/limiter.rs`
+// Create client (uses Free tier by default)
+let client = GeminiClient::new()?;
 
-- [ ] Change `RateLimiter` from struct to `RateLimiter<T: Tier>`
-- [ ] Replace `_tier: Box<dyn Tier>` with `inner: T`
-- [ ] Update `new(tier: Box<dyn Tier>)` to `new(tier: T)`
-- [ ] Extract rate limits from `tier` using trait methods (same as before)
-- [ ] Add `pub fn inner(&self) -> &T` method to access the inner value
-- [ ] Update docstrings to reflect generic parameter
-- [ ] Verify that `RateLimiter` is `Clone` if `T: Clone` (may need `#[derive(Clone)]` with bounds)
+// Request using default model (gemini-2.0-flash)
+let request = GenerateRequest {
+    messages: vec![Message {
+        role: Role::User,
+        content: vec![Input::Text("Hello".to_string())],
+    }],
+    model: None,  // Uses default
+    ..Default::default()
+};
 
-**Breaking Changes**:
-- `RateLimiter::new()` signature changes from `Box<dyn Tier>` to generic `T`
-- Code using `RateLimiter` needs to specify type parameter
+let response = client.generate(&request).await?;
+```
 
-### Phase 3: Create TieredGemini Type
+### Per-Request Model Selection
 
-**File**: `src/models/gemini.rs` (add before `GeminiClient`)
+```rust
+// Override model for this request
+let request = GenerateRequest {
+    messages: vec![Message {
+        role: Role::User,
+        content: vec![Input::Text("Complex task".to_string())],
+    }],
+    model: Some("gemini-2.5-flash".to_string()),  // Use latest model
+    ..Default::default()
+};
 
-- [ ] Create `struct TieredGemini<T: Tier> { client: Gemini, tier: T }`
-- [ ] Implement `Tier for TieredGemini<T>` by delegating all methods to `self.tier`
-- [ ] Add `#[derive(Clone)]` if `Gemini` and `T` are both `Clone`
-- [ ] Add documentation explaining the type couples client with tier
+let response = client.generate(&request).await?;
+```
 
-### Phase 4: Refactor GeminiClient Structure
-
-**File**: `src/models/gemini.rs`
-
-- [ ] Replace fields:
-  - Remove: `client: Gemini`, `rate_limiter: Option<RateLimiter>`
-  - Add: `clients: Arc<Mutex<HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>>>`
-  - Add: `api_key: String`
-  - Add: `default_tier: GeminiTier`
-  - Keep: `model_name: String` (stores default model)
-
-- [ ] Update `new_internal()`:
-  - Store `api_key` field
-  - Convert `tier: Option<Box<dyn Tier>>` to `GeminiTier` (or default to Free)
-  - Initialize empty `clients` HashMap
-  - Don't create any clients yet (lazy creation in generate_internal)
-
-- [ ] Update `Debug` impl for new structure
-
-### Phase 5: Implement Per-Request Model Selection
-
-**File**: `src/models/gemini.rs` - `generate_internal()` method
-
-- [ ] Extract model name: `let model_name = req.model.as_ref().unwrap_or(&self.model_name);`
-- [ ] Get or create rate-limited client:
-  ```rust
-  let rate_limited_client = {
-      let mut clients = self.clients.lock().unwrap();
-      clients.entry(model_name.clone())
-          .or_insert_with(|| {
-              let client = Gemini::with_model(&self.api_key, model_name)
-                  .map_err(|e| GeminiError::new(GeminiErrorKind::ClientCreation(e.to_string())))?;
-              let tiered = TieredGemini { client, tier: self.default_tier };
-              RateLimiter::new(tiered)
-          })
-  };
-  ```
-- [ ] Acquire rate limit: `let _guard = rate_limited_client.acquire(estimated_tokens).await;`
-- [ ] Access client: `rate_limited_client.inner().client.generate_content()...`
-- [ ] Remove old rate limiting code
-- [ ] Handle errors from client creation in or_insert_with
-
-### Phase 6: Fix Backward Compatibility
-
-**Files**: Various
-
-- [ ] Check `src/main.rs` CLI code - may still use `Box<dyn Tier>`
-- [ ] Consider keeping `new_with_tier(Option<Box<dyn Tier>>)` as wrapper that converts to GeminiTier
-- [ ] Or accept breaking change and update callers
-- [ ] Update tests that use RateLimiter directly
-
-### Phase 7: Update Supporting Methods
-
-**File**: `src/models/gemini.rs`
-
-- [ ] `model_name()` - keep returning `&self.model_name` (default model)
-- [ ] `Metadata` impl - verify still correct
-- [ ] Update docstrings to explain client pooling
-
-### Phase 8: Testing and Validation
-
-- [ ] Run `cargo check` to verify compilation
-- [ ] Run `cargo test` (unit tests without API key)
-- [ ] Run `cargo test --features gemini` (with API key set)
-- [ ] Validate `narrations/text_models.toml` uses correct models
-- [ ] Run `cargo clippy` and address warnings
-- [ ] Verify thread safety of HashMap access
-
-### Phase 9: Documentation
-
-- [ ] Update docstrings to explain model selection
-- [ ] Add examples showing model override
-- [ ] Document default model behavior
-- [ ] Note the client pooling implementation in module docs
-- [ ] Update USAGE_TIERS.md if needed for new RateLimiter API
-
-### Phase 10: Model-Specific Rate Limits (Future Work)
-
-**Note**: Deferred to follow-up PR. Initial implementation uses tier-level rate limits for all models.
-
-- [ ] Extend `boticelli.toml` schema to support per-model rate limits
-- [ ] Update `BoticelliConfig` to parse model-specific configuration
-- [ ] Modify rate limiter creation to look up model-specific limits
-- [ ] Fall back to tier-level limits if model-specific config not found
-- [ ] Document the new configuration format
-
-## Migration Challenges
-
-### Challenge 1: RateLimiter Clone/Arc
-
-**Issue**: HashMap needs to clone/share the `RateLimiter<TieredGemini>`. Options:
-
-1. **Make RateLimiter Clone**: Add `#[derive(Clone)]` - all the governor limiters and semaphore are already `Arc`-wrapped, so cloning is cheap
-2. **Wrap in Arc**: Store `Arc<RateLimiter<TieredGemini>>` in HashMap
-3. **Use entry API differently**: Keep `&mut` reference without cloning
-
-**Recommendation**: Option 1 - make `RateLimiter` cloneable. The internal state is already Arc-based.
-
-### Challenge 2: Error Handling in or_insert_with
-
-**Issue**: `or_insert_with` closure must return `T`, but `Gemini::with_model()` can fail.
-
-**Solutions**:
-1. **Panic on error**: `.unwrap()` in the closure (acceptable for initialization errors)
-2. **Pre-validate outside HashMap**: Check model name before lock
-3. **Return Result from generate_internal**: Propagate error, but awkward with entry API
-4. **Two-phase creation**: Check outside lock, insert inside lock
-
-**Recommendation**: Option 1 initially (panic on client creation failure), refine in Phase 6 if needed.
-
-### Challenge 3: Gemini Client Cloneability
-
-**Issue**: Need to verify if `gemini_rust::Gemini` implements `Clone`.
-
-**Investigation needed**:
-- Check gemini-rust source/docs for Clone impl
-- If not Clone, wrap in Arc: `TieredGemini { client: Arc<Gemini>, tier: T }`
-- Or redesign to not require cloning
-
-### Challenge 4: Converting Box<dyn Tier> to GeminiTier
-
-**Issue**: `GeminiClient::new_with_tier(Option<Box<dyn Tier>>)` takes dynamic trait object, but we need concrete `GeminiTier`.
-
-**Solutions**:
-1. **Downcast**: Use `Any` trait to downcast `Box<dyn Tier>` to `GeminiTier`
-2. **Change API**: Make `new_with_tier(Option<GeminiTier>)` - breaking change
-3. **Keep Box<dyn Tier>**: Store in GeminiClient, but then can't use generic RateLimiter
-4. **Enum dispatch**: Use GeminiTier enum, match on tier name from string
-
-**Recommendation**: Option 2 or 4 - accept API change to enable generic architecture.
-
-## Decisions Made
-
-1. **Architecture** ✓: Use `TieredGemini<T: Tier>` with generic `RateLimiter<T>`
-   - Couples model client with tier
-   - RateLimiter takes ownership of TieredGemini
-   - Single HashMap instead of two separate ones
-
-2. **Rate limiting** ✓: Each model gets its own rate limiter
-   - Different models have different rate limits per tier
-   - Flash vs Flash-Lite have different quotas
-   - RateLimiter owns the tier information
-
-3. **Client lifecycle** ✓: No manual cleanup
-   - Clients persist for program lifetime
-   - Acceptable for CLI usage patterns
-   - Minimal memory overhead (only creates clients for models actually used)
-
-4. **Crate selection** ✓: Stick with gemini-rust
-   - Use client pool to work around API design mismatch
-   - Minimal HashMap contention expected
-
-5. **Type system** ✓: Generic `T: Tier` instead of `Box<dyn Tier>`
-   - Eliminates dynamic dispatch overhead
-   - Better type safety
-   - Cleaner ownership model
-
-## Model-Specific Rate Limits Challenge
-
-### Current Configuration
-
-The `boticelli.toml` configuration defines rate limits at the tier level:
+### Multi-Model Narratives
 
 ```toml
-[providers.gemini.tiers.free]
-rpm = 10                    # Requests per minute
-tpm = 250_000              # Tokens per minute
-rpd = 250                  # Requests per day
+# narrations/text_models.toml
+[acts.act1]
+model = "gemini-2.0-flash-lite"  # Cheap model for drafting
+[[acts.act1.input]]
+type = "text"
+content = "Generate draft content"
+
+[acts.act2]
+model = "gemini-2.0-flash"  # Standard model for critique
+[[acts.act2.input]]
+type = "text"
+content = "Critique the draft"
+
+[acts.act3]
+model = "gemini-2.5-flash"  # Latest model for final version
+[[acts.act3.input]]
+type = "text"
+content = "Create final polished version"
 ```
 
-However, different Gemini models have different rate limits even within the same tier. For example:
-- `gemini-2.0-flash`: Higher limits, more expensive
-- `gemini-2.0-flash-lite`: Lower limits, cheaper
-- `gemini-2.5-flash`: Latest model, potentially different limits
+```rust
+use boticelli::{GeminiClient, Narrative, NarrativeExecutor};
 
-### Configuration Options
+let client = GeminiClient::new()?;
+let executor = NarrativeExecutor::new(client);
+let narrative = Narrative::from_file("narrations/text_models.toml")?;
 
-**Option A: Nested model configuration** (Recommended)
+let execution = executor.execute(&narrative).await?;
+// Each act uses its specified model
+```
+
+## Implementation Details
+
+### Tier Conversion
+
+Since `new_with_tier()` accepts `Option<Box<dyn Tier>>` (for API compatibility) but we need concrete `GeminiTier`, we use name matching:
+
+**File**: `src/models/gemini.rs` (lines 281-292)
+
+```rust
+let default_tier = if let Some(tier) = tier {
+    match tier.name() {
+        "Free" => GeminiTier::Free,
+        "Pay-as-you-go" => GeminiTier::PayAsYouGo,
+        _ => GeminiTier::Free,  // Default for unknown
+    }
+} else {
+    GeminiTier::Free
+};
+```
+
+This pragmatic approach handles the Box<dyn Tier> → GeminiTier conversion without breaking the existing API.
+
+### Client Lifecycle
+
+- **Creation**: Lazy - only created when first requested
+- **Caching**: Stored in HashMap for reuse
+- **Cleanup**: Never - clients live for program lifetime
+- **Memory**: Minimal - only creates clients for models actually used
+
+### Thread Safety
+
+- **HashMap access**: Protected by `Mutex`
+- **Lock duration**: Minimal - held only during get-or-create
+- **Cloning**: Cheap - `RateLimiter` clone is O(1) (Arc internals)
+- **Contention**: Low - typical usage is serial (one request at a time)
+
+### Error Handling
+
+**Current**: Uses `.expect()` in `or_insert_with` for client creation failures
+
+**Rationale**: Client creation failures are initialization errors (bad API key, network issues), not recoverable at this point. Panicking is acceptable.
+
+**Future**: Could improve with two-phase creation or better error propagation (see Phase 6 in implementation history).
+
+## Testing
+
+**File**: `tests/gemini_model_test.rs`
+
+Test suite includes:
+
+1. **Default model usage**: Verify default model when `req.model` is None
+2. **Model override**: Verify correct model used when `req.model` is Some
+3. **Multiple model requests**: Verify client pool handles different models
+4. **Narrative integration**: Verify multi-model narrative execution
+
+**Run tests** (requires `GEMINI_API_KEY`):
+```bash
+cargo test --features gemini
+```
+
+## Benefits of This Architecture
+
+1. **Type Safety**: Cannot access client without going through rate limiter
+2. **Performance**: No dynamic dispatch (`Box<dyn Trait>` eliminated)
+3. **Correctness**: Each model has independent rate limiting
+4. **Efficiency**: Clients reused, cheap cloning
+5. **Simplicity**: Single HashMap instead of separate structures
+6. **Extensibility**: Generic pattern works for other providers
+
+## Future Work
+
+### Model-Specific Rate Limits (Phase 10)
+
+**Current**: All models in a tier share the same rate limits
+
+**Future**: Allow per-model rate limits in `boticelli.toml`:
+
 ```toml
 [providers.gemini.tiers.free.models."gemini-2.0-flash"]
 rpm = 10
 tpm = 250_000
 
 [providers.gemini.tiers.free.models."gemini-2.0-flash-lite"]
-rpm = 15  # Lite model has higher RPM but similar TPM
+rpm = 15  # Lite model has higher RPM
 tpm = 250_000
 ```
 
-**Option B: Separate model-tier keys**
+**Implementation**:
+1. Extend `BoticelliConfig` to parse nested model configuration
+2. Modify client creation to look up model-specific tier
+3. Fall back to tier-level defaults if model config not found
+
+### Better Error Handling (Phase 6)
+
+**Current**: Panics on client creation failure in `or_insert_with`
+
+**Improvement Options**:
+1. Two-phase creation: validate outside lock, insert inside
+2. Pre-validate model names against known models
+3. Return `Result` from `generate_internal` and handle gracefully
+
+### Configurable Default Model
+
+**Current**: Hard-coded `"gemini-2.0-flash"`
+
+**Future**: Allow configuration in `boticelli.toml`:
+
 ```toml
-[providers.gemini.model_tiers."gemini-2.0-flash".free]
-rpm = 10
-tpm = 250_000
+[providers.gemini]
+default_model = "gemini-2.0-flash-lite"
+default_tier = "free"
 ```
 
-**Option C: Fallback to tier defaults**
-- Start with tier-level defaults
-- Allow per-model overrides only when needed
-- Most models inherit tier limits
+## Implementation History
 
-### Implementation Strategy
+### Phase 1: Investigation and Tests ✓
+- Identified the bug (model field ignored)
+- Created test suite (`tests/gemini_model_test.rs`)
+- Documented the problem in GEMINI.md
 
-For Phase 5, use **Option A with fallback**:
-1. Look for model-specific config: `providers.gemini.tiers.{tier}.models.{model}`
-2. If not found, fall back to tier-level config: `providers.gemini.tiers.{tier}`
-3. This allows gradual migration: new models get defaults, special cases get overrides
+### Phase 2: Generic RateLimiter ✓
+- Changed `RateLimiter` from `RateLimiter { _tier: Box<dyn Tier> }` to `RateLimiter<T: Tier> { inner: T }`
+- Added `inner()` method for accessing wrapped value
+- Updated tests to remove `Box<dyn Tier>` wrappers
 
-## Open Questions
+### Phase 3: TieredGemini Type ✓
+- Created `TieredGemini<T: Tier>` struct
+- Implemented `Tier` trait by delegation
+- Exported from crate root
 
-1. **Model-specific rate limits**: How to implement in configuration?
-   - **Decision needed**: Choose Option A, B, or C above
-   - Requires extending BoticelliConfig parsing
-   - See Phase 5 in Implementation Plan
+### Phase 4: GeminiClient Refactoring ✓
+- Replaced single client with HashMap of rate-limited clients
+- Added `api_key`, `default_tier` fields
+- Updated constructor to do lazy initialization
 
-2. **Default model**: What should the default be?
-   - Current: `gemini-2.0-flash`
-   - Latest stable: `gemini-2.5-flash`
-   - Most cost-effective: `gemini-2.0-flash-lite`
-   - Let user configure in `boticelli.toml`?
+### Phase 5: Per-Request Model Selection ✓
+- Implemented get-or-create pattern in `generate_internal()`
+- Added model name extraction from request
+- Integrated rate limiting per client
 
-3. **Model validation**: Should we validate model names?
-   - Check against known models list?
-   - Let API return errors for invalid models? (simpler, more maintainable)
+### Remaining Work
 
-4. **Clone behavior**: Can `Gemini` clients be cloned safely?
-   - Need to verify gemini-rust's `Gemini` type supports clone
-   - If not, wrap in `Arc` instead of cloning
+**Phase 6**: Fix backward compatibility issues (check `src/main.rs`)
+**Phase 7**: Update supporting methods (`model_name()`, `Metadata`, docs)
+**Phase 8**: Run full test suite with API calls
+**Phase 9**: Update documentation and examples
 
 ## References
 
-- gemini-rust docs: <https://docs.rs/gemini-rust>
-- gemini-rust source: Check Cargo.lock for repository URL
-- Gemini API models: <https://ai.google.dev/gemini-api/docs/models/gemini>
+- **gemini-rust crate**: <https://docs.rs/gemini-rust>
+- **Gemini API docs**: <https://ai.google.dev/gemini-api/docs/models/gemini>
+- **Governor (rate limiting)**: <https://docs.rs/governor>
+- **CLAUDE.md**: Project coding standards and patterns

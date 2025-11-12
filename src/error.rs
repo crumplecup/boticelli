@@ -181,7 +181,7 @@ impl std::fmt::Display for BackendError {
 impl std::error::Error for BackendError {}
 
 /// Crate-level error variants.
-#[derive(Debug)]
+#[derive(Debug, derive_more::From)]
 pub enum BoticelliErrorKind {
     /// HTTP error from reqwest
     Http(HttpError),
@@ -203,37 +203,7 @@ pub enum BoticelliErrorKind {
     NotImplemented(NotImplementedError),
 }
 
-// Manual From implementations to avoid conflicts with multiple String variants
-impl From<HttpError> for BoticelliErrorKind {
-    fn from(err: HttpError) -> Self {
-        BoticelliErrorKind::Http(err)
-    }
-}
-
-impl From<JsonError> for BoticelliErrorKind {
-    fn from(err: JsonError) -> Self {
-        BoticelliErrorKind::Json(err)
-    }
-}
-
-impl From<ConfigError> for BoticelliErrorKind {
-    fn from(err: ConfigError) -> Self {
-        BoticelliErrorKind::Config(err)
-    }
-}
-
-impl From<NotImplementedError> for BoticelliErrorKind {
-    fn from(err: NotImplementedError) -> Self {
-        BoticelliErrorKind::NotImplemented(err)
-    }
-}
-
-impl From<BackendError> for BoticelliErrorKind {
-    fn from(err: BackendError) -> Self {
-        BoticelliErrorKind::Backend(err)
-    }
-}
-
+// Convenience From implementations to wrap external errors
 impl From<reqwest::Error> for BoticelliErrorKind {
     fn from(err: reqwest::Error) -> Self {
         BoticelliErrorKind::Http(HttpError::new(err))
@@ -243,26 +213,6 @@ impl From<reqwest::Error> for BoticelliErrorKind {
 impl From<serde_json::Error> for BoticelliErrorKind {
     fn from(err: serde_json::Error) -> Self {
         BoticelliErrorKind::Json(JsonError::new(err))
-    }
-}
-
-#[cfg(feature = "gemini")]
-impl From<crate::models::gemini::GeminiError> for BoticelliErrorKind {
-    fn from(err: crate::models::gemini::GeminiError) -> Self {
-        BoticelliErrorKind::Gemini(err)
-    }
-}
-
-#[cfg(feature = "database")]
-impl From<crate::DatabaseError> for BoticelliErrorKind {
-    fn from(err: crate::DatabaseError) -> Self {
-        BoticelliErrorKind::Database(err)
-    }
-}
-
-impl From<crate::narrative::NarrativeError> for BoticelliErrorKind {
-    fn from(err: crate::narrative::NarrativeError) -> Self {
-        BoticelliErrorKind::Narrative(err)
     }
 }
 
@@ -307,74 +257,20 @@ impl std::fmt::Display for BoticelliError {
 
 impl std::error::Error for BoticelliError {}
 
-impl From<BoticelliErrorKind> for BoticelliError {
-    fn from(kind: BoticelliErrorKind) -> Self {
-        Self::new(kind)
-    }
-}
-
-impl From<HttpError> for BoticelliError {
-    fn from(err: HttpError) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-impl From<JsonError> for BoticelliError {
-    fn from(err: JsonError) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-impl From<ConfigError> for BoticelliError {
-    fn from(err: ConfigError) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-impl From<NotImplementedError> for BoticelliError {
-    fn from(err: NotImplementedError) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-impl From<BackendError> for BoticelliError {
-    fn from(err: BackendError) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-impl From<reqwest::Error> for BoticelliError {
-    fn from(err: reqwest::Error) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-impl From<serde_json::Error> for BoticelliError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-#[cfg(feature = "gemini")]
-impl From<crate::models::gemini::GeminiError> for BoticelliError {
-    fn from(err: crate::models::gemini::GeminiError) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
-    }
-}
-
-impl From<crate::narrative::NarrativeError> for BoticelliError {
-    fn from(err: crate::narrative::NarrativeError) -> Self {
-        Self::new(BoticelliErrorKind::from(err))
+// Generic From implementation for any type that converts to BoticelliErrorKind
+impl<T> From<T> for BoticelliError
+where
+    T: Into<BoticelliErrorKind>,
+{
+    fn from(err: T) -> Self {
+        Self::new(err.into())
     }
 }
 
 #[cfg(feature = "database")]
 impl From<diesel::result::Error> for BoticelliError {
     fn from(err: diesel::result::Error) -> Self {
-        Self::new(BoticelliErrorKind::Backend(BackendError::new(format!(
-            "Database error: {}",
-            err
-        ))))
+        BackendError::new(format!("Database error: {}", err)).into()
     }
 }
 

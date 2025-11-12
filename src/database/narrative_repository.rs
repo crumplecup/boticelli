@@ -6,7 +6,7 @@ use crate::database::narrative_conversions::{
 };
 use crate::database::schema::{act_executions, act_inputs, narrative_executions};
 use crate::{
-    ActExecutionRow, ActInputRow, BoticelliError, BoticelliErrorKind, BoticelliResult,
+    ActExecutionRow, ActInputRow, BackendError, BoticelliError, BoticelliResult,
     ExecutionFilter, ExecutionStatus, ExecutionSummary, NarrativeExecution,
     NarrativeExecutionRow, NarrativeRepository,
 };
@@ -77,7 +77,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                 .values(&new_execution)
                 .get_result(conn)
                 .map_err(|e| {
-                    BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                    BoticelliError::from(BackendError::new(format!(
                         "Failed to insert narrative execution: {}",
                         e
                     )))
@@ -92,7 +92,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                     .values(&new_act)
                     .get_result(conn)
                     .map_err(|e| {
-                        BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                        BoticelliError::from(BackendError::new(format!(
                             "Failed to insert act execution: {}",
                             e
                         )))
@@ -105,7 +105,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                         .values(&new_input)
                         .execute(conn)
                         .map_err(|e| {
-                            BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                            BoticelliError::from(BackendError::new(format!(
                                 "Failed to insert act input: {}",
                                 e
                             )))
@@ -125,7 +125,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             .find(id)
             .first(&mut *conn)
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Failed to load narrative execution {}: {}",
                     id, e
                 )))
@@ -136,7 +136,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             .order(act_executions::sequence_number.asc())
             .load(&mut *conn)
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Failed to load act executions: {}",
                     e
                 )))
@@ -146,7 +146,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         let input_rows: Vec<ActInputRow> = ActInputRow::belonging_to(&act_rows)
             .load(&mut *conn)
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Failed to load act inputs: {}",
                     e
                 )))
@@ -215,7 +215,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         }
 
         let execution_rows: Vec<NarrativeExecutionRow> = query.load(&mut *conn).map_err(|e| {
-            BoticelliError::new(BoticelliErrorKind::Backend(format!(
+            BoticelliError::from(BackendError::new(format!(
                 "Failed to list executions: {}",
                 e
             )))
@@ -229,7 +229,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                 .count()
                 .get_result(&mut *conn)
                 .map_err(|e| {
-                    BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                    BoticelliError::from(BackendError::new(format!(
                         "Failed to count acts: {}",
                         e
                     )))
@@ -266,7 +266,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             ))
             .execute(&mut *conn)
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Failed to update execution status: {}",
                     e
                 )))
@@ -281,7 +281,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         diesel::delete(narrative_executions::table.find(id))
             .execute(&mut *conn)
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Failed to delete execution: {}",
                     e
                 )))

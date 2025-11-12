@@ -6,7 +6,7 @@
 //! - User overrides (./boticelli.toml or ~/.config/boticelli/boticelli.toml)
 //! - Automatic merging with user values taking precedence
 
-use crate::{BoticelliError, BoticelliErrorKind, BoticelliResult, Tier};
+use crate::{BoticelliError, BoticelliResult, ConfigError, Tier};
 use config::{Config, File, FileFormat};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -147,7 +147,7 @@ impl BoticelliConfig {
             .add_source(File::from(path.as_ref()))
             .build()
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Config(format!(
+                BoticelliError::from(ConfigError::new(format!(
                     "Failed to read configuration from {}: {}",
                     path.as_ref().display(),
                     e
@@ -155,7 +155,7 @@ impl BoticelliConfig {
             })?
             .try_deserialize()
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Config(format!(
+                BoticelliError::from(ConfigError::new(format!(
                     "Failed to parse configuration: {}",
                     e
                 )))
@@ -202,14 +202,14 @@ impl BoticelliConfig {
         builder
             .build()
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Config(format!(
+                BoticelliError::from(ConfigError::new(format!(
                     "Failed to build configuration: {}",
                     e
                 )))
             })?
             .try_deserialize()
             .map_err(|e| {
-                BoticelliError::new(BoticelliErrorKind::Config(format!(
+                BoticelliError::from(ConfigError::new(format!(
                     "Failed to parse configuration: {}",
                     e
                 )))

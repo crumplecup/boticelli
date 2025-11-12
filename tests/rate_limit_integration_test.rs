@@ -8,7 +8,7 @@
 //!
 //! API tests are minimal (1 request, ~10 tokens) to conserve quota.
 
-use boticelli::{RateLimiter, Tier, TierConfig};
+use boticelli::{BoticelliDriver, RateLimiter, Tier, TierConfig};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 

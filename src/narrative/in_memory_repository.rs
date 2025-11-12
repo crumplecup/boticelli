@@ -4,7 +4,7 @@
 //! in memory. Useful for unit tests and demonstrating the trait interface.
 
 use crate::{
-    BoticelliError, BoticelliErrorKind, BoticelliResult, ExecutionFilter, ExecutionStatus,
+    BackendError, BoticelliError, BoticelliResult, ExecutionFilter, ExecutionStatus,
     ExecutionSummary, NarrativeExecution, NarrativeRepository,
 };
 use async_trait::async_trait;
@@ -116,7 +116,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
             .get(&id)
             .map(|stored| stored.execution.clone())
             .ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Execution {} not found",
                     id
                 )))
@@ -199,7 +199,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
                 }
             })
             .ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Execution {} not found",
                     id
                 )))
@@ -213,7 +213,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
             .remove(&id)
             .map(|_| ())
             .ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Backend(format!(
+                BoticelliError::from(BackendError::new(format!(
                     "Execution {} not found",
                     id
                 )))

@@ -1,14 +1,194 @@
 //! Error types for the Boticelli library.
 
+/// HTTP error wrapping reqwest errors with source location.
+#[derive(Debug)]
+pub struct HttpError {
+    /// The underlying reqwest error
+    pub error: reqwest::Error,
+    /// Line number where the error occurred
+    pub line: u32,
+    /// File where the error occurred
+    pub file: &'static str,
+}
+
+impl HttpError {
+    /// Create a new HttpError with the given reqwest error at the current location.
+    #[track_caller]
+    pub fn new(error: reqwest::Error) -> Self {
+        let location = std::panic::Location::caller();
+        Self {
+            error,
+            line: location.line(),
+            file: location.file(),
+        }
+    }
+}
+
+impl std::fmt::Display for HttpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "HTTP Error: {} at line {} in {}",
+            self.error, self.line, self.file
+        )
+    }
+}
+
+impl std::error::Error for HttpError {}
+
+/// JSON serialization/deserialization error with source location.
+#[derive(Debug)]
+pub struct JsonError {
+    /// The underlying serde_json error
+    pub error: serde_json::Error,
+    /// Line number where the error occurred
+    pub line: u32,
+    /// File where the error occurred
+    pub file: &'static str,
+}
+
+impl JsonError {
+    /// Create a new JsonError with the given serde_json error at the current location.
+    #[track_caller]
+    pub fn new(error: serde_json::Error) -> Self {
+        let location = std::panic::Location::caller();
+        Self {
+            error,
+            line: location.line(),
+            file: location.file(),
+        }
+    }
+}
+
+impl std::fmt::Display for JsonError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "JSON Error: {} at line {} in {}",
+            self.error, self.line, self.file
+        )
+    }
+}
+
+impl std::error::Error for JsonError {}
+
+/// Configuration error with source location.
+#[derive(Debug)]
+pub struct ConfigError {
+    /// Error message
+    pub message: String,
+    /// Line number where the error occurred
+    pub line: u32,
+    /// File where the error occurred
+    pub file: &'static str,
+}
+
+impl ConfigError {
+    /// Create a new ConfigError with the given message at the current location.
+    #[track_caller]
+    pub fn new(message: impl Into<String>) -> Self {
+        let location = std::panic::Location::caller();
+        Self {
+            message: message.into(),
+            line: location.line(),
+            file: location.file(),
+        }
+    }
+}
+
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Configuration Error: {} at line {} in {}",
+            self.message, self.line, self.file
+        )
+    }
+}
+
+impl std::error::Error for ConfigError {}
+
+/// Not implemented error with source location.
+#[derive(Debug)]
+pub struct NotImplementedError {
+    /// Description of what is not implemented
+    pub message: String,
+    /// Line number where the error occurred
+    pub line: u32,
+    /// File where the error occurred
+    pub file: &'static str,
+}
+
+impl NotImplementedError {
+    /// Create a new NotImplementedError with the given message at the current location.
+    #[track_caller]
+    pub fn new(message: impl Into<String>) -> Self {
+        let location = std::panic::Location::caller();
+        Self {
+            message: message.into(),
+            line: location.line(),
+            file: location.file(),
+        }
+    }
+}
+
+impl std::fmt::Display for NotImplementedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Not Implemented: {} at line {} in {}",
+            self.message, self.line, self.file
+        )
+    }
+}
+
+impl std::error::Error for NotImplementedError {}
+
+/// Backend error with source location.
+#[derive(Debug)]
+pub struct BackendError {
+    /// Error message
+    pub message: String,
+    /// Line number where the error occurred
+    pub line: u32,
+    /// File where the error occurred
+    pub file: &'static str,
+}
+
+impl BackendError {
+    /// Create a new BackendError with the given message at the current location.
+    #[track_caller]
+    pub fn new(message: impl Into<String>) -> Self {
+        let location = std::panic::Location::caller();
+        Self {
+            message: message.into(),
+            line: location.line(),
+            file: location.file(),
+        }
+    }
+}
+
+impl std::fmt::Display for BackendError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Backend Error: {} at line {} in {}",
+            self.message, self.line, self.file
+        )
+    }
+}
+
+impl std::error::Error for BackendError {}
+
 /// Crate-level error variants.
 #[derive(Debug)]
 pub enum BoticelliErrorKind {
     /// HTTP error from reqwest
-    Http(reqwest::Error),
+    Http(HttpError),
     /// JSON serialization/deserialization error
-    Json(serde_json::Error),
-    /// Generic backend error (deprecated - use specific error types)
-    Backend(String),
+    Json(JsonError),
+    /// Generic backend error
+    Backend(BackendError),
     /// Gemini-specific error
     #[cfg(feature = "gemini")]
     Gemini(crate::GeminiError),
@@ -18,21 +198,51 @@ pub enum BoticelliErrorKind {
     /// Narrative error
     Narrative(crate::NarrativeError),
     /// Configuration error
-    Config(String),
+    Config(ConfigError),
     /// Feature not yet implemented
-    NotImplemented(String),
+    NotImplemented(NotImplementedError),
 }
 
 // Manual From implementations to avoid conflicts with multiple String variants
+impl From<HttpError> for BoticelliErrorKind {
+    fn from(err: HttpError) -> Self {
+        BoticelliErrorKind::Http(err)
+    }
+}
+
+impl From<JsonError> for BoticelliErrorKind {
+    fn from(err: JsonError) -> Self {
+        BoticelliErrorKind::Json(err)
+    }
+}
+
+impl From<ConfigError> for BoticelliErrorKind {
+    fn from(err: ConfigError) -> Self {
+        BoticelliErrorKind::Config(err)
+    }
+}
+
+impl From<NotImplementedError> for BoticelliErrorKind {
+    fn from(err: NotImplementedError) -> Self {
+        BoticelliErrorKind::NotImplemented(err)
+    }
+}
+
+impl From<BackendError> for BoticelliErrorKind {
+    fn from(err: BackendError) -> Self {
+        BoticelliErrorKind::Backend(err)
+    }
+}
+
 impl From<reqwest::Error> for BoticelliErrorKind {
     fn from(err: reqwest::Error) -> Self {
-        BoticelliErrorKind::Http(err)
+        BoticelliErrorKind::Http(HttpError::new(err))
     }
 }
 
 impl From<serde_json::Error> for BoticelliErrorKind {
     fn from(err: serde_json::Error) -> Self {
-        BoticelliErrorKind::Json(err)
+        BoticelliErrorKind::Json(JsonError::new(err))
     }
 }
 
@@ -61,14 +271,14 @@ impl std::fmt::Display for BoticelliErrorKind {
         match self {
             BoticelliErrorKind::Http(e) => write!(f, "{}", e),
             BoticelliErrorKind::Json(e) => write!(f, "{}", e),
-            BoticelliErrorKind::Backend(msg) => write!(f, "{}", msg),
+            BoticelliErrorKind::Backend(e) => write!(f, "{}", e),
             #[cfg(feature = "gemini")]
             BoticelliErrorKind::Gemini(e) => write!(f, "{}", e),
             #[cfg(feature = "database")]
             BoticelliErrorKind::Database(e) => write!(f, "{}", e),
             BoticelliErrorKind::Narrative(e) => write!(f, "{}", e),
-            BoticelliErrorKind::Config(msg) => write!(f, "Configuration error: {}", msg),
-            BoticelliErrorKind::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
+            BoticelliErrorKind::Config(e) => write!(f, "{}", e),
+            BoticelliErrorKind::NotImplemented(e) => write!(f, "{}", e),
         }
     }
 }
@@ -103,6 +313,36 @@ impl From<BoticelliErrorKind> for BoticelliError {
     }
 }
 
+impl From<HttpError> for BoticelliError {
+    fn from(err: HttpError) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+impl From<JsonError> for BoticelliError {
+    fn from(err: JsonError) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+impl From<ConfigError> for BoticelliError {
+    fn from(err: ConfigError) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+impl From<NotImplementedError> for BoticelliError {
+    fn from(err: NotImplementedError) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
+impl From<BackendError> for BoticelliError {
+    fn from(err: BackendError) -> Self {
+        Self::new(BoticelliErrorKind::from(err))
+    }
+}
+
 impl From<reqwest::Error> for BoticelliError {
     fn from(err: reqwest::Error) -> Self {
         Self::new(BoticelliErrorKind::from(err))
@@ -131,10 +371,10 @@ impl From<crate::narrative::NarrativeError> for BoticelliError {
 #[cfg(feature = "database")]
 impl From<diesel::result::Error> for BoticelliError {
     fn from(err: diesel::result::Error) -> Self {
-        Self::new(BoticelliErrorKind::Backend(format!(
+        Self::new(BoticelliErrorKind::Backend(BackendError::new(format!(
             "Database error: {}",
             err
-        )))
+        ))))
     }
 }
 

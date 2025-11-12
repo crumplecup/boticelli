@@ -70,7 +70,10 @@ pub use database::{
 };
 
 // Re-export error types
-pub use error::{BoticelliError, BoticelliErrorKind, BoticelliResult};
+pub use error::{
+    BackendError, BoticelliError, BoticelliErrorKind, BoticelliResult, ConfigError, HttpError,
+    JsonError, NotImplementedError,
+};
 
 // Re-export model-specific error types
 // Re-export model implementations

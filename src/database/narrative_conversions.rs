@@ -1,7 +1,7 @@
 //! Conversions between domain types and database models for narrative executions.
 
 use crate::{
-    ActExecution, ActExecutionRow, ActInputRow, BoticelliError, BoticelliErrorKind,
+    ActExecution, ActExecutionRow, ActInputRow, BackendError, BoticelliError,
     BoticelliResult, ExecutionStatus, Input, MediaSource, NarrativeExecution,
     NarrativeExecutionRow, NewActExecutionRow, NewActInputRow, NewNarrativeExecutionRow,
 };
@@ -19,7 +19,7 @@ pub fn status_to_string(status: ExecutionStatus) -> String {
 /// Convert database string to ExecutionStatus.
 pub fn string_to_status(s: &str) -> BoticelliResult<ExecutionStatus> {
     s.parse().map_err(|e| {
-        BoticelliError::new(BoticelliErrorKind::Backend(format!(
+        BoticelliError::from(BackendError::new(format!(
             "Invalid execution status: {}",
             e
         )))
@@ -173,7 +173,7 @@ fn row_to_input(row: ActInputRow) -> BoticelliResult<Input> {
     match row.input_type.as_str() {
         "text" => {
             let text = row.text_content.ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Backend(
+                BoticelliError::from(BackendError::new(
                     "Text input missing text_content".to_string(),
                 ))
             })?;
@@ -208,7 +208,7 @@ fn row_to_input(row: ActInputRow) -> BoticelliResult<Input> {
                 filename: row.filename,
             })
         }
-        _ => Err(BoticelliError::new(BoticelliErrorKind::Backend(format!(
+        _ => Err(BoticelliError::from(BackendError::new(format!(
             "Unknown input type: {}",
             row.input_type
         )))),
@@ -220,7 +220,7 @@ fn row_to_media_source(row: &ActInputRow) -> BoticelliResult<MediaSource> {
     match row.source_type.as_deref() {
         Some("url") => {
             let url = row.source_url.clone().ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Backend(
+                BoticelliError::from(BackendError::new(
                     "URL source missing source_url".to_string(),
                 ))
             })?;
@@ -228,7 +228,7 @@ fn row_to_media_source(row: &ActInputRow) -> BoticelliResult<MediaSource> {
         }
         Some("base64") => {
             let base64 = row.source_base64.clone().ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Backend(
+                BoticelliError::from(BackendError::new(
                     "Base64 source missing source_base64".to_string(),
                 ))
             })?;
@@ -236,18 +236,18 @@ fn row_to_media_source(row: &ActInputRow) -> BoticelliResult<MediaSource> {
         }
         Some("binary") => {
             let binary = row.source_binary.clone().ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Backend(
+                BoticelliError::from(BackendError::new(
                     "Binary source missing source_binary".to_string(),
                 ))
             })?;
             Ok(MediaSource::Binary(binary))
         }
-        Some(other) => Err(BoticelliError::new(BoticelliErrorKind::Backend(format!(
+        Some(other) => Err(BoticelliError::from(BackendError::new(format!(
             "Unknown source type: {}",
             other
         )))),
-        None => Err(BoticelliError::new(BoticelliErrorKind::Backend(
-            "Media source type not specified".to_string(),
+        None => Err(BoticelliError::from(BackendError::new(
+            "Media source type not specified",
         ))),
     }
 }

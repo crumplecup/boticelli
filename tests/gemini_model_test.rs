@@ -16,8 +16,8 @@ use boticelli::{BoticelliDriver, GenerateRequest, GeminiClient, Input, Message, 
 async fn test_default_model_usage() {
     let client = GeminiClient::new().expect("Failed to create client");
 
-    // The default model should be gemini-2.0-flash
-    assert_eq!(client.model_name(), "gemini-2.0-flash");
+    // The default model should be gemini-2.5-flash
+    assert_eq!(client.model_name(), "gemini-2.5-flash");
 
     let request = GenerateRequest {
         messages: vec![Message {
@@ -40,14 +40,13 @@ async fn test_default_model_usage() {
 
 /// Test that GeminiClient respects the model override in GenerateRequest.
 ///
-/// This is the critical test that currently FAILS because GeminiClient
-/// ignores req.model in its generate_internal() method.
+/// This validates that per-request model selection works correctly.
 #[tokio::test]
 #[ignore] // Requires GEMINI_API_KEY
 async fn test_model_override_in_request() {
     let client = GeminiClient::new().expect("Failed to create client");
 
-    // Request should use gemini-2.0-flash-lite, not the default
+    // Request should use gemini-2.5-flash-lite, not the default
     let request = GenerateRequest {
         messages: vec![Message {
             role: Role::User,
@@ -57,7 +56,7 @@ async fn test_model_override_in_request() {
         }],
         max_tokens: Some(50),
         temperature: None,
-        model: Some("gemini-2.0-flash-lite".to_string()), // Override default
+        model: Some("gemini-2.5-flash-lite".to_string()), // Override default
     };
 
     let response = client
@@ -116,7 +115,7 @@ async fn test_multiple_model_requests() {
         }],
         max_tokens: Some(10),
         temperature: None,
-        model: Some("gemini-2.0-flash-lite".to_string()),
+        model: Some("gemini-2.5-flash-lite".to_string()),
     };
 
     let response1 = client.generate(&request1).await.expect("Request 1 failed");
@@ -130,13 +129,13 @@ async fn test_multiple_model_requests() {
         }],
         max_tokens: Some(10),
         temperature: None,
-        model: Some("gemini-2.0-flash".to_string()),
+        model: Some("gemini-2.5-flash".to_string()),
     };
 
     let response2 = client.generate(&request2).await.expect("Request 2 failed");
     assert!(!response2.outputs.is_empty());
 
-    // Request 3: Use 2.5 model
+    // Request 3: Use pro model
     let request3 = GenerateRequest {
         messages: vec![Message {
             role: Role::User,
@@ -144,7 +143,7 @@ async fn test_multiple_model_requests() {
         }],
         max_tokens: Some(10),
         temperature: None,
-        model: Some("gemini-2.5-flash".to_string()),
+        model: Some("gemini-2.5-pro".to_string()),
     };
 
     let response3 = client.generate(&request3).await.expect("Request 3 failed");
@@ -160,7 +159,7 @@ fn test_model_name_method() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Should return the default model
-    assert_eq!(client.model_name(), "gemini-2.0-flash");
+    assert_eq!(client.model_name(), "gemini-2.5-flash");
 }
 
 /// Integration test: Run the text_models narrative to verify multi-model support.
@@ -190,15 +189,15 @@ async fn test_narrative_multi_model_execution() {
     // Verify each act used the correct model
     assert_eq!(
         execution.act_executions[0].model,
-        Some("gemini-2.0-flash-lite".to_string())
+        Some("gemini-2.5-flash-lite".to_string())
     );
     assert_eq!(
         execution.act_executions[1].model,
-        Some("gemini-2.0-flash".to_string())
+        Some("gemini-2.5-flash".to_string())
     );
     assert_eq!(
         execution.act_executions[2].model,
-        Some("gemini-2.5-flash-lite".to_string())
+        Some("gemini-2.5-pro".to_string())
     );
 
     // All acts should have produced responses

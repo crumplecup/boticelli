@@ -56,7 +56,7 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::{Arc, Mutex};
 
-use gemini_rust::Gemini;
+use gemini_rust::{Gemini, client::Model};
 
 use crate::{
     BoticelliConfig, BoticelliDriver, BoticelliResult, GenerateRequest, GenerateResponse,
@@ -251,10 +251,25 @@ impl std::fmt::Debug for GeminiClient {
 }
 
 impl GeminiClient {
+    /// Convert a model name string to a gemini-rust Model enum variant.
+    ///
+    /// Maps common model name strings to their corresponding Model enum variants.
+    /// Uses Model::Custom for unrecognized model names.
+    fn model_name_to_enum(name: &str) -> Model {
+        match name {
+            "gemini-2.5-flash" => Model::Gemini25Flash,
+            "gemini-2.5-flash-lite" => Model::Gemini25FlashLite,
+            "gemini-2.5-pro" => Model::Gemini25Pro,
+            "text-embedding-004" => Model::TextEmbedding004,
+            // For other model names (including gemini-2.0-*), use Custom variant
+            other => Model::Custom(other.to_string()),
+        }
+    }
+
     /// Create a new Gemini client without rate limiting.
     ///
     /// Reads the API key from the `GEMINI_API_KEY` environment variable.
-    /// Defaults to using Gemini 2.0 Flash model.
+    /// Defaults to using Gemini 2.5 Flash model.
     ///
     /// # Example
     ///
@@ -349,7 +364,7 @@ impl GeminiClient {
         Ok(Self {
             clients: Arc::new(Mutex::new(HashMap::new())),
             api_key,
-            model_name: "gemini-2.0-flash".to_string(),
+            model_name: "gemini-2.5-flash".to_string(), // Changed from 2.0-flash to 2.5-flash
             default_tier,
         })
     }
@@ -385,8 +400,11 @@ impl GeminiClient {
             clients
                 .entry(model_name.clone())
                 .or_insert_with(|| {
+                    // Convert model name string to Model enum
+                    let model_enum = Self::model_name_to_enum(model_name);
+
                     // Create new Gemini client for this model
-                    let client = Gemini::with_model(&self.api_key, model_name.clone())
+                    let client = Gemini::with_model(&self.api_key, model_enum)
                         .expect("Failed to create Gemini client for model");
 
                     // Wrap client with tier
@@ -513,12 +531,12 @@ impl Metadata for GeminiClient {
     /// per-request model selection via `GenerateRequest.model`, verify that the requested
     /// model supports the features you need.
     ///
-    /// Current metadata reflects Gemini 2.0 Flash capabilities.
+    /// Current metadata reflects Gemini 2.5 Flash capabilities.
     fn metadata(&self) -> ModelMetadata {
         ModelMetadata {
             provider: "gemini",
             model: self.model_name.clone(),
-            max_input_tokens: 1_048_576, // Gemini 2.0 Flash supports up to 1M tokens
+            max_input_tokens: 1_048_576, // Gemini 2.5 Flash supports up to 1M tokens
             max_output_tokens: 8192,
             supports_streaming: true,
             supports_vision: true,

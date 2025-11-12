@@ -2,9 +2,9 @@
 
 ## Overview
 
-The `GeminiClient` implementation enables per-request model selection for Google's Gemini API, allowing multi-model narratives where different acts can use different Gemini models (e.g., `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-2.5-flash`).
+The `GeminiClient` implementation enables per-request model selection for Google's Gemini API, allowing multi-model narratives where different acts can use different Gemini models (e.g., `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro`).
 
-**Status**: Phases 1-5 complete. Core functionality implemented and working.
+**Status**: Complete. All phases finished. Per-request model selection fully functional and tested with live API.
 
 ## Architecture
 
@@ -163,7 +163,7 @@ use boticelli::{GeminiClient, GenerateRequest, Input, Message, Role};
 // Create client (uses Free tier by default)
 let client = GeminiClient::new()?;
 
-// Request using default model (gemini-2.0-flash)
+// Request using default model (gemini-2.5-flash)
 let request = GenerateRequest {
     messages: vec![Message {
         role: Role::User,
@@ -185,7 +185,7 @@ let request = GenerateRequest {
         role: Role::User,
         content: vec![Input::Text("Complex task".to_string())],
     }],
-    model: Some("gemini-2.5-flash".to_string()),  // Use latest model
+    model: Some("gemini-2.5-pro".to_string()),  // Use pro model for complex tasks
     ..Default::default()
 };
 
@@ -197,19 +197,19 @@ let response = client.generate(&request).await?;
 ```toml
 # narrations/text_models.toml
 [acts.act1]
-model = "gemini-2.0-flash-lite"  # Cheap model for drafting
+model = "gemini-2.5-flash-lite"  # Lite model for drafting
 [[acts.act1.input]]
 type = "text"
 content = "Generate draft content"
 
 [acts.act2]
-model = "gemini-2.0-flash"  # Standard model for critique
+model = "gemini-2.5-flash"  # Standard model for critique
 [[acts.act2.input]]
 type = "text"
 content = "Critique the draft"
 
 [acts.act3]
-model = "gemini-2.5-flash"  # Latest model for final version
+model = "gemini-2.5-pro"  # Pro model for final polished version
 [[acts.act3.input]]
 type = "text"
 content = "Create final polished version"
@@ -228,11 +228,37 @@ let execution = executor.execute(&narrative).await?;
 
 ## Implementation Details
 
+### Model Name Conversion
+
+The gemini-rust crate requires `Model` enum variants, not string model names. We convert string model names to the appropriate enum variants:
+
+**File**: `src/models/gemini.rs` (lines 254-267)
+
+```rust
+fn model_name_to_enum(name: &str) -> Model {
+    match name {
+        "gemini-2.5-flash" => Model::Gemini25Flash,
+        "gemini-2.5-flash-lite" => Model::Gemini25FlashLite,
+        "gemini-2.5-pro" => Model::Gemini25Pro,
+        "text-embedding-004" => Model::TextEmbedding004,
+        // For other model names, use Custom variant
+        other => Model::Custom(other.to_string()),
+    }
+}
+```
+
+**Important**: Only Gemini 2.5 models are guaranteed to work. Older models like "gemini-2.0-flash" use the `Model::Custom()` variant, which may not work correctly depending on the gemini-rust crate version.
+
+**Recommendation**: Always use Gemini 2.5 models:
+- `gemini-2.5-flash` (default)
+- `gemini-2.5-flash-lite`
+- `gemini-2.5-pro`
+
 ### Tier Conversion
 
 Since `new_with_tier()` accepts `Option<Box<dyn Tier>>` (for API compatibility) but we need concrete `GeminiTier`, we use name matching:
 
-**File**: `src/models/gemini.rs` (lines 281-292)
+**File**: `src/models/gemini.rs` (lines 350-361)
 
 ```rust
 let default_tier = if let Some(tier) = tier {
@@ -366,12 +392,27 @@ default_tier = "free"
 - Added model name extraction from request
 - Integrated rate limiting per client
 
-### Remaining Work
+### Phase 6: Backward Compatibility Verification ✓
+- Verified `src/main.rs` still works with unchanged API
+- All tests compile successfully
+- No breaking changes to public API
 
-**Phase 6**: Fix backward compatibility issues (check `src/main.rs`)
-**Phase 7**: Update supporting methods (`model_name()`, `Metadata`, docs)
-**Phase 8**: Run full test suite with API calls
-**Phase 9**: Update documentation and examples
+### Phase 7: Supporting Documentation ✓
+- Updated module-level documentation
+- Enhanced `model_name()` and `Metadata` impl docs
+- Added usage examples to module docs
+
+### Phase 8: API Integration Testing ✓
+- Fixed Model enum conversion (string names → enum variants)
+- Changed default model from gemini-2.0-flash to gemini-2.5-flash
+- Updated all tests to use Gemini 2.5 models
+- All 5 API integration tests pass with live API calls
+
+### Phase 9: Documentation and Examples ✓
+- Updated GEMINI.md with Model enum conversion details
+- Added model compatibility warnings
+- Updated all examples to use Gemini 2.5 models
+- Documented recommended model selection
 
 ## References
 

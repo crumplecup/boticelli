@@ -80,7 +80,13 @@
 
 ## Testing
 
-- Do not place mod tests in the module next to the code. Place unit tests in the tests directory.
+- **Centralized test location**: Do not place `#[cfg(test)] mod tests` blocks in source files. All tests must be in the `tests/` directory.
+- **Test file naming**: Name test files descriptively after what they test: `{module}_{component}_test.rs`
+  - Examples: `storage_filesystem_test.rs`, `narrative_in_memory_repository_test.rs`, `rate_limit_tiers_test.rs`
+- **Test organization**: Group related tests in the same file, use clear test function names that describe what is being tested.
+- **Import patterns**: Import from crate-level exports (`use boticelli::Type`) not module paths (`use boticelli::module::Type`)
+- **Test independence**: Each test should be self-contained and not depend on other tests.
+- **Use test utilities**: Create helper functions within test files to reduce duplication (e.g., `create_test_execution()`).
 
 ## Error Handling
 

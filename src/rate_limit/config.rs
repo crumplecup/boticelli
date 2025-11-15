@@ -170,7 +170,7 @@ impl TierConfig {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::BoticelliConfig;
+    /// use boticelli::{BoticelliConfig, Tier};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let config = BoticelliConfig::load()?;

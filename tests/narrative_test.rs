@@ -9,19 +9,21 @@ fn test_load_mint_narrative() {
     assert!(narrative.metadata.description.contains("MINT"));
 
     // Verify toc
-    assert_eq!(narrative.toc.order, vec!["act1", "act2", "act3"]);
+    assert_eq!(narrative.toc.order, vec!["act1", "act2", "act3", "act4"]);
 
     // Verify acts exist
     assert!(narrative.acts.contains_key("act1"));
     assert!(narrative.acts.contains_key("act2"));
     assert!(narrative.acts.contains_key("act3"));
+    assert!(narrative.acts.contains_key("act4"));
 
     // Verify ordered_acts returns correct order
     let ordered = narrative.ordered_acts();
-    assert_eq!(ordered.len(), 3);
+    assert_eq!(ordered.len(), 4);
     assert_eq!(ordered[0].0, "act1");
     assert_eq!(ordered[1].0, "act2");
     assert_eq!(ordered[2].0, "act3");
+    assert_eq!(ordered[3].0, "act4");
 }
 
 #[test]

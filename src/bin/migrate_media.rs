@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn find_inputs_with_binary(
     _repo: &PostgresNarrativeRepository,
 ) -> Result<Vec<(i32, Vec<u8>, Option<String>, String)>, Box<dyn std::error::Error>> {
-    use boticelli::database::schema::act_inputs;
+    use boticelli::act_inputs;
 
     let mut conn = establish_connection()?;
 
@@ -154,7 +154,7 @@ async fn migrate_input(
     input_type_str: &str,
     repo: &PostgresNarrativeRepository,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    use boticelli::database::schema::act_inputs;
+    use boticelli::act_inputs;
 
     // Determine media type from input_type
     let media_type = match input_type_str.to_lowercase().as_str() {

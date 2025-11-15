@@ -68,6 +68,8 @@ pub use database::{
     ModelResponse, NarrativeExecutionRow, NewActExecutionRow, NewActInputRow,
     NewModelResponse, NewNarrativeExecutionRow, PostgresNarrativeRepository,
     SerializableModelResponse, establish_connection,
+    // Re-export schema tables for migration tools
+    act_inputs, media_references, narrative_executions,
 };
 
 // Re-export error types

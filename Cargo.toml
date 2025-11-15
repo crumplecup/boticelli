@@ -22,6 +22,11 @@ name = "migrate_media"
 path = "src/bin/migrate_media.rs"
 required-features = ["database"]
 
+[[bin]]
+name = "validate_migration"
+path = "src/bin/validate_migration.rs"
+required-features = ["database"]
+
 
 [dependencies]
 # Common async + HTTP stack

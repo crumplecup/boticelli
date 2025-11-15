@@ -7,6 +7,9 @@ mod narrative_models;
 mod narrative_repository;
 mod schema;
 
+// Re-export schema for internal use by migration tools
+pub use schema::{act_inputs, media_references, narrative_executions};
+
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 

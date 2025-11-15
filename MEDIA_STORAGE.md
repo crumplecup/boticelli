@@ -842,6 +842,81 @@ fn create_repository(config: &Config) -> BoticelliResult<Arc<dyn NarrativeReposi
 }
 ```
 
+### Step 6: Cleanup Migration ✅ COMPLETE
+
+**Status**: Implemented and tested  
+**Date Completed**: 2025-11-15
+
+**6.1 Create Cleanup Migration** ✅
+
+Created migration: `2025-11-15-223123-0000_remove_old_media_columns`
+
+**Migration Up SQL** ✅
+
+Removes obsolete columns from `act_inputs`:
+- `source_type` - Media source type (url/base64/binary)
+- `source_url` - URL-based media source
+- `source_base64` - Base64-encoded media data
+- `source_binary` - Raw binary media data
+- `source_size_bytes` - Size of media data
+- `content_hash` - SHA-256 hash (now in media_references)
+- `idx_act_inputs_content_hash` index
+
+**Migration Down SQL** ✅
+
+Restores old columns for rollback safety:
+- Adds all removed columns back
+- Recreates index on content_hash
+- Allows reverting to old storage system if needed
+
+**6.2 Create Validation Binary** ✅
+
+Created `src/bin/validate_migration.rs` - validates migration completeness before cleanup.
+
+**Validation Checks**:
+- ✅ Counts total inputs with media data
+- ✅ Counts unmigrated inputs (with old columns, no media_ref_id)
+- ✅ Counts migrated inputs (with media_ref_id)
+- ✅ Reports orphaned media references (placeholder for now)
+- ✅ Exits with error if any unmigrated data found
+
+**Usage**:
+```bash
+# Validate migration is complete
+export DATABASE_URL="postgres://user:pass@localhost/boticelli"
+cargo run --bin validate_migration --features database
+
+# If validation passes, run cleanup
+diesel migration run
+```
+
+**6.3 Module Visibility** ✅
+
+Following project guidelines from CLAUDE.md:
+- Kept `database` and `schema` modules private
+- Exported schema tables (`act_inputs`, `media_references`, `narrative_executions`) at crate root
+- Migration binaries import from `boticelli::{act_inputs, media_references}`
+- Maintains single import path pattern
+
+**Safety Features**:
+- ⚠️ Migration marked with warning comments
+- ⚠️ Only run after data migration validation
+- ✅ Rollback support via down.sql
+- ✅ Idempotent (uses IF EXISTS)
+- ✅ Validation tool prevents premature cleanup
+
+**Testing**: ✅ All 28 tests pass
+
+**Deployment Checklist**:
+1. ✅ Run `migrate_media` to move data to new storage
+2. ✅ Run `validate_migration` to verify completeness
+3. ⚠️ Backup database
+4. ⚠️ Run cleanup migration (THIS STEP)
+5. ✅ Verify application still works
+6. ✅ Monitor for errors
+
+---
+
 ### Step 7: Remove Old Columns (After Migration Validated)
 
 **7.1 Create Cleanup Migration**

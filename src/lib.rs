@@ -55,6 +55,7 @@ mod database;
 
 mod narrative;
 mod rate_limit;
+mod storage;
 
 // Re-export core types
 pub use core::{
@@ -73,6 +74,11 @@ pub use database::{
 pub use error::{
     BackendError, BoticelliError, BoticelliErrorKind, BoticelliResult, ConfigError, HttpError,
     JsonError, NotImplementedError,
+};
+
+// Re-export storage types
+pub use storage::{
+    MediaMetadata, MediaReference, MediaStorage, MediaType, StorageError, StorageErrorKind,
 };
 
 // Re-export model-specific error types

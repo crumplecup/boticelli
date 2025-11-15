@@ -4,7 +4,7 @@
 use crate::DatabaseError;
 #[cfg(feature = "gemini")]
 use crate::GeminiError;
-use crate::NarrativeError;
+use crate::{NarrativeError, StorageError};
 
 /// HTTP error wrapping reqwest errors with source location.
 #[derive(Debug)]
@@ -215,6 +215,9 @@ pub enum BoticelliErrorKind {
     /// Feature not yet implemented
     #[from(NotImplementedError)]
     NotImplemented(NotImplementedError),
+    /// Storage error
+    #[from(StorageError)]
+    Storage(StorageError),
 }
 
 impl std::fmt::Display for BoticelliErrorKind {
@@ -230,6 +233,7 @@ impl std::fmt::Display for BoticelliErrorKind {
             BoticelliErrorKind::Narrative(e) => write!(f, "{}", e),
             BoticelliErrorKind::Config(e) => write!(f, "{}", e),
             BoticelliErrorKind::NotImplemented(e) => write!(f, "{}", e),
+            BoticelliErrorKind::Storage(e) => write!(f, "{}", e),
         }
     }
 }

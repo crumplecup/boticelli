@@ -45,6 +45,9 @@ dotenvy = "0.15"
 # Base64 encoding/decoding
 base64 = "0.22"
 
+# Content hashing for media storage
+sha2 = "0.10"
+
 # Database
 diesel = { version = "2.3", features = [
   "postgres",
@@ -54,7 +57,7 @@ diesel = { version = "2.3", features = [
 ], optional = true }
 diesel_migrations = { version = "2.3", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
-uuid = { version = "1.18", features = ["v4", "serde"], optional = true }
+uuid = { version = "1.18", features = ["v4", "serde"] }
 
 # Optional backend SDKs
 # Enable via features: e.g. `--features gemini`
@@ -80,7 +83,7 @@ anthropic = ["dep:anthropic-sdk"]
 huggingface = ["dep:huggingface_inference_rs"]
 groq = ["dep:groqai"]
 perplexity = ["dep:perplexity"]
-database = ["dep:diesel", "dep:diesel_migrations", "dep:chrono", "dep:uuid"]
+database = ["dep:diesel", "dep:diesel_migrations", "dep:chrono"]
 # Enable tests that consume API tokens
 api = []
 

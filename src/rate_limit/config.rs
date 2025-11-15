@@ -11,12 +11,56 @@ use config::{Config, File, FileFormat};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Model-specific rate limit overrides.
+///
+/// These override the tier-level defaults for specific models.
+/// All fields are optional - only specified fields override tier defaults.
+///
+/// # Example
+///
+/// ```toml
+/// [providers.gemini.tiers.free.models."gemini-2.5-pro"]
+/// rpm = 2
+/// tpm = 125_000
+/// rpd = 50
+/// ```
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ModelTierConfig {
+    /// Requests per minute limit (overrides tier default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rpm: Option<u32>,
+
+    /// Tokens per minute limit (overrides tier default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tpm: Option<u64>,
+
+    /// Requests per day limit (overrides tier default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rpd: Option<u32>,
+
+    /// Maximum concurrent requests (overrides tier default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrent: Option<u32>,
+
+    /// Daily quota in USD (overrides tier default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub daily_quota_usd: Option<f64>,
+
+    /// Cost per million input tokens in USD (overrides tier default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_per_million_input_tokens: Option<f64>,
+
+    /// Cost per million output tokens in USD (overrides tier default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_per_million_output_tokens: Option<f64>,
+}
+
 /// Configuration for a specific API tier.
 ///
 /// This struct implements the `Tier` trait and can be loaded from TOML configuration.
 /// All fields are optional, where `None` indicates unlimited/not applicable.
 ///
-/// # Example
+/// # Tier-Level Defaults
 ///
 /// ```toml
 /// [providers.gemini.tiers.free]
@@ -25,41 +69,52 @@ use std::collections::HashMap;
 /// tpm = 250_000
 /// rpd = 250
 /// max_concurrent = 1
-/// cost_per_million_input_tokens = 0.0
-/// cost_per_million_output_tokens = 0.0
+/// ```
+///
+/// # Model-Specific Overrides
+///
+/// ```toml
+/// [providers.gemini.tiers.free.models."gemini-2.5-pro"]
+/// rpm = 2            # Overrides tier default
+/// tpm = 125_000      # Overrides tier default
+/// rpd = 50           # Overrides tier default
 /// ```
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TierConfig {
     /// Name of the tier (e.g., "Free", "Pro", "Tier 1")
     pub name: String,
 
-    /// Requests per minute limit
+    /// Requests per minute limit (tier-level default)
     #[serde(default)]
     pub rpm: Option<u32>,
 
-    /// Tokens per minute limit
+    /// Tokens per minute limit (tier-level default)
     #[serde(default)]
     pub tpm: Option<u64>,
 
-    /// Requests per day limit
+    /// Requests per day limit (tier-level default)
     #[serde(default)]
     pub rpd: Option<u32>,
 
-    /// Maximum concurrent requests
+    /// Maximum concurrent requests (tier-level default)
     #[serde(default)]
     pub max_concurrent: Option<u32>,
 
-    /// Daily quota in USD
+    /// Daily quota in USD (tier-level default)
     #[serde(default)]
     pub daily_quota_usd: Option<f64>,
 
-    /// Cost per million input tokens in USD
+    /// Cost per million input tokens in USD (tier-level default)
     #[serde(default)]
     pub cost_per_million_input_tokens: Option<f64>,
 
-    /// Cost per million output tokens in USD
+    /// Cost per million output tokens in USD (tier-level default)
     #[serde(default)]
     pub cost_per_million_output_tokens: Option<f64>,
+
+    /// Model-specific rate limit overrides
+    #[serde(default)]
+    pub models: HashMap<String, ModelTierConfig>,
 }
 
 impl Tier for TierConfig {
@@ -93,6 +148,62 @@ impl Tier for TierConfig {
 
     fn name(&self) -> &str {
         &self.name
+    }
+}
+
+impl TierConfig {
+    /// Get a tier configuration with model-specific overrides applied.
+    ///
+    /// If the model has specific rate limit overrides in the configuration,
+    /// they will override the tier-level defaults. Otherwise, returns the
+    /// tier-level defaults.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_name` - The name of the model to get configuration for
+    ///
+    /// # Returns
+    ///
+    /// A new `TierConfig` with model-specific overrides applied, or a clone
+    /// of the tier-level config if no model-specific overrides exist.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use boticelli::BoticelliConfig;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let config = BoticelliConfig::load()?;
+    /// let tier = config.get_tier("gemini", Some("free")).unwrap();
+    ///
+    /// // Get config for gemini-2.5-pro (may have different limits than tier default)
+    /// let model_tier = tier.for_model("gemini-2.5-pro");
+    /// println!("gemini-2.5-pro RPM: {:?}", model_tier.rpm());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn for_model(&self, model_name: &str) -> TierConfig {
+        if let Some(model_config) = self.models.get(model_name) {
+            // Apply model-specific overrides
+            TierConfig {
+                name: self.name.clone(),
+                rpm: model_config.rpm.or(self.rpm),
+                tpm: model_config.tpm.or(self.tpm),
+                rpd: model_config.rpd.or(self.rpd),
+                max_concurrent: model_config.max_concurrent.or(self.max_concurrent),
+                daily_quota_usd: model_config.daily_quota_usd.or(self.daily_quota_usd),
+                cost_per_million_input_tokens: model_config
+                    .cost_per_million_input_tokens
+                    .or(self.cost_per_million_input_tokens),
+                cost_per_million_output_tokens: model_config
+                    .cost_per_million_output_tokens
+                    .or(self.cost_per_million_output_tokens),
+                models: HashMap::new(), // Model-specific configs don't have nested models
+            }
+        } else {
+            // No model-specific config, return tier defaults
+            self.clone()
+        }
     }
 }
 

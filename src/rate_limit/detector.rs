@@ -12,6 +12,7 @@
 
 use crate::TierConfig;
 use reqwest::header::HeaderMap;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -85,6 +86,7 @@ impl HeaderRateLimitDetector {
             daily_quota_usd: None,
             cost_per_million_input_tokens: if rpm <= 10 { Some(0.0) } else { Some(0.075) },
             cost_per_million_output_tokens: if rpm <= 10 { Some(0.0) } else { Some(0.30) },
+            models: HashMap::new(), // Header-detected configs don't have model-specific overrides
         };
 
         // Cache for future use
@@ -131,6 +133,7 @@ impl HeaderRateLimitDetector {
             daily_quota_usd: None,
             cost_per_million_input_tokens: Some(3.0), // Varies by model
             cost_per_million_output_tokens: Some(15.0),
+            models: HashMap::new(), // Header-detected configs don't have model-specific overrides
         };
 
         *self.detected_limits.write().await = Some(config.clone());
@@ -177,6 +180,7 @@ impl HeaderRateLimitDetector {
             daily_quota_usd: None,
             cost_per_million_input_tokens: Some(2.50), // Varies by model
             cost_per_million_output_tokens: Some(10.0),
+            models: HashMap::new(), // Header-detected configs don't have model-specific overrides
         };
 
         *self.detected_limits.write().await = Some(config.clone());

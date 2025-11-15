@@ -1,6 +1,7 @@
 //! Tests for rate limit configuration system.
 
 use boticelli::{BoticelliConfig, Tier, TierConfig};
+use std::collections::HashMap;
 
 #[test]
 fn test_load_bundled_defaults() {
@@ -32,6 +33,7 @@ fn test_tier_config_implements_tier_trait() {
         daily_quota_usd: Some(10.0),
         cost_per_million_input_tokens: Some(1.0),
         cost_per_million_output_tokens: Some(2.0),
+        models: HashMap::new(),
     };
 
     // Test Tier trait methods

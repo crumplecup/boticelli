@@ -102,6 +102,7 @@ impl RateLimitOptions {
                 daily_quota_usd: None,
                 cost_per_million_input_tokens: self.cost_input,
                 cost_per_million_output_tokens: self.cost_output,
+                models: std::collections::HashMap::new(),
             }
         };
 

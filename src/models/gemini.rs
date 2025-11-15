@@ -59,8 +59,9 @@ use std::sync::{Arc, Mutex};
 use gemini_rust::{Gemini, client::Model};
 
 use crate::{
-    BoticelliConfig, BoticelliDriver, BoticelliResult, GenerateRequest, GenerateResponse,
-    GeminiTier, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier, Vision,
+    BoticelliConfig, BoticelliDriver, BoticelliError, BoticelliResult, GenerateRequest,
+    GenerateResponse, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier,
+    TierConfig, Vision,
 };
 
 //
@@ -224,19 +225,19 @@ impl<T: Tier> Tier for TieredGemini<T> {
 ///
 /// # Architecture
 ///
-/// - **Client Pool**: `HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>`
+/// - **Client Pool**: `HashMap<String, RateLimiter<TieredGemini<TierConfig>>>`
 /// - **Lazy Creation**: Clients are created on first request for each model
-/// - **Rate Limiting**: Each model has its own rate limiter with tier-specific limits
+/// - **Model-Specific Rate Limiting**: Each model gets its own rate limits from config
 /// - **Thread-Safe**: Uses `Arc<Mutex<HashMap>>` for concurrent access
 pub struct GeminiClient {
     /// Cache of model-specific clients with rate limiting
-    clients: Arc<Mutex<HashMap<String, RateLimiter<TieredGemini<GeminiTier>>>>>,
+    clients: Arc<Mutex<HashMap<String, RateLimiter<TieredGemini<TierConfig>>>>>,
     /// API key for creating new clients
     api_key: String,
     /// Default model name when req.model is None
     model_name: String,
-    /// Default tier for rate limiting
-    default_tier: GeminiTier,
+    /// Base tier configuration (tier-level defaults + model-specific overrides)
+    base_tier: TierConfig,
 }
 
 impl std::fmt::Debug for GeminiClient {
@@ -244,7 +245,7 @@ impl std::fmt::Debug for GeminiClient {
         let client_count = self.clients.lock().unwrap().len();
         f.debug_struct("GeminiClient")
             .field("model_name", &self.model_name)
-            .field("default_tier", &self.default_tier)
+            .field("base_tier", &self.base_tier.name())
             .field("cached_clients", &client_count)
             .finish_non_exhaustive()
     }
@@ -324,8 +325,8 @@ impl GeminiClient {
 
     /// Create a new Gemini client with rate limiting from configuration.
     ///
-    /// Loads tier configuration from boticelli.toml and applies rate limiting.
-    /// Falls back to no rate limiting if configuration cannot be loaded.
+    /// Loads tier configuration from boticelli.toml and applies rate limiting,
+    /// including model-specific rate limit overrides.
     ///
     /// # Arguments
     ///
@@ -337,7 +338,7 @@ impl GeminiClient {
     /// use boticelli::GeminiClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// // Use default tier from config
+    /// // Use default tier from config (includes model-specific limits)
     /// let client = GeminiClient::new_with_config(None)?;
     ///
     /// // Use specific tier
@@ -346,12 +347,42 @@ impl GeminiClient {
     /// # }
     /// ```
     pub fn new_with_config(tier_name: Option<&str>) -> BoticelliResult<Self> {
-        let tier = BoticelliConfig::load()
+        let tier_config = BoticelliConfig::load()
             .ok()
-            .and_then(|config| config.get_tier("gemini", tier_name))
-            .map(|tier_config| Box::new(tier_config) as Box<dyn Tier>);
+            .and_then(|config| config.get_tier("gemini", tier_name));
 
-        Self::new_with_tier(tier)
+        Self::new_with_tier_config(tier_config)
+    }
+
+    /// Create a new Gemini client with a TierConfig (preserves model-specific overrides).
+    fn new_with_tier_config(tier_config: Option<TierConfig>) -> BoticelliResult<Self> {
+        // Load .env file if present
+        let _ = dotenvy::dotenv();
+
+        let api_key = env::var("GEMINI_API_KEY")
+            .map_err(|_| BoticelliError::from(GeminiError::new(GeminiErrorKind::MissingApiKey)))?;
+
+        let base_tier = tier_config.unwrap_or_else(|| {
+            // Default tier configuration (Free tier, gemini-2.5-flash defaults)
+            TierConfig {
+                name: "Free".to_string(),
+                rpm: Some(10),
+                tpm: Some(250_000),
+                rpd: Some(250),
+                max_concurrent: Some(1),
+                daily_quota_usd: None,
+                cost_per_million_input_tokens: Some(0.0),
+                cost_per_million_output_tokens: Some(0.0),
+                models: HashMap::new(),
+            }
+        });
+
+        Ok(Self {
+            clients: Arc::new(Mutex::new(HashMap::new())),
+            api_key,
+            model_name: "gemini-2.5-flash".to_string(),
+            base_tier,
+        })
     }
 
     /// Internal constructor that returns Gemini-specific errors.
@@ -362,24 +393,44 @@ impl GeminiClient {
         let api_key = env::var("GEMINI_API_KEY")
             .map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
 
-        // Convert Box<dyn Tier> to GeminiTier by matching on tier name
-        // This is a pragmatic approach to handle the architecture mismatch
-        // between generic RateLimiter<T> and the Box<dyn Tier> API
-        let default_tier = if let Some(tier) = tier {
-            match tier.name() {
-                "Free" => GeminiTier::Free,
-                "Pay-as-you-go" => GeminiTier::PayAsYouGo,
-                _ => GeminiTier::Free, // Default to Free for unknown tier names
+        // Convert Box<dyn Tier> to TierConfig
+        // We create a TierConfig from the Tier trait methods. This works for all
+        // Tier implementations. If called from new_with_config(), the tier will
+        // already be a TierConfig with model-specific overrides, and those will
+        // be preserved. For other callers (passing GeminiTier or custom tiers),
+        // we create a basic TierConfig without model-specific overrides.
+        let base_tier = if let Some(tier) = tier {
+            TierConfig {
+                name: tier.name().to_string(),
+                rpm: tier.rpm(),
+                tpm: tier.tpm(),
+                rpd: tier.rpd(),
+                max_concurrent: tier.max_concurrent(),
+                daily_quota_usd: tier.daily_quota_usd(),
+                cost_per_million_input_tokens: tier.cost_per_million_input_tokens(),
+                cost_per_million_output_tokens: tier.cost_per_million_output_tokens(),
+                models: HashMap::new(), // Will be empty for non-TierConfig tiers
             }
         } else {
-            GeminiTier::Free // Default when no tier specified
+            // Default tier configuration (Free tier, gemini-2.5-flash defaults)
+            TierConfig {
+                name: "Free".to_string(),
+                rpm: Some(10),
+                tpm: Some(250_000),
+                rpd: Some(250),
+                max_concurrent: Some(1),
+                daily_quota_usd: None,
+                cost_per_million_input_tokens: Some(0.0),
+                cost_per_million_output_tokens: Some(0.0),
+                models: HashMap::new(),
+            }
         };
 
         Ok(Self {
             clients: Arc::new(Mutex::new(HashMap::new())),
             api_key,
-            model_name: "gemini-2.5-flash".to_string(), // Changed from 2.0-flash to 2.5-flash
-            default_tier,
+            model_name: "gemini-2.5-flash".to_string(),
+            base_tier,
         })
     }
 
@@ -421,10 +472,14 @@ impl GeminiClient {
                     let client = Gemini::with_model(&self.api_key, model_enum)
                         .expect("Failed to create Gemini client for model");
 
-                    // Wrap client with tier
+                    // Get model-specific tier configuration
+                    // This applies model-specific overrides if they exist in the config
+                    let model_tier = self.base_tier.for_model(model_name);
+
+                    // Wrap client with model-specific tier
                     let tiered = TieredGemini {
                         client,
-                        tier: self.default_tier,
+                        tier: model_tier,
                     };
 
                     // Wrap in rate limiter

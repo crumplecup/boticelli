@@ -9,6 +9,7 @@
 //! API tests are minimal (1 request, ~10 tokens) to conserve quota.
 
 use boticelli::{RateLimiter, Tier, TierConfig};
+use std::collections::HashMap;
 
 #[cfg(feature = "gemini")]
 use boticelli::BoticelliDriver;
@@ -49,6 +50,7 @@ async fn test_rate_limiter_blocks_on_rpm_limit() {
         daily_quota_usd: None,
         cost_per_million_input_tokens: None,
         cost_per_million_output_tokens: None,
+        models: HashMap::new(),
     };
 
     let limiter = RateLimiter::new(tier);
@@ -88,6 +90,7 @@ async fn test_rate_limiter_releases_concurrent_slots() {
         daily_quota_usd: None,
         cost_per_million_input_tokens: None,
         cost_per_million_output_tokens: None,
+        models: HashMap::new(),
     };
 
     let limiter = Arc::new(RateLimiter::new(tier));
@@ -201,6 +204,7 @@ async fn test_rate_limiter_with_multiple_limits() {
         daily_quota_usd: None,
         cost_per_million_input_tokens: None,
         cost_per_million_output_tokens: None,
+        models: HashMap::new(),
     };
 
     let limiter = RateLimiter::new(tier);
@@ -230,6 +234,7 @@ fn test_tier_trait_from_config() {
         daily_quota_usd: None,
         cost_per_million_input_tokens: Some(0.0),
         cost_per_million_output_tokens: Some(0.0),
+        models: HashMap::new(),
     };
 
     // Test Tier trait methods

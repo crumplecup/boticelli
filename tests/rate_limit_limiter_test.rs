@@ -1,6 +1,7 @@
 //! Tests for rate limiter implementation.
 
 use boticelli::{RateLimiter, TierConfig};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 fn create_test_tier(
@@ -18,6 +19,7 @@ fn create_test_tier(
         daily_quota_usd: None,
         cost_per_million_input_tokens: None,
         cost_per_million_output_tokens: None,
+        models: HashMap::new(),
     }
 }
 

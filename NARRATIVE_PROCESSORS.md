@@ -8,7 +8,7 @@
 | 1 | JSON/TOML Extraction | ✅ Complete | `src/narrative/extraction.rs` |
 | 2 | ActProcessor Trait | ✅ Complete | `src/narrative/processor.rs` |
 | 3 | Enhanced Executor | ✅ Complete | `src/narrative/executor.rs` (updated) |
-| 4 | Discord JSON Models | 🚧 Pending | `src/discord/json_models.rs` |
+| 4 | Discord JSON Models | ✅ Complete | `src/social/discord/json_models.rs` |
 | 5 | Discord Conversions | 🚧 Pending | `src/discord/conversions.rs` |
 | 6 | Discord Processors | 🚧 Pending | `src/discord/processors.rs` |
 | 7 | Module Exports | 🚧 Pending | `src/lib.rs`, `src/discord/mod.rs` |
@@ -539,9 +539,13 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
 }
 ```
 
-### Step 4: Discord JSON Models
+### Step 4: Discord JSON Models ✅
 
-Create `src/discord/json_models.rs`:
+**Status:** Complete (commit: 2b173f8)
+
+**Implementation:** `src/social/discord/json_models.rs`
+
+**What was built:**
 
 ```rust
 //! JSON deserialization models for Discord data.

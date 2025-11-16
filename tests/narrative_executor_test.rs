@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use boticelli::{
     ActConfig, BoticelliDriver, BoticelliResult, GenerateRequest, GenerateResponse, Input,
-    Narrative, NarrativeExecutor, NarrativeProvider, Output,
+    Narrative, NarrativeExecutor, NarrativeMetadata, NarrativeProvider, Output,
 };
 
 /// Helper to extract text from inputs for testing.
@@ -240,6 +240,7 @@ async fn test_trait_abstraction_with_simple_provider() {
     // Create a simple provider with hardcoded acts (no TOML parsing!)
     struct InMemoryProvider {
         narrative_name: String,
+        metadata: NarrativeMetadata,
         act_order: Vec<String>,
         act_prompts: std::collections::HashMap<String, String>,
     }
@@ -247,6 +248,10 @@ async fn test_trait_abstraction_with_simple_provider() {
     impl NarrativeProvider for InMemoryProvider {
         fn name(&self) -> &str {
             &self.narrative_name
+        }
+
+        fn metadata(&self) -> &NarrativeMetadata {
+            &self.metadata
         }
 
         fn act_names(&self) -> &[String] {
@@ -262,6 +267,11 @@ async fn test_trait_abstraction_with_simple_provider() {
 
     let provider = InMemoryProvider {
         narrative_name: "in_memory_test".to_string(),
+        metadata: NarrativeMetadata {
+            name: "in_memory_test".to_string(),
+            description: "Test narrative".to_string(),
+            template: None,
+        },
         act_order: vec!["greeting".to_string(), "farewell".to_string()],
         act_prompts: [
             ("greeting".to_string(), "Say hello".to_string()),
@@ -304,6 +314,7 @@ async fn test_multimodal_and_per_act_config() {
 
     struct FlexibleProvider {
         name: String,
+        metadata: NarrativeMetadata,
         acts: Vec<String>,
         configs: std::collections::HashMap<String, ActConfig>,
     }
@@ -311,6 +322,10 @@ async fn test_multimodal_and_per_act_config() {
     impl NarrativeProvider for FlexibleProvider {
         fn name(&self) -> &str {
             &self.name
+        }
+
+        fn metadata(&self) -> &NarrativeMetadata {
+            &self.metadata
         }
 
         fn act_names(&self) -> &[String] {
@@ -357,6 +372,11 @@ async fn test_multimodal_and_per_act_config() {
 
     let provider = FlexibleProvider {
         name: "multimodal_test".to_string(),
+        metadata: NarrativeMetadata {
+            name: "multimodal_test".to_string(),
+            description: "Test multimodal narrative".to_string(),
+            template: None,
+        },
         acts: vec![
             "creative".to_string(),
             "analytical".to_string(),

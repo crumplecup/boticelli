@@ -4,10 +4,10 @@
 //! and insert them into the database using the DiscordRepository.
 
 use crate::{
-    extract_json, parse_json, ActExecution, ActProcessor, BoticelliResult, DiscordChannelJson,
+    extract_json, parse_json, ActProcessor, BoticelliResult, DiscordChannelJson,
     DiscordGuildJson, DiscordGuildMemberJson, DiscordMemberRoleJson, DiscordRepository,
     DiscordRoleJson, DiscordUserJson, NewChannel, NewGuild, NewGuildMember, NewMemberRole,
-    NewRole, NewUser,
+    NewRole, NewUser, ProcessorContext,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -29,8 +29,8 @@ impl DiscordGuildProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordGuildProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
-        let json_str = extract_json(&execution.response)?;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+        let json_str = extract_json(&context.execution.response)?;
 
         // Try parsing as array first, then single object
         let guilds: Vec<DiscordGuildJson> = if json_str.trim().starts_with('[') {
@@ -40,7 +40,7 @@ impl ActProcessor for DiscordGuildProcessor {
         };
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             count = guilds.len(),
             "Processing Discord guilds"
         );
@@ -57,19 +57,19 @@ impl ActProcessor for DiscordGuildProcessor {
         }
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             "Discord guilds stored successfully"
         );
         Ok(())
     }
 
-    fn should_process(&self, act_name: &str, response: &str) -> bool {
+    fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
         // Process if act name suggests guild/server data
-        let name_lower = act_name.to_lowercase();
+        let name_lower = context.execution.act_name.to_lowercase();
         let name_match = name_lower.contains("guild") || name_lower.contains("server");
 
         // Or if response contains owner_id field (unique to guilds)
-        let content_match = response.contains("\"owner_id\"");
+        let content_match = context.execution.response.contains("\"owner_id\"");
 
         name_match || content_match
     }
@@ -96,8 +96,8 @@ impl DiscordUserProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordUserProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
-        let json_str = extract_json(&execution.response)?;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+        let json_str = extract_json(&context.execution.response)?;
 
         let users: Vec<DiscordUserJson> = if json_str.trim().starts_with('[') {
             parse_json(&json_str)?
@@ -106,7 +106,7 @@ impl ActProcessor for DiscordUserProcessor {
         };
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             count = users.len(),
             "Processing Discord users"
         );
@@ -123,18 +123,19 @@ impl ActProcessor for DiscordUserProcessor {
         }
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             "Discord users stored successfully"
         );
         Ok(())
     }
 
-    fn should_process(&self, act_name: &str, response: &str) -> bool {
-        let name_lower = act_name.to_lowercase();
+    fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
+        let name_lower = context.execution.act_name.to_lowercase();
         let name_match = name_lower.contains("user") || name_lower.contains("member");
 
         // Users have username field, members have user_id
-        let content_match = response.contains("\"username\"") && !response.contains("\"user_id\"");
+        let content_match = context.execution.response.contains("\"username\"")
+            && !context.execution.response.contains("\"user_id\"");
 
         name_match || content_match
     }
@@ -161,8 +162,8 @@ impl DiscordChannelProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordChannelProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
-        let json_str = extract_json(&execution.response)?;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+        let json_str = extract_json(&context.execution.response)?;
 
         let channels: Vec<DiscordChannelJson> = if json_str.trim().starts_with('[') {
             parse_json(&json_str)?
@@ -171,7 +172,7 @@ impl ActProcessor for DiscordChannelProcessor {
         };
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             count = channels.len(),
             "Processing Discord channels"
         );
@@ -189,18 +190,18 @@ impl ActProcessor for DiscordChannelProcessor {
         }
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             "Discord channels stored successfully"
         );
         Ok(())
     }
 
-    fn should_process(&self, act_name: &str, response: &str) -> bool {
-        let name_lower = act_name.to_lowercase();
+    fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
+        let name_lower = context.execution.act_name.to_lowercase();
         let name_match = name_lower.contains("channel");
 
         // Channels have channel_type field
-        let content_match = response.contains("\"channel_type\"");
+        let content_match = context.execution.response.contains("\"channel_type\"");
 
         name_match || content_match
     }
@@ -227,8 +228,8 @@ impl DiscordRoleProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordRoleProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
-        let json_str = extract_json(&execution.response)?;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+        let json_str = extract_json(&context.execution.response)?;
 
         let roles: Vec<DiscordRoleJson> = if json_str.trim().starts_with('[') {
             parse_json(&json_str)?
@@ -237,7 +238,7 @@ impl ActProcessor for DiscordRoleProcessor {
         };
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             count = roles.len(),
             "Processing Discord roles"
         );
@@ -255,18 +256,19 @@ impl ActProcessor for DiscordRoleProcessor {
         }
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             "Discord roles stored successfully"
         );
         Ok(())
     }
 
-    fn should_process(&self, act_name: &str, response: &str) -> bool {
-        let name_lower = act_name.to_lowercase();
+    fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
+        let name_lower = context.execution.act_name.to_lowercase();
         let name_match = name_lower.contains("role");
 
         // Roles have permissions and position fields
-        let content_match = response.contains("\"permissions\"") && response.contains("\"position\"");
+        let content_match = context.execution.response.contains("\"permissions\"")
+            && context.execution.response.contains("\"position\"");
 
         name_match || content_match
     }
@@ -293,8 +295,8 @@ impl DiscordGuildMemberProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordGuildMemberProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
-        let json_str = extract_json(&execution.response)?;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+        let json_str = extract_json(&context.execution.response)?;
 
         let members: Vec<DiscordGuildMemberJson> = if json_str.trim().starts_with('[') {
             parse_json(&json_str)?
@@ -303,7 +305,7 @@ impl ActProcessor for DiscordGuildMemberProcessor {
         };
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             count = members.len(),
             "Processing Discord guild members"
         );
@@ -321,20 +323,20 @@ impl ActProcessor for DiscordGuildMemberProcessor {
         }
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             "Discord guild members stored successfully"
         );
         Ok(())
     }
 
-    fn should_process(&self, act_name: &str, response: &str) -> bool {
-        let name_lower = act_name.to_lowercase();
+    fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
+        let name_lower = context.execution.act_name.to_lowercase();
         let name_match = name_lower.contains("member") && !name_lower.contains("role");
 
         // Guild members have both guild_id and user_id, plus joined_at
-        let content_match = response.contains("\"guild_id\"")
-            && response.contains("\"user_id\"")
-            && response.contains("\"joined_at\"");
+        let content_match = context.execution.response.contains("\"guild_id\"")
+            && context.execution.response.contains("\"user_id\"")
+            && context.execution.response.contains("\"joined_at\"");
 
         name_match || content_match
     }
@@ -361,8 +363,8 @@ impl DiscordMemberRoleProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordMemberRoleProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
-        let json_str = extract_json(&execution.response)?;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+        let json_str = extract_json(&context.execution.response)?;
 
         let member_roles: Vec<DiscordMemberRoleJson> = if json_str.trim().starts_with('[') {
             parse_json(&json_str)?
@@ -371,7 +373,7 @@ impl ActProcessor for DiscordMemberRoleProcessor {
         };
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             count = member_roles.len(),
             "Processing Discord member role assignments"
         );
@@ -391,21 +393,21 @@ impl ActProcessor for DiscordMemberRoleProcessor {
         }
 
         tracing::info!(
-            act = %execution.act_name,
+            act = %context.execution.act_name,
             "Discord member role assignments stored successfully"
         );
         Ok(())
     }
 
-    fn should_process(&self, act_name: &str, response: &str) -> bool {
-        let name_lower = act_name.to_lowercase();
+    fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
+        let name_lower = context.execution.act_name.to_lowercase();
         let name_match = name_lower.contains("member") && name_lower.contains("role");
 
         // Member roles have guild_id, user_id, role_id, and assigned_at
-        let content_match = response.contains("\"guild_id\"")
-            && response.contains("\"user_id\"")
-            && response.contains("\"role_id\"")
-            && response.contains("\"assigned_at\"");
+        let content_match = context.execution.response.contains("\"guild_id\"")
+            && context.execution.response.contains("\"user_id\"")
+            && context.execution.response.contains("\"role_id\"")
+            && context.execution.response.contains("\"assigned_at\"");
 
         name_match || content_match
     }
@@ -415,9 +417,42 @@ impl ActProcessor for DiscordMemberRoleProcessor {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ActExecution, Input, NarrativeMetadata};
+
+    fn create_test_execution(act_name: &str, response: &str) -> ActExecution {
+        ActExecution {
+            act_name: act_name.to_string(),
+            inputs: vec![Input::Text("test input".to_string())],
+            model: None,
+            temperature: None,
+            max_tokens: None,
+            response: response.to_string(),
+            sequence_number: 0,
+        }
+    }
+
+    fn create_test_metadata() -> NarrativeMetadata {
+        NarrativeMetadata {
+            name: "test_narrative".to_string(),
+            description: "Test narrative".to_string(),
+            template: None,
+        }
+    }
+
+    fn create_test_context<'a>(
+        execution: &'a ActExecution,
+        metadata: &'a NarrativeMetadata,
+    ) -> ProcessorContext<'a> {
+        ProcessorContext {
+            execution,
+            narrative_metadata: metadata,
+            narrative_name: "test_narrative",
+        }
+    }
 
     #[test]
     fn test_guild_processor_should_process_by_name() {
@@ -429,9 +464,18 @@ mod tests {
             ))),
         };
 
-        assert!(processor.should_process("create_guild", ""));
-        assert!(processor.should_process("CREATE_SERVER", ""));
-        assert!(!processor.should_process("create_user", ""));
+        let metadata = create_test_metadata();
+        let exec1 = create_test_execution("create_guild", "");
+        let ctx1 = create_test_context(&exec1, &metadata);
+        assert!(processor.should_process(&ctx1));
+
+        let exec2 = create_test_execution("CREATE_SERVER", "");
+        let ctx2 = create_test_context(&exec2, &metadata);
+        assert!(processor.should_process(&ctx2));
+
+        let exec3 = create_test_execution("create_user", "");
+        let ctx3 = create_test_context(&exec3, &metadata);
+        assert!(!processor.should_process(&ctx3));
     }
 
     #[test]
@@ -444,11 +488,16 @@ mod tests {
             ))),
         };
 
+        let metadata = create_test_metadata();
         let response_with_owner = r#"{"id": 123, "name": "Test", "owner_id": 456}"#;
-        assert!(processor.should_process("unknown_act", response_with_owner));
+        let exec1 = create_test_execution("unknown_act", response_with_owner);
+        let ctx1 = create_test_context(&exec1, &metadata);
+        assert!(processor.should_process(&ctx1));
 
         let response_without_owner = r#"{"id": 123, "name": "Test"}"#;
-        assert!(!processor.should_process("unknown_act", response_without_owner));
+        let exec2 = create_test_execution("unknown_act", response_without_owner);
+        let ctx2 = create_test_context(&exec2, &metadata);
+        assert!(!processor.should_process(&ctx2));
     }
 
     #[test]
@@ -461,11 +510,24 @@ mod tests {
             ))),
         };
 
-        assert!(processor.should_process("create_user", ""));
-        assert!(processor.should_process("generate_members", ""));
+        let metadata = create_test_metadata();
+        let exec1 = create_test_execution("create_user", "");
+        let ctx1 = create_test_context(&exec1, &metadata);
+        assert!(processor.should_process(&ctx1));
+
+        let exec2 = create_test_execution("generate_members", "");
+        let ctx2 = create_test_context(&exec2, &metadata);
+        assert!(processor.should_process(&ctx2));
 
         let user_response = r#"{"id": 123, "username": "test"}"#;
-        assert!(processor.should_process("unknown", user_response));
+        let exec3 = create_test_execution("unknown", user_response);
+        let ctx3 = create_test_context(&exec3, &metadata);
+        assert!(processor.should_process(&ctx3));
+
+        let member_response = r#"{"user_id": 123, "guild_id": 456}"#;
+        let exec4 = create_test_execution("unknown", member_response);
+        let ctx4 = create_test_context(&exec4, &metadata);
+        assert!(!processor.should_process(&ctx4));
     }
 
     #[test]
@@ -478,10 +540,15 @@ mod tests {
             ))),
         };
 
-        assert!(processor.should_process("create_channels", ""));
+        let metadata = create_test_metadata();
+        let exec1 = create_test_execution("create_channels", "");
+        let ctx1 = create_test_context(&exec1, &metadata);
+        assert!(processor.should_process(&ctx1));
 
         let channel_response = r#"{"id": 123, "channel_type": "guild_text"}"#;
-        assert!(processor.should_process("unknown", channel_response));
+        let exec2 = create_test_execution("unknown", channel_response);
+        let ctx2 = create_test_context(&exec2, &metadata);
+        assert!(processor.should_process(&ctx2));
     }
 
     #[test]
@@ -494,14 +561,19 @@ mod tests {
             ))),
         };
 
-        assert!(processor.should_process("create_roles", ""));
+        let metadata = create_test_metadata();
+        let exec1 = create_test_execution("create_roles", "");
+        let ctx1 = create_test_context(&exec1, &metadata);
+        assert!(processor.should_process(&ctx1));
 
-        let role_response = r#"{"id": 123, "permissions": 8, "position": 1}"#;
-        assert!(processor.should_process("unknown", role_response));
+        let role_response = r#"{"id": 123, "permissions": "0", "position": 1}"#;
+        let exec2 = create_test_execution("unknown", role_response);
+        let ctx2 = create_test_context(&exec2, &metadata);
+        assert!(processor.should_process(&ctx2));
     }
 
     #[test]
-    fn test_member_processor_should_process() {
+    fn test_guild_member_processor_should_process() {
         let processor = DiscordGuildMemberProcessor {
             repository: Arc::new(DiscordRepository::from_arc(Arc::new(
                 tokio::sync::Mutex::new(
@@ -510,12 +582,19 @@ mod tests {
             ))),
         };
 
-        assert!(processor.should_process("create_members", ""));
-        assert!(!processor.should_process("create_member_roles", ""));
+        let metadata = create_test_metadata();
+        let exec1 = create_test_execution("create_members", "");
+        let ctx1 = create_test_context(&exec1, &metadata);
+        assert!(processor.should_process(&ctx1));
 
-        let member_response =
-            r#"{"guild_id": 1, "user_id": 2, "joined_at": "2024-01-01T00:00:00Z"}"#;
-        assert!(processor.should_process("unknown", member_response));
+        let exec2 = create_test_execution("create_member_roles", "");
+        let ctx2 = create_test_context(&exec2, &metadata);
+        assert!(!processor.should_process(&ctx2));
+
+        let member_response = r#"{"guild_id": 123, "user_id": 456, "joined_at": "2024-01-01"}"#;
+        let exec3 = create_test_execution("unknown", member_response);
+        let ctx3 = create_test_context(&exec3, &metadata);
+        assert!(processor.should_process(&ctx3));
     }
 
     #[test]
@@ -528,9 +607,15 @@ mod tests {
             ))),
         };
 
-        assert!(processor.should_process("assign_member_roles", ""));
+        let metadata = create_test_metadata();
+        let exec1 = create_test_execution("assign_member_roles", "");
+        let ctx1 = create_test_context(&exec1, &metadata);
+        assert!(processor.should_process(&ctx1));
 
-        let role_response = r#"{"guild_id": 1, "user_id": 2, "role_id": 3, "assigned_at": "2024-01-01T00:00:00Z"}"#;
-        assert!(processor.should_process("unknown", role_response));
+        let role_response =
+            r#"{"guild_id": 123, "user_id": 456, "role_id": 789, "assigned_at": "2024-01-01"}"#;
+        let exec2 = create_test_execution("unknown", role_response);
+        let ctx2 = create_test_context(&exec2, &metadata);
+        assert!(processor.should_process(&ctx2));
     }
 }

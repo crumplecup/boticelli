@@ -75,6 +75,9 @@ pub use database::{
     get_responses_by_model, get_recent_responses, delete_response, run_migrations,
     // Content generation functions
     create_content_table,
+    // Content management functions
+    delete_content, get_content_by_id, list_content, update_content_metadata,
+    update_review_status,
     // Database row types
     ActExecutionRow, ActInputRow, DatabaseError, DatabaseErrorKind, DatabaseResult,
     ModelResponse, NarrativeExecutionRow, NewActExecutionRow, NewActInputRow,

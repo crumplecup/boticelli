@@ -409,56 +409,153 @@ async fn start_discord_bot(token: Option<String>) -> Result<(), Box<dyn std::err
 // Content management functions
 #[cfg(feature = "database")]
 async fn list_content(
-    _table: &str,
-    _status: Option<&str>,
-    _limit: usize,
+    table: &str,
+    status: Option<&str>,
+    limit: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚧 Content listing not yet implemented");
-    println!("   Coming in Phase 3");
+    let mut conn = boticelli::establish_connection()?;
+    
+    let results = boticelli::list_content(&mut conn, table, status, limit)?;
+    
+    if results.is_empty() {
+        println!("No content found in table '{}'", table);
+        if let Some(s) = status {
+            println!("  (filtered by status: {})", s);
+        }
+        return Ok(());
+    }
+    
+    println!("📋 Content from '{}':\n", table);
+    for item in &results {
+        let id = item.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
+        let status = item
+            .get("review_status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        let generated_at = item
+            .get("generated_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        
+        println!("  ID: {}", id);
+        println!("  Status: {}", status);
+        println!("  Generated: {}", generated_at);
+        
+        // Show content fields (skip metadata)
+        let metadata_fields = [
+            "id",
+            "generated_at",
+            "source_narrative",
+            "source_act",
+            "generation_model",
+            "review_status",
+            "tags",
+            "rating",
+        ];
+        
+        for (key, value) in item.as_object().unwrap() {
+            if !metadata_fields.contains(&key.as_str()) {
+                println!("  {}: {}", key, value);
+            }
+        }
+        println!();
+    }
+    
+    println!("Total: {} items", results.len());
     Ok(())
 }
 
 #[cfg(feature = "database")]
 async fn show_content(
-    _table: &str,
-    _id: i64,
+    table: &str,
+    id: i64,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚧 Content show not yet implemented");
-    println!("   Coming in Phase 3");
+    let mut conn = boticelli::establish_connection()?;
+    
+    let item = boticelli::get_content_by_id(&mut conn, table, id)?;
+    
+    println!("📄 Content from '{}' (ID: {})\n", table, id);
+    
+    // Pretty print JSON
+    println!("{}", serde_json::to_string_pretty(&item)?);
+    
     Ok(())
 }
 
 #[cfg(feature = "database")]
 async fn tag_content(
-    _table: &str,
-    _id: i64,
-    _tags: Option<&str>,
-    _rating: Option<i32>,
+    table: &str,
+    id: i64,
+    tags: Option<&str>,
+    rating: Option<i32>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚧 Content tagging not yet implemented");
-    println!("   Coming in Phase 3");
+    let mut conn = boticelli::establish_connection()?;
+    
+    let tag_list = tags.map(|t| {
+        t.split(',')
+            .map(|s| s.trim().to_string())
+            .collect::<Vec<_>>()
+    });
+    
+    boticelli::update_content_metadata(
+        &mut conn,
+        table,
+        id,
+        tag_list.as_deref(),
+        rating,
+    )?;
+    
+    println!("✓ Updated content {} in '{}'", id, table);
+    if let Some(t) = tags {
+        println!("  Tags: {}", t);
+    }
+    if let Some(r) = rating {
+        println!("  Rating: {}/5", r);
+    }
+    
     Ok(())
 }
 
 #[cfg(feature = "database")]
 async fn review_content(
-    _table: &str,
-    _id: i64,
-    _status: &str,
+    table: &str,
+    id: i64,
+    status: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚧 Content review not yet implemented");
-    println!("   Coming in Phase 3");
+    let mut conn = boticelli::establish_connection()?;
+    
+    boticelli::update_review_status(&mut conn, table, id, status)?;
+    
+    println!("✓ Updated review status for content {} in '{}'", id, table);
+    println!("  Status: {}", status);
+    
     Ok(())
 }
 
 #[cfg(feature = "database")]
 async fn delete_content(
-    _table: &str,
-    _id: i64,
-    _yes: bool,
+    table: &str,
+    id: i64,
+    yes: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚧 Content deletion not yet implemented");
-    println!("   Coming in Phase 3");
+    if !yes {
+        print!("Delete content {} from '{}'? [y/N] ", id, table);
+        use std::io::{self, Write};
+        io::stdout().flush()?;
+        
+        let mut response = String::new();
+        io::stdin().read_line(&mut response)?;
+        
+        if !response.trim().eq_ignore_ascii_case("y") {
+            println!("Cancelled");
+            return Ok(());
+        }
+    }
+    
+    let mut conn = boticelli::establish_connection()?;
+    boticelli::delete_content(&mut conn, table, id)?;
+    
+    println!("✓ Deleted content {} from '{}'", id, table);
     Ok(())
 }
 

@@ -1,5 +1,6 @@
 //! Database module for storing and retrieving model responses and narrative executions.
 
+mod content_management;
 mod error;
 mod models;
 mod narrative_conversions;
@@ -31,6 +32,12 @@ pub use narrative_repository::PostgresNarrativeRepository;
 pub use schema_reflection::{
     create_content_table, generate_create_table_sql, reflect_table_schema, table_exists,
     ColumnInfo, TableSchema,
+};
+
+// Content management exports for Phase 3
+pub use content_management::{
+    delete_content, get_content_by_id, list_content, update_content_metadata,
+    update_review_status,
 };
 
 use crate::{GenerateRequest, GenerateResponse};

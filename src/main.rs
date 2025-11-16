@@ -178,6 +178,11 @@ enum Commands {
         /// Disable rate limiting entirely
         #[arg(long)]
         no_rate_limit: bool,
+
+        /// Enable Discord data processing (extract JSON and insert to database)
+        #[arg(long)]
+        #[cfg(all(feature = "database", feature = "discord"))]
+        process_discord: bool,
     },
 
     /// List stored narrative executions
@@ -249,6 +254,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cost_input,
             cost_output,
             no_rate_limit,
+            #[cfg(all(feature = "database", feature = "discord"))]
+            process_discord,
         } => {
             let rate_limit_opts = RateLimitOptions {
                 tier,
@@ -269,6 +276,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 save,
                 verbose,
                 rate_limit_opts,
+                #[cfg(all(feature = "database", feature = "discord"))]
+                process_discord,
             )
             .await?;
         }
@@ -313,6 +322,8 @@ async fn run_narrative(
     #[cfg(feature = "database")] _save: bool,
     _verbose: bool,
     rate_limit_opts: RateLimitOptions,
+    #[cfg(all(feature = "database", feature = "discord"))]
+    process_discord: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load the narrative
     println!("📖 Loading narrative from {:?}...", narrative_path);
@@ -357,6 +368,8 @@ async fn run_narrative(
             #[cfg(feature = "database")]
             _save,
             _verbose,
+            #[cfg(all(feature = "database", feature = "discord"))]
+            process_discord,
         )
         .await?;
         return Ok(());
@@ -375,8 +388,42 @@ async fn execute_with_driver<D: BoticelliDriver>(
     narrative: Narrative,
     #[cfg(feature = "database")] save: bool,
     verbose: bool,
+    #[cfg(all(feature = "database", feature = "discord"))]
+    process_discord: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Create executor
+    // Step 8b: Setup DiscordRepository when flag is enabled
+    #[cfg(all(feature = "database", feature = "discord"))]
+    let discord_repository = if process_discord {
+        let conn = boticelli::establish_connection()?;
+        Some(std::sync::Arc::new(boticelli::DiscordRepository::new(conn)))
+    } else {
+        None
+    };
+
+    // Step 8c: Register all 6 Discord processors
+    #[cfg(all(feature = "database", feature = "discord"))]
+    let executor = if let Some(repo) = discord_repository {
+        println!("🔧 Enabling Discord data processing...");
+        let mut registry = boticelli::ProcessorRegistry::new();
+
+        // Register all Discord processors
+        registry.register(Box::new(boticelli::DiscordGuildProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordUserProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordChannelProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordRoleProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordGuildMemberProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordMemberRoleProcessor::new(repo.clone())));
+
+        println!("✓ Registered 6 Discord processors");
+        println!();
+
+        boticelli::NarrativeExecutor::with_processors(driver, registry)
+    } else {
+        boticelli::NarrativeExecutor::new(driver)
+    };
+
+    // Create executor (when discord feature not enabled)
+    #[cfg(not(all(feature = "database", feature = "discord")))]
     let executor = NarrativeExecutor::new(driver);
 
     // Execute the narrative

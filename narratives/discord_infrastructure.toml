@@ -1,0 +1,185 @@
+# Discord Infrastructure Setup Narrative
+#
+# This narrative demonstrates how to create basic Discord infrastructure:
+# 1. Create a guild (server)
+# 2. Add a bot user to the system
+# 3. Add the bot as a member of the guild
+# 4. Create a text channel for content
+#
+# Run with: boticelli run --narrative narratives/discord_infrastructure.toml --process-discord
+
+[narration]
+name = "Discord Infrastructure Setup"
+description = "Creates a Discord guild, bot user, and channel for demonstration purposes"
+
+[toc]
+order = ["create_guild", "create_bot_user", "add_bot_to_guild", "create_content_channel"]
+
+[acts]
+create_guild = """
+You are generating data for a Discord server (guild). Please provide the following information conforming to this schema:
+
+**Required Fields:**
+- id: A unique 18-digit Discord snowflake ID (e.g., 1234567890123456789)
+- name: Server name (max 100 characters)
+- owner_id: Discord user ID of the server owner (18-digit snowflake)
+
+**Optional Fields:**
+- icon: Icon hash (hex string)
+- description: Server description (text)
+- member_count: Total number of members (integer)
+- verification_level: Security level 0-4 (0=none, 1=low, 2=medium, 3=high, 4=highest)
+- premium_tier: Boost level 0-3 (0=none, 1=tier 1, 2=tier 2, 3=tier 3)
+- features: Array of feature flags (e.g., ["COMMUNITY", "DISCOVERABLE", "VERIFIED"])
+
+**Example Output:**
+{
+  "id": 1234567890123456789,
+  "name": "Awesome Gaming Community",
+  "owner_id": 9876543210987654321,
+  "description": "A friendly community for gamers of all skill levels",
+  "member_count": 1500,
+  "verification_level": 2,
+  "premium_tier": 2,
+  "features": ["COMMUNITY", "DISCOVERABLE"]
+}
+
+**CRITICAL OUTPUT REQUIREMENTS:**
+- Output ONLY valid JSON with no additional text, explanations, or markdown
+- Do not use markdown code blocks (no ```json)
+- Start your response with { and end with }
+- Use null for optional fields you don't want to set
+
+Generate a guild named "Boticelli Demo Server" with a creative description about AI-driven content creation.
+Use guild_id: 1100000000000000001
+Use owner_id: 1100000000000000100
+"""
+
+create_bot_user = """
+You are generating data for Discord user profiles. Please provide the following information conforming to this schema:
+
+**Required Fields:**
+- id: Unique 18-digit Discord snowflake ID (e.g., 1234567890123456789)
+- username: Username without @ (max 32 characters, lowercase, no spaces)
+
+**Optional Fields:**
+- global_name: Display name (max 32 characters, can include spaces and mixed case)
+- discriminator: Legacy 4-digit discriminator (e.g., "0001") - leave null for new usernames
+- avatar: Avatar hash (hex string)
+- bot: Set to true for bot accounts, false for users (default: false)
+- premium_type: Nitro subscription 0-3 (0=none, 1=Nitro Classic, 2=Nitro, 3=Nitro Basic)
+- locale: Language code (e.g., "en-US", "es-ES", "ja")
+
+**Example Output:**
+{
+  "id": 1234567890123456789,
+  "username": "cooluser123",
+  "global_name": "Cool User",
+  "discriminator": null,
+  "bot": false,
+  "premium_type": 2,
+  "locale": "en-US"
+}
+
+**CRITICAL OUTPUT REQUIREMENTS:**
+- Output ONLY valid JSON with no additional text, explanations, or markdown
+- Do not use markdown code blocks (no ```json)
+- Start your response with { and end with }
+- Use null for optional fields you don't want to set
+
+Generate a bot user account with:
+- id: 1100000000000000200
+- username: "boticelli_bot"
+- global_name: "Boticelli Content Bot"
+- bot: true
+- A creative description in bio about generating narrative-driven content
+"""
+
+add_bot_to_guild = """
+You are generating data for Discord guild members (the relationship between users and servers). Please provide the following information conforming to this schema:
+
+**Required Fields:**
+- guild_id: Guild (server) ID the user belongs to
+- user_id: User ID being added to the guild
+- joined_at: ISO 8601 timestamp when user joined (e.g., "2024-01-15T14:30:00Z")
+
+**Optional Fields:**
+- nick: Guild-specific nickname (max 32 characters, different from username)
+- avatar: Guild-specific avatar hash (overrides user avatar in this guild)
+- premium_since: ISO timestamp when user started boosting server (null if not boosting)
+- communication_disabled_until: ISO timestamp when timeout expires (null if not timed out)
+- deaf: Server deafened status (default: false)
+- mute: Server muted status (default: false)
+- pending: Whether user is pending membership screening (default: false)
+
+**Example Output:**
+{
+  "guild_id": 9876543210987654321,
+  "user_id": 1234567890123456789,
+  "nick": "CoolNickname",
+  "joined_at": "2024-01-15T14:30:00Z",
+  "premium_since": "2024-03-01T10:00:00Z",
+  "deaf": false,
+  "mute": false,
+  "pending": false
+}
+
+**CRITICAL OUTPUT REQUIREMENTS:**
+- Output ONLY valid JSON with no additional text, explanations, or markdown
+- Do not use markdown code blocks (no ```json)
+- For multiple members, use a JSON array: [{...}, {...}]
+- Use ISO 8601 format for all timestamps
+- Use null for optional fields you don't want to set
+
+Add the Boticelli bot to the demo server:
+- guild_id: 1100000000000000001 (Boticelli Demo Server)
+- user_id: 1100000000000000200 (Boticelli Content Bot)
+- joined_at: Use today's date
+- nick: "Content Generator"
+"""
+
+create_content_channel = """
+You are generating data for Discord channels. Please provide the following information conforming to this schema:
+
+**Required Fields:**
+- id: Unique 18-digit Discord snowflake ID
+- channel_type: One of: 'guild_text', 'guild_voice', 'guild_category', 'guild_announcement', 'public_thread', 'private_thread', 'guild_stage_voice', 'guild_forum', 'guild_media'
+- guild_id: Parent guild ID (required for guild channels)
+
+**Common Optional Fields:**
+- name: Channel name (max 100 chars, lowercase-with-dashes for text channels)
+- topic: Channel description or topic
+- position: Sort order (0-based integer)
+- parent_id: Parent category ID (for channels) or parent channel ID (for threads)
+- nsfw: True if age-restricted (default: false)
+
+**Text Channel Fields:**
+- rate_limit_per_user: Slowmode in seconds (0-21600)
+
+**Example Output (Text Channel):**
+{
+  "id": 1234567890123456789,
+  "guild_id": 9876543210987654321,
+  "name": "general-chat",
+  "channel_type": "guild_text",
+  "topic": "General discussion for all topics",
+  "position": 0,
+  "parent_id": 1111111111111111111,
+  "nsfw": false,
+  "rate_limit_per_user": 0
+}
+
+**CRITICAL OUTPUT REQUIREMENTS:**
+- Output ONLY valid JSON with no additional text, explanations, or markdown
+- Do not use markdown code blocks (no ```json)
+- Start your response with { and end with }
+- Use null for optional fields you don't want to set
+
+Create a text channel for generated content:
+- id: 1100000000000000300
+- guild_id: 1100000000000000001 (Boticelli Demo Server)
+- name: "ai-generated-content"
+- channel_type: "guild_text"
+- topic: "Content generated by Boticelli's narrative engine"
+- position: 0
+"""

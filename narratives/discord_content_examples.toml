@@ -1,0 +1,88 @@
+# Discord Content Examples Narrative
+#
+# This narrative generates example content that could be posted to Discord.
+# It demonstrates how to create varied, engaging posts for a bot to draw from.
+#
+# Note: This narrative generates content ideas, but does NOT create actual Discord
+# messages in the database. Discord messages are sent via the Discord API, not
+# stored in our local database. This is for demonstration of content generation.
+#
+# Run with: boticelli run --narrative narratives/discord_content_examples.toml
+
+[narration]
+name = "Discord Content Examples"
+description = "Generates creative content examples for Discord bot posts"
+
+[toc]
+order = [
+    "daily_motivation",
+    "tech_tip",
+    "creative_prompt",
+    "community_question",
+    "fun_fact"
+]
+
+[acts]
+daily_motivation = """
+Generate a motivational message suitable for posting to a Discord community.
+
+Requirements:
+- Keep it concise (2-3 sentences max)
+- Make it uplifting and actionable
+- Suitable for a diverse, tech-focused community
+- Include an emoji that fits the theme
+
+Output the message as plain text, not JSON. Be creative and genuine.
+"""
+
+tech_tip = """
+Generate a helpful technology or programming tip suitable for a Discord server.
+
+Requirements:
+- Focus on practical, immediately useful information
+- Suitable for developers and tech enthusiasts
+- Include a code snippet or specific example if relevant
+- Keep it under 200 words
+- Add relevant emojis for visual appeal
+
+Output the tip as plain text, not JSON. Make it educational and engaging.
+"""
+
+creative_prompt = """
+Generate a creative writing or art prompt for a community server.
+
+Requirements:
+- Be specific enough to inspire action, vague enough to allow creativity
+- Suitable for various skill levels
+- Encourage community participation
+- Include 2-3 sub-prompts or variations
+- Use emojis to make it visually appealing
+
+Output the prompt as plain text, not JSON. Make it inspiring and fun.
+"""
+
+community_question = """
+Generate an engaging discussion question for a Discord community.
+
+Requirements:
+- Open-ended to encourage diverse responses
+- Relevant to technology, creativity, or community building
+- Not too controversial, but thought-provoking
+- Include context to help people answer
+- Add an emoji to make it friendly
+
+Output the question as plain text, not JSON. Make it conversational and welcoming.
+"""
+
+fun_fact = """
+Generate an interesting and surprising fact related to technology, science, or creativity.
+
+Requirements:
+- Factually accurate and verifiable
+- Genuinely surprising or little-known
+- Include context that makes it relevant
+- Keep it concise (2-3 sentences)
+- Add related emojis
+
+Output the fact as plain text, not JSON. Make it fascinating and share-worthy.
+"""

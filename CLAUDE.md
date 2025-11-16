@@ -3,11 +3,22 @@
 ## Workflow
 
 - After generating new code and correcting any cargo check errors and warnings:
-  1. Run cargo test and clear all errors.
-  2. Run cargo clippy and clear all warnings.
+  1. Run cargo test and clear **all** errors, including any pre-existing failures.
+  2. Run cargo clippy and clear **all** warnings, including any pre-existing warnings.
   3. Commit the changes to git using best practices for code auditing.
   4. Push the changes to their respective github branch.
 - Avoid running cargo clean often, to take advantage of incremental compilation during development.
+
+### Critical Rule: Fix Everything
+
+- **NEVER ignore test failures, clippy warnings, or errors because they seem unrelated to your current work.**
+- **ALWAYS fix ALL issues before committing**, even if they appear unrelated.
+- Pre-existing failures must be fixed before your changes are committed.
+- The codebase must always be in a clean state: all tests passing, zero clippy warnings, zero errors.
+- If you discover an unrelated issue:
+  1. Fix it immediately as part of your current work, OR
+  2. Create a separate commit to fix it before your main changes
+- Rationale: "Unrelated" issues may actually be dependencies, side effects, or test environment problems that affect your work. Leaving them unfixed creates technical debt and obscures real issues.
 
 ## Linting
 

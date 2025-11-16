@@ -5,6 +5,7 @@ mod models;
 mod narrative_conversions;
 mod narrative_models;
 mod narrative_repository;
+mod schema_reflection;
 pub(crate) mod schema;  // Make schema accessible within the crate for Discord models
 
 // Re-export schema tables for internal use by migration tools and tests
@@ -25,6 +26,12 @@ pub use narrative_models::{
     NewNarrativeExecutionRow,
 };
 pub use narrative_repository::PostgresNarrativeRepository;
+// Schema reflection exports will be used in Phase 2 for content generation processor
+#[allow(unused_imports)]
+pub use schema_reflection::{
+    create_content_table, generate_create_table_sql, reflect_table_schema, table_exists,
+    ColumnInfo, TableSchema,
+};
 
 use crate::{GenerateRequest, GenerateResponse};
 

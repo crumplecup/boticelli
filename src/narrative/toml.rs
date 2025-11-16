@@ -12,6 +12,8 @@ use std::collections::HashMap;
 pub struct TomlNarration {
     pub name: String,
     pub description: String,
+    /// Optional template table to use as schema source for content generation
+    pub template: Option<String>,
 }
 
 /// Intermediate structure for deserializing the [toc] section.

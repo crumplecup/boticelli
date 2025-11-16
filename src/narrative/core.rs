@@ -13,6 +13,8 @@ pub struct NarrativeMetadata {
     pub name: String,
     /// Human-readable description of what this narrative does
     pub description: String,
+    /// Optional template table to use as schema source for content generation
+    pub template: Option<String>,
 }
 
 /// Table of contents from the `[toc]` section.
@@ -159,6 +161,7 @@ impl FromStr for Narrative {
         let metadata = NarrativeMetadata {
             name: toml_narrative.narration.name,
             description: toml_narrative.narration.description,
+            template: toml_narrative.narration.template,
         };
 
         let toc = NarrativeToc {

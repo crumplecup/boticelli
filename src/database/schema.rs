@@ -35,6 +35,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    content_generation_tables (table_name) {
+        table_name -> Text,
+        template_source -> Text,
+        created_at -> Timestamp,
+        narrative_file -> Nullable<Text>,
+        description -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::DiscordChannelType;
 
@@ -258,6 +268,7 @@ diesel::joinable!(discord_roles -> discord_guilds (guild_id));
 diesel::allow_tables_to_appear_in_same_query!(
     act_executions,
     act_inputs,
+    content_generation_tables,
     discord_channels,
     discord_guild_members,
     discord_guilds,

@@ -206,7 +206,7 @@ filename = "report.pdf"
 #[test]
 fn test_load_showcase_narrative() {
     // This test verifies that the comprehensive showcase.toml example parses successfully
-    let narrative = Narrative::from_file("narrations/showcase.toml")
+    let narrative = Narrative::from_file("narratives/showcase.toml")
         .expect("Failed to load showcase.toml");
 
     assert_eq!(narrative.metadata.name, "product_presentation_analysis");

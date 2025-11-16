@@ -13,6 +13,8 @@ pub enum DatabaseErrorKind {
     Migration(String),
     /// Record not found
     NotFound,
+    /// Table not found
+    TableNotFound(String),
 }
 
 impl std::fmt::Display for DatabaseErrorKind {
@@ -23,6 +25,9 @@ impl std::fmt::Display for DatabaseErrorKind {
             DatabaseErrorKind::Serialization(msg) => write!(f, "Serialization error: {}", msg),
             DatabaseErrorKind::Migration(msg) => write!(f, "Migration error: {}", msg),
             DatabaseErrorKind::NotFound => write!(f, "Record not found"),
+            DatabaseErrorKind::TableNotFound(table) => {
+                write!(f, "Table '{}' not found in database", table)
+            }
         }
     }
 }

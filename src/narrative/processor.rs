@@ -14,10 +14,10 @@ use async_trait::async_trait;
 pub struct ProcessorContext<'a> {
     /// The act execution result
     pub execution: &'a ActExecution,
-    
+
     /// Narrative metadata (name, description, template)
     pub narrative_metadata: &'a NarrativeMetadata,
-    
+
     /// Full narrative name for tracking
     pub narrative_name: &'a str,
 }

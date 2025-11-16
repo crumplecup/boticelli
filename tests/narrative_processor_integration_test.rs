@@ -58,8 +58,7 @@ fn create_test_db() -> diesel::PgConnection {
         .or_else(|_| std::env::var("DATABASE_URL"))
         .expect("TEST_DATABASE_URL or DATABASE_URL must be set");
 
-    diesel::PgConnection::establish(&database_url)
-        .expect("Failed to connect to test database")
+    diesel::PgConnection::establish(&database_url).expect("Failed to connect to test database")
 }
 
 /// Clean up test guilds.
@@ -106,7 +105,8 @@ async fn test_discord_guild_processor_integration() {
     cleanup_guilds(&mut conn, &[test_guild_id]);
 
     // Create mock driver with guild JSON response
-    let mock_responses = vec![r#"{
+    let mock_responses = vec![
+        r#"{
         "id": 999888777666555444,
         "name": "Integration Test Guild",
         "owner_id": 111222333444555666,
@@ -114,7 +114,8 @@ async fn test_discord_guild_processor_integration() {
         "member_count": 42,
         "verification_level": 2
     }"#
-    .to_string()];
+        .to_string(),
+    ];
 
     let driver = MockDriver::new(mock_responses);
 
@@ -158,7 +159,10 @@ generate_guild = "Generate guild JSON"
     assert_eq!(guild.id, test_guild_id);
     assert_eq!(guild.name, "Integration Test Guild");
     assert_eq!(guild.owner_id, 111222333444555666);
-    assert_eq!(guild.description, Some("Created by integration test".to_string()));
+    assert_eq!(
+        guild.description,
+        Some("Created by integration test".to_string())
+    );
     assert_eq!(guild.member_count, Some(42));
 
     // Cleanup
@@ -173,14 +177,16 @@ async fn test_discord_user_processor_integration() {
     cleanup_users(&mut conn, &[test_user_id]);
 
     // Create mock driver with user JSON response
-    let mock_responses = vec![r#"{
+    let mock_responses = vec![
+        r#"{
         "id": 888777666555444333,
         "username": "testuser",
         "discriminator": "1234",
         "global_name": "Test User",
         "bot": false
     }"#
-    .to_string()];
+        .to_string(),
+    ];
 
     let driver = MockDriver::new(mock_responses);
 

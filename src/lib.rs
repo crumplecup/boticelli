@@ -70,24 +70,49 @@ pub use core::{
 
 #[cfg(feature = "database")]
 pub use database::{
-    // Connection and utility functions
-    establish_connection, store_response, store_error, get_response_by_id,
-    get_responses_by_model, get_recent_responses, delete_response, run_migrations,
+    // Database row types
+    ActExecutionRow,
+    ActInputRow,
+    DatabaseError,
+    DatabaseErrorKind,
+    DatabaseResult,
+    ModelResponse,
+    NarrativeExecutionRow,
+    NewActExecutionRow,
+    NewActInputRow,
+    NewModelResponse,
+    NewNarrativeExecutionRow,
+    PostgresNarrativeRepository,
+    SerializableModelResponse,
+    // Re-export schema tables for migration tools and tests
+    act_inputs,
     // Content generation functions
     create_content_table,
     // Content management functions
-    delete_content, get_content_by_id, list_content, promote_content, update_content_metadata,
-    update_review_status,
-    // Database row types
-    ActExecutionRow, ActInputRow, DatabaseError, DatabaseErrorKind, DatabaseResult,
-    ModelResponse, NarrativeExecutionRow, NewActExecutionRow, NewActInputRow,
-    NewModelResponse, NewNarrativeExecutionRow, PostgresNarrativeRepository,
-    SerializableModelResponse,
-    // Re-export schema tables for migration tools and tests
-    act_inputs, media_references, narrative_executions,
+    delete_content,
+    delete_response,
     // Discord schema tables
-    discord_channels, discord_guild_members, discord_guilds,
-    discord_member_roles, discord_roles, discord_users,
+    discord_channels,
+    discord_guild_members,
+    discord_guilds,
+    discord_member_roles,
+    discord_roles,
+    discord_users,
+    // Connection and utility functions
+    establish_connection,
+    get_content_by_id,
+    get_recent_responses,
+    get_response_by_id,
+    get_responses_by_model,
+    list_content,
+    media_references,
+    narrative_executions,
+    promote_content,
+    run_migrations,
+    store_error,
+    store_response,
+    update_content_metadata,
+    update_review_status,
 };
 
 // Re-export PgConnection for processor use
@@ -127,14 +152,31 @@ pub use interface::{
 
 // Re-export narrative types
 pub use narrative::{
-    ActConfig, ActExecution, ExecutionFilter, ExecutionStatus, ExecutionSummary,
-    InMemoryNarrativeRepository, Narrative, NarrativeError, NarrativeErrorKind, NarrativeExecution,
-    NarrativeExecutor, NarrativeMetadata, NarrativeProvider, NarrativeRepository, NarrativeToc,
+    ActConfig,
+    ActExecution,
+    // Processor infrastructure
+    ActProcessor,
+    ExecutionFilter,
+    ExecutionStatus,
+    ExecutionSummary,
+    InMemoryNarrativeRepository,
+    Narrative,
+    NarrativeError,
+    NarrativeErrorKind,
+    NarrativeExecution,
+    NarrativeExecutor,
+    NarrativeMetadata,
+    NarrativeProvider,
+    NarrativeRepository,
+    NarrativeToc,
+    ProcessorContext,
+    ProcessorRegistry,
     VideoMetadata,
     // Extraction utilities
-    extract_json, extract_toml, parse_json, parse_toml,
-    // Processor infrastructure
-    ActProcessor, ProcessorContext, ProcessorRegistry,
+    extract_json,
+    extract_toml,
+    parse_json,
+    parse_toml,
 };
 
 #[cfg(feature = "database")]
@@ -156,23 +198,46 @@ pub use rate_limit::OpenAITier;
 // Re-export social media platform types
 #[cfg(feature = "discord")]
 pub use social::discord::{
-    // Diesel models
-    ChannelRow, ChannelType, GuildMemberRow, GuildRow, NewChannel, NewGuild, NewGuildMember,
-    NewMemberRole, NewRole, NewUser, RoleRow, UserRow,
-    // JSON models (for narrative processors)
-    DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson, DiscordMemberRoleJson,
-    DiscordRoleJson, DiscordUserJson,
-    // Conversion utilities
-    parse_channel_type, parse_iso_timestamp,
-    // Processors
-    DiscordChannelProcessor, DiscordGuildMemberProcessor, DiscordGuildProcessor,
-    DiscordMemberRoleProcessor, DiscordRoleProcessor, DiscordUserProcessor,
-    // Repository
-    DiscordRepository, DiscordResult,
-    // Error handling
-    DiscordError, DiscordErrorKind, DiscordErrorResult,
     // Client and handler
-    BoticelliBot, BoticelliHandler,
+    BoticelliBot,
+    BoticelliHandler,
+    // Diesel models
+    ChannelRow,
+    ChannelType,
+    // JSON models (for narrative processors)
+    DiscordChannelJson,
+    // Processors
+    DiscordChannelProcessor,
+    // Error handling
+    DiscordError,
+    DiscordErrorKind,
+    DiscordErrorResult,
+    DiscordGuildJson,
+    DiscordGuildMemberJson,
+    DiscordGuildMemberProcessor,
+    DiscordGuildProcessor,
+    DiscordMemberRoleJson,
+    DiscordMemberRoleProcessor,
+    // Repository
+    DiscordRepository,
+    DiscordResult,
+    DiscordRoleJson,
+    DiscordRoleProcessor,
+    DiscordUserJson,
+    DiscordUserProcessor,
+    GuildMemberRow,
+    GuildRow,
+    NewChannel,
+    NewGuild,
+    NewGuildMember,
+    NewMemberRole,
+    NewRole,
+    NewUser,
+    RoleRow,
+    UserRow,
+    // Conversion utilities
+    parse_channel_type,
+    parse_iso_timestamp,
 };
 
 // Re-export CLI types

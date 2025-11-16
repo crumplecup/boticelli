@@ -89,7 +89,9 @@ impl TomlInput {
     pub fn to_input(&self) -> Result<Input, String> {
         match self.input_type.as_str() {
             "text" => {
-                let content = self.content.as_ref()
+                let content = self
+                    .content
+                    .as_ref()
                     .ok_or("Text input missing 'content' field")?;
                 Ok(Input::Text(content.clone()))
             }
@@ -112,7 +114,11 @@ impl TomlInput {
                 let mime = self.mime.clone();
                 let source = self.detect_source()?;
                 let filename = self.filename.clone();
-                Ok(Input::Document { mime, source, filename })
+                Ok(Input::Document {
+                    mime,
+                    source,
+                    filename,
+                })
             }
             unknown => Err(format!("Unknown input type: {}", unknown)),
         }
@@ -125,8 +131,9 @@ impl TomlInput {
         } else if let Some(base64) = &self.base64 {
             Ok(MediaSource::Base64(base64.clone()))
         } else if let Some(file) = &self.file {
-            Ok(MediaSource::Binary(std::fs::read(file)
-                .map_err(|e| format!("Failed to read file {}: {}", file, e))?))
+            Ok(MediaSource::Binary(std::fs::read(file).map_err(|e| {
+                format!("Failed to read file {}: {}", file, e)
+            })?))
         } else {
             Err("Media input missing source (url, base64, or file)".to_string())
         }
@@ -136,10 +143,8 @@ impl TomlInput {
 impl TomlActConfig {
     /// Convert TOML act config to domain ActConfig.
     pub fn to_act_config(&self) -> Result<ActConfig, String> {
-        let inputs: Result<Vec<Input>, String> = self.input
-            .iter()
-            .map(|ti| ti.to_input())
-            .collect();
+        let inputs: Result<Vec<Input>, String> =
+            self.input.iter().map(|ti| ti.to_input()).collect();
 
         Ok(ActConfig {
             inputs: inputs?,
@@ -161,9 +166,7 @@ impl TomlAct {
                 }
                 Ok(ActConfig::from_text(text.clone()))
             }
-            TomlAct::Structured(config) => {
-                config.to_act_config()
-            }
+            TomlAct::Structured(config) => config.to_act_config(),
         }
     }
 }

@@ -7,7 +7,15 @@ use serde_json::Value as JsonValue;
 /// Discord channel type enum.
 ///
 /// Maps to the discord_channel_type PostgreSQL ENUM.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, diesel::deserialize::FromSqlRow, diesel::expression::AsExpression)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    diesel::deserialize::FromSqlRow,
+    diesel::expression::AsExpression,
+)]
 #[diesel(sql_type = crate::database::schema::sql_types::DiscordChannelType)]
 pub enum ChannelType {
     GuildText,
@@ -25,8 +33,14 @@ pub enum ChannelType {
     GuildMedia,
 }
 
-impl diesel::serialize::ToSql<crate::database::schema::sql_types::DiscordChannelType, diesel::pg::Pg> for ChannelType {
-    fn to_sql<'b>(&'b self, out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+impl
+    diesel::serialize::ToSql<crate::database::schema::sql_types::DiscordChannelType, diesel::pg::Pg>
+    for ChannelType
+{
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
         use std::io::Write;
         let s = match self {
             ChannelType::GuildText => "guild_text",
@@ -48,7 +62,12 @@ impl diesel::serialize::ToSql<crate::database::schema::sql_types::DiscordChannel
     }
 }
 
-impl diesel::deserialize::FromSql<crate::database::schema::sql_types::DiscordChannelType, diesel::pg::Pg> for ChannelType {
+impl
+    diesel::deserialize::FromSql<
+        crate::database::schema::sql_types::DiscordChannelType,
+        diesel::pg::Pg,
+    > for ChannelType
+{
     fn from_sql(bytes: diesel::pg::PgValue) -> diesel::deserialize::Result<Self> {
         match bytes.as_bytes() {
             b"guild_text" => Ok(ChannelType::GuildText),

@@ -1,9 +1,9 @@
 //! Conversions between domain types and database models for narrative executions.
 
 use crate::{
-    ActExecution, ActExecutionRow, ActInputRow, BackendError, BoticelliError,
-    BoticelliResult, ExecutionStatus, Input, NarrativeExecution,
-    NarrativeExecutionRow, NewActExecutionRow, NewActInputRow, NewNarrativeExecutionRow,
+    ActExecution, ActExecutionRow, ActInputRow, BackendError, BoticelliError, BoticelliResult,
+    ExecutionStatus, Input, NarrativeExecution, NarrativeExecutionRow, NewActExecutionRow,
+    NewActInputRow, NewNarrativeExecutionRow,
 };
 use chrono::Utc;
 
@@ -45,10 +45,7 @@ pub fn execution_to_new_row(
 }
 
 /// Convert ActExecution to NewActExecutionRow.
-pub fn act_execution_to_new_row(
-    act: &ActExecution,
-    execution_id: i32,
-) -> NewActExecutionRow {
+pub fn act_execution_to_new_row(act: &ActExecution, execution_id: i32) -> NewActExecutionRow {
     NewActExecutionRow {
         execution_id,
         act_name: act.act_name.clone(),
@@ -61,7 +58,11 @@ pub fn act_execution_to_new_row(
 }
 
 /// Convert Input to NewActInputRow.
-pub fn input_to_new_row(input: &Input, act_execution_id: i32, order: usize) -> BoticelliResult<NewActInputRow> {
+pub fn input_to_new_row(
+    input: &Input,
+    act_execution_id: i32,
+    order: usize,
+) -> BoticelliResult<NewActInputRow> {
     let row = match input {
         Input::Text(text) => NewActInputRow {
             act_execution_id,
@@ -82,7 +83,7 @@ pub fn input_to_new_row(input: &Input, act_execution_id: i32, order: usize) -> B
                 text_content: None,
                 mime_type: mime.clone(),
                 filename: None,
-                media_ref_id: None,  // Will be populated by caller
+                media_ref_id: None, // Will be populated by caller
             }
         }
         Input::Document { mime, filename, .. } => {
@@ -94,7 +95,7 @@ pub fn input_to_new_row(input: &Input, act_execution_id: i32, order: usize) -> B
                 text_content: None,
                 mime_type: mime.clone(),
                 filename: filename.clone(),
-                media_ref_id: None,  // Will be populated by caller
+                media_ref_id: None, // Will be populated by caller
             }
         }
     };

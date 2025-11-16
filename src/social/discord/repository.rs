@@ -3,13 +3,13 @@
 //! This repository provides database operations for Discord entities including
 //! guilds, channels, users, members, and roles.
 
+use crate::DatabaseError;
 use crate::database::schema::{
     discord_channels, discord_guild_members, discord_guilds, discord_member_roles, discord_roles,
     discord_users,
 };
-use crate::DatabaseError;
-use diesel::prelude::*;
 use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -228,7 +228,10 @@ impl DiscordRepository {
 
         diesel::insert_into(discord_guild_members::table)
             .values(member)
-            .on_conflict((discord_guild_members::guild_id, discord_guild_members::user_id))
+            .on_conflict((
+                discord_guild_members::guild_id,
+                discord_guild_members::user_id,
+            ))
             .do_update()
             .set((
                 discord_guild_members::nick.eq(&member.nick),

@@ -58,7 +58,7 @@ mod repository;
 
 // Public re-exports
 pub use client::BoticelliBot;
-pub use conversions::{parse_channel_type, parse_iso_timestamp, NewMemberRole};
+pub use conversions::{NewMemberRole, parse_channel_type, parse_iso_timestamp};
 pub use error::{DiscordError, DiscordErrorKind, DiscordResult as DiscordErrorResult};
 pub use handler::BoticelliHandler;
 pub use json_models::{

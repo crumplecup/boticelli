@@ -192,9 +192,7 @@ impl MediaStorage for FileSystemStorage {
 
         let data = tokio::fs::read(path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                StorageError::new(StorageErrorKind::NotFound(
-                    reference.storage_path.clone(),
-                ))
+                StorageError::new(StorageErrorKind::NotFound(reference.storage_path.clone()))
             } else {
                 StorageError::new(StorageErrorKind::Io(format!(
                     "Failed to read {}: {}",
@@ -231,9 +229,7 @@ impl MediaStorage for FileSystemStorage {
 
         tokio::fs::remove_file(path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                StorageError::new(StorageErrorKind::NotFound(
-                    reference.storage_path.clone(),
-                ))
+                StorageError::new(StorageErrorKind::NotFound(reference.storage_path.clone()))
             } else {
                 StorageError::new(StorageErrorKind::Io(format!(
                     "Failed to delete {}: {}",

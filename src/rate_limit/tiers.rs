@@ -23,21 +23,21 @@ pub enum GeminiTier {
 impl Tier for GeminiTier {
     fn rpm(&self) -> Option<u32> {
         match self {
-            GeminiTier::Free => Some(10),       // Free tier: 10 RPM (Flash 2.0)
+            GeminiTier::Free => Some(10),        // Free tier: 10 RPM (Flash 2.0)
             GeminiTier::PayAsYouGo => Some(360), // Paid: 360 RPM (6 per second)
         }
     }
 
     fn tpm(&self) -> Option<u64> {
         match self {
-            GeminiTier::Free => Some(250_000),       // 250K tokens/min (Flash 2.0)
+            GeminiTier::Free => Some(250_000), // 250K tokens/min (Flash 2.0)
             GeminiTier::PayAsYouGo => Some(4_000_000), // 4M tokens/min
         }
     }
 
     fn rpd(&self) -> Option<u32> {
         match self {
-            GeminiTier::Free => Some(250),           // 250 requests/day (Flash 2.0)
+            GeminiTier::Free => Some(250),  // 250 requests/day (Flash 2.0)
             GeminiTier::PayAsYouGo => None, // No daily limit
         }
     }

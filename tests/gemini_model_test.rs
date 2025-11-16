@@ -8,7 +8,7 @@
 
 #![cfg(feature = "gemini")]
 
-use boticelli::{BoticelliDriver, GenerateRequest, GeminiClient, Input, Message, Role};
+use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
 
 /// Test that GeminiClient uses the default model when no model is specified.
 #[tokio::test]
@@ -29,10 +29,7 @@ async fn test_default_model_usage() {
         model: None, // No model override
     };
 
-    let response = client
-        .generate(&request)
-        .await
-        .expect("API call failed");
+    let response = client.generate(&request).await.expect("API call failed");
 
     // Should get a response (validates default model works)
     assert!(!response.outputs.is_empty());
@@ -59,10 +56,7 @@ async fn test_model_override_in_request() {
         model: Some("gemini-2.5-flash-lite".to_string()), // Override default
     };
 
-    let response = client
-        .generate(&request)
-        .await
-        .expect("API call failed");
+    let response = client.generate(&request).await.expect("API call failed");
 
     // Verify we got a response
     assert!(!response.outputs.is_empty());
@@ -91,10 +85,7 @@ async fn test_gemini_2_5_model_override() {
         model: Some("gemini-2.5-flash".to_string()),
     };
 
-    let response = client
-        .generate(&request)
-        .await
-        .expect("API call failed");
+    let response = client.generate(&request).await.expect("API call failed");
 
     assert!(!response.outputs.is_empty());
 }
@@ -175,8 +166,8 @@ async fn test_narrative_multi_model_execution() {
     let executor = NarrativeExecutor::new(client);
 
     let narrative_path = Path::new("narrations/text_models.toml");
-    let narrative = Narrative::from_file(narrative_path)
-        .expect("Failed to load text_models.toml narrative");
+    let narrative =
+        Narrative::from_file(narrative_path).expect("Failed to load text_models.toml narrative");
 
     let execution = executor
         .execute(&narrative)

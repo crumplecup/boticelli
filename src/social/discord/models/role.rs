@@ -16,12 +16,12 @@ pub struct RoleRow {
     pub guild_id: i64,
     pub name: String,
     pub color: i32,
-    pub hoist: Option<bool>,  // Display separately in member list
+    pub hoist: Option<bool>, // Display separately in member list
     pub icon: Option<String>,
     pub unicode_emoji: Option<String>,
     pub position: i32,
     pub permissions: i64,
-    pub managed: Option<bool>,  // Managed by integration (bot, boost, etc.)
+    pub managed: Option<bool>, // Managed by integration (bot, boost, etc.)
     pub mentionable: Option<bool>,
 
     // Role tags (bot, integration, premium subscriber)

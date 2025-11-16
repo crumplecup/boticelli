@@ -19,17 +19,17 @@ pub struct GuildMemberRow {
 
     // Member-specific data
     pub nick: Option<String>,
-    pub avatar: Option<String>,  // Guild-specific avatar
+    pub avatar: Option<String>, // Guild-specific avatar
 
     // Timestamps
     pub joined_at: NaiveDateTime,
-    pub premium_since: Option<NaiveDateTime>,  // Server boost date
-    pub communication_disabled_until: Option<NaiveDateTime>,  // Timeout
+    pub premium_since: Option<NaiveDateTime>, // Server boost date
+    pub communication_disabled_until: Option<NaiveDateTime>, // Timeout
 
     // Flags
     pub deaf: Option<bool>,
     pub mute: Option<bool>,
-    pub pending: Option<bool>,  // Passed membership screening
+    pub pending: Option<bool>, // Passed membership screening
 
     // Metadata
     pub created_at: NaiveDateTime,

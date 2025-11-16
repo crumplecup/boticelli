@@ -152,14 +152,19 @@ fn test_real_api_call() {
     let client = match GeminiClient::new() {
         Ok(c) => c,
         Err(e) => {
-            panic!("Failed to create client. Ensure GEMINI_API_KEY is set: {}", e);
+            panic!(
+                "Failed to create client. Ensure GEMINI_API_KEY is set: {}",
+                e
+            );
         }
     };
 
     let request = GenerateRequest {
         messages: vec![Message {
             role: Role::User,
-            content: vec![Input::Text("Say 'Hello, Boticelli!' and nothing else.".to_string())],
+            content: vec![Input::Text(
+                "Say 'Hello, Boticelli!' and nothing else.".to_string(),
+            )],
         }],
         max_tokens: Some(20),
         temperature: Some(0.0),
@@ -169,10 +174,17 @@ fn test_real_api_call() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async { client.generate(&request).await });
 
-    assert!(result.is_ok(), "API call should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "API call should succeed: {:?}",
+        result.err()
+    );
 
     let response = result.unwrap();
-    assert!(!response.outputs.is_empty(), "Should have at least one output");
+    assert!(
+        !response.outputs.is_empty(),
+        "Should have at least one output"
+    );
 }
 
 /// Test that verifies client creation behavior and consumes tokens.
@@ -199,7 +211,10 @@ fn test_client_creation() {
             assert_eq!(client.max_images_per_request(), 16);
         }
         Err(e) => {
-            panic!("Failed to create client. Set GEMINI_API_KEY before running: {}", e);
+            panic!(
+                "Failed to create client. Set GEMINI_API_KEY before running: {}",
+                e
+            );
         }
     }
 }

@@ -57,8 +57,12 @@ async fn test_rate_limiter_blocks_on_rpm_limit() {
 
     // First two requests should succeed immediately
     let start = Instant::now();
-    let _guard1 = limiter.try_acquire(100).expect("First request should succeed");
-    let _guard2 = limiter.try_acquire(100).expect("Second request should succeed");
+    let _guard1 = limiter
+        .try_acquire(100)
+        .expect("First request should succeed");
+    let _guard2 = limiter
+        .try_acquire(100)
+        .expect("Second request should succeed");
     let immediate_duration = start.elapsed();
 
     // Should be very fast (< 10ms)
@@ -137,10 +141,7 @@ async fn test_gemini_client_without_rate_limiting() {
     };
 
     let start = Instant::now();
-    let response = client
-        .generate(&request)
-        .await
-        .expect("API call failed");
+    let response = client.generate(&request).await.expect("API call failed");
     let duration = start.elapsed();
 
     // Verify we got a response
@@ -197,9 +198,9 @@ async fn test_rate_limiter_with_multiple_limits() {
 
     let tier = TierConfig {
         name: "Multi-Limit Test".to_string(),
-        rpm: Some(5),      // 5 requests per minute
-        tpm: Some(100),    // 100 tokens per minute
-        rpd: Some(20),     // 20 requests per day
+        rpm: Some(5),            // 5 requests per minute
+        tpm: Some(100),          // 100 tokens per minute
+        rpd: Some(20),           // 20 requests per day
         max_concurrent: Some(2), // 2 concurrent
         daily_quota_usd: None,
         cost_per_million_input_tokens: None,

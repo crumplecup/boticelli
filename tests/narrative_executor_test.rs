@@ -284,10 +284,7 @@ async fn test_trait_abstraction_with_simple_provider() {
     let driver = MockDriver::new("Mock");
     let executor = NarrativeExecutor::new(driver);
 
-    let result = executor
-        .execute(&provider)
-        .await
-        .expect("Execution failed");
+    let result = executor.execute(&provider).await.expect("Execution failed");
 
     assert_eq!(result.narrative_name, "in_memory_test");
     assert_eq!(result.act_executions.len(), 2);
@@ -388,17 +385,17 @@ async fn test_multimodal_and_per_act_config() {
     let driver = MockDriver::new("Result");
     let executor = NarrativeExecutor::new(driver);
 
-    let result = executor
-        .execute(&provider)
-        .await
-        .expect("Execution failed");
+    let result = executor.execute(&provider).await.expect("Execution failed");
 
     // Verify act 1 configuration was applied
     assert_eq!(result.act_executions[0].act_name, "creative");
     assert_eq!(result.act_executions[0].model, Some("gpt-4".to_string()));
     assert_eq!(result.act_executions[0].temperature, Some(0.9));
     assert_eq!(result.act_executions[0].max_tokens, Some(100));
-    assert_eq!(get_text_from_inputs(&result.act_executions[0].inputs), "Write a poem");
+    assert_eq!(
+        get_text_from_inputs(&result.act_executions[0].inputs),
+        "Write a poem"
+    );
 
     // Verify act 2 configuration was applied
     assert_eq!(result.act_executions[1].act_name, "analytical");
@@ -417,7 +414,13 @@ async fn test_multimodal_and_per_act_config() {
     );
     assert_eq!(result.act_executions[2].inputs.len(), 2);
     // First input is text
-    assert!(matches!(&result.act_executions[2].inputs[0], Input::Text(_)));
+    assert!(matches!(
+        &result.act_executions[2].inputs[0],
+        Input::Text(_)
+    ));
     // Second input is image
-    assert!(matches!(&result.act_executions[2].inputs[1], Input::Image { .. }));
+    assert!(matches!(
+        &result.act_executions[2].inputs[1],
+        Input::Image { .. }
+    ));
 }

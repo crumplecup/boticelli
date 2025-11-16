@@ -3,10 +3,10 @@
 //! Provides functions for querying, updating, and managing content
 //! in dynamically created generation tables.
 
-use crate::{BoticelliResult, DatabaseError, DatabaseErrorKind};
 use crate::database::schema_reflection::reflect_table_schema;
-use diesel::prelude::*;
+use crate::{BoticelliResult, DatabaseError, DatabaseErrorKind};
 use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use serde_json::Value as JsonValue;
 
 /// List generated content from a table.
@@ -55,10 +55,8 @@ pub fn list_content(
         .collect();
 
     // Parse JSON strings
-    let json_results: Result<Vec<JsonValue>, _> = results
-        .iter()
-        .map(|s| serde_json::from_str(s))
-        .collect();
+    let json_results: Result<Vec<JsonValue>, _> =
+        results.iter().map(|s| serde_json::from_str(s)).collect();
 
     json_results.map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())).into())
 }
@@ -199,11 +197,7 @@ pub fn update_review_status(
 /// * `conn` - Database connection
 /// * `table_name` - Name of the content table
 /// * `id` - Content ID
-pub fn delete_content(
-    conn: &mut PgConnection,
-    table_name: &str,
-    id: i64,
-) -> BoticelliResult<()> {
+pub fn delete_content(conn: &mut PgConnection, table_name: &str, id: i64) -> BoticelliResult<()> {
     let query = format!("DELETE FROM {} WHERE id = {}", table_name, id);
 
     tracing::debug!(sql = %query, "Deleting content");

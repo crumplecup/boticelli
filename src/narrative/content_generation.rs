@@ -3,12 +3,12 @@
 //! This processor detects narratives with a `template` field and generates
 //! content into custom tables based on Discord schema templates.
 
-use crate::{extract_json, parse_json, ActProcessor, BoticelliResult, ProcessorContext};
+use crate::{ActProcessor, BoticelliResult, ProcessorContext, extract_json, parse_json};
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 
 #[cfg(feature = "database")]
-use crate::{create_content_table, PgConnection};
+use crate::{PgConnection, create_content_table};
 #[cfg(feature = "database")]
 use diesel::prelude::*;
 #[cfg(feature = "database")]
@@ -89,9 +89,7 @@ impl ContentGenerationProcessor {
 
         diesel::sql_query(&insert_sql)
             .execute(&mut *conn)
-            .map_err(|e| {
-                crate::BackendError::new(format!("Failed to insert content: {}", e))
-            })?;
+            .map_err(|e| crate::BackendError::new(format!("Failed to insert content: {}", e)))?;
 
         Ok(())
     }
@@ -134,10 +132,7 @@ impl ActProcessor for ContentGenerationProcessor {
         // Extract JSON from response
         let json_str = extract_json(&context.execution.response)?;
 
-        tracing::debug!(
-            json_length = json_str.len(),
-            "Extracted JSON from response"
-        );
+        tracing::debug!(json_length = json_str.len(), "Extracted JSON from response");
 
         // Parse JSON - could be single object or array
         let items: Vec<JsonValue> = if json_str.trim().starts_with('[') {
@@ -198,4 +193,3 @@ fn json_value_to_sql(value: &JsonValue) -> String {
         }
     }
 }
-

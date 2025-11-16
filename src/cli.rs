@@ -49,10 +49,7 @@ impl RateLimitOptions {
     /// # Returns
     ///
     /// Modified configuration with CLI overrides applied
-    pub fn apply_to_config(
-        &self,
-        mut config: crate::TierConfig,
-    ) -> crate::TierConfig {
+    pub fn apply_to_config(&self, mut config: crate::TierConfig) -> crate::TierConfig {
         if self.no_rate_limit {
             // Remove all limits
             config.rpm = None;

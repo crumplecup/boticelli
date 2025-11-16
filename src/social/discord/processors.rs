@@ -4,10 +4,10 @@
 //! and insert them into the database using the DiscordRepository.
 
 use crate::{
-    extract_json, parse_json, ActProcessor, BoticelliResult, DiscordChannelJson,
-    DiscordGuildJson, DiscordGuildMemberJson, DiscordMemberRoleJson, DiscordRepository,
-    DiscordRoleJson, DiscordUserJson, NewChannel, NewGuild, NewGuildMember, NewMemberRole,
-    NewRole, NewUser, ProcessorContext,
+    ActProcessor, BoticelliResult, DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson,
+    DiscordMemberRoleJson, DiscordRepository, DiscordRoleJson, DiscordUserJson, NewChannel,
+    NewGuild, NewGuildMember, NewMemberRole, NewRole, NewUser, ProcessorContext, extract_json,
+    parse_json,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -387,9 +387,7 @@ impl ActProcessor for DiscordMemberRoleProcessor {
             );
 
             let new_member_role: NewMemberRole = member_role_json.try_into()?;
-            self.repository
-                .store_member_role(&new_member_role)
-                .await?;
+            self.repository.store_member_role(&new_member_role).await?;
         }
 
         tracing::info!(
@@ -416,7 +414,6 @@ impl ActProcessor for DiscordMemberRoleProcessor {
         "DiscordMemberRoleProcessor"
     }
 }
-
 
 #[cfg(test)]
 mod tests {

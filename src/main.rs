@@ -88,13 +88,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         #[cfg(feature = "database")]
         Commands::Content { command } => match command {
-            ContentCommands::List { table, status, limit } => {
+            ContentCommands::List {
+                table,
+                status,
+                limit,
+            } => {
                 list_content(&table, status.as_deref(), limit).await?;
             }
             ContentCommands::Show { table, id } => {
                 show_content(&table, id).await?;
             }
-            ContentCommands::Tag { table, id, tags, rating } => {
+            ContentCommands::Tag {
+                table,
+                id,
+                tags,
+                rating,
+            } => {
                 tag_content(&table, id, tags.as_deref(), rating).await?;
             }
             ContentCommands::Review { table, id, status } => {
@@ -113,14 +122,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(feature = "database")]
-fn create_postgres_repository() -> Result<boticelli::PostgresNarrativeRepository, Box<dyn std::error::Error>> {
+fn create_postgres_repository()
+-> Result<boticelli::PostgresNarrativeRepository, Box<dyn std::error::Error>> {
     let conn = boticelli::establish_connection()?;
-    
+
     // Create filesystem storage in temp directory
     // TODO: Make this configurable via CLI args or config file
     let storage_path = std::env::temp_dir().join("boticelli_media");
     let storage = std::sync::Arc::new(boticelli::FileSystemStorage::new(storage_path)?);
-    
+
     Ok(boticelli::PostgresNarrativeRepository::new(conn, storage))
 }
 
@@ -131,8 +141,7 @@ async fn run_narrative(
     #[cfg(feature = "database")] _save: bool,
     _verbose: bool,
     rate_limit_opts: RateLimitOptions,
-    #[cfg(all(feature = "database", feature = "discord"))]
-    process_discord: bool,
+    #[cfg(all(feature = "database", feature = "discord"))] process_discord: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load the narrative
     println!("📖 Loading narrative from {:?}...", narrative_path);
@@ -197,8 +206,7 @@ async fn execute_with_driver<D: BoticelliDriver>(
     narrative: Narrative,
     #[cfg(feature = "database")] save: bool,
     verbose: bool,
-    #[cfg(all(feature = "database", feature = "discord"))]
-    process_discord: bool,
+    #[cfg(all(feature = "database", feature = "discord"))] process_discord: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Step 8b: Setup DiscordRepository when flag is enabled
     #[cfg(all(feature = "database", feature = "discord"))]
@@ -216,12 +224,20 @@ async fn execute_with_driver<D: BoticelliDriver>(
         let mut registry = boticelli::ProcessorRegistry::new();
 
         // Register all Discord processors
-        registry.register(Box::new(boticelli::DiscordGuildProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordGuildProcessor::new(
+            repo.clone(),
+        )));
         registry.register(Box::new(boticelli::DiscordUserProcessor::new(repo.clone())));
-        registry.register(Box::new(boticelli::DiscordChannelProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordChannelProcessor::new(
+            repo.clone(),
+        )));
         registry.register(Box::new(boticelli::DiscordRoleProcessor::new(repo.clone())));
-        registry.register(Box::new(boticelli::DiscordGuildMemberProcessor::new(repo.clone())));
-        registry.register(Box::new(boticelli::DiscordMemberRoleProcessor::new(repo.clone())));
+        registry.register(Box::new(boticelli::DiscordGuildMemberProcessor::new(
+            repo.clone(),
+        )));
+        registry.register(Box::new(boticelli::DiscordMemberRoleProcessor::new(
+            repo.clone(),
+        )));
 
         println!("✓ Registered 6 Discord processors");
         println!();
@@ -385,7 +401,9 @@ async fn start_discord_bot(token: Option<String>) -> Result<(), Box<dyn std::err
     // Get token from command line or environment
     let token = token
         .or_else(|| std::env::var("DISCORD_TOKEN").ok())
-        .ok_or("Discord token not provided. Use --token or set DISCORD_TOKEN environment variable")?;
+        .ok_or(
+            "Discord token not provided. Use --token or set DISCORD_TOKEN environment variable",
+        )?;
 
     println!("🤖 Starting Boticelli Discord bot...");
 
@@ -414,9 +432,9 @@ async fn list_content(
     limit: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = boticelli::establish_connection()?;
-    
+
     let results = boticelli::list_content(&mut conn, table, status, limit)?;
-    
+
     if results.is_empty() {
         println!("No content found in table '{}'", table);
         if let Some(s) = status {
@@ -424,7 +442,7 @@ async fn list_content(
         }
         return Ok(());
     }
-    
+
     println!("📋 Content from '{}':\n", table);
     for item in &results {
         let id = item.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -436,11 +454,11 @@ async fn list_content(
             .get("generated_at")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
-        
+
         println!("  ID: {}", id);
         println!("  Status: {}", status);
         println!("  Generated: {}", generated_at);
-        
+
         // Show content fields (skip metadata)
         let metadata_fields = [
             "id",
@@ -452,7 +470,7 @@ async fn list_content(
             "tags",
             "rating",
         ];
-        
+
         for (key, value) in item.as_object().unwrap() {
             if !metadata_fields.contains(&key.as_str()) {
                 println!("  {}: {}", key, value);
@@ -460,25 +478,22 @@ async fn list_content(
         }
         println!();
     }
-    
+
     println!("Total: {} items", results.len());
     Ok(())
 }
 
 #[cfg(feature = "database")]
-async fn show_content(
-    table: &str,
-    id: i64,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn show_content(table: &str, id: i64) -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = boticelli::establish_connection()?;
-    
+
     let item = boticelli::get_content_by_id(&mut conn, table, id)?;
-    
+
     println!("📄 Content from '{}' (ID: {})\n", table, id);
-    
+
     // Pretty print JSON
     println!("{}", serde_json::to_string_pretty(&item)?);
-    
+
     Ok(())
 }
 
@@ -490,21 +505,15 @@ async fn tag_content(
     rating: Option<i32>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = boticelli::establish_connection()?;
-    
+
     let tag_list = tags.map(|t| {
         t.split(',')
             .map(|s| s.trim().to_string())
             .collect::<Vec<_>>()
     });
-    
-    boticelli::update_content_metadata(
-        &mut conn,
-        table,
-        id,
-        tag_list.as_deref(),
-        rating,
-    )?;
-    
+
+    boticelli::update_content_metadata(&mut conn, table, id, tag_list.as_deref(), rating)?;
+
     println!("✓ Updated content {} in '{}'", id, table);
     if let Some(t) = tags {
         println!("  Tags: {}", t);
@@ -512,7 +521,7 @@ async fn tag_content(
     if let Some(r) = rating {
         println!("  Rating: {}/5", r);
     }
-    
+
     Ok(())
 }
 
@@ -523,38 +532,34 @@ async fn review_content(
     status: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = boticelli::establish_connection()?;
-    
+
     boticelli::update_review_status(&mut conn, table, id, status)?;
-    
+
     println!("✓ Updated review status for content {} in '{}'", id, table);
     println!("  Status: {}", status);
-    
+
     Ok(())
 }
 
 #[cfg(feature = "database")]
-async fn delete_content(
-    table: &str,
-    id: i64,
-    yes: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn delete_content(table: &str, id: i64, yes: bool) -> Result<(), Box<dyn std::error::Error>> {
     if !yes {
         print!("Delete content {} from '{}'? [y/N] ", id, table);
         use std::io::{self, Write};
         io::stdout().flush()?;
-        
+
         let mut response = String::new();
         io::stdin().read_line(&mut response)?;
-        
+
         if !response.trim().eq_ignore_ascii_case("y") {
             println!("Cancelled");
             return Ok(());
         }
     }
-    
+
     let mut conn = boticelli::establish_connection()?;
     boticelli::delete_content(&mut conn, table, id)?;
-    
+
     println!("✓ Deleted content {} from '{}'", id, table);
     Ok(())
 }
@@ -566,7 +571,7 @@ async fn promote_content(
     target: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = boticelli::establish_connection()?;
-    
+
     // Determine target table
     // If not specified, try to derive from source table name
     // e.g., "potential_posts" -> "discord_channels" (based on template)
@@ -575,21 +580,21 @@ async fn promote_content(
     } else {
         // Try to infer from table comment which has the template name
         // For now, require explicit target
-        return Err(
-            "Target table must be specified with --target flag. \
+        return Err("Target table must be specified with --target flag. \
              Example: --target discord_channels"
-                .into(),
-        );
+            .into());
     };
-    
-    println!("🚀 Promoting content {} from '{}' to '{}'...", id, table, target_table);
-    
+
+    println!(
+        "🚀 Promoting content {} from '{}' to '{}'...",
+        id, table, target_table
+    );
+
     let new_id = boticelli::promote_content(&mut conn, table, &target_table, id)?;
-    
+
     println!("✓ Content promoted successfully!");
     println!("  Source: {} (ID: {})", table, id);
     println!("  Target: {} (ID: {})", target_table, new_id);
-    
+
     Ok(())
 }
-

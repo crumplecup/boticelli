@@ -6,8 +6,8 @@
 //! - A table of contents defining execution order
 //! - Acts containing prompts to be executed sequentially
 
-mod core;
 mod content_generation;
+mod core;
 mod error;
 mod executor;
 mod extraction;

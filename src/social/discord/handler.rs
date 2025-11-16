@@ -8,10 +8,10 @@ use chrono::NaiveDateTime;
 use serenity::all::{GuildId, Ready};
 use serenity::async_trait;
 use serenity::client::{Context, EventHandler};
+use serenity::model::Timestamp;
 use serenity::model::channel::{Channel, GuildChannel};
 use serenity::model::gateway::GatewayIntents;
 use serenity::model::guild::{Guild, Member, Role};
-use serenity::model::Timestamp;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
@@ -208,10 +208,10 @@ impl BoticelliHandler {
             user_id: Self::to_db_id(member.user.id.get()),
             nick: member.nick.clone(),
             avatar: member.avatar.map(|a| a.to_string()),
-            joined_at: member.joined_at.as_ref().map_or_else(
-                || chrono::Utc::now().naive_utc(),
-                timestamp_to_naive
-            ),
+            joined_at: member
+                .joined_at
+                .as_ref()
+                .map_or_else(|| chrono::Utc::now().naive_utc(), timestamp_to_naive),
             premium_since: member.premium_since.as_ref().map(timestamp_to_naive),
             deaf: Some(member.deaf),
             mute: Some(member.mute),
@@ -402,7 +402,10 @@ impl EventHandler for BoticelliHandler {
 
         if let Err(e) = self
             .repository
-            .mark_member_left(Self::to_db_id(guild_id.get()), Self::to_db_id(user.id.get()))
+            .mark_member_left(
+                Self::to_db_id(guild_id.get()),
+                Self::to_db_id(user.id.get()),
+            )
             .await
         {
             error!(

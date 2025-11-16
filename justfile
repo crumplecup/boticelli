@@ -3,6 +3,9 @@
 # Common tasks for building, testing, and maintaining the Boticelli project.
 # Run `just` or `just --list` to see all available commands.
 
+# Load environment variables from .env file
+set dotenv-load
+
 # Default recipe to display help
 default:
     @just --list
@@ -95,7 +98,9 @@ test:
 
 # Run all tests including database integration (requires DATABASE_URL)
 test-all:
-    @test -n "${DATABASE_URL}" || (echo "❌ DATABASE_URL not set. These tests require a PostgreSQL database." && exit 1)
+    #!/usr/bin/env bash
+    set +u
+    test -n "${DATABASE_URL}" || (echo "❌ DATABASE_URL not set. These tests require a PostgreSQL database." && exit 1)
     cargo test --all-features
 
 # Run tests with output
@@ -189,7 +194,9 @@ db-migration name:
 
 # Check database connection
 db-check:
-    @echo "🔍 Checking database connection..."
+    #!/usr/bin/env bash
+    set +u
+    echo "🔍 Checking database connection..."
     diesel database setup --database-url="${DATABASE_URL}" || echo "✅ Database already exists"
 
 # Setup database from scratch
@@ -313,23 +320,25 @@ stats:
 
 # Show environment information
 env:
-    @echo "🔧 Environment Information"
-    @echo "========================="
-    @echo ""
-    @echo "Rust version:"
-    @rustc --version
-    @echo ""
-    @echo "Cargo version:"
-    @cargo --version
-    @echo ""
-    @echo "Just version:"
-    @just --version
-    @echo ""
-    @echo "Diesel CLI:"
-    @diesel --version 2>/dev/null || echo "  Not installed"
-    @echo ""
-    @echo "Database URL:"
-    @echo "  ${DATABASE_URL:-Not set}"
+    #!/usr/bin/env bash
+    set +u
+    echo "🔧 Environment Information"
+    echo "========================="
+    echo ""
+    echo "Rust version:"
+    rustc --version
+    echo ""
+    echo "Cargo version:"
+    cargo --version
+    echo ""
+    echo "Just version:"
+    just --version
+    echo ""
+    echo "Diesel CLI:"
+    diesel --version 2>/dev/null || echo "  Not installed"
+    echo ""
+    echo "Database URL:"
+    echo "  ${DATABASE_URL:-Not set}"
 
 # Show available features
 features:

@@ -6,14 +6,14 @@ use crate::database::narrative_conversions::{
 };
 use crate::database::schema::{act_executions, act_inputs, narrative_executions};
 use crate::{
-    ActExecutionRow, ActInputRow, BackendError, BoticelliError, BoticelliResult,
-    ExecutionFilter, ExecutionStatus, ExecutionSummary, NarrativeExecution,
-    NarrativeExecutionRow, NarrativeRepository,
+    ActExecutionRow, ActInputRow, BackendError, BoticelliError, BoticelliResult, ExecutionFilter,
+    ExecutionStatus, ExecutionSummary, NarrativeExecution, NarrativeExecutionRow,
+    NarrativeRepository,
 };
 use async_trait::async_trait;
 use chrono::Utc;
-use diesel::prelude::*;
 use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -78,15 +78,16 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         conn.transaction(|conn| {
             // Insert narrative_execution
             let new_execution = execution_to_new_row(execution, ExecutionStatus::Completed);
-            let execution_row: NarrativeExecutionRow = diesel::insert_into(narrative_executions::table)
-                .values(&new_execution)
-                .get_result(conn)
-                .map_err(|e| {
-                    BoticelliError::from(BackendError::new(format!(
-                        "Failed to insert narrative execution: {}",
-                        e
-                    )))
-                })?;
+            let execution_row: NarrativeExecutionRow =
+                diesel::insert_into(narrative_executions::table)
+                    .values(&new_execution)
+                    .get_result(conn)
+                    .map_err(|e| {
+                        BoticelliError::from(BackendError::new(format!(
+                            "Failed to insert narrative execution: {}",
+                            e
+                        )))
+                    })?;
 
             let execution_id = execution_row.id;
 
@@ -158,14 +159,15 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             })?;
 
         // Group inputs by act
-        let inputs_by_act = input_rows
-            .into_iter()
-            .fold(std::collections::HashMap::new(), |mut acc, input| {
-                acc.entry(input.act_execution_id)
-                    .or_insert_with(Vec::new)
-                    .push(input);
-                acc
-            });
+        let inputs_by_act =
+            input_rows
+                .into_iter()
+                .fold(std::collections::HashMap::new(), |mut acc, input| {
+                    acc.entry(input.act_execution_id)
+                        .or_insert_with(Vec::new)
+                        .push(input);
+                    acc
+                });
 
         // Reconstruct ActExecutions
         let mut act_executions = Vec::new();
@@ -234,10 +236,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                 .count()
                 .get_result(&mut *conn)
                 .map_err(|e| {
-                    BoticelliError::from(BackendError::new(format!(
-                        "Failed to count acts: {}",
-                        e
-                    )))
+                    BoticelliError::from(BackendError::new(format!("Failed to count acts: {}", e)))
                 })?;
 
             summaries.push(ExecutionSummary {
@@ -374,10 +373,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         Ok(reference)
     }
 
-    async fn load_media(
-        &self,
-        reference: &crate::MediaReference,
-    ) -> BoticelliResult<Vec<u8>> {
+    async fn load_media(&self, reference: &crate::MediaReference) -> BoticelliResult<Vec<u8>> {
         self.storage.retrieve(reference).await
     }
 
@@ -389,41 +385,32 @@ impl NarrativeRepository for PostgresNarrativeRepository {
 
         let mut conn = self.conn.lock().await;
 
-        let result: Option<(
-            uuid::Uuid,
-            String,
-            String,
-            i64,
-            String,
-            String,
-            String,
-        )> = media_references::table
-            .select((
-                media_references::id,
-                media_references::media_type,
-                media_references::mime_type,
-                media_references::size_bytes,
-                media_references::content_hash,
-                media_references::storage_backend,
-                media_references::storage_path,
-            ))
-            .filter(media_references::content_hash.eq(content_hash))
-            .first(&mut *conn)
-            .optional()
-            .map_err(|e| {
-                BoticelliError::from(BackendError::new(format!(
-                    "Failed to query media by hash: {}",
-                    e
-                )))
-            })?;
+        let result: Option<(uuid::Uuid, String, String, i64, String, String, String)> =
+            media_references::table
+                .select((
+                    media_references::id,
+                    media_references::media_type,
+                    media_references::mime_type,
+                    media_references::size_bytes,
+                    media_references::content_hash,
+                    media_references::storage_backend,
+                    media_references::storage_path,
+                ))
+                .filter(media_references::content_hash.eq(content_hash))
+                .first(&mut *conn)
+                .optional()
+                .map_err(|e| {
+                    BoticelliError::from(BackendError::new(format!(
+                        "Failed to query media by hash: {}",
+                        e
+                    )))
+                })?;
 
         Ok(result.map(
             |(id, media_type_str, mime_type, size_bytes, hash, backend, path)| {
                 crate::MediaReference {
                     id,
-                    media_type: media_type_str
-                        .parse()
-                        .unwrap_or(crate::MediaType::Image),
+                    media_type: media_type_str.parse().unwrap_or(crate::MediaType::Image),
                     mime_type,
                     size_bytes,
                     content_hash: hash,

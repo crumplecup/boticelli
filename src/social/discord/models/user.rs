@@ -12,8 +12,8 @@ use diesel::prelude::*;
 pub struct UserRow {
     pub id: i64,
     pub username: String,
-    pub discriminator: Option<String>,  // Legacy discriminator
-    pub global_name: Option<String>,    // Display name
+    pub discriminator: Option<String>, // Legacy discriminator
+    pub global_name: Option<String>,   // Display name
     pub avatar: Option<String>,
     pub banner: Option<String>,
     pub accent_color: Option<i32>,

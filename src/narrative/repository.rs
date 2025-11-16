@@ -102,10 +102,7 @@ pub trait NarrativeRepository: Send + Sync {
     ///
     /// # Returns
     /// The raw media bytes
-    async fn load_media(
-        &self,
-        reference: &crate::MediaReference,
-    ) -> BoticelliResult<Vec<u8>>;
+    async fn load_media(&self, reference: &crate::MediaReference) -> BoticelliResult<Vec<u8>>;
 
     /// Get media reference by content hash for deduplication.
     ///
@@ -140,9 +137,11 @@ pub trait NarrativeRepository: Send + Sync {
         _video_data: &[u8],
         _metadata: &VideoMetadata,
     ) -> BoticelliResult<String> {
-        Err(crate::BoticelliError::from(crate::NotImplementedError::new(
-            "Video storage not yet implemented for this repository",
-        )))
+        Err(crate::BoticelliError::from(
+            crate::NotImplementedError::new(
+                "Video storage not yet implemented for this repository",
+            ),
+        ))
     }
 
     /// Retrieve video input data by reference.
@@ -153,9 +152,11 @@ pub trait NarrativeRepository: Send + Sync {
     /// # Returns
     /// The raw video bytes
     async fn load_video(&self, _video_ref: &str) -> BoticelliResult<Vec<u8>> {
-        Err(crate::BoticelliError::from(crate::NotImplementedError::new(
-            "Video loading not yet implemented for this repository",
-        )))
+        Err(crate::BoticelliError::from(
+            crate::NotImplementedError::new(
+                "Video loading not yet implemented for this repository",
+            ),
+        ))
     }
 }
 

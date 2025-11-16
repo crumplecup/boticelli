@@ -105,14 +105,14 @@ impl TryFrom<DiscordGuildJson> for NewGuild {
 
             // Member counts
             member_count: json.member_count,
-            approximate_member_count: None, // Not in JSON model
+            approximate_member_count: None,   // Not in JSON model
             approximate_presence_count: None, // Not in JSON model
 
             // Guild settings
-            afk_channel_id: None, // Not in JSON model
-            afk_timeout: None,    // Not in JSON model
-            system_channel_id: None, // Not in JSON model
-            rules_channel_id: None, // Not in JSON model
+            afk_channel_id: None,            // Not in JSON model
+            afk_timeout: None,               // Not in JSON model
+            system_channel_id: None,         // Not in JSON model
+            rules_channel_id: None,          // Not in JSON model
             public_updates_channel_id: None, // Not in JSON model
 
             // Verification and content filtering
@@ -125,8 +125,8 @@ impl TryFrom<DiscordGuildJson> for NewGuild {
             premium_subscription_count: None, // Not in JSON model
 
             // Server boost progress
-            max_presences: None, // Not in JSON model
-            max_members: None,   // Not in JSON model
+            max_presences: None,           // Not in JSON model
+            max_members: None,             // Not in JSON model
             max_video_channel_users: None, // Not in JSON model
 
             // Status flags
@@ -154,8 +154,8 @@ impl TryFrom<DiscordUserJson> for NewUser {
             discriminator: json.discriminator,
             global_name: json.global_name,
             avatar: json.avatar,
-            banner: None,        // Not in JSON model
-            accent_color: None,  // Not in JSON model
+            banner: None,       // Not in JSON model
+            accent_color: None, // Not in JSON model
 
             // Account flags
             bot: json.bot,
@@ -197,21 +197,21 @@ impl TryFrom<DiscordChannelJson> for NewChannel {
 
             // Thread-specific
             parent_id: json.parent_id,
-            owner_id: None,       // Not in JSON model
-            message_count: None,  // Not in JSON model
-            member_count: None,   // Not in JSON model
-            archived: None,       // Not in JSON model
+            owner_id: None,              // Not in JSON model
+            message_count: None,         // Not in JSON model
+            member_count: None,          // Not in JSON model
+            archived: None,              // Not in JSON model
             auto_archive_duration: None, // Not in JSON model
-            archive_timestamp: None, // Not in JSON model
-            locked: None,         // Not in JSON model
-            invitable: None,      // Not in JSON model
+            archive_timestamp: None,     // Not in JSON model
+            locked: None,                // Not in JSON model
+            invitable: None,             // Not in JSON model
 
             // Forum-specific
-            available_tags: None, // Not in JSON model
-            default_reaction_emoji: None, // Not in JSON model
+            available_tags: None,            // Not in JSON model
+            default_reaction_emoji: None,    // Not in JSON model
             default_thread_rate_limit: None, // Not in JSON model
-            default_sort_order: None, // Not in JSON model
-            default_forum_layout: None, // Not in JSON model
+            default_sort_order: None,        // Not in JSON model
+            default_forum_layout: None,      // Not in JSON model
 
             // Timestamps
             last_message_at: None, // Not in JSON model

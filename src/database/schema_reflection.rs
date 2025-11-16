@@ -63,14 +63,12 @@ pub fn reflect_table_schema(
         table_name
     );
 
-    let results: Vec<ColumnInfo> = diesel::sql_query(&query)
-        .load(conn)
-        .map_err(|e| {
-            DatabaseError::new(DatabaseErrorKind::Query(format!(
-                "Failed to query schema for table '{}': {}",
-                table_name, e
-            )))
-        })?;
+    let results: Vec<ColumnInfo> = diesel::sql_query(&query).load(conn).map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to query schema for table '{}': {}",
+            table_name, e
+        )))
+    })?;
 
     if results.is_empty() {
         return Err(DatabaseError::new(DatabaseErrorKind::TableNotFound(
@@ -85,10 +83,7 @@ pub fn reflect_table_schema(
 }
 
 /// Generate CREATE TABLE SQL from a table schema
-pub fn generate_create_table_sql(
-    target_table_name: &str,
-    source_schema: &TableSchema,
-) -> String {
+pub fn generate_create_table_sql(target_table_name: &str, source_schema: &TableSchema) -> String {
     let mut sql = format!("CREATE TABLE {} (\n", target_table_name);
 
     let column_defs: Vec<String> = source_schema
@@ -117,9 +112,10 @@ pub fn generate_create_table_sql(
 
             // Skip defaults that reference sequences (for serial columns)
             if let Some(default) = &col.column_default
-                && !default.contains("nextval") {
-                    def.push_str(&format!(" DEFAULT {}", default));
-                }
+                && !default.contains("nextval")
+            {
+                def.push_str(&format!(" DEFAULT {}", default));
+            }
 
             def
         })
@@ -182,14 +178,12 @@ pub fn table_exists(conn: &mut PgConnection, table_name: &str) -> DatabaseResult
         table_name
     );
 
-    let result: TableExistsResult = diesel::sql_query(&query)
-        .get_result(conn)
-        .map_err(|e| {
-            DatabaseError::new(DatabaseErrorKind::Query(format!(
-                "Failed to check table existence: {}",
-                e
-            )))
-        })?;
+    let result: TableExistsResult = diesel::sql_query(&query).get_result(conn).map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to check table existence: {}",
+            e
+        )))
+    })?;
 
     Ok(result.exists)
 }
@@ -218,14 +212,12 @@ pub fn create_content_table(
     let create_sql = generate_create_table_sql(table_name, &source_schema);
 
     // Execute CREATE TABLE
-    diesel::sql_query(&create_sql)
-        .execute(conn)
-        .map_err(|e| {
-            DatabaseError::new(DatabaseErrorKind::Query(format!(
-                "Failed to create table '{}': {}",
-                table_name, e
-            )))
-        })?;
+    diesel::sql_query(&create_sql).execute(conn).map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to create table '{}': {}",
+            table_name, e
+        )))
+    })?;
 
     // Insert metadata record
     let insert_sql = format!(
@@ -243,14 +235,12 @@ pub fn create_content_table(
             .unwrap_or_else(|| "NULL".to_string())
     );
 
-    diesel::sql_query(&insert_sql)
-        .execute(conn)
-        .map_err(|e| {
-            DatabaseError::new(DatabaseErrorKind::Query(format!(
-                "Failed to insert metadata for table '{}': {}",
-                table_name, e
-            )))
-        })?;
+    diesel::sql_query(&insert_sql).execute(conn).map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to insert metadata for table '{}': {}",
+            table_name, e
+        )))
+    })?;
 
     tracing::info!(
         "Created content generation table '{}' from template '{}'",

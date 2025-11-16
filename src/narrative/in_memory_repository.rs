@@ -116,10 +116,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
             .get(&id)
             .map(|stored| stored.execution.clone())
             .ok_or_else(|| {
-                BoticelliError::from(BackendError::new(format!(
-                    "Execution {} not found",
-                    id
-                )))
+                BoticelliError::from(BackendError::new(format!("Execution {} not found", id)))
             })
     }
 
@@ -199,10 +196,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
                 }
             })
             .ok_or_else(|| {
-                BoticelliError::from(BackendError::new(format!(
-                    "Execution {} not found",
-                    id
-                )))
+                BoticelliError::from(BackendError::new(format!("Execution {} not found", id)))
             })
     }
 
@@ -213,10 +207,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
             .remove(&id)
             .map(|_| ())
             .ok_or_else(|| {
-                BoticelliError::from(BackendError::new(format!(
-                    "Execution {} not found",
-                    id
-                )))
+                BoticelliError::from(BackendError::new(format!("Execution {} not found", id)))
             })
     }
 
@@ -226,18 +217,19 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
         _data: &[u8],
         _metadata: &crate::MediaMetadata,
     ) -> BoticelliResult<crate::MediaReference> {
-        Err(crate::BoticelliError::from(crate::NotImplementedError::new(
-            "Media storage not yet implemented for in-memory repository",
-        )))
+        Err(crate::BoticelliError::from(
+            crate::NotImplementedError::new(
+                "Media storage not yet implemented for in-memory repository",
+            ),
+        ))
     }
 
-    async fn load_media(
-        &self,
-        _reference: &crate::MediaReference,
-    ) -> BoticelliResult<Vec<u8>> {
-        Err(crate::BoticelliError::from(crate::NotImplementedError::new(
-            "Media loading not yet implemented for in-memory repository",
-        )))
+    async fn load_media(&self, _reference: &crate::MediaReference) -> BoticelliResult<Vec<u8>> {
+        Err(crate::BoticelliError::from(
+            crate::NotImplementedError::new(
+                "Media loading not yet implemented for in-memory repository",
+            ),
+        ))
     }
 
     async fn get_media_by_hash(

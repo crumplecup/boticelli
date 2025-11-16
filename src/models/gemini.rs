@@ -60,8 +60,8 @@ use gemini_rust::{Gemini, client::Model};
 
 use crate::{
     BoticelliConfig, BoticelliDriver, BoticelliError, BoticelliResult, GenerateRequest,
-    GenerateResponse, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier,
-    TierConfig, Vision,
+    GenerateResponse, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier, TierConfig,
+    Vision,
 };
 
 //

@@ -156,7 +156,9 @@ url = "https://example.com/report.pdf"
 filename = "report.pdf"
 "#;
 
-    let narrative: Narrative = toml_content.parse().expect("Should parse multimodal narrative");
+    let narrative: Narrative = toml_content
+        .parse()
+        .expect("Should parse multimodal narrative");
 
     // Check metadata
     assert_eq!(narrative.metadata.name, "multimodal_test");
@@ -164,13 +166,19 @@ filename = "report.pdf"
     assert_eq!(narrative.acts.len(), 3);
 
     // Check simple text act
-    let simple_act = narrative.acts.get("simple").expect("simple act should exist");
+    let simple_act = narrative
+        .acts
+        .get("simple")
+        .expect("simple act should exist");
     assert_eq!(simple_act.inputs.len(), 1);
     assert!(matches!(&simple_act.inputs[0], Input::Text(_)));
     assert_eq!(simple_act.model, None);
 
     // Check vision act
-    let vision_act = narrative.acts.get("vision").expect("vision act should exist");
+    let vision_act = narrative
+        .acts
+        .get("vision")
+        .expect("vision act should exist");
     assert_eq!(vision_act.inputs.len(), 2);
     assert!(matches!(&vision_act.inputs[0], Input::Text(_)));
     assert!(matches!(&vision_act.inputs[1], Input::Image { .. }));
@@ -206,33 +214,48 @@ filename = "report.pdf"
 #[test]
 fn test_load_showcase_narrative() {
     // This test verifies that the comprehensive showcase.toml example parses successfully
-    let narrative = Narrative::from_file("narratives/showcase.toml")
-        .expect("Failed to load showcase.toml");
+    let narrative =
+        Narrative::from_file("narratives/showcase.toml").expect("Failed to load showcase.toml");
 
     assert_eq!(narrative.metadata.name, "product_presentation_analysis");
     assert_eq!(narrative.toc.order.len(), 8);
 
     // Verify simple text act
-    let initial = narrative.acts.get("initial_brief").expect("initial_brief should exist");
+    let initial = narrative
+        .acts
+        .get("initial_brief")
+        .expect("initial_brief should exist");
     assert_eq!(initial.inputs.len(), 1);
     assert!(matches!(&initial.inputs[0], Input::Text(_)));
 
     // Verify vision act with image
-    let slides = narrative.acts.get("analyze_slides").expect("analyze_slides should exist");
+    let slides = narrative
+        .acts
+        .get("analyze_slides")
+        .expect("analyze_slides should exist");
     assert_eq!(slides.model, Some("gemini-pro-vision".to_string()));
     assert_eq!(slides.temperature, Some(0.3));
     assert_eq!(slides.inputs.len(), 2);
 
     // Verify audio act
-    let pitch = narrative.acts.get("transcribe_pitch").expect("transcribe_pitch should exist");
+    let pitch = narrative
+        .acts
+        .get("transcribe_pitch")
+        .expect("transcribe_pitch should exist");
     assert_eq!(pitch.model, Some("whisper-large-v3".to_string()));
     assert!(matches!(&pitch.inputs[1], Input::Audio { .. }));
 
     // Verify video act
-    let video = narrative.acts.get("analyze_demo_video").expect("analyze_demo_video should exist");
+    let video = narrative
+        .acts
+        .get("analyze_demo_video")
+        .expect("analyze_demo_video should exist");
     assert!(matches!(&video.inputs[1], Input::Video { .. }));
 
     // Verify document act
-    let plan = narrative.acts.get("review_business_plan").expect("review_business_plan should exist");
+    let plan = narrative
+        .acts
+        .get("review_business_plan")
+        .expect("review_business_plan should exist");
     assert!(matches!(&plan.inputs[1], Input::Document { .. }));
 }

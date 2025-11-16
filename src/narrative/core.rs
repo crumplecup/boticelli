@@ -1,7 +1,7 @@
 //! Core data structures for narratives.
 
-use crate::narrative::{ActConfig, NarrativeError, NarrativeErrorKind, NarrativeProvider};
 use crate::narrative::toml as toml_parsing;
+use crate::narrative::{ActConfig, NarrativeError, NarrativeErrorKind, NarrativeProvider};
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
@@ -81,7 +81,11 @@ impl Narrative {
     /// - Validation fails (missing acts, empty order, etc.)
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, NarrativeError> {
         let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
-            NarrativeError::new(NarrativeErrorKind::FileRead(e.to_string()), line!(), file!())
+            NarrativeError::new(
+                NarrativeErrorKind::FileRead(e.to_string()),
+                line!(),
+                file!(),
+            )
         })?;
 
         content.parse()
@@ -139,11 +143,7 @@ impl Narrative {
         self.toc
             .order
             .iter()
-            .filter_map(|name| {
-                self.acts
-                    .get(name)
-                    .map(|config| (name.as_str(), config))
-            })
+            .filter_map(|name| self.acts.get(name).map(|config| (name.as_str(), config)))
             .collect()
     }
 }
@@ -154,7 +154,11 @@ impl FromStr for Narrative {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Parse TOML into intermediate structure
         let toml_narrative: toml_parsing::TomlNarrative = toml::from_str(s).map_err(|e| {
-            NarrativeError::new(NarrativeErrorKind::TomlParse(e.to_string()), line!(), file!())
+            NarrativeError::new(
+                NarrativeErrorKind::TomlParse(e.to_string()),
+                line!(),
+                file!(),
+            )
         })?;
 
         // Convert to domain types
@@ -189,7 +193,11 @@ impl FromStr for Narrative {
             acts.insert(act_name, act_config);
         }
 
-        let narrative = Narrative { metadata, toc, acts };
+        let narrative = Narrative {
+            metadata,
+            toc,
+            acts,
+        };
         narrative.validate()?;
         Ok(narrative)
     }

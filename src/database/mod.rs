@@ -6,15 +6,21 @@ mod models;
 mod narrative_conversions;
 mod narrative_models;
 mod narrative_repository;
-mod schema_reflection;
-pub(crate) mod schema;  // Make schema accessible within the crate for Discord models
+pub(crate) mod schema;
+mod schema_reflection; // Make schema accessible within the crate for Discord models
 
 // Re-export schema tables for internal use by migration tools and tests
 pub use schema::{
-    act_inputs, media_references, narrative_executions,
+    act_inputs,
     // Discord schema tables
-    discord_channels, discord_guild_members, discord_guilds,
-    discord_member_roles, discord_roles, discord_users,
+    discord_channels,
+    discord_guild_members,
+    discord_guilds,
+    discord_member_roles,
+    discord_roles,
+    discord_users,
+    media_references,
+    narrative_executions,
 };
 
 use diesel::pg::PgConnection;
@@ -30,8 +36,8 @@ pub use narrative_repository::PostgresNarrativeRepository;
 // Schema reflection exports will be used in Phase 2 for content generation processor
 #[allow(unused_imports)]
 pub use schema_reflection::{
-    create_content_table, generate_create_table_sql, reflect_table_schema, table_exists,
-    ColumnInfo, TableSchema,
+    ColumnInfo, TableSchema, create_content_table, generate_create_table_sql, reflect_table_schema,
+    table_exists,
 };
 
 // Content management exports for Phase 3

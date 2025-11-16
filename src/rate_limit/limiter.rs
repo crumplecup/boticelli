@@ -8,9 +8,9 @@
 //! that is ~10x faster than mutex-based token bucket approaches.
 
 use crate::Tier;
-use governor::{Quota, RateLimiter as GovernorRateLimiter};
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
+use governor::{Quota, RateLimiter as GovernorRateLimiter};
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -97,11 +97,10 @@ impl<T: Tier> RateLimiter<T> {
         let tpm_limiter = tier.tpm().and_then(|tpm| {
             // Governor uses u32, so we need to handle large TPM values
             // For very large TPM values (>4B), we cap at u32::MAX
-            NonZeroU32::new(tpm.min(u32::MAX as u64) as u32)
-                .map(|n| {
-                    let quota = Quota::per_minute(n);
-                    Arc::new(GovernorRateLimiter::direct(quota))
-                })
+            NonZeroU32::new(tpm.min(u32::MAX as u64) as u32).map(|n| {
+                let quota = Quota::per_minute(n);
+                Arc::new(GovernorRateLimiter::direct(quota))
+            })
         });
 
         // Create RPD limiter (requests per day)
@@ -188,14 +187,14 @@ impl<T: Tier> RateLimiter<T> {
         }
 
         // Acquire concurrent request slot (last to avoid holding slot while waiting)
-        let permit = self.concurrent_semaphore.clone()
+        let permit = self
+            .concurrent_semaphore
+            .clone()
             .acquire_owned()
             .await
             .expect("Semaphore should not be closed");
 
-        RateLimiterGuard {
-            _permit: permit,
-        }
+        RateLimiterGuard { _permit: permit }
     }
 
     /// Try to acquire without waiting.

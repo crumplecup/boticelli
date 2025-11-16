@@ -1,9 +1,24 @@
 <!-- markdownlint-disable MD046 -->
 # Narrative Act Processors Implementation
 
+## Implementation Status
+
+| Step | Component | Status | Files |
+|------|-----------|--------|-------|
+| 1 | JSON/TOML Extraction | ✅ Complete | `src/narrative/extraction.rs` |
+| 2 | ActProcessor Trait | 🚧 Pending | `src/narrative/processor.rs` |
+| 3 | Enhanced Executor | 🚧 Pending | `src/narrative/executor.rs` (updated) |
+| 4 | Discord JSON Models | 🚧 Pending | `src/discord/json_models.rs` |
+| 5 | Discord Conversions | 🚧 Pending | `src/discord/conversions.rs` |
+| 6 | Discord Processors | 🚧 Pending | `src/discord/processors.rs` |
+| 7 | Module Exports | 🚧 Pending | `src/lib.rs`, `src/discord/mod.rs` |
+| 8 | Tests | 🚧 Pending | `tests/` directory |
+
 ## Overview
 
 This document describes the implementation of a post-processing pipeline for narrative act executions. The system extracts structured data (JSON, TOML) from LLM responses and automatically inserts it into the database.
+
+**Note:** This document serves as both a planning document and implementation guide. Sections marked ✅ have been implemented and tested. Implementation details reflect the actual code in the repository.
 
 ## Architecture
 
@@ -80,9 +95,13 @@ tests/
 
 ## Implementation Steps
 
-### Step 1: JSON/TOML Extraction Utilities
+### Step 1: JSON/TOML Extraction Utilities ✅
 
-Create `src/narrative/extraction.rs`:
+**Status:** Complete (commit: 9f2957f)
+
+**Implementation:** `src/narrative/extraction.rs`
+
+**What was built:**
 
 ```rust
 //! Utilities for extracting structured data from LLM responses.

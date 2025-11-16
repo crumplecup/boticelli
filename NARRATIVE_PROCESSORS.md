@@ -682,198 +682,80 @@ pub struct DiscordMemberRoleJson {
 }
 ```
 
-### Step 5: JSON to Database Conversions
+### Step 5: JSON to Database Conversions ✅
 
-Create `src/discord/conversions.rs`:
+**Status:** Complete
+
+**Implementation:** `src/social/discord/conversions.rs` (created)
+
+**What was built:**
+
+Created TryFrom trait implementations for idiomatic Rust conversions between JSON models and Diesel insertable models.
+
+**Key components:**
+
+1. **Helper functions:**
+   - `parse_iso_timestamp()` - Converts ISO 8601 strings to NaiveDateTime
+   - `parse_channel_type()` - Converts string to ChannelType enum
+   - `convert_features()` - Wraps Vec<String> into Vec<Option<String>>
+
+2. **TryFrom implementations:**
+   - `DiscordGuildJson → NewGuild`
+   - `DiscordUserJson → NewUser`
+   - `DiscordChannelJson → NewChannel`
+   - `DiscordRoleJson → NewRole`
+   - `DiscordGuildMemberJson → NewGuildMember`
+   - `DiscordMemberRoleJson → NewMemberRole`
+
+3. **NewMemberRole type:**
+   - Created missing Diesel insertable struct for discord_member_roles table
+   - Defined in conversions.rs with conditional compilation
+
+**Example usage:**
 
 ```rust
-//! Conversions between JSON models and database models.
+use boticelli::{DiscordGuildJson, NewGuild};
 
-use crate::{
-    DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson, DiscordMemberRoleJson,
-    DiscordRoleJson, DiscordUserJson,
+let json = DiscordGuildJson {
+    id: 123456789,
+    name: "My Server".to_string(),
+    owner_id: 987654321,
+    icon: Some("icon_hash".to_string()),
+    banner: None,
+    description: Some("A test server".to_string()),
+    member_count: Some(100),
+    verification_level: Some(2),
+    premium_tier: Some(1),
+    features: Some(vec!["COMMUNITY".to_string()]),
 };
-use chrono::NaiveDateTime;
 
-// Note: You'll need to create these "New*Row" types for insertable models
-// They should match your Diesel schema
+// Idiomatic conversion using try_into()
+let new_guild: NewGuild = json.try_into()?;
+```
 
-/// Convert JSON guild to insertable database row.
-pub fn guild_json_to_row(json: DiscordGuildJson) -> NewDiscordGuildRow {
-    NewDiscordGuildRow {
-        id: json.id,
-        name: json.name,
-        owner_id: json.owner_id,
-        icon: json.icon,
-        banner: json.banner,
-        description: json.description,
-        member_count: json.member_count,
-        verification_level: json.verification_level,
-        premium_tier: json.premium_tier,
-        features: json.features.map(|f| f.into_iter().map(Some).collect()),
-        // Set defaults for fields not in JSON
-        splash: None,
-        vanity_url_code: None,
-        approximate_member_count: None,
-        approximate_presence_count: None,
-        afk_channel_id: None,
-        afk_timeout: None,
-        system_channel_id: None,
-        rules_channel_id: None,
-        public_updates_channel_id: None,
-        explicit_content_filter: None,
-        mfa_level: None,
-        premium_subscription_count: None,
-        max_presences: None,
-        max_members: None,
-        max_video_channel_users: None,
-        large: None,
-        unavailable: None,
-        joined_at: Some(chrono::Utc::now().naive_utc()),
-        bot_permissions: None,
-        bot_active: Some(true),
-    }
-}
+**Tests:**
 
-/// Convert JSON channel to insertable database row.
-pub fn channel_json_to_row(json: DiscordChannelJson) -> Result<NewDiscordChannelRow, String> {
-    // Parse channel type enum
-    let channel_type = parse_channel_type(&json.channel_type)?;
+14 tests covering:
+- Timestamp parsing (RFC 3339, with/without fractional seconds)
+- Channel type enum conversion
+- Features array conversion
+- All 6 TryFrom implementations
+- Error handling for invalid inputs
 
-    Ok(NewDiscordChannelRow {
-        id: json.id,
-        guild_id: json.guild_id,
-        name: json.name,
-        channel_type,
-        position: json.position,
-        topic: json.topic,
-        nsfw: json.nsfw,
-        rate_limit_per_user: json.rate_limit_per_user,
-        bitrate: json.bitrate,
-        user_limit: json.user_limit,
-        parent_id: json.parent_id,
-        // Defaults
-        owner_id: None,
-        message_count: None,
-        member_count: None,
-        archived: None,
-        auto_archive_duration: None,
-        archive_timestamp: None,
-        locked: None,
-        invitable: None,
-        available_tags: None,
-        default_reaction_emoji: None,
-        default_thread_rate_limit: None,
-        default_sort_order: None,
-        default_forum_layout: None,
-        last_message_at: None,
-        last_read_message_id: None,
-        bot_has_access: Some(true),
-    })
-}
+**Module exports:**
 
-/// Parse channel type string to enum value.
-fn parse_channel_type(type_str: &str) -> Result<DiscordChannelTypeEnum, String> {
-    match type_str {
-        "guild_text" => Ok(DiscordChannelTypeEnum::GuildText),
-        "guild_voice" => Ok(DiscordChannelTypeEnum::GuildVoice),
-        "guild_category" => Ok(DiscordChannelTypeEnum::GuildCategory),
-        "guild_announcement" => Ok(DiscordChannelTypeEnum::GuildAnnouncement),
-        "public_thread" => Ok(DiscordChannelTypeEnum::PublicThread),
-        "private_thread" => Ok(DiscordChannelTypeEnum::PrivateThread),
-        "guild_stage_voice" => Ok(DiscordChannelTypeEnum::GuildStageVoice),
-        "guild_forum" => Ok(DiscordChannelTypeEnum::GuildForum),
-        "guild_media" => Ok(DiscordChannelTypeEnum::GuildMedia),
-        _ => Err(format!("Unknown channel type: {}", type_str)),
-    }
-}
+Added to `src/social/discord/mod.rs`:
+```rust
+pub use conversions::{parse_channel_type, parse_iso_timestamp, NewMemberRole};
+```
 
-/// Convert JSON user to insertable database row.
-pub fn user_json_to_row(json: DiscordUserJson) -> NewDiscordUserRow {
-    let now = chrono::Utc::now().naive_utc();
-
-    NewDiscordUserRow {
-        id: json.id,
-        username: json.username,
-        discriminator: json.discriminator,
-        global_name: json.global_name,
-        avatar: json.avatar,
-        bot: json.bot,
-        premium_type: json.premium_type,
-        locale: json.locale,
-        first_seen: now,
-        last_seen: now,
-        // Defaults
-        banner: None,
-        accent_color: None,
-        system: None,
-        mfa_enabled: None,
-        verified: None,
-        public_flags: None,
-    }
-}
-
-/// Parse ISO 8601 timestamp string to NaiveDateTime.
-pub fn parse_timestamp(timestamp: &str) -> Result<NaiveDateTime, String> {
-    chrono::DateTime::parse_from_rfc3339(timestamp)
-        .map(|dt| dt.naive_utc())
-        .map_err(|e| format!("Invalid timestamp '{}': {}", timestamp, e))
-}
-
-/// Convert JSON guild member to insertable database row.
-pub fn guild_member_json_to_row(
-    json: DiscordGuildMemberJson,
-) -> Result<NewDiscordGuildMemberRow, String> {
-    Ok(NewDiscordGuildMemberRow {
-        guild_id: json.guild_id,
-        user_id: json.user_id,
-        nick: json.nick,
-        avatar: json.avatar,
-        joined_at: parse_timestamp(&json.joined_at)?,
-        premium_since: json
-            .premium_since
-            .as_ref()
-            .map(|s| parse_timestamp(s))
-            .transpose()?,
-        deaf: json.deaf,
-        mute: json.mute,
-        pending: json.pending,
-        // Defaults
-        communication_disabled_until: None,
-        left_at: None,
-    })
-}
-
-/// Convert JSON role to insertable database row.
-pub fn role_json_to_row(json: DiscordRoleJson) -> NewDiscordRoleRow {
-    NewDiscordRoleRow {
-        id: json.id,
-        guild_id: json.guild_id,
-        name: json.name,
-        color: json.color.unwrap_or(0),
-        hoist: json.hoist,
-        icon: json.icon,
-        unicode_emoji: json.unicode_emoji,
-        position: json.position,
-        permissions: json.permissions,
-        managed: json.managed,
-        mentionable: json.mentionable,
-        tags: None,
-    }
-}
-
-/// Convert JSON member role to insertable database row.
-pub fn member_role_json_to_row(
-    json: DiscordMemberRoleJson,
-) -> Result<NewDiscordMemberRoleRow, String> {
-    Ok(NewDiscordMemberRoleRow {
-        guild_id: json.guild_id,
-        user_id: json.user_id,
-        role_id: json.role_id,
-        assigned_at: parse_timestamp(&json.assigned_at)?,
-        assigned_by: json.assigned_by,
-    })
-}
+Added to `src/lib.rs` under discord feature:
+```rust
+pub use social::discord::{
+    NewMemberRole,
+    parse_channel_type, parse_iso_timestamp,
+    // ... other Discord types
+};
 ```
 
 ### Step 6: Discord Processors

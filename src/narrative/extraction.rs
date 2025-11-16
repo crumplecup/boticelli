@@ -22,13 +22,11 @@ use crate::BoticelliResult;
 /// ```
 /// use boticelli::extract_json;
 ///
-/// let response = r#"
-/// Here's the data you requested:
-///
-/// ```json
-/// {"id": 123, "name": "Test"}
-/// ```
-/// "#;
+/// let response = "Here's the data you requested:\n\
+///     \n\
+///     ```json\n\
+///     {\"id\": 123, \"name\": \"Test\"}\n\
+///     ```\n";
 ///
 /// let json = extract_json(response).unwrap();
 /// assert!(json.contains("123"));
@@ -95,14 +93,12 @@ pub fn extract_json(response: &str) -> BoticelliResult<String> {
 /// ```
 /// use boticelli::extract_toml;
 ///
-/// let response = r#"
-/// Here's your configuration:
-///
-/// ```toml
-/// [server]
-/// name = "Test Server"
-/// ```
-/// "#;
+/// let response = "Here's your configuration:\n\
+///     \n\
+///     ```toml\n\
+///     [server]\n\
+///     name = \"Test Server\"\n\
+///     ```\n";
 ///
 /// let toml = extract_toml(response).unwrap();
 /// assert!(toml.contains("[server]"));

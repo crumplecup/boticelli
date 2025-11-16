@@ -140,10 +140,12 @@ pub use rate_limit::OpenAITier;
 pub use social::discord::{
     // Diesel models
     ChannelRow, ChannelType, GuildMemberRow, GuildRow, NewChannel, NewGuild, NewGuildMember,
-    NewRole, NewUser, RoleRow, UserRow,
+    NewMemberRole, NewRole, NewUser, RoleRow, UserRow,
     // JSON models (for narrative processors)
     DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson, DiscordMemberRoleJson,
     DiscordRoleJson, DiscordUserJson,
+    // Conversion utilities
+    parse_channel_type, parse_iso_timestamp,
     // Repository
     DiscordRepository, DiscordResult,
     // Error handling

@@ -561,12 +561,35 @@ async fn delete_content(
 
 #[cfg(feature = "database")]
 async fn promote_content(
-    _table: &str,
-    _id: i64,
-    _target: Option<&str>,
+    table: &str,
+    id: i64,
+    target: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚧 Content promotion not yet implemented");
-    println!("   Coming in Phase 3");
+    let mut conn = boticelli::establish_connection()?;
+    
+    // Determine target table
+    // If not specified, try to derive from source table name
+    // e.g., "potential_posts" -> "discord_channels" (based on template)
+    let target_table = if let Some(t) = target {
+        t.to_string()
+    } else {
+        // Try to infer from table comment which has the template name
+        // For now, require explicit target
+        return Err(
+            "Target table must be specified with --target flag. \
+             Example: --target discord_channels"
+                .into(),
+        );
+    };
+    
+    println!("🚀 Promoting content {} from '{}' to '{}'...", id, table, target_table);
+    
+    let new_id = boticelli::promote_content(&mut conn, table, &target_table, id)?;
+    
+    println!("✓ Content promoted successfully!");
+    println!("  Source: {} (ID: {})", table, id);
+    println!("  Target: {} (ID: {})", target_table, new_id);
+    
     Ok(())
 }
 

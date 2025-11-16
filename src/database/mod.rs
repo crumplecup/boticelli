@@ -36,7 +36,7 @@ pub use schema_reflection::{
 
 // Content management exports for Phase 3
 pub use content_management::{
-    delete_content, get_content_by_id, list_content, update_content_metadata,
+    delete_content, get_content_by_id, list_content, promote_content, update_content_metadata,
     update_review_status,
 };
 

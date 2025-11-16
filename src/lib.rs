@@ -76,7 +76,7 @@ pub use database::{
     // Content generation functions
     create_content_table,
     // Content management functions
-    delete_content, get_content_by_id, list_content, update_content_metadata,
+    delete_content, get_content_by_id, list_content, promote_content, update_content_metadata,
     update_review_status,
     // Database row types
     ActExecutionRow, ActInputRow, DatabaseError, DatabaseErrorKind, DatabaseResult,

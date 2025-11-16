@@ -60,6 +60,9 @@ mod storage;
 #[cfg(feature = "discord")]
 mod social;
 
+// CLI module (public for binary usage)
+pub mod cli;
+
 // Re-export core types
 pub use core::{
     GenerateRequest, GenerateResponse, Input, MediaSource, Message, Output, Role, ToolCall,

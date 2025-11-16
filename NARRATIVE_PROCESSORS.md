@@ -17,18 +17,20 @@
 
 **Subtotal:** 49 unit tests passing
 
-### Integration & CLI (In Progress)
+### Integration & CLI (Complete)
 
-| Step | Component | Status | Files | Priority |
-|------|-----------|--------|-------|----------|
-| 8a | CLI: Add Processor Flag | ✅ Complete | `src/main.rs` | HIGH |
-| 8b | CLI: Setup Repository | ✅ Complete | `src/main.rs` | HIGH |
-| 8c | CLI: Register Processors | ✅ Complete | `src/main.rs` | HIGH |
-| 8d | CLI: Execute with Pipeline | ✅ Complete | `src/main.rs` | HIGH |
-| 9a | Integration Tests: Setup | 🚧 Pending | `tests/narrative_processor_integration_test.rs` | MEDIUM |
-| 9b | Integration Tests: End-to-End | 🚧 Pending | `tests/narrative_processor_integration_test.rs` | MEDIUM |
-| 9c | Integration Tests: Error Handling | 🚧 Pending | `tests/narrative_processor_integration_test.rs` | MEDIUM |
-| 10 | Documentation: Update Status | 🚧 Pending | `NARRATIVE_PROCESSORS.md` | LOW |
+| Step | Component | Status | Files | Tests |
+|------|-----------|--------|-------|-------|
+| 8a | CLI: Add Processor Flag | ✅ Complete | `src/main.rs` | N/A |
+| 8b | CLI: Setup Repository | ✅ Complete | `src/main.rs` | N/A |
+| 8c | CLI: Register Processors | ✅ Complete | `src/main.rs` | N/A |
+| 8d | CLI: Execute with Pipeline | ✅ Complete | `src/main.rs` | N/A |
+| 9a | Integration Tests: Setup | ✅ Complete | `tests/narrative_processor_integration_test.rs` | 4 passing |
+| 9b | Integration Tests: End-to-End | ✅ Complete | `tests/narrative_processor_integration_test.rs` | 4 passing |
+| 9c | Integration Tests: Error Handling | ✅ Complete | `tests/narrative_processor_integration_test.rs` | 4 passing |
+| 10 | Documentation: Update Status | ✅ Complete | `NARRATIVE_PROCESSORS.md` | N/A |
+
+**Total:** 53 tests passing (49 unit + 4 integration)
 
 ## Overview
 
@@ -1062,11 +1064,17 @@ psql $DATABASE_URL -c "SELECT id, name FROM discord_guilds WHERE id = 1234567890
 
 ---
 
-## Step 9: Integration Tests 🚧
+## Step 9: Integration Tests ✅
+
+**Status:** Complete (commit: 2d3778a)
 
 **Goal:** Automated tests verifying end-to-end processor pipeline.
 
-### Step 9a: Test Setup Infrastructure
+**Implementation:** Created comprehensive integration test suite in `tests/narrative_processor_integration_test.rs`
+
+**What was built:**
+
+### Step 9a: Test Setup Infrastructure ✅
 
 Create `tests/narrative_processor_integration_test.rs`:
 
@@ -1135,9 +1143,9 @@ fn cleanup_test_data(conn: &mut diesel::PgConnection, guild_id: i64) {
 
 ---
 
-### Step 9b: End-to-End Test
+### Step 9b: End-to-End Test ✅
 
-Test complete pipeline from narrative execution to database insertion:
+Implemented 3 end-to-end tests verifying complete pipeline from narrative execution to database insertion:
 
 ```rust
 #[tokio::test]
@@ -1218,9 +1226,9 @@ prompt = "Generate guild JSON"
 
 ---
 
-### Step 9c: Error Handling Tests
+### Step 9c: Error Handling Tests ✅
 
-Test that processor errors don't fail narrative execution:
+Implemented test verifying that processor errors don't fail narrative execution:
 
 ```rust
 #[tokio::test]
@@ -1300,14 +1308,39 @@ prompt = "Generate guild"
 ```
 
 **Acceptance criteria:**
-- Invalid JSON doesn't crash narrative
-- Processor errors are logged but don't propagate
-- Multiple processors can coexist
-- Only matching processors execute
+- Invalid JSON doesn't crash narrative ✅
+- Processor errors are logged but don't propagate ✅
+- Multiple processors can coexist ✅
+- Only matching processors execute ✅
+
+**Implementation Summary:**
+
+All integration tests implemented and passing (4 tests):
+
+1. **test_discord_guild_processor_integration**: Verifies guild JSON extraction and database insertion
+2. **test_discord_user_processor_integration**: Verifies user JSON extraction and database insertion
+3. **test_multiple_processors_integration**: Verifies multiple processors working together (guild + channel)
+4. **test_processor_handles_invalid_json**: Verifies graceful error handling with malformed responses
+
+Key features implemented:
+- MockDriver for deterministic testing (returns predefined responses)
+- Database setup/cleanup helpers (prevent test pollution)
+- Logging initialization with tracing_subscriber
+- Proper narrative TOML format (`[narration]` section)
+- Correct Discord data types (e.g., `channel_type: "guild_text"`)
+- Schema table exports for test database access
+
+All tests verify:
+- JSON extraction via `extract_json()`
+- Processor routing via `should_process()`
+- Database insertion via DiscordRepository
+- Error handling (failures logged, don't crash narratives)
 
 ---
 
-## Step 10: Documentation Updates 🚧
+## Step 10: Documentation Updates ✅
+
+**Status:** Complete (this update)
 
 Update all documentation to reflect completed implementation:
 
@@ -1965,17 +1998,24 @@ impl ActProcessor for InstrumentedProcessor {
 - ✅ Create conversion functions (Step 5)
 - ✅ Build Discord processors (Step 6)
 
-### Phase 3: Integration (In Progress)
+### Phase 3: Integration ✅
 - ✅ Update executor (Step 3)
 - ✅ Add CLI commands (Step 8)
-- 🚧 Write integration tests (Step 9 - pending)
+- ✅ Write integration tests (Step 9)
 
-### Phase 4: Polish (Pending)
-- Error handling improvements (ongoing)
-- Documentation updates (Step 10 - pending)
-- Performance optimization (future)
+### Phase 4: Polish ✅
+- ✅ Error handling improvements (complete)
+- ✅ Documentation updates (Step 10)
+- Performance optimization (future enhancement)
 
 ## Conclusion
+
+**Implementation Status: Complete** ✅
+
+All 10 steps of the narrative processor implementation are complete and tested:
+- **53 tests passing** (49 unit tests + 4 integration tests)
+- **CLI integration** working with `--process-discord` flag
+- **Full end-to-end pipeline** from LLM response to database
 
 This architecture provides a clean, extensible way to process narrative outputs. The processor pattern separates concerns, making it easy to:
 
@@ -1984,4 +2024,10 @@ This architecture provides a clean, extensible way to process narrative outputs.
 - Compose processors for complex workflows
 - Handle errors gracefully without breaking narratives
 
-The system is production-ready while remaining flexible for future enhancements.
+The system is production-ready and actively used in the CLI. Users can now:
+1. Write narratives that generate Discord data
+2. Execute with `boticelli run --narrative file.toml --process-discord`
+3. Automatically extract JSON and insert into database
+4. View results in database for analysis
+
+Future enhancements could include processors for other platforms (Twitter, Reddit, GitHub), batch processing, and performance optimizations.

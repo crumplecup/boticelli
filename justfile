@@ -233,23 +233,23 @@ run-all *args:
 
 # Run example narrative: generate channel posts
 example-channels:
-    cargo run --features database -- run --narrative narratives/generate_channel_posts.toml
+    cargo run --features database,gemini -- run --narrative narratives/generate_channel_posts.toml
 
 # Run example narrative: generate users
 example-users:
-    cargo run --features database -- run --narrative narratives/generate_users.toml
+    cargo run --features database,gemini -- run --narrative narratives/generate_users.toml
 
 # Run example narrative: generate guilds
 example-guilds:
-    cargo run --features database -- run --narrative narratives/generate_guilds.toml
+    cargo run --features database,gemini -- run --narrative narratives/generate_guilds.toml
 
 # List content from a generation table
 content-list table:
-    cargo run --features database -- content list {{table}}
+    cargo run --features database,gemini -- content list {{table}}
 
 # Show specific content item
 content-show table id:
-    cargo run --features database -- content show {{table}} {{id}}
+    cargo run --features database,gemini -- content show {{table}} {{id}}
 
 # Full Workflow (CI/CD)
 # ====================

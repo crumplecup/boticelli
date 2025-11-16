@@ -831,7 +831,206 @@ boticelli content review potential_posts 123 approved
 boticelli content promote potential_posts 123 --target discord_channels
 ```
 
-### Phase 5: UI and Polish (Week 5-6)
+### Phase 5: Template-Based Prompt Injection (Week 5)
+
+**Goals:**
+
+- [ ] Auto-generate schema preamble from template
+- [ ] Inject JSON formatting requirements automatically
+- [ ] Allow users to write only content focus
+- [ ] Maintain backward compatibility with explicit prompts
+
+**Problem:**
+
+Current narrative files have massive boilerplate repetition. Example from `generate_guilds.toml`:
+
+```toml
+[acts]
+creative_community = """
+You are generating data for a Discord guild focused on creative arts.
+
+Create a JSON object for a creative community guild with the following schema:
+
+**Required Fields:**
+- id: A unique 18-digit Discord snowflake ID (e.g., 3123456789012345678)
+- name: Server name (max 100 characters, creative and welcoming)
+- owner_id: Discord user ID of the server owner (18-digit snowflake)
+
+**Optional Fields:**
+- icon: Icon hash (32-char hex string or null)
+- description: Server description (max 1000 chars, compelling pitch)
+- member_count: Total members (integer, realistic for a growing community: 50-5000)
+- verification_level: Security level 0-4 (1-2 for welcoming communities)
+- premium_tier: Boost level 0-3 (0-2 for active communities)
+- features: Array of feature flags like ["COMMUNITY", "DISCOVERABLE", "WELCOME_SCREEN_ENABLED"]
+
+Create a welcoming creative community for artists, writers, musicians, and other creators.
+Make it feel inclusive and inspiring. Include a compelling description that would attract
+creative people.
+
+**CRITICAL OUTPUT REQUIREMENTS:**
+- Output ONLY valid JSON with no additional text, explanations, or markdown
+- Do not use markdown code blocks (no ```json)
+- Start your response with { and end with }
+- Use realistic, attractive values
+"""
+```
+
+**Boilerplate Analysis:**
+
+Each act has ~40 lines, but only 3-4 lines are unique:
+- Lines 1-30: Schema documentation (from template)
+- Lines 31-35: JSON formatting rules (universal)
+- Lines 36-40: **Content focus (UNIQUE)** ← This is what users actually want to specify
+
+**Solution:**
+
+Since `template = "discord_guilds"` is in `[narration]`, automatically inject:
+
+1. **Schema preamble** - Query `discord_guilds` table schema, generate field documentation
+2. **Platform context** - Add Discord-specific constraints (snowflake IDs, etc.)
+3. **Format requirements** - Inject universal JSON formatting rules
+
+User only writes:
+```toml
+[acts]
+creative_community = "Create a welcoming creative community for artists, writers, and musicians. Make it inclusive and inspiring."
+tech_learning_hub = "Create a professional tech learning hub for programmers. Appeal to learners of all levels."
+gaming_squad = "Create an energetic gaming community. Make it fun, competitive, and social."
+```
+
+**Implementation Strategy:**
+
+1. **Schema Documentation Generator** (`src/database/schema_docs.rs`)
+   ```rust
+   pub fn generate_schema_prompt(template: &str) -> BoticelliResult<String> {
+       // Query information_schema for template table
+       let columns = get_table_schema(template)?;
+       
+       // Generate formatted documentation
+       let mut prompt = format!("Create a JSON object with the following schema:\n\n");
+       prompt.push_str("**Required Fields:**\n");
+       for col in columns.iter().filter(|c| !c.nullable) {
+           prompt.push_str(&format!("- {}: {} ({})\n", 
+               col.name, col.data_type, col.description));
+       }
+       prompt.push_str("\n**Optional Fields:**\n");
+       for col in columns.iter().filter(|c| c.nullable) {
+           prompt.push_str(&format!("- {}: {} ({})\n",
+               col.name, col.data_type, col.description));
+       }
+       
+       Ok(prompt)
+   }
+   ```
+
+2. **Platform Context Templates** (`src/narrative/platform_templates.rs`)
+   ```rust
+   pub struct PlatformTemplate {
+       pub name: &'static str,
+       pub context: &'static str,
+       pub constraints: Vec<FieldConstraint>,
+   }
+   
+   const DISCORD_TEMPLATE: PlatformTemplate = PlatformTemplate {
+       name: "discord",
+       context: "You are generating data for Discord.",
+       constraints: vec![
+           FieldConstraint {
+               pattern: ".*_id$",
+               rule: "18-digit Discord snowflake ID",
+           },
+           // ... more constraints
+       ],
+   };
+   ```
+
+3. **Format Requirements** (universal)
+   ```rust
+   const JSON_FORMAT_REQUIREMENTS: &str = r#"
+   **CRITICAL OUTPUT REQUIREMENTS:**
+   - Output ONLY valid JSON with no additional text, explanations, or markdown
+   - Do not use markdown code blocks (no ```json)
+   - Start your response with { and end with }
+   - Use realistic, production-ready values
+   "#;
+   ```
+
+4. **Prompt Assembly in ContentGenerationProcessor**
+   ```rust
+   async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+       let template = context.narrative_metadata.template.as_ref().unwrap();
+       
+       // Get user's content focus from act
+       let user_prompt = &context.execution.response;
+       
+       // Auto-generate boilerplate
+       let schema_prompt = generate_schema_prompt(template)?;
+       let platform_context = detect_platform(template)?;
+       let format_requirements = JSON_FORMAT_REQUIREMENTS;
+       
+       // Assemble complete prompt
+       let complete_prompt = format!(
+           "{}\n\n{}\n\n{}\n\n{}",
+           platform_context.context,
+           schema_prompt,
+           user_prompt,  // User's content focus
+           format_requirements
+       );
+       
+       // Send to LLM
+       // ... rest of processing
+   }
+   ```
+
+**Backward Compatibility:**
+
+- **Short prompts** (< 200 chars): Assume content focus, inject boilerplate
+- **Long prompts** (>= 200 chars): Assume explicit, use as-is
+- **Detection logic**: Check for schema keywords ("Required Fields", "JSON object", etc.)
+
+**Benefits:**
+
+- Reduce narrative file size by 80-90%
+- Eliminate repetitive schema documentation
+- Easier for users to write and maintain
+- Schema changes propagate automatically
+- Consistent formatting across all narratives
+
+**Files to Create/Modify:**
+
+1. `src/database/schema_docs.rs` - Schema documentation generator (new)
+2. `src/narrative/platform_templates.rs` - Platform-specific contexts (new)
+3. `src/narrative/content_generation.rs` - Update processor with prompt assembly
+4. `narratives/generate_guilds.toml` - Convert to simplified format (demo)
+5. `CONTENT_GENERATION.md` - Document new prompt injection feature
+
+**Testing:**
+
+- Test schema doc generation for all Discord tables
+- Test platform detection logic
+- Test prompt assembly with short/long user prompts
+- Compare LLM output quality: explicit vs injected prompts
+- Verify backward compatibility with existing narratives
+
+**Success Criteria:**
+
+- [ ] Schema docs generated correctly for all templates
+- [ ] Platform context detected and applied
+- [ ] User prompts correctly identified and assembled
+- [ ] Existing narratives still work (backward compatible)
+- [ ] New simplified narratives produce equivalent results
+- [ ] Documentation updated with examples
+
+**Deliverables:**
+
+- Schema documentation generator module
+- Platform template system
+- Updated ContentGenerationProcessor with prompt injection
+- Converted example narratives (before/after comparison)
+- Developer documentation
+
+### Phase 6: UI and Polish (Week 6)
 
 **Goals:**
 
@@ -1130,27 +1329,36 @@ Create test narratives for each template:
 
 ### Phase 1 Success Criteria
 
-- [ ] Can create custom table from Discord template
-- [ ] Can generate content into custom table
-- [ ] Can query custom table via SQL
+- [x] Can create custom table from Discord template
+- [x] Can generate content into custom table
+- [x] Can query custom table via SQL
 
 ### Phase 2 Success Criteria
 
-- [ ] `--process-content-generation` flag works end-to-end
-- [ ] Metadata correctly added to all generated content
-- [ ] Error handling for invalid templates
+- [x] `--process-content-generation` flag works end-to-end
+- [x] Metadata correctly added to all generated content
+- [x] Error handling for invalid templates
 
 ### Phase 3 Success Criteria
 
-- [ ] Content management CLI works for basic CRUD
-- [ ] Can tag and filter generated content
-- [ ] Can view content in terminal
+- [x] Content management CLI works for basic CRUD
+- [x] Can tag and filter generated content
+- [x] Can view content in terminal
 
 ### Phase 4 Success Criteria
 
-- [ ] Can promote content to Discord tables
-- [ ] Foreign key validation prevents invalid promotions
-- [ ] Can bulk promote with filters
+- [x] Can promote content to Discord tables
+- [x] Foreign key validation prevents invalid promotions
+- [x] Can bulk promote with filters
+
+### Phase 5 Success Criteria
+
+- [ ] Schema docs generated correctly for all templates
+- [ ] Platform context detected and applied
+- [ ] User prompts correctly identified and assembled
+- [ ] Existing narratives still work (backward compatible)
+- [ ] New simplified narratives produce equivalent results
+- [ ] Documentation updated with examples
 
 ### Final Success Criteria
 

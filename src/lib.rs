@@ -86,6 +86,8 @@ pub use database::{
     SerializableModelResponse,
     // Re-export schema tables for migration tools and tests
     act_inputs,
+    // Schema documentation functions (Phase 5)
+    assemble_prompt,
     // Content generation functions
     create_content_table,
     // Content management functions
@@ -100,10 +102,12 @@ pub use database::{
     discord_users,
     // Connection and utility functions
     establish_connection,
+    generate_schema_prompt,
     get_content_by_id,
     get_recent_responses,
     get_response_by_id,
     get_responses_by_model,
+    is_content_focus,
     list_content,
     media_references,
     narrative_executions,
@@ -113,6 +117,8 @@ pub use database::{
     store_response,
     update_content_metadata,
     update_review_status,
+    DISCORD_PLATFORM_CONTEXT,
+    JSON_FORMAT_REQUIREMENTS,
 };
 
 // Re-export PgConnection for processor use

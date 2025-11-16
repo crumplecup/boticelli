@@ -432,13 +432,24 @@ The schema reflection module uses Diesel's `QueryableByName` to safely query Pos
 3. Update `ProcessorRegistry::process()` to build and pass context
 4. Update `NarrativeExecutor` to pass narrative metadata to registry
 
-**Phase 2b: Migrate Discord Processors**
-1. Update `DiscordGuildProcessor` to use context
-2. Update `DiscordUserProcessor` to use context
-3. Update `DiscordChannelProcessor` to use context
-4. Update `DiscordGuildMemberProcessor` to use context
-5. Update `DiscordRoleProcessor` to use context
-6. Update `DiscordMemberRoleProcessor` to use context
+**Phase 2b: Migrate Discord Processors** ✅ COMPLETE
+1. ~~Update `DiscordGuildProcessor` to use context~~
+2. ~~Update `DiscordUserProcessor` to use context~~
+3. ~~Update `DiscordChannelProcessor` to use context~~
+4. ~~Update `DiscordGuildMemberProcessor` to use context~~
+5. ~~Update `DiscordRoleProcessor` to use context~~
+6. ~~Update `DiscordMemberRoleProcessor` to use context~~
+
+**Implementation Notes:**
+- All 6 processors migrated successfully
+- Created test helper functions for context creation
+- Updated 7 processor tests to use new pattern
+- Updated narrative_executor_test.rs providers
+- Zero breaking changes to processor logic - purely mechanical migration
+
+**Files Modified:**
+- `src/social/discord/processors.rs` - All 6 processors + tests
+- `tests/narrative_executor_test.rs` - Test providers + imports
 
 **Phase 2c: ContentGenerationProcessor**
 1. Create `ContentGenerationProcessor` struct with DB connection

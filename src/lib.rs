@@ -116,6 +116,8 @@ pub use narrative::{
     InMemoryNarrativeRepository, Narrative, NarrativeError, NarrativeErrorKind, NarrativeExecution,
     NarrativeExecutor, NarrativeMetadata, NarrativeProvider, NarrativeRepository, NarrativeToc,
     VideoMetadata,
+    // Extraction utilities
+    extract_json, extract_toml, parse_json, parse_toml,
 };
 
 // Re-export rate limiting types

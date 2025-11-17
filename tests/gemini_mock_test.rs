@@ -1,0 +1,209 @@
+//! Tests using MockGeminiClient.
+//!
+//! These tests validate GeminiClient behavior without making real API calls,
+//! using a mock implementation for fast, deterministic testing.
+
+#![cfg(feature = "gemini")]
+
+mod test_utils;
+
+use boticelli::{BoticelliDriver, GenerateRequest, GeminiErrorKind, Input, Message, Role};
+use test_utils::{MockGeminiClient, MockResponse};
+
+#[tokio::test]
+async fn test_mock_basic_generate() {
+    let mock = MockGeminiClient::new_success("Hello from mock!");
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Say hello".to_string())],
+        }],
+        model: None,
+        max_tokens: Some(10),
+        temperature: None,
+    };
+
+    let response = mock.generate(&request).await.expect("Mock should succeed");
+
+    assert!(!response.outputs.is_empty());
+    assert_eq!(mock.call_count(), 1);
+}
+
+#[tokio::test]
+async fn test_mock_multiple_requests() {
+    let mock = MockGeminiClient::new_success("Response");
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        model: None,
+        max_tokens: Some(10),
+        temperature: None,
+    };
+
+    // First request
+    let _response1 = mock.generate(&request).await.expect("Should succeed");
+    assert_eq!(mock.call_count(), 1);
+
+    // Second request
+    let _response2 = mock.generate(&request).await.expect("Should succeed");
+    assert_eq!(mock.call_count(), 2);
+
+    // Third request
+    let _response3 = mock.generate(&request).await.expect("Should succeed");
+    assert_eq!(mock.call_count(), 3);
+}
+
+#[tokio::test]
+async fn test_mock_error_503() {
+    let mock = MockGeminiClient::new_error(GeminiErrorKind::HttpError {
+        status_code: 503,
+        message: "Model is overloaded".to_string(),
+    });
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        model: None,
+        max_tokens: Some(10),
+        temperature: None,
+    };
+
+    let result = mock.generate(&request).await;
+    assert!(result.is_err());
+    assert_eq!(mock.call_count(), 1);
+}
+
+#[tokio::test]
+async fn test_mock_retry_behavior() {
+    // Mock fails twice with 503, then succeeds
+    let mock = MockGeminiClient::new_fail_then_succeed(
+        2,
+        GeminiErrorKind::HttpError {
+            status_code: 503,
+            message: "Service unavailable".to_string(),
+        },
+        "Success after retries",
+    );
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        model: None,
+        max_tokens: Some(10),
+        temperature: None,
+    };
+
+    // First two calls fail
+    assert!(mock.generate(&request).await.is_err());
+    assert!(mock.generate(&request).await.is_err());
+
+    // Third call succeeds
+    let response = mock.generate(&request).await.expect("Should succeed");
+    assert!(!response.outputs.is_empty());
+    assert_eq!(mock.call_count(), 3);
+}
+
+#[tokio::test]
+async fn test_mock_rate_limit_error() {
+    let mock = MockGeminiClient::new_error(GeminiErrorKind::HttpError {
+        status_code: 429,
+        message: "Rate limit exceeded".to_string(),
+    });
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        model: None,
+        max_tokens: Some(10),
+        temperature: None,
+    };
+
+    let result = mock.generate(&request).await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn test_mock_sequence_mixed_responses() {
+    let mock = MockGeminiClient::new_sequence(vec![
+        MockResponse::Success("First response".to_string()),
+        MockResponse::Error(GeminiErrorKind::HttpError {
+            status_code: 503,
+            message: "Temporary error".to_string(),
+        }),
+        MockResponse::Success("Third response".to_string()),
+    ]);
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        model: None,
+        max_tokens: Some(10),
+        temperature: None,
+    };
+
+    // First succeeds
+    let response1 = mock.generate(&request).await.expect("First should succeed");
+    assert!(!response1.outputs.is_empty());
+
+    // Second fails
+    assert!(mock.generate(&request).await.is_err());
+
+    // Third succeeds
+    let response3 = mock.generate(&request).await.expect("Third should succeed");
+    assert!(!response3.outputs.is_empty());
+
+    assert_eq!(mock.call_count(), 3);
+}
+
+#[tokio::test]
+async fn test_mock_provider_name() {
+    let mock = MockGeminiClient::new_success("test");
+    assert_eq!(mock.provider_name(), "mock-gemini");
+}
+
+#[tokio::test]
+async fn test_mock_model_name() {
+    let mock = MockGeminiClient::new_success("test");
+    assert_eq!(mock.model_name(), "mock-gemini");
+}
+
+#[tokio::test]
+async fn test_mock_different_error_types() {
+    // Test authentication error (401)
+    let mock_auth = MockGeminiClient::new_error(GeminiErrorKind::HttpError {
+        status_code: 401,
+        message: "Invalid API key".to_string(),
+    });
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        model: None,
+        max_tokens: Some(10),
+        temperature: None,
+    };
+
+    assert!(mock_auth.generate(&request).await.is_err());
+
+    // Test bad request error (400)
+    let mock_bad_request = MockGeminiClient::new_error(GeminiErrorKind::HttpError {
+        status_code: 400,
+        message: "Invalid request format".to_string(),
+    });
+
+    assert!(mock_bad_request.generate(&request).await.is_err());
+}

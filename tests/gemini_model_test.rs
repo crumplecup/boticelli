@@ -5,10 +5,60 @@
 //! - Multi-model narrative execution
 //! - Cost control (using cheaper models when appropriate)
 //! - Feature testing across different model capabilities
+//!
+//! ## Test Strategy
+//!
+//! Most tests use MockGeminiClient for fast, deterministic testing without API calls.
+//! A small number of integration tests (marked with `#[cfg_attr(not(feature = "api"), ignore)]`)
+//! hit the real Gemini API to validate end-to-end behavior.
 
 #![cfg(feature = "gemini")]
 
+mod test_utils;
+
 use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
+use test_utils::MockGeminiClient;
+
+//
+// ─── MOCK TESTS (FAST, NO API CALLS) ───────────────────────────────────────────
+//
+
+/// Test basic generate functionality using mock.
+#[tokio::test]
+async fn test_mock_model_basic_generate() {
+    let mock = MockGeminiClient::new_success("Mock response");
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        max_tokens: Some(10),
+        temperature: None,
+        model: None,
+    };
+
+    let response = mock.generate(&request).await.expect("Mock should succeed");
+    assert!(!response.outputs.is_empty());
+}
+
+/// Test that model_name() returns the correct default.
+#[test]
+fn test_mock_model_name() {
+    let client = GeminiClient::new().expect("Failed to create client");
+    assert_eq!(client.model_name(), "gemini-2.5-flash");
+}
+
+/// Test provider_name() returns "gemini".
+#[test]
+fn test_mock_provider_name() {
+    let client = GeminiClient::new().expect("Failed to create client");
+    assert_eq!(client.provider_name(), "gemini");
+}
+
+//
+// ─── INTEGRATION TESTS (REAL API, REQUIRE API KEY) ─────────────────────────────
+//
 
 /// Test that GeminiClient uses the default model when no model is specified.
 #[tokio::test]
@@ -137,18 +187,6 @@ async fn test_multiple_model_requests() {
 
     let response3 = client.generate(&request3).await.expect("Request 3 failed");
     assert!(!response3.outputs.is_empty());
-}
-
-/// Test that model_name() method returns the correct value.
-///
-/// Currently returns the default, but should return the model being used
-/// for the current request (or default if not in a request context).
-#[test]
-fn test_model_name_method() {
-    let client = GeminiClient::new().expect("Failed to create client");
-
-    // Should return the default model
-    assert_eq!(client.model_name(), "gemini-2.5-flash");
 }
 
 /// Integration test: Run the text_models narrative to verify multi-model support.

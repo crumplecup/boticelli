@@ -537,6 +537,137 @@ Beyond the scope of this initial implementation, but worth considering:
 5. **Adaptive backoff** - Learn optimal retry delays based on success rates
 6. **Multi-region fallback** - Retry with different API endpoints if primary is overloaded
 
+## Test Performance Strategy
+
+### The Problem
+
+With retry logic enabled, tests that make real API calls become extremely slow:
+
+- Each failed request triggers exponential backoff (2s, 4s, 8s, 16s...)
+- With 5 retries, a single 503 error can add **62 seconds** of delays
+- Tests that exercise multiple models or narratives multiply this cost
+- Full test suite was taking **10+ minutes** instead of < 1 minute
+
+This makes development painful and CI/CD impractical.
+
+### Solution: Test-Specific Configuration
+
+**Strategy 1: Disable Retries in Tests (Preferred)**
+
+Add a method to disable retry logic for testing:
+
+```rust
+impl GeminiClient {
+    /// Create client with no retry logic (for testing)
+    #[cfg(test)]
+    pub fn new_no_retry() -> Result<Self, GeminiError> {
+        let api_key = std::env::var("GEMINI_API_KEY")
+            .map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
+        
+        Ok(Self {
+            api_key,
+            http_client: reqwest::Client::new(),
+            retry_enabled: false,  // NEW: disable retry
+        })
+    }
+}
+
+impl BoticelliDriver for GeminiClient {
+    async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, BoticelliError> {
+        if self.retry_enabled {
+            // Wrap with retry logic
+            tokio_retry2::Retry::new(/* ... */)
+                .retry(|| self.generate_once(request))
+                .await
+        } else {
+            // Direct call, no retry
+            self.generate_once(request).await
+        }
+    }
+}
+```
+
+**Benefits:**
+- Tests fail fast on real errors
+- Test suite runs in < 1 minute
+- Still tests the actual API integration
+- Can selectively enable retries for specific error-handling tests
+
+**Strategy 2: Minimal Delays for Tests**
+
+Alternative: Keep retry logic but use microsecond delays:
+
+```rust
+#[cfg(test)]
+const TEST_INITIAL_DELAY_MS: u64 = 1;  // 1ms instead of 2000ms
+#[cfg(not(test))]
+const TEST_INITIAL_DELAY_MS: u64 = 2000;
+
+impl GeminiClient {
+    fn retry_strategy() -> impl Iterator<Item = std::time::Duration> {
+        ExponentialBackoff::from_millis(TEST_INITIAL_DELAY_MS)
+            .factor(2)
+            .max_delay(std::time::Duration::from_millis(100))
+            .take(2)  // Only 2 retries in tests
+    }
+}
+```
+
+**Drawbacks:**
+- Still adds latency (even if minimal)
+- Doesn't test realistic retry behavior
+- Tests could pass but production could fail
+
+**Strategy 3: Mock HTTP Client**
+
+Most sophisticated but also most work:
+
+```rust
+#[cfg(test)]
+pub struct MockHttpClient {
+    responses: Vec<Result<Response, Error>>,
+}
+
+// Use dependency injection to swap real client for mock
+impl GeminiClient {
+    pub fn new_with_http_client(http_client: impl HttpClient) -> Self {
+        // ...
+    }
+}
+```
+
+**Benefits:**
+- Complete control over test scenarios
+- No network calls = instant tests
+- Can simulate any error condition
+
+**Drawbacks:**
+- Lots of boilerplate
+- Doesn't test real API integration
+- Mocks can drift from reality
+
+### Recommendation
+
+**Use Strategy 1 (Disable Retries in Tests) because:**
+
+1. **Fast** - No artificial delays
+2. **Simple** - One flag to toggle
+3. **Real** - Still tests against actual API
+4. **Selective** - Can enable retries for specific error-handling tests
+5. **Maintainable** - No mock infrastructure to maintain
+
+For the small number of tests that specifically test retry logic (Phase 2 tests), we can either:
+- Use Strategy 2 (minimal delays) just for those tests
+- Mark them with `#[ignore]` and run manually/in CI only
+
+### Implementation Plan
+
+1. Add `retry_enabled: bool` field to `GeminiClient`
+2. Add `new_no_retry()` constructor (test-only)
+3. Update all tests to use `new_no_retry()` by default
+4. Mark retry-specific tests with minimal delays or `#[ignore]`
+5. Document this pattern in TESTING.md
+
 ## References
 
 - [Google Cloud Retry Guidelines](https://cloud.google.com/apis/design/errors#error_retries)

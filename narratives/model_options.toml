@@ -7,8 +7,8 @@ description = "Demonstrate all available Gemini models with minimal token usage"
 
 [toc]
 order = [
-  "flash_20_live",
-  "flash_25_live",
+  # "flash_20_live",
+  # "flash_25_live",
   "flash_20",
   "flash_lite_20",
   "flash_25",

@@ -675,28 +675,29 @@ fn test_failed_generation_records_error() {
 ## Current State
 
 **Implementation Status:**
-- [x] **Sprint 1 (Database): Complete ✅ READY TO PUSH**
+- [x] **Sprint 1 (Database): Complete ✅**
   - [x] Step 1: Migration created and run successfully ✅ Committed: 883709e
   - [x] Step 2: Diesel models created ✅ Committed: 883709e  
   - [x] Step 3: Repository trait and implementation ✅ Committed: fb5beba
   - [x] Step 4: Unit tests ✅ Committed: 4992f39
-    - 9 comprehensive tests for all repository methods
-    - Fixed pre-existing regression in narrative_processor_integration_test
-    - All tests passing (19 passed, 16 ignored, 0 failed)
-- [ ] Sprint 2 (Executor): Not started
+- [x] **Sprint 2 (Executor): Complete ✅**
+  - [x] Integrated tracking into ContentGenerationProcessor ✅ Committed: 9694489
+    - Records start with status='running'
+    - Updates on completion with row count and duration
+    - Records failures with error messages
+    - Graceful error handling (continues generation if tracking fails)
 - [ ] Sprint 3 (CLI): Not started
 - [ ] Sprint 4 (Justfile): Not started
 - [ ] Sprint 5 (Polish): Not started
 
-**Sprint 1 Summary:**
-- ✅ Created `content_generations` table with indexes and constraints
-- ✅ Implemented Diesel models (Row, NewRow, UpdateRow)
-- ✅ Implemented repository trait with 6 methods
-- ✅ PostgreSQL implementation with proper error handling
-- ✅ Comprehensive test coverage (9 tests)
-- ✅ All clippy warnings resolved
-- ✅ All tests passing (including fixing regressions)
-- ✅ Exported at crate and module levels
+**Sprint 2 Summary:**
+- ✅ Modified ContentGenerationProcessor to track lifecycle
+- ✅ Start tracking before table creation
+- ✅ Complete tracking after items inserted
+- ✅ Handles both success and failure cases
+- ✅ Graceful degradation (tracking failures don't break generation)
+- ✅ All tests passing (52 passed)
+- ✅ Zero clippy warnings
 
 **Completed Files:**
 - ✅ `migrations/2025-11-17-022706-0000_create_content_generations/up.sql`
@@ -708,6 +709,7 @@ fn test_failed_generation_records_error() {
 - ✅ `src/lib.rs` - Exported types at crate level
 - ✅ `tests/content_generation_repository_test.rs` - 9 passing tests
 - ✅ `tests/narrative_processor_integration_test.rs` - Fixed regression
+- ✅ `src/narrative/content_generation.rs` - Integrated tracking
 - ✅ `TUI_TROUBLESHOOTING.md` (this file - tracking progress)
 
 **Files Pending:**
@@ -715,8 +717,8 @@ fn test_failed_generation_records_error() {
 - ✅ `narratives/generate_*.toml` - Workflow comments updated
 
 **Ready to Push:**
-- Commits 883709e, fb5beba, bd2e015, 4992f39 ready to push to origin/gemini
-- Sprint 1 complete and tested
+- Commits 883709e, fb5beba, bd2e015, 4992f39, 21ee1b5, 9694489
+- Sprints 1-2 complete and tested
 
 **Files To Create:**
 - `migrations/YYYYMMDDHHMMSS_create_content_generations/up.sql`

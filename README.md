@@ -110,6 +110,32 @@ Executing 3 acts in sequence:
     Response: 🦀 Why Rust is revolutionizing systems programming:...
 ```
 
+### Using Just for Easy Narrative Execution
+
+If you have [Just](https://github.com/casey/just) installed (recommended for development), you can use the convenient `narrate` command:
+
+```bash
+# Search and run a narrative by name
+just narrate model_options
+
+# Works with partial names (must match exactly one file)
+just narrate test_minimal
+
+# If multiple matches, it will ask you to be more specific
+just narrate generate
+```
+
+The `narrate` command:
+- Recursively searches the workspace for matching `.toml` files
+- Excludes build artifacts (`target/`, `node_modules/`)
+- Shows helpful error messages if not found or ambiguous
+- Automatically runs with the gemini feature enabled
+
+To install Just:
+```bash
+cargo install just
+```
+
 ## Database Setup (Optional)
 
 If you want to save execution history with the `--save` flag, you'll need PostgreSQL.

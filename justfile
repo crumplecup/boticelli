@@ -303,18 +303,55 @@ tui-test-discord:
     echo "🖥️  To review generated content, use:"
     echo "   just content-list discord_guilds"
 
-# List all content generation tables in database
+# List all content generation tables in database  
 tui-list-tables:
     #!/usr/bin/env bash
     echo "📋 Content Generation Tables:"
     echo "============================="
     psql "${DATABASE_URL}" -c "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE '%_gen_%' OR tablename LIKE '%_generation_%' ORDER BY tablename;" -t
 
-# Quick TUI demo with sample data (uses example guilds)
-tui-demo: example-guilds
-    @echo "🖥️  Launching TUI demo..."
-    @echo "   Table: guilds_gen_001"
-    @cargo run --all-features -- tui "guilds_gen_001"
+# List all content generations with tracking metadata
+content-generations:
+    cargo run --all-features -- content generations
+
+# Show details of the last generation
+content-last:
+    cargo run --all-features -- content last
+
+# Launch TUI on the most recently generated table
+tui-last:
+    #!/usr/bin/env bash
+    set -e
+    echo "📊 Getting latest generation..."
+    TABLE=$(cargo run --all-features -- content last --format=table-name-only 2>/dev/null || echo "")
+    if [ -z "$TABLE" ]; then
+        echo "❌ No content generations found"
+        echo "💡 Generate content first with: just example-guilds"
+        exit 1
+    fi
+    echo "   Table: $TABLE"
+    echo ""
+    echo "🖥️  Launching TUI..."
+    cargo run --all-features -- tui "$TABLE"
+
+# Quick TUI demo with sample data
+tui-demo:
+    #!/usr/bin/env bash
+    set -e
+    echo "🎲 Generating sample content..."
+    cargo run --all-features -- run --narrative narratives/generate_guilds.toml
+    echo "✅ Content generated"
+    echo ""
+    echo "📊 Getting latest generation..."
+    TABLE=$(cargo run --all-features -- content last --format=table-name-only 2>/dev/null || echo "")
+    if [ -z "$TABLE" ]; then
+        echo "❌ No content generations found"
+        exit 1
+    fi
+    echo "   Table: $TABLE"
+    echo ""
+    echo "🖥️  Launching TUI..."
+    cargo run --all-features -- tui "$TABLE"
 
 # Full Workflow (CI/CD)
 # ====================

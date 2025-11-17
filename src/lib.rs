@@ -76,6 +76,7 @@ pub use database::{
     // Database row types
     ActExecutionRow,
     ActInputRow,
+    ContentGenerationRepository,
     ContentGenerationRow,
     DatabaseError,
     DatabaseErrorKind,
@@ -87,6 +88,7 @@ pub use database::{
     NewContentGenerationRow,
     NewModelResponse,
     NewNarrativeExecutionRow,
+    PostgresContentGenerationRepository,
     PostgresNarrativeRepository,
     SerializableModelResponse,
     UpdateContentGenerationRow,

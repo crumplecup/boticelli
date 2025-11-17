@@ -676,13 +676,15 @@ fn test_failed_generation_records_error() {
 
 **Implementation Status:**
 - [x] **Sprint 1 (Database): In Progress**
-  - [x] Step 1: Migration created and run successfully
+  - [x] Step 1: Migration created and run successfully ✅ Committed: 883709e
     - Migration: `2025-11-17-022706-0000_create_content_generations`
     - Table verified in PostgreSQL with correct schema
     - Schema.rs regenerated with new table
-    - Cargo check passes
-  - [ ] Step 2: Create Diesel models
-  - [ ] Step 3: Create repository trait and implementation
+  - [x] Step 2: Diesel models created ✅ Committed: 883709e
+    - ContentGenerationRow, NewContentGenerationRow, UpdateContentGenerationRow
+    - Exported at crate level
+    - Zero warnings, cargo check passes
+  - [ ] Step 3: Create repository trait and implementation (IN PROGRESS)
   - [ ] Step 4: Add unit tests
 - [ ] Sprint 2 (Executor): Not started
 - [ ] Sprint 3 (CLI): Not started
@@ -692,11 +694,15 @@ fn test_failed_generation_records_error() {
 **Files Created:**
 - ✅ `migrations/2025-11-17-022706-0000_create_content_generations/up.sql`
 - ✅ `migrations/2025-11-17-022706-0000_create_content_generations/down.sql`
+- ✅ `src/database/content_generation_models.rs`
+- ✅ `TUI_TROUBLESHOOTING.md` (this file)
 
 **Files Modified:**
 - ✅ `src/database/schema.rs` - Added content_generations table schema
-- `justfile` - Partially updated TUI recipes (needs revert and proper update)
-- `narratives/generate_*.toml` - Workflow comments updated (keep these)
+- ✅ `src/database/mod.rs` - Exported new models
+- ✅ `src/lib.rs` - Exported types at crate level
+- ⚠️ `justfile` - Partially updated TUI recipes (will be properly updated in Sprint 4)
+- ✅ `narratives/generate_*.toml` - Workflow comments updated
 
 **Files To Create:**
 - `migrations/YYYYMMDDHHMMSS_create_content_generations/up.sql`

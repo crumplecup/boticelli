@@ -2,15 +2,23 @@
 
 ## Executive Summary
 
-This document outlines a strategy for migrating the Boticelli monorepo into a Cargo workspace with multiple independent crates. The current architecture already uses traits, feature flags, and clear module boundaries, making it well-suited for workspace migration.
+This document outlines a two-phase strategy:
+1. **Rename** the project from "boticelli" (one 't') to "Botticelli" (two 't's)
+2. **Migrate** the monorepo into a Cargo workspace with multiple independent crates
+
+**Current State:** Single-crate monorepo named `boticelli` with 8,557 LOC organized into modules.
+
+**Future State:** Cargo workspace with 12 independent crates, all properly named `botticelli-*`.
+
+**Why Rename First:** Renaming a monorepo is simpler than renaming 12 workspace crates. By renaming before the workspace migration, we only rename once, then create the workspace with correct names from the start.
 
 **Goals:**
+- **Proper naming** - Embrace the Botticelli (artist) connection with correct spelling
 - **Independent crates** - Each major subsystem becomes its own publishable crate
 - **Clear dependencies** - Explicit dependency relationships between crates
 - **Flexible builds** - Users can depend on only what they need
 - **Maintainability** - Easier to test, version, and maintain individual components
 - **Backward compatibility** - Existing code continues to work via re-exports
-- **Proper naming** - Embrace the Botticelli (artist) connection with correct spelling
 
 ---
 
@@ -229,21 +237,31 @@ ALTER TABLE boticelli_metadata RENAME TO botticelli_metadata;
 
 ### Integration with Workspace Migration
 
-**Recommended approach:** Combine rename with workspace migration for efficiency.
+**Critical Strategy:** Rename the monorepo FIRST, then migrate to workspace.
+
+**Why This Order:**
+- ✅ Rename once: Single monorepo rename is easier than renaming 12 workspace crates
+- ✅ Start clean: Create workspace with correct names from day one
+- ✅ Less confusion: No mid-migration name changes
+- ✅ Simpler testing: Validate rename, then validate workspace structure separately
 
 **Timeline:**
-1. **Phase 0 (Pre-migration): Repository Rename** (1 day)
-   - Rename GitHub repository
-   - Update local git remotes
-   - Update all documentation files
-   - Commit and push as single "Rename project to Botticelli" commit
+1. **Phase 0: Monorepo Rename** (1-2 days) **← DO THIS FIRST**
+   - Rename GitHub repository: `boticelli` → `botticelli`
+   - Update all code: `Boticelli*` → `Botticelli*`
+   - Update all docs and config files
+   - Rename config file: `boticelli.toml` → `botticelli.toml`
+   - Test thoroughly (all tests must pass)
+   - Commit and push: "Rename project to Botticelli"
+   - Publish `botticelli` v0.2.0 to crates.io (deprecate `boticelli`)
 
-2. **Phase 1-10: Workspace Migration with New Names** (3-4 weeks)
-   - Create workspace with `botticelli-*` crate names (not `botticelli-*`)
-   - Move code into properly named crates
-   - All new code uses `Botticelli*` naming
+2. **Phase 1-10: Workspace Migration** (3-4 weeks) **← THEN DO THIS**
+   - Create workspace with `botticelli-*` crate names
+   - Split monorepo modules into crates
+   - All code already uses correct `Botticelli*` naming
+   - No renaming needed during migration
 
-**Benefit:** Do the rename once during migration, not twice.
+**Benefit:** Clean separation of concerns - rename once, migrate once, test each phase independently.
 
 ### Automated Rename Tools
 

@@ -4,80 +4,127 @@
 
 This document outlines the plan to implement streaming support for Gemini models with bidirectional streaming capabilities (`bidiGenerateContent`) in the Boticelli library.
 
-**CRITICAL FINDING**: The model `gemini-2.0-flash-live` **does not exist**. After querying the Gemini API, we found:
-- ✅ 50 models available in v1beta API
-- ✅ 2 models support `bidiGenerateContent` (bidirectional streaming):
-  - `gemini-2.0-flash-exp`
-  - `gemini-2.0-flash-exp-image-generation`
-- ❌ **NO models with "live" in their name exist**
+**CRITICAL FINDING**: The models `gemini-2.0-flash-live` and `gemini-2.5-flash-live` exist but use **WebSocket protocol**, not REST API.
 
-**Updated Goal**: Implement support for bidirectional streaming models (`gemini-2.0-flash-exp`) to access experimental features and potentially better rate limits.
+**Key Discovery** (2025-01-17):
+- ✅ Live models (`*-live`) exist but only via WebSocket API
+- ✅ REST API has 50 models, none with "live" suffix (correct)
+- ✅ Live API documented at: https://ai.google.dev/gemini-api/docs/live
+- ✅ WebSocket enables bidirectional, real-time streaming (audio/video/text)
+- ❌ Live models don't appear in REST `ListModels` endpoint
+- ❌ REST requests to live models return 404 (expected behavior)
+
+**Goal**: Implement WebSocket support for Gemini Live API to access low-latency, bidirectional streaming with better free-tier rate limits.
 
 **Date**: 2025-01-17  
-**Status**: Investigation Phase - Step 2 Complete ✅  
-**Priority**: MEDIUM (enables experimental features)  
-**Complexity**: HIGH (requires WebSocket/bidirectional streaming, not simple HTTP streaming)
+**Status**: Planning Phase - Architecture Design Needed  
+**Priority**: HIGH (enables better rate limits on free tier via Live API)  
+**Complexity**: HIGH (requires WebSocket client, different protocol from REST API)
 
 ---
 
 ## API Investigation Results (2025-01-17)
 
-### Available Models Query
+### Two Separate APIs Discovered
 
-Using the Gemini v1beta API endpoint `GET /v1beta/models`, we discovered:
+**1. REST API** (`generativelanguage.googleapis.com`)
+- Endpoint: `https://generativelanguage.googleapis.com/v1beta/models`
+- Protocol: HTTP REST with optional SSE streaming
+- 50 models available
+- Models use suffixes like `-flash`, `-pro`, `-exp`
+- Simple request/response or unidirectional streaming
 
-**Total Models**: 50
+**2. Live API** (WebSocket endpoint - different domain)
+- Documentation: https://ai.google.dev/gemini-api/docs/live
+- Protocol: WebSocket (bidirectional, full-duplex)
+- Models: `gemini-2.0-flash-live`, `gemini-2.5-flash-live`
+- Real-time audio/video/text streaming
+- NOT listed in REST `/models` endpoint
 
-**Models Supporting `bidiGenerateContent` (Bidirectional Streaming)**:
-1. `gemini-2.0-flash-exp` - Gemini 2.0 Flash Experimental
-   - Methods: `generateContent`, `countTokens`, `bidiGenerateContent`
-2. `gemini-2.0-flash-exp-image-generation` - Gemini 2.0 Flash (Image Generation) Experimental
-   - Methods: `generateContent`, `countTokens`, `bidiGenerateContent`
+### Why Live Models Return 404 on REST API
 
-**Key Finding**: The test assumption that `gemini-2.0-flash-live` exists was **INCORRECT**. No models with "live" in the name exist in the v1beta API.
+The test `test_streaming_with_live_model` attempts to use REST API endpoints with a Live API model:
 
-### Test Behavior Explained
+```
+GET https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-live:streamGenerateContent
+Response: 404 NOT_FOUND - "models/gemini-2.0-flash-live is not found"
+```
 
-When running `test_streaming_with_live_model`:
-- ✅ Test **IS** hitting the API (confirmed by 404 response from Google servers)
-- ✅ API key authentication works
-- ❌ Model lookup fails with 404: "models/gemini-2.0-flash-live is not found"
-- ❌ No token usage recorded (request rejected before processing)
+This is **expected behavior** - Live models don't exist on the REST API endpoint. They require:
+1. Different base URL (WebSocket, not HTTPS)
+2. Different protocol (WebSocket handshake, not HTTP POST)
+3. Different message format (WebSocket frames, not JSON POST body)
 
-### What is `bidiGenerateContent`?
+### Live API Architecture
 
-Based on the API discovery:
-- **NOT** simple HTTP streaming (like SSE - Server-Sent Events)
-- **IS** bidirectional streaming - requires WebSocket or gRPC
-- Enables real-time, interactive conversations
-- Allows client to send inputs while receiving outputs
-- Used for experimental features (voice, multimodal interactions)
+**Models Available**:
+- `gemini-2.0-flash-live`
+- `gemini-2.5-flash-live` (newer, better audio quality)
+
+**Key Capabilities**:
+- Bidirectional streaming (send while receiving)
+- Real-time voice interactions (audio in/out)
+- Video input support
+- Text chat alongside audio/video
+- Low latency (~100-500ms)
+- Large context window (1M tokens)
+- Function calling, code execution, search
+
+**Connection Flow**:
+```
+1. WebSocket handshake with API key authentication
+2. Open persistent bidirectional connection
+3. Send messages (text/audio/video) as WebSocket frames
+4. Receive responses (text/audio) as WebSocket frames
+5. Close connection when done
+```
+
+**Example (Python SDK)**:
+```python
+from google import genai
+client = genai.Client()
+
+async with client.aio.live.connect(model="gemini-2.5-flash-live") as session:
+    await session.send_client_content(turns="Hello!", turn_complete=True)
+    async for response in session.receive_server_content():
+        print(response.text)
+```
+
+### REST API Models (bidiGenerateContent)
+
+For comparison, the REST API has 2 experimental models with `bidiGenerateContent` method:
+- `gemini-2.0-flash-exp`
+- `gemini-2.0-flash-exp-image-generation`
+
+**Important**: These use WebSocket/gRPC too (not simple HTTP streaming), similar to Live API.
 
 ---
 
 ## Business Case
 
-### Original Assumption - DEBUNKED ❌
+### Original Assumption - VALIDATED ✅
 
-**Original Claim**: Live models have higher rate limits on free tier
-**Reality**: No "live" models exist; experimental models may have different limits
+**Original Claim**: Live models have higher rate limits on free tier  
+**Reality**: Confirmed via user's API dashboard - Live models DO exist and have better limits
 
-### Updated Value Proposition
+### Value Proposition
 
-**Why Support Bidirectional Streaming?**
-1. Access to experimental models (`gemini-2.0-flash-exp`)
-2. Future-proofing for interactive features
-3. Potential for better rate limits on experimental models
-4. Enable voice/multimodal interactions (future consideration)
+**Why Support Live API (WebSocket)?**
+1. ✅ **Better free tier rate limits** (primary goal)
+2. ✅ Access to real-time bidirectional streaming
+3. ✅ Future-proofing for voice/multimodal interactions
+4. ✅ Low-latency responses (~100-500ms vs seconds)
+5. ✅ Enables interactive conversational agents
 
 **Trade-off Analysis**:
-- ✅ Enables cutting-edge features
-- ✅ Access to experimental models
-- ❌ Higher complexity (WebSocket/gRPC vs simple HTTP)
-- ❌ May have unstable API surface
-- ❌ Experimental models may be removed/changed
+- ✅ Better rate limits (confirmed by user)
+- ✅ Cutting-edge features (audio, video, real-time)
+- ✅ Supported by official Google SDK
+- ❌ Higher complexity (WebSocket vs HTTP)
+- ❌ Different protocol requires new client implementation
+- ❌ More complex connection management (handshake, keepalive, reconnection)
 
-**Recommendation**: **DEFER** until we validate that experimental models actually have better rate limits or provide features we need.
+**Recommendation**: **PROCEED** - Better rate limits justify the implementation complexity.
 
 ---
 
@@ -92,9 +139,10 @@ Based on the API discovery:
 - ✅ Async operations with tokio
 
 ### What Doesn't Work
-- ❌ Bidirectional streaming models (`gemini-2.0-flash-exp`)
-- ❌ WebSocket/gRPC-based real-time interactions
-- ⚠️ **Note**: "Live models" don't exist - original assumption was incorrect
+- ❌ Live API models (`gemini-2.0-flash-live`, `gemini-2.5-flash-live`)
+- ❌ WebSocket-based bidirectional streaming
+- ❌ Real-time audio/video interactions
+- ⚠️ **Note**: Live models exist but require WebSocket protocol (different from REST API)
 
 ### Current Architecture
 
@@ -1393,4 +1441,290 @@ async fn test_streaming_with_live_model() {
 
 **Action**: Mark as `#[ignore]` with comment: "Model doesn't exist - see GEMINI_STREAMING.md"
 Or delete entirely since it's testing a non-existent model.
+
+
+---
+
+## WebSocket Implementation Plan (Updated 2025-01-17)
+
+### Architecture Overview
+
+**Goal**: Add WebSocket client support to access Gemini Live API models (`gemini-2.0-flash-live`, `gemini-2.5-flash-live`)
+
+**Why**: Better free-tier rate limits confirmed by user's API dashboard
+
+### Key Requirements
+
+1. **New Protocol**: WebSocket (not REST API)
+2. **Separate Endpoint**: Different base URL from REST API
+3. **Bidirectional**: Can send while receiving (full-duplex)
+4. **Authentication**: API key via query parameter or headers
+5. **Message Format**: JSON over WebSocket frames
+6. **Connection Management**: Handshake, keepalive, reconnection logic
+
+### Implementation Strategy
+
+#### Phase 1: Dependency Selection
+
+**WebSocket Client Options**:
+1. `tokio-tungstenite` - Async WebSocket built on tokio (recommended)
+2. `async-tungstenite` - Alternative async WebSocket
+3. `ws` - Synchronous WebSocket (not suitable with tokio)
+
+**Recommendation**: Use `tokio-tungstenite` for seamless tokio integration
+
+**Dependencies to Add**:
+```toml
+[dependencies]
+tokio-tungstenite = "0.21"
+futures-util = "0.3" # For stream combinators
+serde_json = "1.0"   # Already have this
+```
+
+#### Phase 2: Client Architecture
+
+**New Module**: `src/gemini/live_client.rs`
+
+```rust
+pub struct GeminiLiveClient {
+    api_key: String,
+    ws_endpoint: String, // Different from REST endpoint
+}
+
+pub struct LiveSession {
+    ws_stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    model: String,
+}
+
+impl GeminiLiveClient {
+    pub async fn connect(&self, model: &str) -> Result<LiveSession, GeminiError> {
+        // 1. Build WebSocket URL with API key
+        // 2. Perform WebSocket handshake
+        // 3. Return session for bidirectional communication
+    }
+}
+
+impl LiveSession {
+    pub async fn send_text(&mut self, text: &str) -> Result<(), GeminiError> {
+        // Send text message as JSON WebSocket frame
+    }
+    
+    pub async fn receive(&mut self) -> Result<LiveResponse, GeminiError> {
+        // Receive and parse WebSocket frame
+    }
+    
+    pub fn stream_responses(&mut self) -> impl Stream<Item = Result<LiveResponse, GeminiError>> {
+        // Return futures::Stream for async iteration
+    }
+}
+```
+
+#### Phase 3: Message Protocol
+
+**Request Format** (based on Google SDK documentation):
+```json
+{
+  "client_content": {
+    "turns": [{"role": "user", "parts": [{"text": "Hello"}]}],
+    "turn_complete": true
+  }
+}
+```
+
+**Response Format**:
+```json
+{
+  "server_content": {
+    "model_turn": {
+      "parts": [{"text": "Hello! How can I help you?"}]
+    },
+    "turn_complete": true
+  }
+}
+```
+
+#### Phase 4: Integration with Existing Code
+
+**Update `GeminiClient`**:
+```rust
+pub struct GeminiClient {
+    rest_client: GeminiRestClient,  // Existing REST API client
+    live_client: Option<GeminiLiveClient>,  // New WebSocket client
+}
+
+impl GeminiClient {
+    pub async fn generate_stream(&self, request: &GenerateRequest) -> Result<Stream, GeminiError> {
+        if Self::is_live_model(&request.model) {
+            // Use WebSocket live client
+            self.live_client.as_ref()
+                .ok_or(GeminiError::new("Live client not initialized"))?
+                .generate_stream(request)
+                .await
+        } else {
+            // Use existing REST API client
+            self.rest_client.generate_stream(request).await
+        }
+    }
+    
+    fn is_live_model(model: &Option<String>) -> bool {
+        model.as_ref()
+            .map(|m| m.contains("-live"))
+            .unwrap_or(false)
+    }
+}
+```
+
+#### Phase 5: Rate Limiting
+
+**Challenge**: WebSocket connections are persistent, not per-request
+
+**Solution**: Track message sends, not connections
+
+```rust
+pub struct LiveRateLimiter {
+    messages_sent: AtomicU32,
+    window_start: Instant,
+    max_messages_per_minute: u32,
+}
+
+impl LiveRateLimiter {
+    pub async fn wait_if_needed(&self) {
+        // If approaching limit, sleep until window resets
+    }
+    
+    pub fn record_message(&self) {
+        self.messages_sent.fetch_add(1, Ordering::SeqCst);
+    }
+}
+```
+
+#### Phase 6: Testing Strategy
+
+**Unit Tests** (no API calls):
+- Message serialization/deserialization
+- Rate limiter logic
+- Model name detection
+
+**Integration Tests** (with `#[cfg(feature = "api")]`):
+```rust
+#[tokio::test]
+#[cfg_attr(not(feature = "api"), ignore)]
+async fn test_live_model_connection() {
+    // Minimal test: connect, send one message, receive response
+    let client = GeminiClient::new().unwrap();
+    let mut session = client.connect_live("gemini-2.0-flash-live").await.unwrap();
+    
+    session.send_text("hello").await.unwrap();
+    let response = session.receive().await.unwrap();
+    
+    assert!(response.text().len() > 0);
+}
+
+#[tokio::test]
+#[cfg_attr(not(feature = "api"), ignore)]
+async fn test_live_vs_rest_rate_limits() {
+    // Compare: How many messages before rate limit?
+    // Expected: Live model allows more messages
+}
+```
+
+### Implementation Phases
+
+#### Sprint 1: WebSocket Foundation (3-5 hours)
+- [ ] Add `tokio-tungstenite` dependency
+- [ ] Create `live_client.rs` module
+- [ ] Implement WebSocket connection handshake
+- [ ] Implement basic send/receive
+- [ ] Write unit tests for message format
+
+#### Sprint 2: Integration (2-3 hours)
+- [ ] Add `is_live_model()` detection
+- [ ] Update `GeminiClient` to route to live client
+- [ ] Convert Live API responses to `StreamChunk` format
+- [ ] Maintain compatibility with existing code
+
+#### Sprint 3: Rate Limiting (2 hours)
+- [ ] Implement `LiveRateLimiter`
+- [ ] Integrate with existing rate limit infrastructure
+- [ ] Add backoff/retry logic for rate limit errors
+
+#### Sprint 4: Testing & Validation (2-3 hours)
+- [ ] Write integration tests with `api` feature flag
+- [ ] Test actual rate limit differences (Live vs REST)
+- [ ] Document findings
+- [ ] Update GEMINI.md with Live API usage
+
+#### Sprint 5: Polish (1-2 hours)
+- [ ] Error handling improvements
+- [ ] Logging/tracing
+- [ ] Documentation
+- [ ] Example code
+
+**Total Estimate**: 10-15 hours
+
+### Success Criteria
+
+✅ Can connect to `gemini-2.0-flash-live` via WebSocket
+✅ Can send text messages and receive responses
+✅ Streaming works (progressive text chunks)
+✅ Rate limiting prevents quota exhaustion
+✅ Integration tests validate rate limit benefits
+✅ Existing REST API code continues working
+✅ Zero regressions in existing tests
+
+### Risks & Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| WebSocket endpoint URL unknown | Research Google docs, inspect SDK source |
+| Authentication differs from REST | Test with different auth methods |
+| Message format undocumented | Reverse-engineer from SDK |
+| Rate limits not actually better | Measure empirically in tests |
+| Connection stability issues | Implement reconnection logic |
+
+### Open Questions
+
+1. **Endpoint URL**: What is the exact WebSocket endpoint for Live API?
+   - Need to find in Google docs or SDK source code
+   
+2. **Authentication**: How is API key passed in WebSocket handshake?
+   - Query parameter? Header? Subprotocol?
+   
+3. **Message Protocol**: Exact JSON schema for requests/responses?
+   - Can inspect Google's Python SDK for examples
+   
+4. **Rate Limit Details**: What are the exact free-tier limits?
+   - RPM (requests per minute)?
+   - Messages per minute?
+   - Tokens per day?
+   
+5. **Connection Lifecycle**: How long can WebSocket stay open?
+   - Idle timeout?
+   - Need keepalive pings?
+
+### Next Steps
+
+1. **Research Phase** (30 min):
+   - Read: https://ai.google.dev/gemini-api/docs/live
+   - Inspect Google's Python SDK source code
+   - Document endpoint URL, auth method, message format
+   
+2. **Prototype** (2 hours):
+   - Write minimal WebSocket client
+   - Hardcode a test connection
+   - Validate message format
+   
+3. **Integrate** (2 hours):
+   - Wire into existing `GeminiClient`
+   - Add tests
+   - Measure rate limits
+
+4. **Iterate**: Based on test results, refine implementation
+
+### References
+
+- Live API Documentation: https://ai.google.dev/gemini-api/docs/live
+- Google GenAI SDK (Python): https://github.com/googleapis/python-genai
+- Tokio Tungstenite: https://docs.rs/tokio-tungstenite/latest/tokio_tungstenite/
+- WebSocket Protocol: https://datatracker.ietf.org/doc/html/rfc6455
 

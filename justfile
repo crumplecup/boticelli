@@ -231,6 +231,41 @@ run-all *args:
 # Content Generation Examples
 # ===========================
 
+# Execute a narrative by name (searches recursively for matching TOML files)
+narrate name:
+    #!/usr/bin/env bash
+    set -e
+    
+    echo "🔍 Searching for narrative: {{name}}"
+    
+    # Find all TOML files recursively that match the name
+    MATCHES=$(find . -type f -name "*.toml" | grep -i "{{name}}" | grep -v target | grep -v node_modules || true)
+    
+    if [ -z "$MATCHES" ]; then
+        echo "❌ No narrative found matching '{{name}}'"
+        echo ""
+        echo "📂 Available narratives:"
+        find narratives -type f -name "*.toml" 2>/dev/null | sed 's/narratives\//  /' | sed 's/\.toml$//' | sort || echo "  (no narratives/ directory)"
+        exit 1
+    fi
+    
+    # Count matches
+    COUNT=$(echo "$MATCHES" | wc -l)
+    
+    if [ "$COUNT" -eq 1 ]; then
+        NARRATIVE="$MATCHES"
+        echo "✓ Found: $NARRATIVE"
+        echo ""
+        echo "🚀 Executing narrative..."
+        cargo run --features gemini -- run --narrative "$NARRATIVE" --verbose
+    else
+        echo "❌ Multiple narratives found matching '{{name}}':"
+        echo "$MATCHES" | sed 's/^/  /'
+        echo ""
+        echo "💡 Please be more specific with the name"
+        exit 1
+    fi
+
 # Run example narrative: generate channel posts
 example-channels:
     cargo run --features database,gemini -- run --narrative narratives/generate_channel_posts.toml

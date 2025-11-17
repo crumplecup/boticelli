@@ -50,6 +50,7 @@ const LIVE_API_ENDPOINT: &str = "wss://generativelanguage.googleapis.com/ws/goog
 ///
 /// This client handles API key management and creates WebSocket connections
 /// to the Gemini Live API.
+#[derive(Clone)]
 pub struct GeminiLiveClient {
     api_key: String,
     rate_limiter: Option<Arc<LiveRateLimiter>>,

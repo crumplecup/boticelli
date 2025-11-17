@@ -466,6 +466,9 @@ impl GeminiClient {
         req: &GenerateRequest,
         model_name: &str,
     ) -> GeminiResult<GenerateResponse> {
+        use tokio_retry2::{strategy::ExponentialBackoff, strategy::jitter, Retry, RetryError};
+        use tracing::{info, warn};
+
         // Ensure we have a Live API client
         let live_client = self
             .live_client
@@ -481,22 +484,105 @@ impl GeminiClient {
             ..Default::default()
         };
 
-        // Connect to Live API
-        let mut session = live_client
-            .connect_with_config(model_name, config)
-            .await?;
+        // Check if retry is disabled
+        if self.no_retry {
+            // No retry - attempt once
+            let mut session = live_client
+                .connect_with_config(model_name, config)
+                .await?;
+            
+            let combined_text = self.combine_messages(req);
+            let response_text = session.send_text(&combined_text).await?;
+            let _ = session.close().await;
+            
+            return Ok(GenerateResponse {
+                outputs: vec![Output::Text(response_text)],
+            });
+        }
 
-        // Combine all user messages into a single text
-        // Note: Live API currently only supports single-turn text (no multi-turn or multimodal yet)
-        let mut combined_text = String::new();
-        for msg in &req.messages {
-            for input in &msg.content {
-                if let Some(text) = Self::extract_text(input) {
-                    combined_text.push_str(&text);
-                    combined_text.push('\n');
+        // Determine retry strategy from first error or use defaults
+        let model = model_name.to_string();
+        let gen_config = config.clone();
+        let client = live_client.clone();
+
+        // Try connection once to get error-specific strategy
+        let first_result = client.connect_with_config(&model, gen_config.clone()).await;
+        
+        let (initial_ms, max_retries, max_delay_secs) = match &first_result {
+            Ok(_) => {
+                // Success on first try
+                let mut session = first_result.unwrap();
+                let combined_text = self.combine_messages(req);
+                let response_text = session.send_text(&combined_text).await?;
+                let _ = session.close().await;
+                
+                return Ok(GenerateResponse {
+                    outputs: vec![Output::Text(response_text)],
+                });
+            }
+            Err(e) => {
+                if !e.kind.is_retryable() {
+                    warn!(error = %e, "Permanent Live API error, failing immediately");
+                    return Err(e.clone());
+                }
+                
+                // Get error-specific strategy
+                let (mut init_ms, mut retries, delay_secs) = e.kind.retry_strategy_params();
+                
+                // Apply CLI overrides
+                if let Some(override_backoff) = self.retry_backoff_ms {
+                    init_ms = override_backoff;
+                }
+                if let Some(override_retries) = self.max_retries {
+                    retries = override_retries;
+                }
+                
+                info!(
+                    error = %e,
+                    model = model,
+                    initial_backoff_ms = init_ms,
+                    max_retries = retries,
+                    max_delay_secs = delay_secs,
+                    "Live API connection failed, will retry with configured strategy"
+                );
+                
+                (init_ms, retries, delay_secs)
+            }
+        };
+
+        // Configure retry strategy
+        let retry_strategy = ExponentialBackoff::from_millis(initial_ms)
+            .factor(2)
+            .max_delay(std::time::Duration::from_secs(max_delay_secs))
+            .map(jitter)
+            .take(max_retries);
+
+        // Retry connection with backoff
+        let mut session = Retry::spawn(retry_strategy, || {
+            let m = model.clone();
+            let c = gen_config.clone();
+            let cli = client.clone();
+            async move {
+                match cli.connect_with_config(&m, c).await {
+                    Ok(session) => Ok(session),
+                    Err(e) => {
+                        if e.kind.is_retryable() {
+                            warn!(error = %e, "Live API connection failed, will retry");
+                            Err(RetryError::Transient {
+                                err: e,
+                                retry_after: None,
+                            })
+                        } else {
+                            warn!(error = %e, "Permanent Live API error, failing immediately");
+                            Err(RetryError::Permanent(e))
+                        }
+                    }
                 }
             }
-        }
+        }).await?;
+
+        // Combine all user messages into a single text
+        let combined_text = self.combine_messages(req);
 
         // Send message and collect complete response
         let response_text = session.send_text(&combined_text).await?;
@@ -508,6 +594,20 @@ impl GeminiClient {
         Ok(GenerateResponse {
             outputs: vec![Output::Text(response_text)],
         })
+    }
+
+    /// Helper to combine all message content into a single text string.
+    fn combine_messages(&self, req: &GenerateRequest) -> String {
+        let mut combined_text = String::new();
+        for msg in &req.messages {
+            for input in &msg.content {
+                if let Some(text) = Self::extract_text(input) {
+                    combined_text.push_str(&text);
+                    combined_text.push('\n');
+                }
+            }
+        }
+        combined_text
     }
 
     /// Internal generate method that returns Gemini-specific errors.

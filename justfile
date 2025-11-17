@@ -257,7 +257,7 @@ narrate name:
         echo "✓ Found: $NARRATIVE"
         echo ""
         echo "🚀 Executing narrative..."
-        cargo run --features gemini -- run --narrative "$NARRATIVE" --verbose
+        cargo run --features gemini,database -- run --narrative "$NARRATIVE" --save --verbose
     else
         echo "❌ Multiple narratives found matching '{{name}}':"
         echo "$MATCHES" | sed 's/^/  /'

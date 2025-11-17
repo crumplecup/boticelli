@@ -373,6 +373,49 @@ pub enum ContentCommands {
         #[arg(short, long)]
         target: Option<String>,
     },
+
+    /// List all content generation runs
+    Generations {
+        /// Filter by status (running, success, failed)
+        #[arg(short, long)]
+        status: Option<String>,
+
+        /// Maximum number of results
+        #[arg(short, long, default_value = "20")]
+        limit: i64,
+
+        /// Output format (human, json, table-name-only)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Get the most recently completed generation
+    Last {
+        /// Output format (human, json, table-name-only)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Show details of a specific generation
+    Info {
+        /// Table name to query
+        table: String,
+
+        /// Output format (human, json)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Clean up old generated tables
+    Clean {
+        /// Delete generations older than this many days
+        #[arg(long)]
+        older_than_days: Option<i64>,
+
+        /// Skip confirmation prompt
+        #[arg(short = 'y', long)]
+        yes: bool,
+    },
 }
 
 impl Cli {

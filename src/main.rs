@@ -115,6 +115,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ContentCommands::Promote { table, id, target } => {
                 promote_content(&table, id, target.as_deref()).await?;
             }
+            ContentCommands::Generations { status, limit, format } => {
+                list_generations(status.as_deref(), limit, &format)?;
+            }
+            ContentCommands::Last { format } => {
+                show_last_generation(&format)?;
+            }
+            ContentCommands::Info { table, format } => {
+                show_generation_info(&table, &format)?;
+            }
+            ContentCommands::Clean { older_than_days, yes } => {
+                clean_generations(older_than_days, yes)?;
+            }
         },
 
         #[cfg(feature = "tui")]
@@ -638,5 +650,224 @@ async fn promote_content(
 async fn run_tui_app(table: String) -> Result<(), Box<dyn std::error::Error>> {
     let conn = boticelli::establish_connection()?;
     boticelli::run_tui(table, conn)?;
+    Ok(())
+}
+
+/// List all content generations with optional filtering.
+#[cfg(feature = "database")]
+fn list_generations(
+    status: Option<&str>,
+    limit: i64,
+    format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+
+    let mut conn = boticelli::establish_connection()?;
+    let mut repo = PostgresContentGenerationRepository::new(&mut conn);
+
+    let generations = repo.list_generations(status.map(|s| s.to_string()), limit)?;
+
+    match format {
+        "json" => {
+            let json = serde_json::to_string_pretty(&generations)?;
+            println!("{}", json);
+        }
+        "table-name-only" => {
+            for generation in generations {
+                println!("{}", generation.table_name);
+            }
+        }
+        _ => {
+            // Human-readable format
+            if generations.is_empty() {
+                println!("No generations found.");
+                return Ok(());
+            }
+
+            println!("{:<25} {:<10} {:<8} {:<20}", "Table", "Status", "Rows", "Generated");
+            println!("{}", "-".repeat(70));
+
+            for generation in generations {
+                let row_count = generation
+                    .row_count
+                    .map(|r| r.to_string())
+                    .unwrap_or_else(|| "-".to_string());
+
+                println!(
+                    "{:<25} {:<10} {:<8} {:<20}",
+                    generation.table_name,
+                    generation.status,
+                    row_count,
+                    generation.generated_at.format("%Y-%m-%d %H:%M")
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Show the most recently completed generation.
+#[cfg(feature = "database")]
+fn show_last_generation(format: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+
+    let mut conn = boticelli::establish_connection()?;
+    let mut repo = PostgresContentGenerationRepository::new(&mut conn);
+
+    let generation = repo.get_last_successful()?;
+
+    match generation {
+        Some(g) => match format {
+            "json" => {
+                let json = serde_json::to_string_pretty(&g)?;
+                println!("{}", json);
+            }
+            "table-name-only" => {
+                println!("{}", g.table_name);
+            }
+            _ => {
+                // Human-readable format
+                println!("Last generated table: {}", g.table_name);
+                println!("  Narrative: {}", g.narrative_name);
+                println!("  File: {}", g.narrative_file);
+                println!("  Generated: {}", g.generated_at);
+                if let Some(rows) = g.row_count {
+                    println!("  Rows: {}", rows);
+                }
+                if let Some(ms) = g.generation_duration_ms {
+                    println!("  Duration: {}ms", ms);
+                }
+            }
+        },
+        None => {
+            eprintln!("No successful generations found");
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+/// Show details of a specific generation.
+#[cfg(feature = "database")]
+fn show_generation_info(table: &str, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+
+    let mut conn = boticelli::establish_connection()?;
+    let mut repo = PostgresContentGenerationRepository::new(&mut conn);
+
+    let generation = repo.get_by_table_name(table)?;
+
+    match generation {
+        Some(g) => match format {
+            "json" => {
+                let json = serde_json::to_string_pretty(&g)?;
+                println!("{}", json);
+            }
+            _ => {
+                // Human-readable format
+                println!("Generation: {}", g.table_name);
+                println!("  ID: {}", g.id);
+                println!("  Narrative: {}", g.narrative_name);
+                println!("  File: {}", g.narrative_file);
+                println!("  Status: {}", g.status);
+                println!("  Generated: {}", g.generated_at);
+
+                if let Some(completed) = g.completed_at {
+                    println!("  Completed: {}", completed);
+                }
+
+                if let Some(rows) = g.row_count {
+                    println!("  Rows: {}", rows);
+                }
+
+                if let Some(ms) = g.generation_duration_ms {
+                    println!("  Duration: {}ms", ms);
+                }
+
+                if let Some(ref err) = g.error_message {
+                    println!("  Error: {}", err);
+                }
+
+                if let Some(ref created_by) = g.created_by {
+                    println!("  Created by: {}", created_by);
+                }
+            }
+        },
+        None => {
+            eprintln!("Generation not found for table: {}", table);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+/// Clean up old generated tables.
+#[cfg(feature = "database")]
+fn clean_generations(
+    older_than_days: Option<i64>,
+    yes: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+
+    let mut conn = boticelli::establish_connection()?;
+    let mut repo = PostgresContentGenerationRepository::new(&mut conn);
+
+    // Get all generations
+    let generations = repo.list_generations(None, 1000)?;
+
+    let to_delete: Vec<_> = if let Some(days) = older_than_days {
+        use chrono::{Duration, Utc};
+        let cutoff = Utc::now() - Duration::days(days);
+
+        generations
+            .into_iter()
+            .filter(|g| g.generated_at < cutoff)
+            .collect()
+    } else {
+        generations
+    };
+
+    if to_delete.is_empty() {
+        println!("No generations to clean up.");
+        return Ok(());
+    }
+
+    println!("Found {} generation(s) to delete:", to_delete.len());
+    for generation in &to_delete {
+        println!("  - {} ({})", generation.table_name, generation.generated_at.format("%Y-%m-%d"));
+    }
+
+    if !yes {
+        print!("\nDelete these generations? [y/N]: ");
+        use std::io::{self, Write};
+        io::stdout().flush()?;
+
+        let mut response = String::new();
+        io::stdin().read_line(&mut response)?;
+
+        if !response.trim().eq_ignore_ascii_case("y") {
+            println!("Cancelled.");
+            return Ok(());
+        }
+    }
+
+    let mut deleted = 0;
+    for generation in to_delete {
+        match repo.delete_generation(&generation.table_name) {
+            Ok(_) => {
+                println!("✓ Deleted: {}", generation.table_name);
+                deleted += 1;
+            }
+            Err(e) => {
+                eprintln!("✗ Failed to delete {}: {}", generation.table_name, e);
+            }
+        }
+    }
+
+    println!("\n✓ Deleted {} generation(s)", deleted);
+
     Ok(())
 }

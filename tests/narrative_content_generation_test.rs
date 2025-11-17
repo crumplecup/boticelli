@@ -21,6 +21,16 @@ fn create_test_metadata(name: &str, template: Option<String>) -> NarrativeMetada
         name: name.to_string(),
         description: "Test narrative".to_string(),
         template,
+        skip_content_generation: false,
+    }
+}
+
+fn create_test_metadata_with_skip(name: &str, skip: bool) -> NarrativeMetadata {
+    NarrativeMetadata {
+        name: name.to_string(),
+        description: "Test narrative".to_string(),
+        template: None,
+        skip_content_generation: skip,
     }
 }
 
@@ -64,6 +74,18 @@ fn test_should_process_without_template_for_inference() {
 
     // Now processes even without template (inference mode)
     assert!(processor.should_process(&context));
+}
+
+#[test]
+fn test_should_not_process_when_opted_out() {
+    let execution = create_test_execution("test", "test response");
+    let metadata = create_test_metadata_with_skip("test_table", true);
+    let context = create_test_context(&execution, &metadata, "test_narrative");
+
+    let processor = create_test_processor();
+
+    // Should not process when skip_content_generation is true
+    assert!(!processor.should_process(&context));
 }
 
 #[test]

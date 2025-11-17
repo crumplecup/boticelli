@@ -617,35 +617,166 @@ insert_content(table_name, &json, ...)?;
 - Zero clippy warnings
 - Zero compilation errors
 
-**Next Steps:** Phase 4 will add TOML configuration support for explicitly enabling/disabling schema inference.
+**Next Steps:** Phase 4 complete. Phase 5 will add comprehensive error handling and edge case management.
 
-### Phase 4: Narrative Configuration (Week 2-3)
+### Phase 4: Narrative Configuration ✅ **COMPLETE**
 
-**Goals:**
-- [ ] Add optional `infer_schema` field to `[narration]` TOML
-- [ ] Update narrative validation to allow template-less mode
-- [ ] Update documentation and examples
-- [ ] Create example narratives
+**Goals:** ✅ All Achieved
+- ✅ Add optional opt-out field to `[narration]` TOML
+- ✅ Update narrative validation to allow template-less mode
+- ✅ Update documentation and examples
+- ✅ Create example narratives
 
-**Deliverables:**
-- Updated TOML parsing in `narrative/toml.rs`
-- Example narratives in `narratives/inferred_*.toml`
-- Updated `CONTENT_GENERATION.md` documentation
+**Deliverables:** ✅ All Delivered
+- ✅ Updated TOML parsing in `narrative/toml.rs`
+- ✅ Example narratives in `narratives/inferred_*.toml`
+- ✅ Test coverage for opt-out behavior
 
-**TOML Schema:**
+**Implementation Summary:**
+
+Added TOML configuration support with inference as the default behavior and an opt-out mechanism.
+
+**Design Decision: Inference by Default with Opt-Out**
+
+Following the recommendation for Option 2 (automatic inference), the implementation provides:
+- **Default**: Inference mode when no `template` field is present
+- **Opt-out**: Optional `skip_content_generation = true` to disable all content generation
+
+**TOML Configuration:**
+
+```toml
+# Example 1: Inference mode (default)
+[narration]
+name = "gaming_achievements"
+description = "Generate achievements with automatic schema inference"
+# No template → infers schema from JSON responses
+
+# Example 2: Template mode (explicit)
+[narration]
+name = "potential_posts"
+template = "discord_messages"  # Uses existing table schema
+description = "Generate post ideas"
+
+# Example 3: Opt-out mode
+[narration]
+name = "analysis_only"
+description = "Analysis without database storage"
+skip_content_generation = true  # Disables content generation
+```
+
+**Processing Logic:**
+
+```rust
+fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
+    // Don't process if user explicitly opted out
+    if context.narrative_metadata.skip_content_generation {
+        return false;
+    }
+
+    // Otherwise, process (with template OR inference mode)
+    true
+}
+```
+
+**Files Modified:**
+- `src/narrative/toml.rs` - Added `skip_content_generation` field to `TomlNarration`
+- `src/narrative/core.rs` - Added `skip_content_generation` field to `NarrativeMetadata`
+- `src/narrative/content_generation.rs` - Updated `should_process()` to respect opt-out flag
+- `tests/narrative_content_generation_test.rs` - Added test for opt-out behavior
+- `narratives/inferred_achievements.toml` - Example inference mode narrative
+- `narratives/no_content_generation.toml` - Example opt-out narrative
+
+**Quality Metrics:**
+- All 4 processor tests passing (including new opt-out test)
+- Zero clippy warnings
+- Zero compilation errors
+
+## User Guide - Phase 4: Configuration and Usage
+
+### Using Inference Mode (Default)
+
+Create a narrative without a `template` field to automatically infer schema from JSON responses:
 
 ```toml
 [narration]
-name = "custom_data"
-description = "Generate custom structured data"
-# Option 1: Explicit inference flag
-infer_schema = true
+name = "gaming_achievements"
+description = "Generate gaming achievements with automatic schema inference"
+# No template field - schema inferred from JSON
 
-# Option 2: Inference automatic if template missing (simpler)
-# (no template field → infer mode)
+[toc]
+order = ["design_achievements"]
+
+[acts]
+design_achievements = """
+Design 5 gaming achievements with this structure:
+{
+  "achievement_id": integer,
+  "title": string,
+  "description": string,
+  "points": integer,
+  "rarity": string,
+  "unlocked_by_percent": float
+}
+
+Return as JSON array of 5 achievements.
+Output ONLY valid JSON.
+"""
 ```
 
-**Recommendation:** Option 2 (automatic) for better UX. If `template` is missing and content generation is enabled, automatically use inference mode.
+**What happens:**
+1. LLM generates JSON response
+2. Schema is inferred from JSON structure
+3. Table `gaming_achievements` created with:
+   - `achievement_id BIGINT NOT NULL`
+   - `title TEXT NOT NULL`
+   - `description TEXT NOT NULL`
+   - `points BIGINT NOT NULL`
+   - `rarity TEXT NOT NULL`
+   - `unlocked_by_percent DOUBLE PRECISION NOT NULL`
+   - Plus metadata columns
+4. Content inserted
+
+### Using Template Mode (Explicit)
+
+Use an existing table as a schema template:
+
+```toml
+[narration]
+name = "potential_posts"
+template = "discord_messages"  # Explicit template
+description = "Generate post ideas for review"
+```
+
+### Opting Out of Content Generation
+
+Disable content generation entirely (useful for analysis-only narratives):
+
+```toml
+[narration]
+name = "analysis_only"
+description = "Analysis without database storage"
+skip_content_generation = true  # Disables ALL content generation
+
+[toc]
+order = ["analyze"]
+
+[acts]
+analyze = "Analyze user feedback and provide insights..."
+```
+
+**Use cases for opt-out:**
+- Pure analysis narratives (no structured data storage)
+- Prototype/testing narratives
+- Narratives that output to other destinations (files, APIs, etc.)
+
+### Configuration Matrix
+
+| Template | skip_content_generation | Behavior |
+|----------|-------------------------|----------|
+| None | false (default) | **Inference mode** - infer schema from JSON |
+| None | true | No content generation (analysis only) |
+| "discord_messages" | false (default) | **Template mode** - use template schema |
+| "discord_messages" | true | No content generation (skip flag overrides) |
 
 ### Phase 5: Error Handling and Edge Cases (Week 3)
 

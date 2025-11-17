@@ -324,10 +324,13 @@ impl ActProcessor for ContentGenerationProcessor {
         })
     }
 
-    fn should_process(&self, _context: &ProcessorContext<'_>) -> bool {
-        // Process if narration has a template field OR no template (inference mode)
-        // For now, we always process. In the future, we might add an explicit flag
-        // to disable content generation even when template is absent.
+    fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
+        // Don't process if user explicitly opted out
+        if context.narrative_metadata.skip_content_generation {
+            return false;
+        }
+
+        // Otherwise, process (with template OR inference mode)
         true
     }
 

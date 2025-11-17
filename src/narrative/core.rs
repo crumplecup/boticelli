@@ -21,6 +21,9 @@ pub struct NarrativeMetadata {
     pub description: String,
     /// Optional template table to use as schema source for content generation
     pub template: Option<String>,
+    /// Skip content generation (both template and inference modes)
+    #[serde(default)]
+    pub skip_content_generation: bool,
 }
 
 /// Table of contents from the `[toc]` section.
@@ -272,6 +275,7 @@ impl FromStr for Narrative {
             name: toml_narrative.narration.name,
             description: toml_narrative.narration.description,
             template: toml_narrative.narration.template,
+            skip_content_generation: toml_narrative.narration.skip_content_generation,
         };
 
         let toc = NarrativeToc {

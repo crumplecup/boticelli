@@ -271,6 +271,7 @@ async fn test_trait_abstraction_with_simple_provider() {
             name: "in_memory_test".to_string(),
             description: "Test narrative".to_string(),
             template: None,
+            skip_content_generation: false,
         },
         act_order: vec!["greeting".to_string(), "farewell".to_string()],
         act_prompts: [
@@ -373,6 +374,7 @@ async fn test_multimodal_and_per_act_config() {
             name: "multimodal_test".to_string(),
             description: "Test multimodal narrative".to_string(),
             template: None,
+            skip_content_generation: false,
         },
         acts: vec![
             "creative".to_string(),

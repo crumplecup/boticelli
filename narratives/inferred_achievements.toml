@@ -1,0 +1,23 @@
+[narration]
+name = "gaming_achievements"
+description = "Generate gaming achievements with automatic schema inference"
+# No template field - schema will be inferred from JSON responses
+
+[toc]
+order = ["design_achievements"]
+
+[acts]
+design_achievements = """
+Design 5 gaming achievements for a fantasy RPG with the following structure:
+{
+  "achievement_id": unique integer,
+  "title": achievement name (string),
+  "description": what the player must do (string),
+  "points": reward points (integer, 10-100),
+  "rarity": "common", "rare", "epic", or "legendary" (string),
+  "unlocked_by_percent": percentage of players who unlocked it (float, 0.0-100.0)
+}
+
+Return as a JSON array of 5 achievements with diverse rarities and point values.
+Output ONLY valid JSON with no additional text or markdown.
+"""

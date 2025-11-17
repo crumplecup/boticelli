@@ -14,6 +14,9 @@ pub struct TomlNarration {
     pub description: String,
     /// Optional template table to use as schema source for content generation
     pub template: Option<String>,
+    /// Optional flag to skip content generation (both template and inference modes)
+    #[serde(default)]
+    pub skip_content_generation: bool,
 }
 
 /// Intermediate structure for deserializing the [toc] section.

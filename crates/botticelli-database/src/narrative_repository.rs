@@ -79,19 +79,13 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         let mut conn = self.conn.lock().await;
 
         // Use a transaction for atomicity
-        conn.transaction(|conn| {
+        let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
             // Insert narrative_execution
             let new_execution = execution_to_new_row(execution, ExecutionStatus::Completed);
             let execution_row: NarrativeExecutionRow =
                 diesel::insert_into(narrative_executions::table)
                     .values(&new_execution)
-                    .get_result(conn)
-                    .map_err(|e| {
-                        BotticelliError::from(BackendError::new(format!(
-                            "Failed to insert narrative execution: {}",
-                            e
-                        )))
-                    })?;
+                    .get_result(conn)?;
 
             let execution_id = execution_row.id;
 
@@ -100,30 +94,28 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                 let new_act = act_execution_to_new_row(act, execution_id);
                 let act_row: ActExecutionRow = diesel::insert_into(act_executions::table)
                     .values(&new_act)
-                    .get_result(conn)
-                    .map_err(|e| {
-                        BotticelliError::from(BackendError::new(format!(
-                            "Failed to insert act execution: {}",
-                            e
-                        )))
-                    })?;
+                    .get_result(conn)?;
 
                 // Insert all inputs for this act
                 for (order, input) in act.inputs.iter().enumerate() {
-                    let new_input = input_to_new_row(input, act_row.id, order)?;
+                    let new_input = match input_to_new_row(input, act_row.id, order) {
+                        Ok(row) => row,
+                        Err(_) => return Err(diesel::result::Error::RollbackTransaction),
+                    };
                     diesel::insert_into(act_inputs::table)
                         .values(&new_input)
-                        .execute(conn)
-                        .map_err(|e| {
-                            BotticelliError::from(BackendError::new(format!(
-                                "Failed to insert act input: {}",
-                                e
-                            )))
-                        })?;
+                        .execute(conn)?;
                 }
             }
 
             Ok(execution_id)
+        });
+
+        result.map_err(|e| {
+            BotticelliError::from(BackendError::new(format!(
+                "Transaction failed: {}",
+                e
+            )))
         })
     }
 
@@ -205,13 +197,8 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             query = query.filter(narrative_executions::status.eq(status_to_string(*status)));
         }
 
-        if let Some(ref after) = filter.started_after {
-            query = query.filter(narrative_executions::started_at.ge(after.naive_utc()));
-        }
-
-        if let Some(ref before) = filter.started_before {
-            query = query.filter(narrative_executions::started_at.le(before.naive_utc()));
-        }
+        // Note: Date filtering removed - ExecutionFilter in interface doesn't have these fields
+        // Original code filtered by started_after and started_before
 
         // Order by started_at descending (most recent first)
         query = query.order(narrative_executions::started_at.desc());
@@ -248,8 +235,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                 narrative_name: row.narrative_name,
                 narrative_description: row.narrative_description,
                 status: string_to_status(&row.status)?,
-                started_at: row.started_at.and_utc(),
-                completed_at: row.completed_at.map(|dt| dt.and_utc()),
+                // Note: started_at and completed_at removed from ExecutionSummary in interface
                 act_count: act_count as usize,
                 error_message: row.error_message,
             });
@@ -302,7 +288,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
     async fn store_media(
         &self,
         data: &[u8],
-        metadata: &crate::MediaMetadata,
+        metadata: &botticelli_storage::MediaMetadata,
     ) -> BotticelliResult<botticelli_storage::MediaReference> {
         use crate::schema::media_references;
         use sha2::{Digest, Sha256};

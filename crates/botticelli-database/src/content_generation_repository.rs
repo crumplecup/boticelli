@@ -1,7 +1,8 @@
 //! Repository for content generation tracking.
 
 use crate::{
-    ContentGenerationRow, DatabaseResult, NewContentGenerationRow, UpdateContentGenerationRow,
+    ContentGenerationRow, DatabaseResult, DatabaseError, DatabaseErrorKind,
+    NewContentGenerationRow, UpdateContentGenerationRow,
 };
 use diesel::prelude::*;
 
@@ -147,7 +148,7 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
         diesel::insert_into(content_generations::table)
             .values(&new_gen)
             .get_result(self.conn)
-            .map_err(Into::into)
+            .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))
     }
 
     fn complete_generation(
@@ -160,7 +161,7 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
         diesel::update(dsl::content_generations.filter(dsl::table_name.eq(table)))
             .set(&update)
             .get_result(self.conn)
-            .map_err(Into::into)
+            .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))
     }
 
     fn get_last_successful(&mut self) -> DatabaseResult<Option<ContentGenerationRow>> {
@@ -171,7 +172,7 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
             .order(dsl::generated_at.desc())
             .first(self.conn)
             .optional()
-            .map_err(Into::into)
+            .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))
     }
 
     fn list_generations(
@@ -191,7 +192,7 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
             .order(dsl::generated_at.desc())
             .limit(limit)
             .load(self.conn)
-            .map_err(Into::into)
+            .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))
     }
 
     fn get_by_table_name(&mut self, table: &str) -> DatabaseResult<Option<ContentGenerationRow>> {
@@ -201,7 +202,7 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
             .filter(dsl::table_name.eq(table))
             .first(self.conn)
             .optional()
-            .map_err(Into::into)
+            .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))
     }
 
     fn delete_generation(&mut self, table: &str) -> DatabaseResult<()> {
@@ -210,6 +211,6 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
         diesel::delete(dsl::content_generations.filter(dsl::table_name.eq(table)))
             .execute(self.conn)
             .map(|_| ())
-            .map_err(Into::into)
+            .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))
     }
 }

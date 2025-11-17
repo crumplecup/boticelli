@@ -83,6 +83,45 @@ If you need to reference the original monorepo structure:
 
 All workspace dependencies are defined in the root `Cargo.toml` under `[workspace.dependencies]`.
 
+### Current Workspace Structure
+
+```
+crates/
+├── botticelli-error/          # Phase 1: Foundation error types
+│   ├── Cargo.toml
+│   └── src/lib.rs
+├── botticelli-core/           # Phase 1: Core data structures
+│   ├── Cargo.toml
+│   └── src/lib.rs
+├── botticelli-interface/      # Phase 1: Trait definitions
+│   ├── Cargo.toml
+│   └── src/lib.rs
+└── botticelli-rate-limit/     # Phase 2: Rate limiting & retry
+    ├── Cargo.toml
+    └── src/
+        ├── lib.rs
+        ├── tier.rs           # Tier trait
+        ├── tiers.rs          # Provider-specific tiers
+        ├── limiter.rs        # RateLimiter implementation
+        ├── config.rs         # TOML configuration
+        └── detector.rs       # Header-based detection
+
+src/                           # Original monorepo (to be migrated in Phases 3-7)
+├── core.rs                    # → Will stay as facade re-exports
+├── error.rs                   # → Migrated to botticelli-error ✅
+├── interface.rs               # → Migrated to botticelli-interface ✅
+├── rate_limit/                # → Migrated to botticelli-rate-limit ✅
+├── storage/                   # → Phase 3: botticelli-storage
+├── models/                    # → Phase 4: botticelli-models (per-provider)
+├── narrative/                 # → Phase 5: botticelli-narrative
+├── database/                  # → Phase 3: botticelli-storage
+├── social/                    # → Phase 6: botticelli-social
+├── tui/                       # → Phase 6: botticelli-tui
+└── cli.rs                     # → Phase 7: botticelli-cli
+```
+
+**Next to migrate:** `src/storage/` and `src/database/` → `botticelli-storage` (Phase 3)
+
 ---
 
 ## Name Change Strategy: boticelli → Botticelli

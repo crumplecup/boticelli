@@ -34,6 +34,12 @@ pub struct RateLimitOptions {
     pub cost_output: Option<f64>,
     /// Disable all rate limiting
     pub no_rate_limit: bool,
+    /// Disable automatic retry on transient errors
+    pub no_retry: bool,
+    /// Maximum number of retry attempts
+    pub max_retries: Option<usize>,
+    /// Initial retry backoff in milliseconds
+    pub retry_backoff_ms: Option<u64>,
 }
 
 impl RateLimitOptions {
@@ -230,6 +236,19 @@ pub enum Commands {
         /// Disable rate limiting entirely
         #[arg(long)]
         no_rate_limit: bool,
+
+        // Retry configuration options
+        /// Disable automatic retry on transient errors
+        #[arg(long)]
+        no_retry: bool,
+
+        /// Maximum number of retry attempts (default: 5)
+        #[arg(long)]
+        max_retries: Option<usize>,
+
+        /// Initial retry backoff in milliseconds (default: 2000)
+        #[arg(long)]
+        retry_backoff_ms: Option<u64>,
 
         /// Enable Discord data processing (extract JSON and insert to database)
         #[arg(long)]

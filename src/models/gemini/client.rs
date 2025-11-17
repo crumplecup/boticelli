@@ -162,6 +162,10 @@ pub struct GeminiClient {
     model_name: String,
     /// Base tier configuration (tier-level defaults + model-specific overrides)
     base_tier: TierConfig,
+    /// Retry configuration
+    no_retry: bool,
+    max_retries: Option<usize>,
+    retry_backoff_ms: Option<u64>,
 }
 
 impl std::fmt::Debug for GeminiClient {
@@ -247,6 +251,39 @@ impl GeminiClient {
         Self::new_internal(tier).map_err(Into::into)
     }
 
+    /// Create a new Gemini client with rate limiting and retry configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `tier` - Optional tier for rate limiting
+    /// * `no_retry` - Disable automatic retry
+    /// * `max_retries` - Override maximum retry attempts
+    /// * `retry_backoff_ms` - Override initial backoff delay
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use boticelli::GeminiClient;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// // Create client with retry disabled
+    /// let client = GeminiClient::new_with_retry(None, true, None, None)?;
+    ///
+    /// // Create client with custom retry limits
+    /// let client = GeminiClient::new_with_retry(None, false, Some(3), Some(1000))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_retry(
+        tier: Option<Box<dyn Tier>>,
+        no_retry: bool,
+        max_retries: Option<usize>,
+        retry_backoff_ms: Option<u64>,
+    ) -> BoticelliResult<Self> {
+        Self::new_internal_with_retry(tier, no_retry, max_retries, retry_backoff_ms)
+            .map_err(Into::into)
+    }
+
     /// Create a new Gemini client with rate limiting from configuration.
     ///
     /// Loads tier configuration from boticelli.toml and applies rate limiting,
@@ -313,6 +350,9 @@ impl GeminiClient {
             api_key,
             model_name: "gemini-2.5-flash".to_string(),
             base_tier,
+            no_retry: false,
+            max_retries: None,
+            retry_backoff_ms: None,
         })
     }
 
@@ -369,7 +409,24 @@ impl GeminiClient {
             api_key,
             model_name: "gemini-2.5-flash".to_string(),
             base_tier,
+            no_retry: false,
+            max_retries: None,
+            retry_backoff_ms: None,
         })
+    }
+
+    /// Internal constructor with retry configuration.
+    fn new_internal_with_retry(
+        tier: Option<Box<dyn Tier>>,
+        no_retry: bool,
+        max_retries: Option<usize>,
+        retry_backoff_ms: Option<u64>,
+    ) -> GeminiResult<Self> {
+        let mut client = Self::new_internal(tier)?;
+        client.no_retry = no_retry;
+        client.max_retries = max_retries;
+        client.retry_backoff_ms = retry_backoff_ms;
+        Ok(client)
     }
 
     /// Check if a model name indicates a Live API model (requires WebSocket).
@@ -486,8 +543,13 @@ impl GeminiClient {
                         tier: model_tier,
                     };
 
-                    // Wrap in rate limiter
-                    RateLimiter::new(tiered)
+                    // Wrap in rate limiter with retry configuration
+                    RateLimiter::new_with_retry(
+                        tiered,
+                        self.no_retry,
+                        self.max_retries,
+                        self.retry_backoff_ms,
+                    )
                 })
                 .clone()
         };

@@ -64,6 +64,11 @@ pub struct RateLimiter<T: Tier> {
 
     // Concurrent request semaphore
     concurrent_semaphore: Arc<Semaphore>,
+
+    // Retry configuration
+    no_retry: bool,
+    max_retries: Option<usize>,
+    retry_backoff_ms: Option<u64>,
 }
 
 impl<T: Tier> RateLimiter<T> {
@@ -123,7 +128,43 @@ impl<T: Tier> RateLimiter<T> {
             tpm_limiter,
             rpd_limiter,
             concurrent_semaphore,
+            no_retry: false,
+            max_retries: None,
+            retry_backoff_ms: None,
         }
+    }
+
+    /// Create a new rate limiter with custom retry configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `tier` - Tier configuration for rate limits
+    /// * `no_retry` - If true, disable automatic retry
+    /// * `max_retries` - Override maximum retry attempts (None = use error-specific default)
+    /// * `retry_backoff_ms` - Override initial backoff delay (None = use error-specific default)
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use boticelli::{RateLimiter, GeminiTier};
+    ///
+    /// // Disable retry
+    /// let limiter = RateLimiter::new_with_retry(GeminiTier::Free, true, None, None);
+    ///
+    /// // Limit to 3 retries with 1s initial backoff
+    /// let limiter = RateLimiter::new_with_retry(GeminiTier::Free, false, Some(3), Some(1000));
+    /// ```
+    pub fn new_with_retry(
+        tier: T,
+        no_retry: bool,
+        max_retries: Option<usize>,
+        retry_backoff_ms: Option<u64>,
+    ) -> Self {
+        let mut limiter = Self::new(tier);
+        limiter.no_retry = no_retry;
+        limiter.max_retries = max_retries;
+        limiter.retry_backoff_ms = retry_backoff_ms;
+        limiter
     }
 
     /// Get a reference to the inner tier value.
@@ -294,8 +335,23 @@ impl<T: Tier> RateLimiter<T> {
                     return Err(e);
                 }
 
+                // Check if retry is disabled
+                if self.no_retry {
+                    warn!(error = %e, "Retry disabled, failing immediately");
+                    return Err(e);
+                }
+
                 // Get error-specific strategy parameters
-                let (initial_ms, max_retries, max_delay_secs) = e.retry_strategy_params();
+                let (mut initial_ms, mut max_retries, max_delay_secs) = e.retry_strategy_params();
+                
+                // Apply CLI overrides
+                if let Some(override_backoff) = self.retry_backoff_ms {
+                    initial_ms = override_backoff;
+                }
+                if let Some(override_retries) = self.max_retries {
+                    max_retries = override_retries;
+                }
+                
                 *strategy_params.lock().unwrap() = Some((initial_ms, max_retries, max_delay_secs));
 
                 info!(
@@ -304,7 +360,8 @@ impl<T: Tier> RateLimiter<T> {
                     initial_backoff_ms = initial_ms,
                     max_retries = max_retries,
                     max_delay_secs = max_delay_secs,
-                    "Transient error detected, will retry with error-specific strategy"
+                    no_retry = self.no_retry,
+                    "Transient error detected, will retry with configured strategy"
                 );
 
                 // Configure error-specific retry strategy

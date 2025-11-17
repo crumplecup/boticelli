@@ -41,6 +41,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cost_input,
             cost_output,
             no_rate_limit,
+            no_retry,
+            max_retries,
+            retry_backoff_ms,
             #[cfg(all(feature = "database", feature = "discord"))]
             process_discord,
         } => {
@@ -53,6 +56,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 cost_input,
                 cost_output,
                 no_rate_limit,
+                no_retry,
+                max_retries,
+                retry_backoff_ms,
             };
 
             run_narrative(
@@ -217,7 +223,12 @@ async fn run_narrative(
             }
         }
 
-        let driver = boticelli::GeminiClient::new_with_tier(tier)?;
+        let driver = boticelli::GeminiClient::new_with_retry(
+            tier,
+            rate_limit_opts.no_retry,
+            rate_limit_opts.max_retries,
+            rate_limit_opts.retry_backoff_ms,
+        )?;
         execute_with_driver(
             driver,
             narrative,

@@ -11,7 +11,7 @@
 [narration]
 name = "potential_users"
 description = "Generates diverse Discord user profiles for testing and development"
-template = "discord_user"
+template = "discord_users"
 
 [toc]
 order = ["power_user", "new_user", "bot_user"]

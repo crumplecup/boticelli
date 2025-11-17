@@ -11,7 +11,7 @@
 [narration]
 name = "potential_guilds"
 description = "Generates diverse Discord guild configurations for planning and testing"
-template = "discord_guild"
+template = "discord_guilds"
 
 [toc]
 order = ["gaming_guild", "tech_guild", "creative_guild", "study_guild", "hobby_guild"]

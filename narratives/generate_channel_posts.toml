@@ -11,7 +11,7 @@
 [narration]
 name = "potential_posts"
 description = "Generates engaging Discord channel post content for review and scheduling"
-template = "discord_channel"
+template = "discord_channels"
 
 [toc]
 order = ["welcome_post", "announcement_post", "help_post"]

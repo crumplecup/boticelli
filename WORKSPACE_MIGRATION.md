@@ -72,6 +72,17 @@ This document outlines a two-phase strategy:
 3. **Continue with Phase 3:** Create `botticelli-storage` crate
 4. **Follow this document:** Phase 3 details start at line 552
 
+### Reference Files
+
+If you need to reference the original monorepo structure:
+
+- **Original Cargo.toml** (pre-workspace): `git show main:Cargo.toml`
+- **Workspace Cargo.toml** (current): `Cargo.toml` on workspace branch
+- **Phase 1 commit** (foundation crates): `git show c0c0981`
+- **Phase 2 commit** (rate limiting): `git show 367c8f4`
+
+All workspace dependencies are defined in the root `Cargo.toml` under `[workspace.dependencies]`.
+
 ---
 
 ## Name Change Strategy: boticelli → Botticelli

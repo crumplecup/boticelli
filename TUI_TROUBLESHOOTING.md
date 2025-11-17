@@ -675,15 +675,28 @@ fn test_failed_generation_records_error() {
 ## Current State
 
 **Implementation Status:**
-- [x] **Sprint 1 (Database): Complete ✅**
+- [x] **Sprint 1 (Database): Complete ✅ READY TO PUSH**
   - [x] Step 1: Migration created and run successfully ✅ Committed: 883709e
   - [x] Step 2: Diesel models created ✅ Committed: 883709e  
   - [x] Step 3: Repository trait and implementation ✅ Committed: fb5beba
-  - [ ] Step 4: Add unit tests (NEXT)
+  - [x] Step 4: Unit tests ✅ Committed: 4992f39
+    - 9 comprehensive tests for all repository methods
+    - Fixed pre-existing regression in narrative_processor_integration_test
+    - All tests passing (19 passed, 16 ignored, 0 failed)
 - [ ] Sprint 2 (Executor): Not started
 - [ ] Sprint 3 (CLI): Not started
 - [ ] Sprint 4 (Justfile): Not started
 - [ ] Sprint 5 (Polish): Not started
+
+**Sprint 1 Summary:**
+- ✅ Created `content_generations` table with indexes and constraints
+- ✅ Implemented Diesel models (Row, NewRow, UpdateRow)
+- ✅ Implemented repository trait with 6 methods
+- ✅ PostgreSQL implementation with proper error handling
+- ✅ Comprehensive test coverage (9 tests)
+- ✅ All clippy warnings resolved
+- ✅ All tests passing (including fixing regressions)
+- ✅ Exported at crate and module levels
 
 **Completed Files:**
 - ✅ `migrations/2025-11-17-022706-0000_create_content_generations/up.sql`
@@ -693,6 +706,8 @@ fn test_failed_generation_records_error() {
 - ✅ `src/database/schema.rs` - Added content_generations table
 - ✅ `src/database/mod.rs` - Exported models and repository
 - ✅ `src/lib.rs` - Exported types at crate level
+- ✅ `tests/content_generation_repository_test.rs` - 9 passing tests
+- ✅ `tests/narrative_processor_integration_test.rs` - Fixed regression
 - ✅ `TUI_TROUBLESHOOTING.md` (this file - tracking progress)
 
 **Files Pending:**
@@ -700,7 +715,8 @@ fn test_failed_generation_records_error() {
 - ✅ `narratives/generate_*.toml` - Workflow comments updated
 
 **Ready to Push:**
-- Commits 883709e, fb5beba ready to push to origin/gemini
+- Commits 883709e, fb5beba, bd2e015, 4992f39 ready to push to origin/gemini
+- Sprint 1 complete and tested
 
 **Files To Create:**
 - `migrations/YYYYMMDDHHMMSS_create_content_generations/up.sql`

@@ -59,8 +59,9 @@ use std::sync::{Arc, Mutex};
 use gemini_rust::{Gemini, client::Model};
 
 use crate::{
-    BoticelliConfig, BoticelliDriver, BoticelliError, BoticelliResult,
-    GenerateRequest, GenerateResponse, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier, TierConfig, Vision,
+    BoticelliConfig, BoticelliDriver, BoticelliError, BoticelliResult, GenerateRequest,
+    GenerateResponse, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier, TierConfig,
+    Vision,
 };
 
 use super::error::{GeminiError, GeminiErrorKind, GeminiResult};
@@ -466,16 +467,15 @@ impl GeminiClient {
         req: &GenerateRequest,
         model_name: &str,
     ) -> GeminiResult<GenerateResponse> {
-        use tokio_retry2::{strategy::ExponentialBackoff, strategy::jitter, Retry, RetryError};
+        use tokio_retry2::{Retry, RetryError, strategy::ExponentialBackoff, strategy::jitter};
         use tracing::{info, warn};
 
         // Ensure we have a Live API client
-        let live_client = self
-            .live_client
-            .as_ref()
-            .ok_or_else(|| GeminiError::new(GeminiErrorKind::ClientCreation(
-                "Live API client not available".to_string()
-            )))?;
+        let live_client = self.live_client.as_ref().ok_or_else(|| {
+            GeminiError::new(GeminiErrorKind::ClientCreation(
+                "Live API client not available".to_string(),
+            ))
+        })?;
 
         // Build generation config from request
         let config = super::live_protocol::GenerationConfig {
@@ -487,14 +487,12 @@ impl GeminiClient {
         // Check if retry is disabled
         if self.no_retry {
             // No retry - attempt once
-            let mut session = live_client
-                .connect_with_config(model_name, config)
-                .await?;
-            
+            let mut session = live_client.connect_with_config(model_name, config).await?;
+
             let combined_text = self.combine_messages(req);
             let response_text = session.send_text(&combined_text).await?;
             let _ = session.close().await;
-            
+
             return Ok(GenerateResponse {
                 outputs: vec![Output::Text(response_text)],
             });
@@ -507,7 +505,7 @@ impl GeminiClient {
 
         // Try connection once to get error-specific strategy
         let first_result = client.connect_with_config(&model, gen_config.clone()).await;
-        
+
         let (initial_ms, max_retries, max_delay_secs) = match &first_result {
             Ok(_) => {
                 // Success on first try
@@ -515,7 +513,7 @@ impl GeminiClient {
                 let combined_text = self.combine_messages(req);
                 let response_text = session.send_text(&combined_text).await?;
                 let _ = session.close().await;
-                
+
                 return Ok(GenerateResponse {
                     outputs: vec![Output::Text(response_text)],
                 });
@@ -525,10 +523,10 @@ impl GeminiClient {
                     warn!(error = %e, "Permanent Live API error, failing immediately");
                     return Err(e.clone());
                 }
-                
+
                 // Get error-specific strategy
                 let (mut init_ms, mut retries, delay_secs) = e.kind.retry_strategy_params();
-                
+
                 // Apply CLI overrides
                 if let Some(override_backoff) = self.retry_backoff_ms {
                     init_ms = override_backoff;
@@ -536,7 +534,7 @@ impl GeminiClient {
                 if let Some(override_retries) = self.max_retries {
                     retries = override_retries;
                 }
-                
+
                 info!(
                     error = %e,
                     model = model,
@@ -545,7 +543,7 @@ impl GeminiClient {
                     max_delay_secs = delay_secs,
                     "Live API connection failed, will retry with configured strategy"
                 );
-                
+
                 (init_ms, retries, delay_secs)
             }
         };
@@ -579,7 +577,8 @@ impl GeminiClient {
                     }
                 }
             }
-        }).await?;
+        })
+        .await?;
 
         // Combine all user messages into a single text
         let combined_text = self.combine_messages(req);
@@ -731,10 +730,7 @@ impl GeminiClient {
                 }
 
                 // Execute the request and parse errors
-                builder
-                    .execute()
-                    .await
-                    .map_err(Self::parse_gemini_error)
+                builder.execute().await.map_err(Self::parse_gemini_error)
             })
             .await?;
 
@@ -807,19 +803,21 @@ impl GeminiClient {
         &self,
         req: &GenerateRequest,
         model_name: &str,
-    ) -> BoticelliResult<std::pin::Pin<Box<dyn futures_util::stream::Stream<Item = BoticelliResult<crate::StreamChunk>> + Send>>>
-    {
+    ) -> BoticelliResult<
+        std::pin::Pin<
+            Box<
+                dyn futures_util::stream::Stream<Item = BoticelliResult<crate::StreamChunk>> + Send,
+            >,
+        >,
+    > {
         use futures_util::stream::StreamExt;
 
         // Ensure we have a Live API client
-        let live_client = self
-            .live_client
-            .as_ref()
-            .ok_or_else(|| {
-                BoticelliError::from(GeminiError::new(GeminiErrorKind::ClientCreation(
-                    "Live API client not available".to_string()
-                )))
-            })?;
+        let live_client = self.live_client.as_ref().ok_or_else(|| {
+            BoticelliError::from(GeminiError::new(GeminiErrorKind::ClientCreation(
+                "Live API client not available".to_string(),
+            )))
+        })?;
 
         // Build generation config from request
         let config = super::live_protocol::GenerationConfig {
@@ -852,9 +850,7 @@ impl GeminiClient {
             .map_err(BoticelliError::from)?;
 
         // Convert Live API stream to BoticelliResult stream
-        let converted_stream = live_stream.map(|result| {
-            result.map_err(BoticelliError::from)
-        });
+        let converted_stream = live_stream.map(|result| result.map_err(BoticelliError::from));
 
         Ok(Box::pin(converted_stream))
     }
@@ -865,8 +861,13 @@ impl crate::Streaming for GeminiClient {
     async fn generate_stream(
         &self,
         req: &GenerateRequest,
-    ) -> BoticelliResult<std::pin::Pin<Box<dyn futures_util::stream::Stream<Item = BoticelliResult<crate::StreamChunk>> + Send>>>
-    {
+    ) -> BoticelliResult<
+        std::pin::Pin<
+            Box<
+                dyn futures_util::stream::Stream<Item = BoticelliResult<crate::StreamChunk>> + Send,
+            >,
+        >,
+    > {
         use futures_util::{StreamExt, TryStreamExt};
 
         // Determine which model to use
@@ -931,7 +932,9 @@ impl crate::Streaming for GeminiClient {
                         }
                     }
                     if Self::has_media(&msg.content) {
-                        return Err(GeminiError::new(GeminiErrorKind::MultimodalNotSupported).into());
+                        return Err(
+                            GeminiError::new(GeminiErrorKind::MultimodalNotSupported).into()
+                        );
                     }
                 }
                 Role::Assistant => {
@@ -963,15 +966,12 @@ impl crate::Streaming for GeminiClient {
         // Transform gemini TryStream to Stream<Result>
         // TryStream yields Ok/Err directly, need to map to Result<StreamChunk, Error>
         let chunk_stream = gemini_stream
-            .into_stream()  // Convert TryStream to Stream
-            .map(move |result| {
-                match result {
-                    Ok(response) => Self::convert_to_stream_chunk(response),
-                    Err(e) => {
-                        let gemini_err =
-                            GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string()));
-                        Err(BoticelliError::from(gemini_err))
-                    }
+            .into_stream() // Convert TryStream to Stream
+            .map(move |result| match result {
+                Ok(response) => Self::convert_to_stream_chunk(response),
+                Err(e) => {
+                    let gemini_err = GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string()));
+                    Err(BoticelliError::from(gemini_err))
                 }
             });
 
@@ -1001,9 +1001,7 @@ impl GeminiClient {
                 .first()
                 .and_then(|c| c.finish_reason.as_ref())
                 .map(|reason| match reason {
-                    gemini_rust::generation::model::FinishReason::Stop => {
-                        crate::FinishReason::Stop
-                    }
+                    gemini_rust::generation::model::FinishReason::Stop => crate::FinishReason::Stop,
                     gemini_rust::generation::model::FinishReason::MaxTokens => {
                         crate::FinishReason::Length
                     }

@@ -30,6 +30,12 @@ pub use schema::{
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 
+pub use content_generation_models::{
+    ContentGenerationRow, NewContentGenerationRow, UpdateContentGenerationRow,
+};
+pub use content_generation_repository::{
+    ContentGenerationRepository, PostgresContentGenerationRepository,
+};
 pub use error::{DatabaseError, DatabaseErrorKind, DatabaseResult};
 pub use models::{ModelResponse, NewModelResponse, SerializableModelResponse};
 pub use narrative_models::{
@@ -37,12 +43,6 @@ pub use narrative_models::{
     NewNarrativeExecutionRow,
 };
 pub use narrative_repository::PostgresNarrativeRepository;
-pub use content_generation_models::{
-    ContentGenerationRow, NewContentGenerationRow, UpdateContentGenerationRow,
-};
-pub use content_generation_repository::{
-    ContentGenerationRepository, PostgresContentGenerationRepository,
-};
 // Schema reflection exports will be used in Phase 2 for content generation processor
 #[allow(unused_imports)]
 pub use schema_reflection::{
@@ -58,16 +58,16 @@ pub use content_management::{
 
 // Schema documentation exports for Phase 5 (prompt injection)
 pub use schema_docs::{
-    assemble_prompt, generate_schema_prompt, is_content_focus, JSON_FORMAT_REQUIREMENTS,
-    DISCORD_PLATFORM_CONTEXT,
+    DISCORD_PLATFORM_CONTEXT, JSON_FORMAT_REQUIREMENTS, assemble_prompt, generate_schema_prompt,
+    is_content_focus,
 };
 
 // Schema inference exports for automatic table creation from JSON
-pub use schema_inference::{
-    infer_column_type, infer_schema, resolve_type_conflict, ColumnDefinition, InferredSchema,
-};
 #[cfg(feature = "database")]
 pub use schema_inference::create_inferred_table;
+pub use schema_inference::{
+    ColumnDefinition, InferredSchema, infer_column_type, infer_schema, resolve_type_conflict,
+};
 
 use crate::{GenerateRequest, GenerateResponse};
 

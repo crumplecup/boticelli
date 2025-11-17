@@ -1,14 +1,14 @@
 //! Application state and main TUI entry point.
 
-use crate::{BoticelliError, BoticelliResult, TuiError, TuiErrorKind};
 use crate::tui::{events::EventHandler, ui};
+use crate::{BoticelliError, BoticelliResult, TuiError, TuiErrorKind};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use diesel::PgConnection;
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
 /// Application mode determines which view is displayed.
@@ -129,7 +129,10 @@ impl App {
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown")
                     .to_string();
-                let rating = item.get("rating").and_then(|v| v.as_i64()).map(|r| r as i32);
+                let rating = item
+                    .get("rating")
+                    .and_then(|v| v.as_i64())
+                    .map(|r| r as i32);
                 let tags = item
                     .get("tags")
                     .and_then(|v| v.as_array())
@@ -151,7 +154,10 @@ impl App {
                     .get("source_narrative")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
-                let source_act = item.get("source_act").and_then(|v| v.as_str()).map(|s| s.to_string());
+                let source_act = item
+                    .get("source_act")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
 
                 Some(ContentRow {
                     id,
@@ -362,11 +368,9 @@ fn run_app<B: ratatui::backend::Backend>(
     events: &mut EventHandler,
 ) -> BoticelliResult<()> {
     while !app.should_quit {
-        terminal
-            .draw(|f| ui::draw(f, app))
-            .map_err(|e| {
-                BoticelliError::from(TuiError::new(TuiErrorKind::Rendering(e.to_string())))
-            })?;
+        terminal.draw(|f| ui::draw(f, app)).map_err(|e| {
+            BoticelliError::from(TuiError::new(TuiErrorKind::Rendering(e.to_string())))
+        })?;
 
         if let Some(event) = events.next()? {
             use crate::tui::events::Event;

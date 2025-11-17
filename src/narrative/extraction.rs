@@ -71,7 +71,10 @@ pub fn extract_json(response: &str) -> BoticelliResult<String> {
         }
     }
 
-    tracing::error!(response_length = response.len(), "No JSON found in LLM response");
+    tracing::error!(
+        response_length = response.len(),
+        "No JSON found in LLM response"
+    );
 
     Err(crate::BackendError::new(format!(
         "No JSON found in response (length: {}). Hint: Ensure your prompt explicitly requests JSON output and includes 'Output ONLY valid JSON'.",

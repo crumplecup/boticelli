@@ -78,7 +78,12 @@ impl InferredSchema {
             }
         } else {
             // New field
-            tracing::trace!(field = name, pg_type = pg_type, nullable = is_null, "Adding new field");
+            tracing::trace!(
+                field = name,
+                pg_type = pg_type,
+                nullable = is_null,
+                "Adding new field"
+            );
             let mut def = ColumnDefinition::new(pg_type, is_null);
             def.add_example(value.clone());
             self.fields.insert(name.to_string(), def);
@@ -200,7 +205,7 @@ pub fn infer_schema(json: &JsonValue) -> DatabaseResult<InferredSchema> {
             tracing::error!(json_type = ?json, "Invalid JSON type for schema inference");
             return Err(DatabaseError::new(DatabaseErrorKind::SchemaInference(
                 "Schema inference requires JSON object or array. Hint: Ensure the LLM returns structured JSON, not primitives.".to_string(),
-            )))
+            )));
         }
     };
 
@@ -214,7 +219,11 @@ pub fn infer_schema(json: &JsonValue) -> DatabaseResult<InferredSchema> {
             ))
         })?;
 
-        tracing::trace!(index = idx, field_count = obj.len(), "Processing object fields");
+        tracing::trace!(
+            index = idx,
+            field_count = obj.len(),
+            "Processing object fields"
+        );
 
         for (key, value) in obj {
             schema.add_field(key, value)?;
@@ -282,7 +291,11 @@ pub fn create_inferred_table(
 
     diesel::sql_query(&create_sql).execute(conn)?;
 
-    tracing::info!(table = table_name, columns = schema.field_count(), "Inferred table created");
+    tracing::info!(
+        table = table_name,
+        columns = schema.field_count(),
+        "Inferred table created"
+    );
 
     // Track in metadata table
     let narrative_value = narrative_name

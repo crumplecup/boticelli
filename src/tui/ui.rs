@@ -2,10 +2,10 @@
 
 use crate::tui::app::{App, AppMode};
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Paragraph, Row, Table},
-    Frame,
 };
 
 /// Draw the main UI.
@@ -40,7 +40,11 @@ fn draw_header(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let title = format!("Boticelli Content Review - {}", app.table_name);
     let header = Paragraph::new(title)
         .block(Block::default().borders(Borders::ALL))
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .alignment(Alignment::Center);
     f.render_widget(header, area);
 }
@@ -67,7 +71,11 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 /// Draw the list view.
 fn draw_list_view(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let header = Row::new(vec!["ID", "Status", "Rating", "Tags", "Preview"])
-        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
         .bottom_margin(1);
 
     let rows: Vec<Row> = app
@@ -208,39 +216,45 @@ fn draw_compare_view(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
         // Left panel
         if let Some(&idx) = app.compare_selection.first()
-            && let Some(item) = app.content_items.get(idx) {
-                let content_json = serde_json::to_string_pretty(&item.content).unwrap_or_default();
-                let details = [format!("ID: {}", item.id),
-                    format!("Status: {}", item.review_status),
-                    format!("Rating: {:?}", item.rating),
-                    format!("Tags: {}", item.tags.join(", ")),
-                    String::new(),
-                    content_json];
+            && let Some(item) = app.content_items.get(idx)
+        {
+            let content_json = serde_json::to_string_pretty(&item.content).unwrap_or_default();
+            let details = [
+                format!("ID: {}", item.id),
+                format!("Status: {}", item.review_status),
+                format!("Rating: {:?}", item.rating),
+                format!("Tags: {}", item.tags.join(", ")),
+                String::new(),
+                content_json,
+            ];
 
-                let left = Paragraph::new(details.join("\n"))
-                    .block(Block::default().borders(Borders::ALL).title("Item 1"))
-                    .wrap(ratatui::widgets::Wrap { trim: true });
+            let left = Paragraph::new(details.join("\n"))
+                .block(Block::default().borders(Borders::ALL).title("Item 1"))
+                .wrap(ratatui::widgets::Wrap { trim: true });
 
-                f.render_widget(left, chunks[0]);
-            }
+            f.render_widget(left, chunks[0]);
+        }
 
         // Right panel
         if let Some(&idx) = app.compare_selection.get(1)
-            && let Some(item) = app.content_items.get(idx) {
-                let content_json = serde_json::to_string_pretty(&item.content).unwrap_or_default();
-                let details = [format!("ID: {}", item.id),
-                    format!("Status: {}", item.review_status),
-                    format!("Rating: {:?}", item.rating),
-                    format!("Tags: {}", item.tags.join(", ")),
-                    String::new(),
-                    content_json];
+            && let Some(item) = app.content_items.get(idx)
+        {
+            let content_json = serde_json::to_string_pretty(&item.content).unwrap_or_default();
+            let details = [
+                format!("ID: {}", item.id),
+                format!("Status: {}", item.review_status),
+                format!("Rating: {:?}", item.rating),
+                format!("Tags: {}", item.tags.join(", ")),
+                String::new(),
+                content_json,
+            ];
 
-                let right = Paragraph::new(details.join("\n"))
-                    .block(Block::default().borders(Borders::ALL).title("Item 2"))
-                    .wrap(ratatui::widgets::Wrap { trim: true });
+            let right = Paragraph::new(details.join("\n"))
+                .block(Block::default().borders(Borders::ALL).title("Item 2"))
+                .wrap(ratatui::widgets::Wrap { trim: true });
 
-                f.render_widget(right, chunks[1]);
-            }
+            f.render_widget(right, chunks[1]);
+        }
     }
 }
 

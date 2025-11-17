@@ -86,10 +86,7 @@ impl GeminiErrorKind {
     pub fn is_retryable(&self) -> bool {
         match self {
             GeminiErrorKind::HttpError { status_code, .. } => {
-                matches!(
-                    *status_code,
-                    408 | 429 | 500 | 502 | 503 | 504
-                )
+                matches!(*status_code, 408 | 429 | 500 | 502 | 503 | 504)
             }
             GeminiErrorKind::WebSocketConnection(_) => true,
             GeminiErrorKind::WebSocketHandshake(_) => true,

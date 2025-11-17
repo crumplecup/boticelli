@@ -76,11 +76,15 @@ pub use database::{
     // Database row types
     ActExecutionRow,
     ActInputRow,
+    ColumnDefinition,
     ContentGenerationRepository,
     ContentGenerationRow,
+    DISCORD_PLATFORM_CONTEXT,
     DatabaseError,
     DatabaseErrorKind,
     DatabaseResult,
+    InferredSchema,
+    JSON_FORMAT_REQUIREMENTS,
     ModelResponse,
     NarrativeExecutionRow,
     NewActExecutionRow,
@@ -96,17 +100,9 @@ pub use database::{
     act_inputs,
     // Schema documentation functions (Phase 5)
     assemble_prompt,
-    is_content_focus,
-    reflect_table_schema,
-    // Schema inference functions (automatic table creation from JSON)
-    infer_column_type,
-    infer_schema,
-    resolve_type_conflict,
-    create_inferred_table,
-    ColumnDefinition,
-    InferredSchema,
     // Content generation functions
     create_content_table,
+    create_inferred_table,
     // Content management functions
     delete_content,
     delete_response,
@@ -124,17 +120,21 @@ pub use database::{
     get_recent_responses,
     get_response_by_id,
     get_responses_by_model,
+    // Schema inference functions (automatic table creation from JSON)
+    infer_column_type,
+    infer_schema,
+    is_content_focus,
     list_content,
     media_references,
     narrative_executions,
     promote_content,
+    reflect_table_schema,
+    resolve_type_conflict,
     run_migrations,
     store_error,
     store_response,
     update_content_metadata,
     update_review_status,
-    DISCORD_PLATFORM_CONTEXT,
-    JSON_FORMAT_REQUIREMENTS,
 };
 
 // Re-export PgConnection for processor use
@@ -157,12 +157,12 @@ pub use storage::{
 // Re-export model implementations
 #[cfg(feature = "gemini")]
 pub use models::{
-    ClientContent, ClientContentMessage, FunctionCall, FunctionResponse, GenerationConfig,
-    GeminiClient, GeminiError, GeminiErrorKind, GeminiLiveClient, GoAway, InlineData,
-    InlineDataPart, LiveRateLimiter, LiveSession, LiveToolCall, LiveToolCallCancellation,
-    MediaChunk, ModelTurn, Part, RealtimeInput, RealtimeInputMessage, ServerContent,
-    ServerMessage, SetupComplete, SetupConfig, SetupMessage, SystemInstruction, TextPart,
-    TieredGemini, Tool, ToolResponse, ToolResponseMessage, Turn, UsageMetadata,
+    ClientContent, ClientContentMessage, FunctionCall, FunctionResponse, GeminiClient, GeminiError,
+    GeminiErrorKind, GeminiLiveClient, GenerationConfig, GoAway, InlineData, InlineDataPart,
+    LiveRateLimiter, LiveSession, LiveToolCall, LiveToolCallCancellation, MediaChunk, ModelTurn,
+    Part, RealtimeInput, RealtimeInputMessage, ServerContent, ServerMessage, SetupComplete,
+    SetupConfig, SetupMessage, SystemInstruction, TextPart, TieredGemini, Tool, ToolResponse,
+    ToolResponseMessage, Turn, UsageMetadata,
 };
 
 // Re-export core trait
@@ -280,4 +280,4 @@ pub use cli::ContentCommands;
 
 // Re-export TUI types
 #[cfg(feature = "tui")]
-pub use tui::{run_tui, App, AppMode, TuiError, TuiErrorKind};
+pub use tui::{App, AppMode, TuiError, TuiErrorKind, run_tui};

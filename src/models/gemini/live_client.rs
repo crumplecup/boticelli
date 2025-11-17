@@ -30,10 +30,10 @@
 //! # }
 //! ```
 
-use std::env;
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{connect_async, tungstenite::Message, WebSocketStream, MaybeTlsStream};
+use std::env;
 use tokio::net::TcpStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::models::gemini::{
@@ -99,11 +99,12 @@ impl GeminiLiveClient {
         let api_key = env::var("GEMINI_API_KEY")
             .map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
 
-        let rate_limiter = max_messages_per_minute.map(|rpm| {
-            Arc::new(LiveRateLimiter::new(rpm))
-        });
+        let rate_limiter = max_messages_per_minute.map(|rpm| Arc::new(LiveRateLimiter::new(rpm)));
 
-        Ok(Self { api_key, rate_limiter })
+        Ok(Self {
+            api_key,
+            rate_limiter,
+        })
     }
 
     /// Connect to the Live API and perform setup handshake.
@@ -142,7 +143,13 @@ impl GeminiLiveClient {
         model: &str,
         generation_config: GenerationConfig,
     ) -> GeminiResult<LiveSession> {
-        LiveSession::new(&self.api_key, model, Some(generation_config), self.rate_limiter.clone()).await
+        LiveSession::new(
+            &self.api_key,
+            model,
+            Some(generation_config),
+            self.rate_limiter.clone(),
+        )
+        .await
     }
 }
 
@@ -172,12 +179,10 @@ impl LiveSession {
         let url = format!("{}?key={}", LIVE_API_ENDPOINT, api_key);
 
         // Connect to WebSocket
-        let (ws_stream, _) = connect_async(&url)
-            .await
-            .map_err(|e| {
-                error!("WebSocket connection failed: {}", e);
-                GeminiError::new(GeminiErrorKind::WebSocketConnection(e.to_string()))
-            })?;
+        let (ws_stream, _) = connect_async(&url).await.map_err(|e| {
+            error!("WebSocket connection failed: {}", e);
+            GeminiError::new(GeminiErrorKind::WebSocketConnection(e.to_string()))
+        })?;
 
         debug!("WebSocket connection established");
 
@@ -431,7 +436,11 @@ impl LiveSession {
     pub async fn send_text_stream(
         mut self,
         text: &str,
-    ) -> GeminiResult<std::pin::Pin<Box<dyn futures_util::stream::Stream<Item = GeminiResult<crate::StreamChunk>> + Send>>> {
+    ) -> GeminiResult<
+        std::pin::Pin<
+            Box<dyn futures_util::stream::Stream<Item = GeminiResult<crate::StreamChunk>> + Send>,
+        >,
+    > {
         use futures_util::stream;
 
         debug!("Sending text message for streaming: {}", text);
@@ -563,16 +572,13 @@ impl LiveSession {
     pub async fn close(mut self) -> GeminiResult<()> {
         debug!("Closing WebSocket session");
 
-        self.ws_stream
-            .close(None)
-            .await
-            .map_err(|e| {
-                error!("Error closing WebSocket: {}", e);
-                GeminiError::new(GeminiErrorKind::WebSocketConnection(format!(
-                    "Close error: {}",
-                    e
-                )))
-            })?;
+        self.ws_stream.close(None).await.map_err(|e| {
+            error!("Error closing WebSocket: {}", e);
+            GeminiError::new(GeminiErrorKind::WebSocketConnection(format!(
+                "Close error: {}",
+                e
+            )))
+        })?;
 
         info!("WebSocket session closed");
         Ok(())

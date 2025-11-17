@@ -384,9 +384,7 @@ pub struct UsageMetadata {
 impl Part {
     /// Create a text part.
     pub fn text(text: impl Into<String>) -> Self {
-        Part::Text(TextPart {
-            text: text.into(),
-        })
+        Part::Text(TextPart { text: text.into() })
     }
 
     /// Extract text from a part, if it contains text.

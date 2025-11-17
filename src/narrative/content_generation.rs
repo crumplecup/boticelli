@@ -145,15 +145,15 @@ impl ActProcessor for ContentGenerationProcessor {
         );
 
         let start_time = std::time::Instant::now();
-        
+
         // Track generation start
         {
             let mut conn = self.connection.lock().map_err(|e| {
                 crate::BackendError::new(format!("Failed to lock connection: {}", e))
             })?;
-            
+
             let mut repo = PostgresContentGenerationRepository::new(&mut conn);
-            
+
             // Try to start tracking (ignore unique constraint violations if already exists)
             let new_gen = NewContentGenerationRow {
                 table_name: table_name.clone(),
@@ -162,7 +162,7 @@ impl ActProcessor for ContentGenerationProcessor {
                 status: "running".to_string(),
                 created_by: None,
             };
-            
+
             if let Err(e) = repo.start_generation(new_gen) {
                 tracing::debug!(
                     error = %e,
@@ -254,14 +254,14 @@ impl ActProcessor for ContentGenerationProcessor {
 
         // Update tracking record with result
         let duration_ms = start_time.elapsed().as_millis() as i32;
-        
+
         {
             let mut conn = self.connection.lock().map_err(|e| {
                 crate::BackendError::new(format!("Failed to lock connection: {}", e))
             })?;
-            
+
             let mut repo = PostgresContentGenerationRepository::new(&mut conn);
-            
+
             match generation_result {
                 Ok(row_count) => {
                     let update = UpdateContentGenerationRow {
@@ -271,7 +271,7 @@ impl ActProcessor for ContentGenerationProcessor {
                         status: Some("success".to_string()),
                         error_message: None,
                     };
-                    
+
                     if let Err(e) = repo.complete_generation(table_name, update) {
                         tracing::warn!(
                             error = %e,
@@ -295,7 +295,7 @@ impl ActProcessor for ContentGenerationProcessor {
                         status: Some("failed".to_string()),
                         error_message: Some(e.to_string()),
                     };
-                    
+
                     if let Err(update_err) = repo.complete_generation(table_name, update) {
                         tracing::warn!(
                             error = %update_err,

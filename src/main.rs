@@ -121,7 +121,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ContentCommands::Promote { table, id, target } => {
                 promote_content(&table, id, target.as_deref()).await?;
             }
-            ContentCommands::Generations { status, limit, format } => {
+            ContentCommands::Generations {
+                status,
+                limit,
+                format,
+            } => {
                 list_generations(status.as_deref(), limit, &format)?;
             }
             ContentCommands::Last { format } => {
@@ -130,7 +134,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ContentCommands::Info { table, format } => {
                 show_generation_info(&table, &format)?;
             }
-            ContentCommands::Clean { older_than_days, yes } => {
+            ContentCommands::Clean {
+                older_than_days,
+                yes,
+            } => {
                 clean_generations(older_than_days, yes)?;
             }
         },
@@ -168,13 +175,13 @@ async fn run_narrative(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load the narrative
     println!("📖 Loading narrative from {:?}...", narrative_path);
-    
+
     #[cfg(feature = "database")]
     let narrative = {
         // Check if narrative has a template field by parsing metadata first
         let content = std::fs::read_to_string(&narrative_path)?;
         let has_template = content.contains("template =");
-        
+
         if has_template {
             // Load with database connection for prompt assembly
             let mut conn = boticelli::establish_connection()?;
@@ -184,14 +191,14 @@ async fn run_narrative(
             Narrative::from_file(&narrative_path)?
         }
     };
-    
+
     #[cfg(not(feature = "database"))]
     let narrative = Narrative::from_file(&narrative_path)?;
 
     println!("✓ Loaded: {}", narrative.metadata.name);
     println!("  Description: {}", narrative.metadata.description);
     println!("  Acts: {}", narrative.toc.order.len());
-    
+
     if let Some(ref template) = narrative.metadata.template {
         println!("  Template: {} (schema-based content generation)", template);
     }
@@ -261,50 +268,58 @@ async fn execute_with_driver<D: BoticelliDriver>(
     #[cfg(feature = "database")]
     let executor = {
         let has_template = narrative.metadata.template.is_some();
-        
+
         #[cfg(feature = "discord")]
         let needs_discord = process_discord;
         #[cfg(not(feature = "discord"))]
         let needs_discord = false;
-        
+
         if has_template || needs_discord {
             let mut registry = boticelli::ProcessorRegistry::new();
-            
+
             // Register content generation processor if template present
             if has_template {
                 println!("🔧 Enabling content generation processing...");
                 let conn = boticelli::establish_connection()?;
                 let content_processor = boticelli::ContentGenerationProcessor::new(
-                    std::sync::Arc::new(std::sync::Mutex::new(conn))
+                    std::sync::Arc::new(std::sync::Mutex::new(conn)),
                 );
                 registry.register(Box::new(content_processor));
                 println!("✓ Registered content generation processor");
             }
-            
+
             // Register Discord processors if requested
             #[cfg(feature = "discord")]
             if needs_discord {
                 println!("🔧 Enabling Discord data processing...");
                 let conn = boticelli::establish_connection()?;
                 let repo = std::sync::Arc::new(boticelli::DiscordRepository::new(conn));
-                
-                registry.register(Box::new(boticelli::DiscordGuildProcessor::new(repo.clone())));
+
+                registry.register(Box::new(boticelli::DiscordGuildProcessor::new(
+                    repo.clone(),
+                )));
                 registry.register(Box::new(boticelli::DiscordUserProcessor::new(repo.clone())));
-                registry.register(Box::new(boticelli::DiscordChannelProcessor::new(repo.clone())));
+                registry.register(Box::new(boticelli::DiscordChannelProcessor::new(
+                    repo.clone(),
+                )));
                 registry.register(Box::new(boticelli::DiscordRoleProcessor::new(repo.clone())));
-                registry.register(Box::new(boticelli::DiscordGuildMemberProcessor::new(repo.clone())));
-                registry.register(Box::new(boticelli::DiscordMemberRoleProcessor::new(repo.clone())));
-                
+                registry.register(Box::new(boticelli::DiscordGuildMemberProcessor::new(
+                    repo.clone(),
+                )));
+                registry.register(Box::new(boticelli::DiscordMemberRoleProcessor::new(
+                    repo.clone(),
+                )));
+
                 println!("✓ Registered 6 Discord processors");
             }
-            
+
             println!();
             boticelli::NarrativeExecutor::with_processors(driver, registry)
         } else {
             boticelli::NarrativeExecutor::new(driver)
         }
     };
-    
+
     // Create executor (when database feature not enabled)
     #[cfg(not(feature = "database"))]
     let executor = NarrativeExecutor::new(driver);
@@ -695,7 +710,10 @@ fn list_generations(
                 return Ok(());
             }
 
-            println!("{:<25} {:<10} {:<8} {:<20}", "Table", "Status", "Rows", "Generated");
+            println!(
+                "{:<25} {:<10} {:<8} {:<20}",
+                "Table", "Status", "Rows", "Generated"
+            );
             println!("{}", "-".repeat(70));
 
             for generation in generations {
@@ -848,7 +866,11 @@ fn clean_generations(
 
     println!("Found {} generation(s) to delete:", to_delete.len());
     for generation in &to_delete {
-        println!("  - {} ({})", generation.table_name, generation.generated_at.format("%Y-%m-%d"));
+        println!(
+            "  - {} ({})",
+            generation.table_name,
+            generation.generated_at.format("%Y-%m-%d")
+        );
     }
 
     if !yes {

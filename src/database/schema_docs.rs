@@ -3,8 +3,8 @@
 //! This module automatically generates LLM-friendly schema documentation
 //! from database table structures, eliminating boilerplate in narrative files.
 
-use crate::{reflect_table_schema, DatabaseResult};
 use crate::database::{ColumnInfo, TableSchema};
+use crate::{DatabaseResult, reflect_table_schema};
 use diesel::pg::PgConnection;
 
 /// Type hints and documentation for common Discord field patterns
@@ -71,23 +71,26 @@ const DISCORD_FIELD_DOCS: &[FieldDocumentation] = &[
 /// Generate human-readable documentation for a database column
 fn document_column(column: &ColumnInfo) -> String {
     let base_type = format_data_type(&column.data_type, column.character_maximum_length);
-    
+
     let description = DISCORD_FIELD_DOCS
         .iter()
         .find(|doc| column.name.ends_with(doc.pattern))
         .map(|doc| doc.description)
         .unwrap_or("");
-    
+
     let nullable = if column.is_nullable == "YES" {
         " (optional)"
     } else {
         ""
     };
-    
+
     if description.is_empty() {
         format!("- {}: {}{}", column.name, base_type, nullable)
     } else {
-        format!("- {}: {} - {}{}", column.name, base_type, description, nullable)
+        format!(
+            "- {}: {} - {}{}",
+            column.name, base_type, description, nullable
+        )
     }
 }
 
@@ -115,21 +118,21 @@ fn format_data_type(pg_type: &str, max_length: Option<i32>) -> String {
 /// Generate LLM-friendly schema documentation from a table structure
 pub fn generate_schema_prompt(schema: &TableSchema) -> String {
     let mut prompt = String::new();
-    
+
     prompt.push_str("Create a JSON object with the following schema:\n\n");
-    
+
     let required_fields: Vec<_> = schema
         .columns
         .iter()
         .filter(|c| c.is_nullable == "NO")
         .collect();
-    
+
     let optional_fields: Vec<_> = schema
         .columns
         .iter()
         .filter(|c| c.is_nullable == "YES")
         .collect();
-    
+
     if !required_fields.is_empty() {
         prompt.push_str("**Required Fields:**\n");
         for column in required_fields {
@@ -138,7 +141,7 @@ pub fn generate_schema_prompt(schema: &TableSchema) -> String {
         }
         prompt.push('\n');
     }
-    
+
     if !optional_fields.is_empty() {
         prompt.push_str("**Optional Fields:**\n");
         for column in optional_fields {
@@ -147,7 +150,7 @@ pub fn generate_schema_prompt(schema: &TableSchema) -> String {
         }
         prompt.push('\n');
     }
-    
+
     prompt
 }
 
@@ -162,7 +165,7 @@ pub const JSON_FORMAT_REQUIREMENTS: &str = r#"**CRITICAL OUTPUT REQUIREMENTS:**
 "#;
 
 /// Platform-specific context for Discord content generation
-pub const DISCORD_PLATFORM_CONTEXT: &str = 
+pub const DISCORD_PLATFORM_CONTEXT: &str =
     "You are generating data for Discord (a chat and community platform).";
 
 /// Assemble a complete prompt from template schema and user content focus
@@ -172,28 +175,28 @@ pub fn assemble_prompt(
     user_content_focus: &str,
 ) -> DatabaseResult<String> {
     let schema = reflect_table_schema(conn, template)?;
-    
+
     let schema_docs = generate_schema_prompt(&schema);
-    
+
     let is_discord_template = template.starts_with("discord_");
     let platform_context = if is_discord_template {
         DISCORD_PLATFORM_CONTEXT
     } else {
         ""
     };
-    
+
     let mut prompt = String::new();
-    
+
     if !platform_context.is_empty() {
         prompt.push_str(platform_context);
         prompt.push_str("\n\n");
     }
-    
+
     prompt.push_str(&schema_docs);
     prompt.push_str(user_content_focus);
     prompt.push_str("\n\n");
     prompt.push_str(JSON_FORMAT_REQUIREMENTS);
-    
+
     Ok(prompt)
 }
 
@@ -205,7 +208,7 @@ pub fn assemble_prompt(
 pub fn is_content_focus(prompt: &str) -> bool {
     let trimmed = prompt.trim();
     let lowercase = trimmed.to_lowercase();
-    
+
     // Check for schema documentation keywords first
     let schema_keywords = [
         "required fields",
@@ -215,13 +218,13 @@ pub fn is_content_focus(prompt: &str) -> bool {
         "schema",
         "data type",
     ];
-    
+
     for keyword in &schema_keywords {
         if lowercase.contains(keyword) {
-            return false;  // Explicit schema documentation present
+            return false; // Explicit schema documentation present
         }
     }
-    
+
     // No keywords found - this is content focus
     true
 }
@@ -256,7 +259,10 @@ mod tests {
 
     #[test]
     fn test_format_data_type_varchar() {
-        assert_eq!(format_data_type("character varying", Some(100)), "text (max 100 chars)");
+        assert_eq!(
+            format_data_type("character varying", Some(100)),
+            "text (max 100 chars)"
+        );
     }
 
     #[test]

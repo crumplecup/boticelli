@@ -305,17 +305,13 @@ impl<T: Tier> RateLimiter<T> {
     ///     client.generate(&request).await
     /// }).await?;
     /// ```
-    pub async fn execute<F, Fut, R, E>(
-        &self,
-        estimated_tokens: u64,
-        operation: F,
-    ) -> Result<R, E>
+    pub async fn execute<F, Fut, R, E>(&self, estimated_tokens: u64, operation: F) -> Result<R, E>
     where
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = Result<R, E>>,
         E: crate::rate_limit::RetryableError + std::fmt::Display,
     {
-        use tokio_retry2::{strategy::ExponentialBackoff, strategy::jitter, Retry, RetryError};
+        use tokio_retry2::{Retry, RetryError, strategy::ExponentialBackoff, strategy::jitter};
         use tracing::{info, warn};
 
         // Track error-specific strategy on first failure
@@ -343,7 +339,7 @@ impl<T: Tier> RateLimiter<T> {
 
                 // Get error-specific strategy parameters
                 let (mut initial_ms, mut max_retries, max_delay_secs) = e.retry_strategy_params();
-                
+
                 // Apply CLI overrides
                 if let Some(override_backoff) = self.retry_backoff_ms {
                     initial_ms = override_backoff;
@@ -351,7 +347,7 @@ impl<T: Tier> RateLimiter<T> {
                 if let Some(override_retries) = self.max_retries {
                     max_retries = override_retries;
                 }
-                
+
                 *strategy_params.lock().unwrap() = Some((initial_ms, max_retries, max_delay_secs));
 
                 info!(

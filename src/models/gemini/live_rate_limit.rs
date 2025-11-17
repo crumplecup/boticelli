@@ -144,7 +144,10 @@ impl LiveRateLimiter {
     /// ```
     pub fn record(&self) {
         let new_count = self.messages_sent.fetch_add(1, Ordering::SeqCst) + 1;
-        trace!("Message recorded ({}/{})", new_count, self.max_messages_per_minute);
+        trace!(
+            "Message recorded ({}/{})",
+            new_count, self.max_messages_per_minute
+        );
     }
 
     /// Reset the rate limit window.

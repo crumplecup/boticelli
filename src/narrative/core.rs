@@ -150,17 +150,9 @@ impl Narrative {
     /// - Prompt assembly fails
     #[cfg(feature = "database")]
     fn assemble_act_prompts(&mut self, conn: &mut PgConnection) -> Result<(), NarrativeError> {
-        let template = self
-            .metadata
-            .template
-            .as_ref()
-            .ok_or_else(|| {
-                NarrativeError::new(
-                    NarrativeErrorKind::MissingTemplate,
-                    line!(),
-                    file!(),
-                )
-            })?;
+        let template = self.metadata.template.as_ref().ok_or_else(|| {
+            NarrativeError::new(NarrativeErrorKind::MissingTemplate, line!(), file!())
+        })?;
 
         for (act_name, config) in &mut self.acts {
             // Get the first text input (most common case)

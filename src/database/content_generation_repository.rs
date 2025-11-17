@@ -1,6 +1,8 @@
 //! Repository for content generation tracking.
 
-use crate::{ContentGenerationRow, DatabaseResult, NewContentGenerationRow, UpdateContentGenerationRow};
+use crate::{
+    ContentGenerationRow, DatabaseResult, NewContentGenerationRow, UpdateContentGenerationRow,
+};
 use diesel::prelude::*;
 
 /// Repository trait for content generation tracking operations.
@@ -22,8 +24,11 @@ pub trait ContentGenerationRepository {
     /// Returns DatabaseError if:
     /// - A generation with the same table_name already exists (unique constraint violation)
     /// - Database connection fails
-    fn start_generation(&mut self, new_gen: NewContentGenerationRow) -> DatabaseResult<ContentGenerationRow>;
-    
+    fn start_generation(
+        &mut self,
+        new_gen: NewContentGenerationRow,
+    ) -> DatabaseResult<ContentGenerationRow>;
+
     /// Update generation status on completion.
     ///
     /// Updates the generation record identified by table_name with completion metadata.
@@ -45,7 +50,7 @@ pub trait ContentGenerationRepository {
         table_name: &str,
         update: UpdateContentGenerationRow,
     ) -> DatabaseResult<ContentGenerationRow>;
-    
+
     /// Get the most recently completed successful generation.
     ///
     /// Returns the generation with status='success' and the most recent generated_at timestamp.
@@ -57,7 +62,7 @@ pub trait ContentGenerationRepository {
     /// # Errors
     /// Returns DatabaseError if database connection fails
     fn get_last_successful(&mut self) -> DatabaseResult<Option<ContentGenerationRow>>;
-    
+
     /// List generations with optional filtering.
     ///
     /// # Arguments
@@ -69,8 +74,12 @@ pub trait ContentGenerationRepository {
     ///
     /// # Errors
     /// Returns DatabaseError if database connection fails
-    fn list_generations(&mut self, status: Option<String>, limit: i64) -> DatabaseResult<Vec<ContentGenerationRow>>;
-    
+    fn list_generations(
+        &mut self,
+        status: Option<String>,
+        limit: i64,
+    ) -> DatabaseResult<Vec<ContentGenerationRow>>;
+
     /// Get specific generation by table name.
     ///
     /// # Arguments
@@ -81,8 +90,11 @@ pub trait ContentGenerationRepository {
     ///
     /// # Errors
     /// Returns DatabaseError if database connection fails
-    fn get_by_table_name(&mut self, table_name: &str) -> DatabaseResult<Option<ContentGenerationRow>>;
-    
+    fn get_by_table_name(
+        &mut self,
+        table_name: &str,
+    ) -> DatabaseResult<Option<ContentGenerationRow>>;
+
     /// Delete generation metadata.
     ///
     /// Removes the tracking record for a generation. Note: this does not delete
@@ -126,31 +138,34 @@ impl<'a> PostgresContentGenerationRepository<'a> {
 }
 
 impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a> {
-    fn start_generation(&mut self, new_gen: NewContentGenerationRow) -> DatabaseResult<ContentGenerationRow> {
+    fn start_generation(
+        &mut self,
+        new_gen: NewContentGenerationRow,
+    ) -> DatabaseResult<ContentGenerationRow> {
         use crate::database::schema::content_generations;
-        
+
         diesel::insert_into(content_generations::table)
             .values(&new_gen)
             .get_result(self.conn)
             .map_err(Into::into)
     }
-    
+
     fn complete_generation(
         &mut self,
         table: &str,
         update: UpdateContentGenerationRow,
     ) -> DatabaseResult<ContentGenerationRow> {
         use crate::database::schema::content_generations::dsl;
-        
+
         diesel::update(dsl::content_generations.filter(dsl::table_name.eq(table)))
             .set(&update)
             .get_result(self.conn)
             .map_err(Into::into)
     }
-    
+
     fn get_last_successful(&mut self) -> DatabaseResult<Option<ContentGenerationRow>> {
         use crate::database::schema::content_generations::dsl;
-        
+
         dsl::content_generations
             .filter(dsl::status.eq("success"))
             .order(dsl::generated_at.desc())
@@ -158,36 +173,40 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
             .optional()
             .map_err(Into::into)
     }
-    
-    fn list_generations(&mut self, status_filter: Option<String>, limit: i64) -> DatabaseResult<Vec<ContentGenerationRow>> {
+
+    fn list_generations(
+        &mut self,
+        status_filter: Option<String>,
+        limit: i64,
+    ) -> DatabaseResult<Vec<ContentGenerationRow>> {
         use crate::database::schema::content_generations::dsl;
-        
+
         let mut query = dsl::content_generations.into_boxed();
-        
+
         if let Some(s) = status_filter {
             query = query.filter(dsl::status.eq(s));
         }
-        
+
         query
             .order(dsl::generated_at.desc())
             .limit(limit)
             .load(self.conn)
             .map_err(Into::into)
     }
-    
+
     fn get_by_table_name(&mut self, table: &str) -> DatabaseResult<Option<ContentGenerationRow>> {
         use crate::database::schema::content_generations::dsl;
-        
+
         dsl::content_generations
             .filter(dsl::table_name.eq(table))
             .first(self.conn)
             .optional()
             .map_err(Into::into)
     }
-    
+
     fn delete_generation(&mut self, table: &str) -> DatabaseResult<()> {
         use crate::database::schema::content_generations::dsl;
-        
+
         diesel::delete(dsl::content_generations.filter(dsl::table_name.eq(table)))
             .execute(self.conn)
             .map(|_| ())

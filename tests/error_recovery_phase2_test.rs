@@ -113,8 +113,14 @@ fn test_websocket_error_strategies() {
     ));
     assert!(ws_conn_err.kind.is_retryable());
     let (initial_ms, max_retries, max_delay_secs) = ws_conn_err.kind.retry_strategy_params();
-    assert_eq!(initial_ms, 2000, "WebSocket connection should use standard delay");
-    assert_eq!(max_retries, 5, "WebSocket connection should have 5 max retries");
+    assert_eq!(
+        initial_ms, 2000,
+        "WebSocket connection should use standard delay"
+    );
+    assert_eq!(
+        max_retries, 5,
+        "WebSocket connection should have 5 max retries"
+    );
     assert_eq!(max_delay_secs, 60, "WebSocket connection should cap at 60s");
 
     let ws_handshake_err = GeminiError::new(GeminiErrorKind::WebSocketHandshake(
@@ -122,8 +128,14 @@ fn test_websocket_error_strategies() {
     ));
     assert!(ws_handshake_err.kind.is_retryable());
     let (initial_ms, max_retries, max_delay_secs) = ws_handshake_err.kind.retry_strategy_params();
-    assert_eq!(initial_ms, 2000, "WebSocket handshake should use standard delay");
-    assert_eq!(max_retries, 5, "WebSocket handshake should have 5 max retries");
+    assert_eq!(
+        initial_ms, 2000,
+        "WebSocket handshake should use standard delay"
+    );
+    assert_eq!(
+        max_retries, 5,
+        "WebSocket handshake should have 5 max retries"
+    );
     assert_eq!(max_delay_secs, 60, "WebSocket handshake should cap at 60s");
 
     let stream_err = GeminiError::new(GeminiErrorKind::StreamInterrupted(

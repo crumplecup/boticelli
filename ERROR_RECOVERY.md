@@ -550,123 +550,218 @@ With retry logic enabled, tests that make real API calls become extremely slow:
 
 This makes development painful and CI/CD impractical.
 
-### Solution: Test-Specific Configuration
+### Solution: HTTP Mocking with Battle-Tested Crates
 
-**Strategy 1: Disable Retries in Tests (Preferred)**
+**Strategy: Use wiremock for HTTP Mocking (Recommended)**
 
-Add a method to disable retry logic for testing:
+[wiremock](https://crates.io/crates/wiremock) is the most mature and feature-rich HTTP mocking library in the Rust ecosystem. It spins up a local mock HTTP server with a type-safe, fluent API.
+
+**Why wiremock?**
+
+1. **Tokio-native** - Built for async testing with tokio
+2. **Works seamlessly with reqwest** - Our current HTTP client
+3. **Type-safe matchers** - Compile-time safety for request matching
+4. **Rich feature set** - Headers, JSON body matching, sequences, custom templates
+5. **Battle-tested** - Used in production by many Rust projects
+6. **Active maintenance** - Regular updates and good documentation
+
+**Example test with wiremock:**
 
 ```rust
-impl GeminiClient {
-    /// Create client with no retry logic (for testing)
-    #[cfg(test)]
-    pub fn new_no_retry() -> Result<Self, GeminiError> {
-        let api_key = std::env::var("GEMINI_API_KEY")
-            .map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
-        
-        Ok(Self {
-            api_key,
-            http_client: reqwest::Client::new(),
-            retry_enabled: false,  // NEW: disable retry
-        })
-    }
-}
+use wiremock::{MockServer, Mock, ResponseTemplate};
+use wiremock::matchers::{method, path, header, body_json};
 
-impl BoticelliDriver for GeminiClient {
-    async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, BoticelliError> {
-        if self.retry_enabled {
-            // Wrap with retry logic
-            tokio_retry2::Retry::new(/* ... */)
-                .retry(|| self.generate_once(request))
-                .await
-        } else {
-            // Direct call, no retry
-            self.generate_once(request).await
+#[tokio::test]
+async fn test_gemini_503_retry() {
+    let mock_server = MockServer::start().await;
+    
+    // First request returns 503
+    Mock::given(method("POST"))
+        .and(path("/v1beta/models/gemini-pro:generateContent"))
+        .respond_with(ResponseTemplate::new(503)
+            .set_body_json(json!({
+                "error": {
+                    "code": 503,
+                    "message": "Model is overloaded. Please try again later.",
+                    "status": "UNAVAILABLE"
+                }
+            })))
+        .expect(1) // Verify it was called once
+        .named("503_overloaded")
+        .mount(&mock_server)
+        .await;
+    
+    // Second request succeeds
+    Mock::given(method("POST"))
+        .and(path("/v1beta/models/gemini-pro:generateContent"))
+        .respond_with(ResponseTemplate::new(200)
+            .set_body_json(json!({
+                "candidates": [{
+                    "content": {
+                        "parts": [{"text": "Success after retry"}],
+                        "role": "model"
+                    }
+                }]
+            })))
+        .expect(1)
+        .named("200_success")
+        .mount(&mock_server)
+        .await;
+    
+    // Create client pointing to mock server
+    let client = GeminiClient::new_with_base_url(mock_server.uri());
+    
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Test".to_string())],
+        }],
+        model: Some("models/gemini-pro".to_string()),
+        ..Default::default()
+    };
+    
+    // Should succeed after retry
+    let response = client.generate(&request).await.unwrap();
+    assert!(!response.outputs.is_empty());
+    
+    // wiremock verifies expectations were met (1 call to each mock)
+}
+```
+
+**Implementation approach:**
+
+```rust
+// src/models/gemini/client.rs
+impl GeminiClient {
+    /// Create client with custom base URL (for testing)
+    #[cfg(test)]
+    pub fn new_with_base_url(base_url: impl Into<String>) -> Self {
+        let api_key = std::env::var("GEMINI_API_KEY")
+            .unwrap_or_else(|_| "test_api_key".to_string());
+        
+        Self {
+            api_key,
+            base_url: base_url.into(),
+            http_client: reqwest::Client::new(),
         }
     }
+    
+    // In generate() method, use self.base_url instead of hardcoded URL
+    async fn generate_once(&self, request: &GenerateRequest) -> Result<GenerateResponse, BoticelliError> {
+        let url = format!("{}/v1beta/models/{}:generateContent", 
+            self.base_url, // Use configurable base_url
+            model_name);
+        // ... rest of implementation
+    }
 }
 ```
 
 **Benefits:**
-- Tests fail fast on real errors
-- Test suite runs in < 1 minute
-- Still tests the actual API integration
-- Can selectively enable retries for specific error-handling tests
+- **Instant tests** - No network calls, no delays, no retries waiting
+- **Complete control** - Simulate any error scenario (503, 429, timeouts, malformed responses)
+- **Deterministic** - Tests don't flake due to network issues
+- **Test retry logic** - Can verify retry behavior without waiting
+- **No API quota** - Unlimited test runs, no rate limits
+- **CI-friendly** - Fast, reliable, no credentials needed
 
-**Strategy 2: Minimal Delays for Tests**
+**Alternative: mockito**
 
-Alternative: Keep retry logic but use microsecond delays:
+[mockito](https://github.com/lipanski/mockito) is simpler and lighter-weight than wiremock:
+
+```rust
+#[tokio::test]
+async fn test_gemini_request() {
+    let _m = mockito::mock("POST", "/v1beta/models/gemini-pro:generateContent")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"candidates":[{"content":{"parts":[{"text":"Hello"}]}}]}"#)
+        .create();
+
+    let client = GeminiClient::new_with_base_url(mockito::server_url());
+    let response = client.generate(&request).await.unwrap();
+    // assertions...
+}
+```
+
+**Pros:**
+- Simpler API than wiremock
+- Good for straightforward request/response mocking
+- Less boilerplate
+
+**Cons:**
+- Less powerful matchers
+- No built-in expectation verification
+- Fewer advanced features
+
+### Alternative Strategy: Minimal Delays for Integration Tests
+
+For the small number of integration tests that hit the real API (marked with `#[cfg_attr(not(feature = "api"), ignore)]`), use minimal delays:
 
 ```rust
 #[cfg(test)]
-const TEST_INITIAL_DELAY_MS: u64 = 1;  // 1ms instead of 2000ms
+const RETRY_INITIAL_DELAY_MS: u64 = 10;  // 10ms in tests
 #[cfg(not(test))]
-const TEST_INITIAL_DELAY_MS: u64 = 2000;
+const RETRY_INITIAL_DELAY_MS: u64 = 2000; // 2s in production
 
 impl GeminiClient {
-    fn retry_strategy() -> impl Iterator<Item = std::time::Duration> {
-        ExponentialBackoff::from_millis(TEST_INITIAL_DELAY_MS)
+    fn retry_strategy() -> impl Iterator<Item = Duration> {
+        ExponentialBackoff::from_millis(RETRY_INITIAL_DELAY_MS)
             .factor(2)
-            .max_delay(std::time::Duration::from_millis(100))
-            .take(2)  // Only 2 retries in tests
+            .max_delay(Duration::from_millis(500))
+            .take(2)  // Only 2 retries in tests vs 5 in production
     }
 }
 ```
 
-**Drawbacks:**
-- Still adds latency (even if minimal)
-- Doesn't test realistic retry behavior
-- Tests could pass but production could fail
-
-**Strategy 3: Mock HTTP Client**
-
-Most sophisticated but also most work:
-
-```rust
-#[cfg(test)]
-pub struct MockHttpClient {
-    responses: Vec<Result<Response, Error>>,
-}
-
-// Use dependency injection to swap real client for mock
-impl GeminiClient {
-    pub fn new_with_http_client(http_client: impl HttpClient) -> Self {
-        // ...
-    }
-}
-```
-
-**Benefits:**
-- Complete control over test scenarios
-- No network calls = instant tests
-- Can simulate any error condition
-
-**Drawbacks:**
-- Lots of boilerplate
-- Doesn't test real API integration
-- Mocks can drift from reality
+This keeps integration tests reasonably fast while still testing against the real API.
 
 ### Recommendation
 
-**Use Strategy 1 (Disable Retries in Tests) because:**
+**Use wiremock for unit/integration tests (95% of tests):**
+- Mock HTTP responses for fast, deterministic testing
+- Test retry logic, error handling, response parsing without delays
+- No API credentials needed, works in CI/CD out of the box
 
-1. **Fast** - No artificial delays
-2. **Simple** - One flag to toggle
-3. **Real** - Still tests against actual API
-4. **Selective** - Can enable retries for specific error-handling tests
-5. **Maintainable** - No mock infrastructure to maintain
-
-For the small number of tests that specifically test retry logic (Phase 2 tests), we can either:
-- Use Strategy 2 (minimal delays) just for those tests
-- Mark them with `#[ignore]` and run manually/in CI only
+**Keep some integration tests with real API (5% of tests):**
+- Mark with `#[cfg_attr(not(feature = "api"), ignore)]`
+- Use minimal retry delays (10ms instead of 2000ms)
+- Run only when explicitly testing against real API
+- Validates that mock responses match reality
 
 ### Implementation Plan
 
-1. Add `retry_enabled: bool` field to `GeminiClient`
-2. Add `new_no_retry()` constructor (test-only)
-3. Update all tests to use `new_no_retry()` by default
-4. Mark retry-specific tests with minimal delays or `#[ignore]`
-5. Document this pattern in TESTING.md
+1. Add `wiremock = "0.6"` to `[dev-dependencies]` in Cargo.toml
+2. Add `base_url: String` field to `GeminiClient` (default: production URL)
+3. Add `new_with_base_url()` constructor for tests
+4. Convert existing tests to use wiremock
+5. Keep 2-3 tests with real API, mark with `#[ignore]` or `api` feature
+6. Document mocking pattern in TESTING.md
+
+### Additional Benefits
+
+**Test error scenarios comprehensively:**
+```rust
+// Test rate limit with retry-after header
+Mock::given(method("POST"))
+    .respond_with(ResponseTemplate::new(429)
+        .insert_header("x-ratelimit-reset", "1234567890")
+        .set_body_json(json!({"error": {"message": "Rate limit exceeded"}})))
+```
+
+**Test streaming responses:**
+```rust
+// Mock streaming chunks
+Mock::given(method("POST"))
+    .respond_with(ResponseTemplate::new(200)
+        .set_body_string("data: {\"text\":\"chunk1\"}\n\ndata: {\"text\":\"chunk2\"}\n\n"))
+```
+
+**Test network failures:**
+```rust
+// Simulate connection timeout
+Mock::given(method("POST"))
+    .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(60)))
+```
 
 ## References
 

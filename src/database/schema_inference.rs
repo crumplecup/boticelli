@@ -56,16 +56,29 @@ impl InferredSchema {
         if let Some(existing) = self.fields.get_mut(name) {
             // Field seen before - refine type
             if is_null {
+                tracing::trace!(field = name, "Marking field as nullable");
                 existing.nullable = true;
             }
             existing.add_example(value.clone());
 
             // Type conflict resolution (e.g., BIGINT vs DOUBLE PRECISION)
             if existing.pg_type != pg_type {
-                existing.pg_type = resolve_type_conflict(&existing.pg_type, pg_type)?;
+                let resolved = resolve_type_conflict(&existing.pg_type, pg_type)?;
+
+                if resolved != existing.pg_type {
+                    tracing::warn!(
+                        field = name,
+                        from_type = existing.pg_type,
+                        to_type = resolved,
+                        "Type conflict resolved by widening"
+                    );
+                }
+
+                existing.pg_type = resolved;
             }
         } else {
             // New field
+            tracing::trace!(field = name, pg_type = pg_type, nullable = is_null, "Adding new field");
             let mut def = ColumnDefinition::new(pg_type, is_null);
             def.add_example(value.clone());
             self.fields.insert(name.to_string(), def);
@@ -169,35 +182,49 @@ pub fn resolve_type_conflict(type1: &str, type2: &str) -> DatabaseResult<String>
 /// Infer schema from JSON (single object or array)
 pub fn infer_schema(json: &JsonValue) -> DatabaseResult<InferredSchema> {
     let items: Vec<&JsonValue> = match json {
-        JsonValue::Object(_) => vec![json],
+        JsonValue::Object(_) => {
+            tracing::debug!("Inferring schema from single JSON object");
+            vec![json]
+        }
         JsonValue::Array(arr) => {
             if arr.is_empty() {
+                tracing::error!("Cannot infer schema from empty JSON array");
                 return Err(DatabaseError::new(DatabaseErrorKind::SchemaInference(
-                    "Cannot infer schema from empty JSON array".to_string(),
+                    "Cannot infer schema from empty JSON array. Hint: Ensure the LLM returns at least one object.".to_string(),
                 )));
             }
+            tracing::debug!(count = arr.len(), "Inferring schema from JSON array");
             arr.iter().collect()
         }
         _ => {
+            tracing::error!(json_type = ?json, "Invalid JSON type for schema inference");
             return Err(DatabaseError::new(DatabaseErrorKind::SchemaInference(
-                "Schema inference requires JSON object or array".to_string(),
+                "Schema inference requires JSON object or array. Hint: Ensure the LLM returns structured JSON, not primitives.".to_string(),
             )))
         }
     };
 
     let mut schema = InferredSchema::new();
 
-    for item in items {
+    for (idx, item) in items.iter().enumerate() {
         let obj = item.as_object().ok_or_else(|| {
+            tracing::error!(index = idx, "Array item is not an object");
             DatabaseError::new(DatabaseErrorKind::SchemaInference(
-                "Array must contain objects for schema inference".to_string(),
+                format!("Array item {} is not an object. Hint: Ensure all array elements are JSON objects with the same structure.", idx),
             ))
         })?;
+
+        tracing::trace!(index = idx, field_count = obj.len(), "Processing object fields");
 
         for (key, value) in obj {
             schema.add_field(key, value)?;
         }
     }
+
+    tracing::info!(
+        field_count = schema.field_count(),
+        "Schema inference complete"
+    );
 
     Ok(schema)
 }
@@ -251,7 +278,11 @@ pub fn create_inferred_table(
         columns.join(", ")
     );
 
+    tracing::debug!(sql = %create_sql, "Creating inferred table");
+
     diesel::sql_query(&create_sql).execute(conn)?;
+
+    tracing::info!(table = table_name, columns = schema.field_count(), "Inferred table created");
 
     // Track in metadata table
     let narrative_value = narrative_name

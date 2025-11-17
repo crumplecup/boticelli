@@ -71,8 +71,10 @@ pub fn extract_json(response: &str) -> BoticelliResult<String> {
         }
     }
 
+    tracing::error!(response_length = response.len(), "No JSON found in LLM response");
+
     Err(crate::BackendError::new(format!(
-        "No JSON found in response (length: {})",
+        "No JSON found in response (length: {}). Hint: Ensure your prompt explicitly requests JSON output and includes 'Output ONLY valid JSON'.",
         response.len()
     ))
     .into())
@@ -219,8 +221,14 @@ where
     T: serde::de::DeserializeOwned,
 {
     serde_json::from_str(json_str).map_err(|e| {
+        tracing::error!(
+            error = %e,
+            json_preview = &json_str[..json_str.len().min(100)],
+            "JSON parsing failed"
+        );
+
         crate::BackendError::new(format!(
-            "Failed to parse JSON: {} (JSON: {}...)",
+            "Failed to parse JSON: {} (JSON: {}...). Hint: Ensure the LLM outputs valid JSON without syntax errors.",
             e,
             &json_str[..json_str.len().min(100)]
         ))

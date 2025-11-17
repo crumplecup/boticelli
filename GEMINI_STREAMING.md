@@ -2,35 +2,82 @@
 
 ## Overview
 
-This document outlines the plan to implement streaming support for Gemini "live" models (e.g., `gemini-2.0-flash-live`) in the Boticelli library. Currently, the library works with all Gemini models except those requiring streaming capabilities.
+This document outlines the plan to implement streaming support for Gemini models with bidirectional streaming capabilities (`bidiGenerateContent`) in the Boticelli library.
 
-**Critical Business Need**: Live models have **significantly higher rate limits on the free tier**, making them much more usable for development and testing. This is the primary motivation for adding streaming support.
+**CRITICAL FINDING**: The model `gemini-2.0-flash-live` **does not exist**. After querying the Gemini API, we found:
+- ✅ 50 models available in v1beta API
+- ✅ 2 models support `bidiGenerateContent` (bidirectional streaming):
+  - `gemini-2.0-flash-exp`
+  - `gemini-2.0-flash-exp-image-generation`
+- ❌ **NO models with "live" in their name exist**
+
+**Updated Goal**: Implement support for bidirectional streaming models (`gemini-2.0-flash-exp`) to access experimental features and potentially better rate limits.
 
 **Date**: 2025-01-17  
-**Status**: Investigation Phase - Step 1 Complete ✅  
-**Priority**: HIGH (enables better free tier usage)  
-**Complexity**: MEDIUM-LOW (gemini_rust already supports streaming)
+**Status**: Investigation Phase - Step 2 Complete ✅  
+**Priority**: MEDIUM (enables experimental features)  
+**Complexity**: HIGH (requires WebSocket/bidirectional streaming, not simple HTTP streaming)
+
+---
+
+## API Investigation Results (2025-01-17)
+
+### Available Models Query
+
+Using the Gemini v1beta API endpoint `GET /v1beta/models`, we discovered:
+
+**Total Models**: 50
+
+**Models Supporting `bidiGenerateContent` (Bidirectional Streaming)**:
+1. `gemini-2.0-flash-exp` - Gemini 2.0 Flash Experimental
+   - Methods: `generateContent`, `countTokens`, `bidiGenerateContent`
+2. `gemini-2.0-flash-exp-image-generation` - Gemini 2.0 Flash (Image Generation) Experimental
+   - Methods: `generateContent`, `countTokens`, `bidiGenerateContent`
+
+**Key Finding**: The test assumption that `gemini-2.0-flash-live` exists was **INCORRECT**. No models with "live" in the name exist in the v1beta API.
+
+### Test Behavior Explained
+
+When running `test_streaming_with_live_model`:
+- ✅ Test **IS** hitting the API (confirmed by 404 response from Google servers)
+- ✅ API key authentication works
+- ❌ Model lookup fails with 404: "models/gemini-2.0-flash-live is not found"
+- ❌ No token usage recorded (request rejected before processing)
+
+### What is `bidiGenerateContent`?
+
+Based on the API discovery:
+- **NOT** simple HTTP streaming (like SSE - Server-Sent Events)
+- **IS** bidirectional streaming - requires WebSocket or gRPC
+- Enables real-time, interactive conversations
+- Allows client to send inputs while receiving outputs
+- Used for experimental features (voice, multimodal interactions)
 
 ---
 
 ## Business Case
 
-### Why Live Models Matter
+### Original Assumption - DEBUNKED ❌
 
-**Rate Limit Comparison** (Free Tier):
+**Original Claim**: Live models have higher rate limits on free tier
+**Reality**: No "live" models exist; experimental models may have different limits
 
-| Model Type | Typical Limits | Use Case |
-|------------|----------------|----------|
-| Standard Models (flash, pro) | Lower RPM/RPD | Production, limited testing |
-| **Live Models** (flash-live) | **Higher RPM/RPD** | **Development, extensive testing** |
+### Updated Value Proposition
 
-**Impact**: Live models allow for:
-- More frequent API calls during development
-- Better testing coverage without hitting limits
-- Faster iteration cycles
-- Cost-effective experimentation
+**Why Support Bidirectional Streaming?**
+1. Access to experimental models (`gemini-2.0-flash-exp`)
+2. Future-proofing for interactive features
+3. Potential for better rate limits on experimental models
+4. Enable voice/multimodal interactions (future consideration)
 
-**Bottom Line**: To maximize free tier usage, we need live model support, which requires streaming.
+**Trade-off Analysis**:
+- ✅ Enables cutting-edge features
+- ✅ Access to experimental models
+- ❌ Higher complexity (WebSocket/gRPC vs simple HTTP)
+- ❌ May have unstable API surface
+- ❌ Experimental models may be removed/changed
+
+**Recommendation**: **DEFER** until we validate that experimental models actually have better rate limits or provide features we need.
 
 ---
 
@@ -45,9 +92,9 @@ This document outlines the plan to implement streaming support for Gemini "live"
 - ✅ Async operations with tokio
 
 ### What Doesn't Work
-- ❌ Gemini Live models (require streaming)
-- ❌ Access to higher free tier rate limits
-- ❌ Streaming response handling
+- ❌ Bidirectional streaming models (`gemini-2.0-flash-exp`)
+- ❌ WebSocket/gRPC-based real-time interactions
+- ⚠️ **Note**: "Live models" don't exist - original assumption was incorrect
 
 ### Current Architecture
 
@@ -67,37 +114,37 @@ This document outlines the plan to implement streaming support for Gemini "live"
 
 ## Problem Analysis
 
-### What Are "Live" Models?
+### What Are Bidirectional Streaming Models?
 
-Gemini Live models (like `gemini-2.0-flash-live`) are designed for:
-- **Higher rate limits on free tier** ⭐ PRIMARY BENEFIT
-- Real-time conversational AI
-- Voice/audio interactions (future consideration)
-- Streaming responses with lower latency
+**CORRECTION**: Original document assumed "live" models existed. After API investigation:
 
-**Key Distinction**: Live models are optimized for interactive, high-frequency use cases, which is reflected in their more permissive rate limits.
+**Reality**:
+- ❌ No "gemini-2.0-flash-live" model exists
+- ✅ 2 experimental models support `bidiGenerateContent`
+- ✅ These require bidirectional streaming (WebSocket/gRPC, not simple HTTP SSE)
 
-### Why Streaming is Required
+**Bidirectional Streaming Models** (`gemini-2.0-flash-exp`):
+- Real-time, interactive conversations
+- Voice/audio interactions
+- Client can send while receiving responses
+- More complex than unidirectional streaming
 
-Live models **only work with streaming APIs**. To access their superior rate limits, we must:
-1. Use the `streamGenerateContent` endpoint
-2. Handle incremental responses
-3. Process chunks as they arrive
+### Why Original Assumption Was Wrong
 
-**No streaming = No live models = Stuck with lower rate limits**
+**Original Claim**: "Live models have better rate limits"
+**Source**: Likely confusion with:
+1. Experimental models (which may have different limits)
+2. Gemini Live API (a separate product for voice/video interactions)
+3. Streaming vs batch processing (streaming feels faster but same limits)
 
-### Technical Requirements
-
-1. ~~**Bidirectional Streaming**: Client and server both stream data~~ 
-   - **Update**: Actually unidirectional (SSE) - simpler!
-2. **Incremental Responses**: Server sends partial responses as they're generated ✅
-3. **Connection Management**: Long-lived connections with proper cleanup ✅
-4. **Error Handling**: Graceful degradation for connection issues ✅
-5. **Rate Limiting**: Track usage for streaming sessions ✅
+**What We Actually Need**:
+- If goal is **better rate limits**: Check if experimental models have this
+- If goal is **streaming responses**: Standard models support SSE streaming
+- If goal is **interactive features**: Need bidirectional streaming (complex)
 
 ### Current Limitations
 
-1. ~~**gemini_rust Library**: May not support streaming~~ ✅ **RESOLVED**: It does!
+1. **gemini_rust Library**: Supports SSE streaming ✅, unclear on bidiGenerateContent ❓
 2. **BoticelliDriver Trait**: Returns complete `GenerateResponse`, not streaming
 3. **Narrative Executor**: Expects complete responses, not incremental
 4. **Rate Limiting**: Designed for request/response, needs streaming adaptation
@@ -1264,3 +1311,86 @@ Expected: Live model allows more requests before hitting rate limits
 **Confidence Level**: HIGH - Clear path forward with working examples and robust library support.
 
 **Next Action**: Create feature branch and implement Steps 1-6 of MVP plan (estimated 2-3 hours).
+
+---
+
+## UPDATED RECOMMENDATIONS (2025-01-17)
+
+### Critical Discovery: "Live" Models Don't Exist
+
+After querying the Gemini v1beta API (`ListModels`), we confirmed:
+- ❌ **NO models named "gemini-2.0-flash-live" exist**
+- ❌ **NO models with "live" in the name exist**
+- ✅ 2 models support `bidiGenerateContent` (bidirectional streaming):
+  - `gemini-2.0-flash-exp`
+  - `gemini-2.0-flash-exp-image-generation`
+
+### What This Means
+
+**Original Plan**: Implement streaming to access "live" models with better rate limits
+**Reality**: The premise was incorrect - those models don't exist
+
+### Revised Options
+
+#### Option 1: STOP - No Action Needed (RECOMMENDED) ✅
+
+**Rationale**:
+- Original goal (better rate limits via "live" models) is unachievable
+- Current implementation works with all 48 available Gemini models
+- SSE streaming exists in gemini_rust but we don't need it yet
+- No user-facing benefit until we need interactive features
+
+**When to Revisit**:
+- Google releases actual "live" or bidirectional streaming models
+- We need real-time interactive features (voice, chat)
+- We hit rate limits and need experimental model access
+
+#### Option 2: Implement SSE Streaming Anyway (LOW PRIORITY)
+
+**Reasons TO implement**:
+- Future-proofing for when streaming models arrive
+- Enable progressive UI updates (show text as it generates)
+- Practice with streaming patterns
+
+**Reasons NOT TO implement**:
+- No immediate business value
+- Adds complexity without user benefit
+- Standard models work fine for our use case
+
+#### Option 3: Investigate Bidirectional Streaming (NOT RECOMMENDED)
+
+**Why NOT**:
+- Requires WebSocket/gRPC (much more complex than SSE)
+- Only 2 experimental models support it
+- Experimental models may be unstable/deprecated
+- No confirmed rate limit benefits
+- High effort, unknown reward
+
+### Final Recommendation
+
+**CLOSE THIS WORK ITEM** and update tests:
+
+1. Remove `test_streaming_with_live_model` test (model doesn't exist)
+2. Document finding in GEMINI.md: "Note: As of 2025-01-17, no 'live' models exist"
+3. Keep SSE streaming investigation in this doc for future reference
+4. Revisit if Google announces live/streaming models with better limits
+
+**Alternative**: If you want streaming UI (text appears as generated):
+- Implement SSE streaming as a nice-to-have feature
+- Use with existing models (2.0-flash, 2.5-flash, etc.)
+- Don't expect rate limit improvements
+
+### Test Cleanup Required
+
+Current failing test:
+```rust
+#[tokio::test]
+#[cfg_attr(not(feature = "api"), ignore)]
+async fn test_streaming_with_live_model() {
+    // ... tries to use "gemini-2.0-flash-live" which doesn't exist
+}
+```
+
+**Action**: Mark as `#[ignore]` with comment: "Model doesn't exist - see GEMINI_STREAMING.md"
+Or delete entirely since it's testing a non-existent model.
+

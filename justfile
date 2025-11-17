@@ -257,7 +257,7 @@ narrate name:
         echo "✓ Found: $NARRATIVE"
         echo ""
         echo "🚀 Executing narrative..."
-        cargo run --features gemini,database -- run --narrative "$NARRATIVE" --save --verbose
+        cargo run --release --features gemini,database -- run --narrative "$NARRATIVE" --save --verbose
     else
         echo "❌ Multiple narratives found matching '{{name}}':"
         echo "$MATCHES" | sed 's/^/  /'
@@ -268,71 +268,71 @@ narrate name:
 
 # Run example narrative: generate channel posts
 example-channels:
-    cargo run --features database,gemini -- run --narrative narratives/generate_channel_posts.toml
+    cargo run --release --features database,gemini -- run --narrative narratives/generate_channel_posts.toml
 
 # Run example narrative: generate users
 example-users:
-    cargo run --features database,gemini -- run --narrative narratives/generate_users.toml
+    cargo run --release --features database,gemini -- run --narrative narratives/generate_users.toml
 
 # Run example narrative: generate guilds
 example-guilds:
-    cargo run --features database,gemini -- run --narrative narratives/generate_guilds.toml
+    cargo run --release --features database,gemini -- run --narrative narratives/generate_guilds.toml
 
 # Run example narrative: generate guilds (simplified with prompt injection)
 example-guilds-simple:
-    cargo run --features database,gemini -- run --narrative narratives/generate_guilds_simple.toml
+    cargo run --release --features database,gemini -- run --narrative narratives/generate_guilds_simple.toml
 
 # List content from a generation table
 content-list table:
-    cargo run --features database,gemini -- content list {{table}}
+    cargo run --release --features database,gemini -- content list {{table}}
 
 # Show specific content item
 content-show table id:
-    cargo run --features database,gemini -- content show {{table}} {{id}}
+    cargo run --release --features database,gemini -- content show {{table}} {{id}}
 
 # TUI (Terminal User Interface)
 # ==============================
 
 # Launch TUI for a specific table
 tui table:
-    cargo run --features tui -- tui {{table}}
+    cargo run --release --features tui -- tui {{table}}
 
 # Launch TUI for a table with all features enabled
 tui-all table:
-    cargo run --all-features -- tui {{table}}
+    cargo run --release --all-features -- tui {{table}}
 
 # Generate test guilds and launch TUI (full workflow)
 tui-test-guilds:
     #!/usr/bin/env bash
     echo "🎲 Generating test guilds..."
-    cargo run --all-features -- run --narrative narratives/generate_guilds.toml
+    cargo run --release --all-features -- run --narrative narratives/generate_guilds.toml
     echo "✅ Content generated in table: potential_guilds"
     echo "🖥️  Launching TUI..."
-    cargo run --all-features -- tui "potential_guilds"
+    cargo run --release --all-features -- tui "potential_guilds"
 
 # Generate test channels and launch TUI (full workflow)
 tui-test-channels:
     #!/usr/bin/env bash
     echo "🎲 Generating test channels..."
-    cargo run --all-features -- run --narrative narratives/generate_channel_posts.toml
+    cargo run --release --all-features -- run --narrative narratives/generate_channel_posts.toml
     echo "✅ Content generated in table: potential_posts"
     echo "🖥️  Launching TUI..."
-    cargo run --all-features -- tui "potential_posts"
+    cargo run --release --all-features -- tui "potential_posts"
 
 # Generate test users and launch TUI (full workflow)
 tui-test-users:
     #!/usr/bin/env bash
     echo "🎲 Generating test users..."
-    cargo run --all-features -- run --narrative narratives/generate_users.toml
+    cargo run --release --all-features -- run --narrative narratives/generate_users.toml
     echo "✅ Content generated in table: potential_users"
     echo "🖥️  Launching TUI..."
-    cargo run --all-features -- tui "potential_users"
+    cargo run --release --all-features -- tui "potential_users"
 
 # Generate Discord infrastructure and launch TUI for review
 tui-test-discord:
     #!/usr/bin/env bash
     echo "🎲 Generating Discord infrastructure..."
-    cargo run --all-features -- run --narrative narratives/discord_infrastructure.toml --process-discord
+    cargo run --release --all-features -- run --narrative narratives/discord_infrastructure.toml --process-discord
     echo "✅ Discord infrastructure generated"
     echo "💡 Note: Discord infrastructure uses fixed IDs, check discord_guilds table directly"
     echo "🖥️  To review generated content, use:"
@@ -347,18 +347,18 @@ tui-list-tables:
 
 # List all content generations with tracking metadata
 content-generations:
-    cargo run --all-features -- content generations
+    cargo run --release --all-features -- content generations
 
 # Show details of the last generation
 content-last:
-    cargo run --all-features -- content last
+    cargo run --release --all-features -- content last
 
 # Launch TUI on the most recently generated table
 tui-last:
     #!/usr/bin/env bash
     set -e
     echo "📊 Getting latest generation..."
-    TABLE=$(cargo run --all-features -- content last --format=table-name-only 2>/dev/null || echo "")
+    TABLE=$(cargo run --release --all-features -- content last --format=table-name-only 2>/dev/null || echo "")
     if [ -z "$TABLE" ]; then
         echo "❌ No content generations found"
         echo "💡 Generate content first with: just example-guilds"
@@ -367,18 +367,18 @@ tui-last:
     echo "   Table: $TABLE"
     echo ""
     echo "🖥️  Launching TUI..."
-    cargo run --all-features -- tui "$TABLE"
+    cargo run --release --all-features -- tui "$TABLE"
 
 # Quick TUI demo with sample data
 tui-demo:
     #!/usr/bin/env bash
     set -e
     echo "🎲 Generating sample content..."
-    cargo run --all-features -- run --narrative narratives/generate_guilds.toml
+    cargo run --release --all-features -- run --narrative narratives/generate_guilds.toml
     echo "✅ Content generated"
     echo ""
     echo "📊 Getting latest generation..."
-    TABLE=$(cargo run --all-features -- content last --format=table-name-only 2>/dev/null || echo "")
+    TABLE=$(cargo run --release --all-features -- content last --format=table-name-only 2>/dev/null || echo "")
     if [ -z "$TABLE" ]; then
         echo "❌ No content generations found"
         exit 1
@@ -386,7 +386,7 @@ tui-demo:
     echo "   Table: $TABLE"
     echo ""
     echo "🖥️  Launching TUI..."
-    cargo run --all-features -- tui "$TABLE"
+    cargo run --release --all-features -- tui "$TABLE"
 
 # Full Workflow (CI/CD)
 # ====================

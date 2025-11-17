@@ -139,13 +139,12 @@ fn test_error_kind_equality() {
 
 /// Integration test that requires a real API key and consumes tokens.
 ///
-/// This test is ignored unless the 'api' feature is enabled:
-/// `cargo test --features gemini,api`
+/// Run with: `cargo test --features gemini -- --ignored`
 ///
 /// Note: This test requires the GEMINI_API_KEY environment variable to be set
 /// with a valid API key before running.
 #[test]
-#[cfg_attr(not(feature = "api"), ignore)]
+#[ignore] // Requires GEMINI_API_KEY
 fn test_real_api_call() {
     // This test relies on GEMINI_API_KEY being set before the test runs
     // Do not manipulate environment variables in the test itself
@@ -162,11 +161,9 @@ fn test_real_api_call() {
     let request = GenerateRequest {
         messages: vec![Message {
             role: Role::User,
-            content: vec![Input::Text(
-                "Say 'Hello, Boticelli!' and nothing else.".to_string(),
-            )],
+            content: vec![Input::Text("Say 'ok'".to_string())],
         }],
-        max_tokens: Some(20),
+        max_tokens: Some(10),
         temperature: Some(0.0),
         model: None,
     };
@@ -190,9 +187,9 @@ fn test_real_api_call() {
 /// Test that verifies client creation behavior and consumes tokens.
 ///
 /// This test checks that client creation succeeds when GEMINI_API_KEY is set.
-/// Run with: `cargo test --features gemini,api`
+/// Run with: `cargo test --features gemini -- --ignored`
 #[test]
-#[cfg_attr(not(feature = "api"), ignore)]
+#[ignore] // Requires GEMINI_API_KEY
 fn test_client_creation() {
     // Assumes GEMINI_API_KEY is already set in environment
     let result = GeminiClient::new();

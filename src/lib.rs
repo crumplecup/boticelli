@@ -156,7 +156,9 @@ pub use storage::{
 // Re-export model-specific error types
 // Re-export model implementations
 #[cfg(feature = "gemini")]
-pub use models::{GeminiClient, GeminiError, GeminiErrorKind, TieredGemini};
+pub use models::{
+    GeminiClient, GeminiError, GeminiErrorKind, GeminiLiveClient, LiveSession, TieredGemini,
+};
 
 // Re-export core trait
 pub use interface::BoticelliDriver;

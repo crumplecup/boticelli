@@ -1,1584 +1,332 @@
-# Gemini Streaming Implementation Plan
+# Gemini Live API WebSocket Implementation Plan
 
-## Overview
+**Date**: 2025-11-17
+**Status**: Planning Complete - Ready for Implementation
+**Priority**: HIGH (enables better rate limits on free tier)
+**Estimated Effort**: 10-15 hours
 
-This document outlines the plan to implement streaming support for Gemini models with bidirectional streaming capabilities (`bidiGenerateContent`) in the Boticelli library.
+## Executive Summary
 
-**CRITICAL FINDING**: The models `gemini-2.0-flash-live` and `gemini-2.5-flash-live` exist but use **WebSocket protocol**, not REST API.
+**Goal**: Implement WebSocket client support to access Gemini Live API models which have better free-tier rate limits.
 
-**Key Discovery** (2025-01-17):
-- ✅ Live models (`*-live`) exist but only via WebSocket API
-- ✅ REST API has 50 models, none with "live" suffix (correct)
-- ✅ Live API documented at: https://ai.google.dev/gemini-api/docs/live
-- ✅ WebSocket enables bidirectional, real-time streaming (audio/video/text)
-- ❌ Live models don't appear in REST `ListModels` endpoint
-- ❌ REST requests to live models return 404 (expected behavior)
+**Current Status**: REST API client works for standard models. Live API requires WebSocket protocol, which is not yet implemented.
 
-**Goal**: Implement WebSocket support for Gemini Live API to access low-latency, bidirectional streaming with better free-tier rate limits.
-
-**Date**: 2025-01-17  
-**Status**: Planning Phase - Architecture Design Needed  
-**Priority**: HIGH (enables better rate limits on free tier via Live API)  
-**Complexity**: HIGH (requires WebSocket client, different protocol from REST API)
+**Business Value**:
+- Better RPM/RPD limits on free tier (confirmed by user's API dashboard)
+- Access to real-time bidirectional streaming capabilities
+- Future-proofing for voice/multimodal interactions
 
 ---
 
-## API Investigation Results (2025-01-17)
+## Technical Research Findings
 
-### Two Separate APIs Discovered
+### WebSocket Endpoint
 
-**1. REST API** (`generativelanguage.googleapis.com`)
-- Endpoint: `https://generativelanguage.googleapis.com/v1beta/models`
-- Protocol: HTTP REST with optional SSE streaming
-- 50 models available
-- Models use suffixes like `-flash`, `-pro`, `-exp`
-- Simple request/response or unidirectional streaming
+**URL**: `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent`
 
-**2. Live API** (WebSocket endpoint - different domain)
-- Documentation: https://ai.google.dev/gemini-api/docs/live
-- Protocol: WebSocket (bidirectional, full-duplex)
-- Models: `gemini-2.0-flash-live`, `gemini-2.5-flash-live`
-- Real-time audio/video/text streaming
-- NOT listed in REST `/models` endpoint
-
-### Why Live Models Return 404 on REST API
-
-The test `test_streaming_with_live_model` attempts to use REST API endpoints with a Live API model:
-
+**Authentication**: API key as query parameter
 ```
-GET https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-live:streamGenerateContent
-Response: 404 NOT_FOUND - "models/gemini-2.0-flash-live is not found"
+wss://generativelanguage.googleapis.com/ws/...BidiGenerateContent?key=YOUR_API_KEY
 ```
 
-This is **expected behavior** - Live models don't exist on the REST API endpoint. They require:
-1. Different base URL (WebSocket, not HTTPS)
-2. Different protocol (WebSocket handshake, not HTTP POST)
-3. Different message format (WebSocket frames, not JSON POST body)
-
-### Live API Architecture
-
-**Models Available**:
-- `gemini-2.0-flash-live`
-- `gemini-2.5-flash-live` (newer, better audio quality)
-
-**Key Capabilities**:
-- Bidirectional streaming (send while receiving)
-- Real-time voice interactions (audio in/out)
-- Video input support
-- Text chat alongside audio/video
-- Low latency (~100-500ms)
-- Large context window (1M tokens)
-- Function calling, code execution, search
-
-**Connection Flow**:
-```
-1. WebSocket handshake with API key authentication
-2. Open persistent bidirectional connection
-3. Send messages (text/audio/video) as WebSocket frames
-4. Receive responses (text/audio) as WebSocket frames
-5. Close connection when done
-```
-
-**Example (Python SDK)**:
-```python
-from google import genai
-client = genai.Client()
-
-async with client.aio.live.connect(model="gemini-2.5-flash-live") as session:
-    await session.send_client_content(turns="Hello!", turn_complete=True)
-    async for response in session.receive_server_content():
-        print(response.text)
-```
-
-### REST API Models (bidiGenerateContent)
-
-For comparison, the REST API has 2 experimental models with `bidiGenerateContent` method:
-- `gemini-2.0-flash-exp`
-- `gemini-2.0-flash-exp-image-generation`
-
-**Important**: These use WebSocket/gRPC too (not simple HTTP streaming), similar to Live API.
-
----
-
-## Business Case
-
-### Original Assumption - VALIDATED ✅
-
-**Original Claim**: Live models have higher rate limits on free tier  
-**Reality**: Confirmed via user's API dashboard - Live models DO exist and have better limits
-
-### Value Proposition
-
-**Why Support Live API (WebSocket)?**
-1. ✅ **Better free tier rate limits** (primary goal)
-2. ✅ Access to real-time bidirectional streaming
-3. ✅ Future-proofing for voice/multimodal interactions
-4. ✅ Low-latency responses (~100-500ms vs seconds)
-5. ✅ Enables interactive conversational agents
-
-**Trade-off Analysis**:
-- ✅ Better rate limits (confirmed by user)
-- ✅ Cutting-edge features (audio, video, real-time)
-- ✅ Supported by official Google SDK
-- ❌ Higher complexity (WebSocket vs HTTP)
-- ❌ Different protocol requires new client implementation
-- ❌ More complex connection management (handshake, keepalive, reconnection)
-
-**Recommendation**: **PROCEED** - Better rate limits justify the implementation complexity.
-
----
-
-## Current State
-
-### What Works
-- ✅ All non-streaming Gemini models (2.0-flash, 2.5-flash, 2.5-pro, etc.)
-- ✅ Rate limiting per model
-- ✅ Model pooling with lazy initialization
-- ✅ Multi-model narratives
-- ✅ Vision support (base64 images)
-- ✅ Async operations with tokio
-
-### What Doesn't Work
-- ❌ Live API models (`gemini-2.0-flash-live`, `gemini-2.5-flash-live`)
-- ❌ WebSocket-based bidirectional streaming
-- ❌ Real-time audio/video interactions
-- ⚠️ **Note**: Live models exist but require WebSocket protocol (different from REST API)
-
-### Current Architecture
-
-```
-┌──────────────────┐
-│ GeminiClient     │
-│ (BoticelliDriver)│
-└────────┬─────────┘
-         │
-         ├─> ModelPool (HashMap<model_name, ClientWrapper>)
-         │   └─> RateLimiter -> gemini_rust::Gemini
-         │
-         └─> generate() -> GenerateResponse (blocking, returns complete response)
-```
-
----
-
-## Problem Analysis
-
-### What Are Bidirectional Streaming Models?
-
-**CORRECTION**: Original document assumed "live" models existed. After API investigation:
-
-**Reality**:
-- ❌ No "gemini-2.0-flash-live" model exists
-- ✅ 2 experimental models support `bidiGenerateContent`
-- ✅ These require bidirectional streaming (WebSocket/gRPC, not simple HTTP SSE)
-
-**Bidirectional Streaming Models** (`gemini-2.0-flash-exp`):
-- Real-time, interactive conversations
-- Voice/audio interactions
-- Client can send while receiving responses
-- More complex than unidirectional streaming
-
-### Why Original Assumption Was Wrong
-
-**Original Claim**: "Live models have better rate limits"
-**Source**: Likely confusion with:
-1. Experimental models (which may have different limits)
-2. Gemini Live API (a separate product for voice/video interactions)
-3. Streaming vs batch processing (streaming feels faster but same limits)
-
-**What We Actually Need**:
-- If goal is **better rate limits**: Check if experimental models have this
-- If goal is **streaming responses**: Standard models support SSE streaming
-- If goal is **interactive features**: Need bidirectional streaming (complex)
-
-### Current Limitations
-
-1. **gemini_rust Library**: Supports SSE streaming ✅, unclear on bidiGenerateContent ❓
-2. **BoticelliDriver Trait**: Returns complete `GenerateResponse`, not streaming
-3. **Narrative Executor**: Expects complete responses, not incremental
-4. **Rate Limiting**: Designed for request/response, needs streaming adaptation
-
----
-
-## Investigation Phase
-
-### Step 1: Assess gemini_rust Library ✅ COMPLETE
-
-**Investigation Date**: 2025-01-17
-
-#### Findings: gemini_rust DOES Support Streaming! 🎉
-
-**Version**: gemini-rust 1.5.1 (used by Boticelli)
-
-**Location**: `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gemini-rust-1.5.1`
-
-#### Streaming API Summary
-
-**Method**: `generate_content_stream()`
-
-```rust
-pub(crate) async fn generate_content_stream(
-    &self,
-    request: GenerateContentRequest,
-) -> Result<impl TryStreamExt<Ok = GenerationResponse, Error = Error> + Send + use<>, Error>
-```
-
-**Key Points**:
-1. ✅ **Protocol**: Server-Sent Events (SSE) via `alt=sse` query parameter
-2. ✅ **Stream Type**: Uses `futures::Stream` with `TryStreamExt`
-3. ✅ **Library**: `eventsource_stream` crate for SSE parsing
-4. ✅ **Response Format**: JSON chunks as `GenerationResponse` structs
-5. ✅ **Builder API**: `execute_stream()` on generation builder
-
-#### Code Example from gemini_rust
-
-```rust
-// From examples/basic_streaming.rs
-let mut stream = client
-    .generate_content()
-    .with_user_message("Tell me a story")
-    .execute_stream()
-    .await?;
-
-// Process chunks as they arrive
-while let Some(chunk) = stream.try_next().await? {
-    let text = chunk.text();
-    println!("{}", text);
-}
-```
-
-#### API Structure
-
-**Dependencies**:
-- `futures` crate: `Stream`, `StreamExt`, `TryStreamExt` traits
-- `eventsource_stream`: SSE event parsing
-- `async_stream` macro: For creating custom streams
-
-**GenerationResponse** (per chunk):
-```rust
-pub struct GenerationResponse {
-    pub candidates: Vec<Candidate>,
-    pub prompt_feedback: Option<PromptFeedback>,
-    pub usage_metadata: Option<UsageMetadata>,
-    pub model_version: Option<String>,
-}
-```
-
-Each chunk contains:
-- Text content (via `chunk.text()` helper)
-- Finish reason (when complete)
-- Usage metadata (tokens consumed)
-
-#### URL Pattern
-
-```
-POST https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse
-```
-
-The `streamGenerateContent` endpoint with `alt=sse` enables streaming.
-
-#### Examples Available
-
-gemini_rust includes two streaming examples:
-1. **`basic_streaming.rs`**: Simple streaming with real-time output
-2. **`streaming.rs`**: More advanced streaming features
-
-Both demonstrate:
-- Creating streaming requests
-- Processing chunks incrementally
-- Handling completion
-- Error handling
-
-#### Key Insights
-
-1. **No "Live" Model Needed**: Regular models (gemini-2.0-flash, gemini-2.5-flash) already support streaming
-2. **SSE Protocol**: Uses standard Server-Sent Events, not WebSocket
-3. **Unidirectional**: Client sends request once, server streams response (not bidirectional)
-4. **Same Authentication**: Uses same API key as non-streaming requests
-5. **Incremental Text**: Each chunk contains partial text that should be concatenated
-
-#### Questions Resolved
-
-| Question | Answer |
-|----------|--------|
-| Does gemini_rust support streaming? | ✅ YES |
-| What format? | `futures::Stream` with `TryStreamExt` |
-| Protocol? | Server-Sent Events (SSE) |
-| Bidirectional? | No - unidirectional (server → client) |
-| API surface? | `execute_stream()` on builder, returns stream of `GenerationResponse` |
-
-#### Implications for Boticelli
-
-**Good News**:
-- gemini_rust already has robust streaming support
-- We don't need to fork or implement HTTP directly
-- API is clean and idiomatic (futures-based streams)
-- Examples exist for reference
-
-**What We Need to Do**:
-1. Wrap `generate_content_stream()` in our `GeminiClient`
-2. Convert `GenerationResponse` stream to `StreamChunk` stream
-3. Add live model detection (models ending in `-live`)
-4. Handle rate limiting for streaming requests
-5. Add tests and documentation
-6. Test specifically with `gemini-2.0-flash-live` to confirm rate limit benefits
-
-**Complexity Reduced**: Since gemini_rust handles the hard parts (SSE parsing, connection management), our implementation is mostly adapting the stream format.
-
-### Step 2: Research Gemini Live API ✅ CLARIFIED
-
-**Critical Context from User**: 
-
-> "The purpose of streaming in the first place is to access the live models. When on the free tier, the live models have the most permissible use limits. We want to add support for these models because we can use them more frequently."
-
-#### Key Insights
-
-**Primary Goal**: Access to better rate limits on free tier
-
-**Model Naming**:
-- Standard: `gemini-2.0-flash`, `gemini-2.5-flash`
-- Live: `gemini-2.0-flash-live`, `gemini-2.5-flash-live` (or similar suffix)
-
-**Requirements**:
-- Live models **require streaming** - they don't work with regular generate API
-- Streaming is not just a performance optimization, it's the **only way** to use live models
-- Live models offer better RPM/RPD limits on free tier
-
-#### What We Know
-
-1. ✅ gemini_rust supports streaming via SSE
-2. ✅ Standard models support streaming (tested with examples)
-3. ⚠️ **Need to verify**: Do live models use the same SSE endpoint?
-4. ⚠️ **Need to verify**: Do live models require different authentication?
-5. ⚠️ **Need to verify**: Actual rate limit differences
-
-#### Questions for Testing
-
-**When implementing MVP, test with live models**:
-
-```rust
-// Test 1: Does live model work with same streaming API?
-let request = GenerateRequest {
-    model: Some("gemini-2.0-flash-live".to_string()),
-    // ... rest of request
-};
-let stream = client.generate_stream(&request).await?;
-
-// Test 2: Compare rate limits
-// - Make 100 requests to gemini-2.0-flash (standard)
-// - Make 100 requests to gemini-2.0-flash-live (live)
-// - Measure: Which one hits rate limits first?
-```
-
-**Expected Outcome**: 
-- Live models should work with existing streaming implementation
-- Live models should allow more requests before rate limiting
-- If they don't work, we'll get specific error messages to guide next steps
-
-#### Implementation Impact
-
-**Model Detection**:
-```rust
-impl GeminiClient {
-    fn is_live_model(model_name: &str) -> bool {
-        model_name.contains("-live")
+**Production Note**: For client-side connections, use ephemeral tokens instead of API keys for security.
+
+### Available Models
+
+Confirmed models that work with Live API:
+- `models/gemini-2.0-flash-exp`
+
+**To Verify**: Whether `gemini-2.0-flash-live` or `gemini-2.5-flash-live` exist (user mentioned these as having better rate limits).
+
+### Message Protocol
+
+#### Connection Handshake
+
+1. **Client sends setup message** (immediately after WebSocket connection):
+```json
+{
+  "setup": {
+    "model": "models/gemini-2.0-flash-exp",
+    "generationConfig": {
+      "responseModalities": ["TEXT"],
+      "temperature": 1.0,
+      "maxOutputTokens": 100
+    },
+    "systemInstruction": {
+      "parts": [{"text": "Optional system instruction"}]
     }
-    
-    fn parse_model_name(name: &str) -> (Model, bool) {
-        let is_live = Self::is_live_model(name);
-        let model = match name {
-            "gemini-2.0-flash-live" => Model::Custom("models/gemini-2.0-flash-live"),
-            "gemini-2.5-flash-live" => Model::Custom("models/gemini-2.5-flash-live"),
-            // ... other models
-            _ if name.contains("-live") => Model::Custom(format!("models/{}", name)),
-            // ... standard models
-        };
-        (model, is_live)
-    }
+  }
 }
 ```
 
-**Rate Limiter Configuration**:
+2. **Server responds with setupComplete**:
+```json
+{
+  "setupComplete": {}
+}
+```
+
+3. **Client must wait** for `setupComplete` before sending additional messages.
+
+#### Text Message Exchange
+
+**Client sends**:
+```json
+{
+  "clientContent": {
+    "turns": [
+      {
+        "role": "user",
+        "parts": [{"text": "Hello, how are you?"}]
+      }
+    ],
+    "turnComplete": true
+  }
+}
+```
+
+**Server responds**:
+```json
+{
+  "serverContent": {
+    "modelTurn": {
+      "parts": [{"text": "I'm doing well, thank you!"}]
+    },
+    "turnComplete": true
+  },
+  "usageMetadata": {
+    "promptTokenCount": 10,
+    "candidatesTokenCount": 20,
+    "totalTokenCount": 30
+  }
+}
+```
+
+#### Realtime Audio/Video Input (Optional)
+
+**Client sends**:
+```json
+{
+  "realtimeInput": {
+    "mediaChunks": [
+      {
+        "mimeType": "audio/pcm;rate=16000",
+        "data": "<base64_encoded_audio>"
+      }
+    ]
+  }
+}
+```
+
+#### Server Message Types
+
+All server messages include optional `usageMetadata` plus **exactly one** of:
+- `setupComplete` - Handshake confirmation
+- `serverContent` - Model-generated content
+- `toolCall` - Function call request
+- `toolCallCancellation` - Cancel previous tool calls
+- `goAway` - Disconnect warning
+- `sessionResumptionUpdate` - Session state for resumption
+
+#### Client Message Types
+
+All client messages contain **exactly one** of:
+- `setup` - Initial configuration (first message only)
+- `clientContent` - Text conversation turns
+- `realtimeInput` - Audio/video streaming data
+- `toolResponse` - Responses to function calls
+
+### Generation Config Options
+
 ```rust
-// In tier config, potentially different limits for live models
-pub struct TierConfig {
-    pub name: String,
-    pub rpm: Option<u32>,  // Live models might have higher values
-    pub rpd: Option<u32>,  // Live models might have higher values
-    // ...
+pub struct GenerationConfig {
+    pub candidate_count: Option<i32>,
+    pub max_output_tokens: Option<i32>,
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+    pub top_k: Option<i32>,
+    pub presence_penalty: Option<f64>,
+    pub frequency_penalty: Option<f64>,
+    pub response_modalities: Option<Vec<String>>, // ["TEXT", "AUDIO"]
+    // speech_config, media_resolution available for audio/video
 }
 ```
 
-#### Documentation Needed
-
-After implementation, update GEMINI.md with:
-
-```markdown
-## Live Models and Rate Limits
-
-Live models (e.g., `gemini-2.0-flash-live`) offer **higher rate limits** on the free tier, making them ideal for development and testing.
-
-### Using Live Models
-
-Live models require streaming:
-
-\`\`\`rust
-let client = GeminiClient::new()?;
-
-let request = GenerateRequest {
-    model: Some("gemini-2.0-flash-live".to_string()),
-    // ... your request
-};
-
-// MUST use generate_stream() - live models don't support generate()
-let mut stream = client.generate_stream(&request).await?;
-
-while let Some(chunk) = stream.try_next().await? {
-    print!("{}", chunk.text);
-    if chunk.finished { break; }
-}
-\`\`\`
-
-### Rate Limit Benefits
-
-Free tier comparison (example - verify actual values):
-
-| Model | RPM | RPD | Notes |
-|-------|-----|-----|-------|
-| gemini-2.0-flash | 15 | 1,500 | Standard |
-| gemini-2.0-flash-live | **30** | **3,000** | Better for dev |
-
-Use live models for:
-- Development and testing
-- Iterative prompt engineering  
-- High-frequency API calls
-- CI/CD test suites
-
-Use standard models for:
-- Production deployments
-- When streaming not needed
-- Batch processing
-\`\`\`
-```
-
-#### Status
-
-- ✅ Understand business case (better rate limits)
-- ✅ Understand requirement (must use streaming)
-- ⚠️ Need to verify live model specifics during implementation
-- ⚠️ Need to document actual rate limit differences
-
-**Action Item**: First MVP test should be with `gemini-2.0-flash-live` to confirm it works and measure rate limit benefits.
+**Note**: The following fields from standard API are **not supported** in Live API:
+- `responseLogprobs`
+- `responseMimeType`
+- `responseSchema`
+- `stopSequence`
+- `routingConfig`
 
 ---
 
-## Implementation Strategy
+## Implementation Architecture
 
-### Phase 1: Extend BoticelliDriver Trait (Foundation)
+### Module Structure
 
-**Goal**: Add streaming capability alongside existing blocking API
-
-#### Option A: New Trait Method (Recommended)
-
-```rust
-#[async_trait]
-pub trait BoticelliDriver: Send + Sync {
-    // Existing method (unchanged)
-    async fn generate(&self, request: &GenerateRequest) -> BoticelliResult<GenerateResponse>;
-    
-    // New streaming method
-    async fn generate_stream(
-        &self,
-        request: &GenerateRequest,
-    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>>;
-    
-    // Optional: Check if model supports streaming
-    fn supports_streaming(&self, model: &str) -> bool {
-        false  // Default: no streaming
-    }
-}
-
-/// Incremental response chunk from streaming API
-#[derive(Debug, Clone)]
-pub struct StreamChunk {
-    pub text: String,
-    pub finished: bool,
-    pub metadata: Option<ChunkMetadata>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ChunkMetadata {
-    pub tokens_generated: Option<u32>,
-    pub finish_reason: Option<String>,
-}
+```
+src/gemini/
+├── mod.rs              # Module exports
+├── client.rs           # Existing REST client (GeminiClient)
+├── live_client.rs      # NEW: WebSocket client (GeminiLiveClient)
+├── live_protocol.rs    # NEW: Message types for Live API
+├── error.rs            # Extend with Live API errors
+└── rate_limit.rs       # Extend for WebSocket rate limiting
 ```
 
-**Pros**:
-- Backward compatible (existing code unchanged)
-- Clear separation of streaming vs. blocking
-- Opt-in for drivers that support streaming
+### Core Types
 
-**Cons**:
-- Drivers must implement both methods (or provide default)
-- Consumers must handle two code paths
-
-#### Option B: Callback-Based (Alternative)
-
-```rust
-#[async_trait]
-pub trait BoticelliDriver: Send + Sync {
-    async fn generate(&self, request: &GenerateRequest) -> BoticelliResult<GenerateResponse>;
-    
-    async fn generate_with_callback<F>(
-        &self,
-        request: &GenerateRequest,
-        on_chunk: F,
-    ) -> BoticelliResult<GenerateResponse>
-    where
-        F: Fn(StreamChunk) + Send + Sync;
-}
-```
-
-**Pros**:
-- Still returns complete response at end
-- Allows progressive updates during generation
-
-**Cons**:
-- Less flexible than Stream
-- Harder to compose with other async code
-
-**Recommendation**: Use **Option A** (Stream-based) for maximum flexibility.
-
----
-
-### Phase 2: Implement Streaming in GeminiClient
-
-#### 2.1: Add Streaming Support to ModelClientWrapper
-
-```rust
-struct ModelClientWrapper {
-    client: Gemini,
-    rate_limiter: Option<RateLimiter>,
-    supports_streaming: bool,  // New field
-}
-
-impl ModelClientWrapper {
-    async fn generate_stream(
-        &self,
-        request: &GenerateRequest,
-    ) -> BoticelliResult<impl Stream<Item = BoticelliResult<StreamChunk>>> {
-        // Apply rate limiting
-        if let Some(limiter) = &self.rate_limiter {
-            limiter.acquire().await?;
-        }
-        
-        // Call gemini_rust streaming API
-        let stream = self.client.generate_content_stream(/* ... */)?;
-        
-        // Transform gemini_rust stream into BoticelliResult<StreamChunk>
-        Ok(stream.map(|result| {
-            result
-                .map_err(|e| GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string())).into())
-                .and_then(|chunk| convert_gemini_chunk_to_boticelli(chunk))
-        }))
-    }
-}
-```
-
-#### 2.2: Detect Streaming-Capable Models
-
-```rust
-impl GeminiClient {
-    fn model_supports_streaming(model_name: &str) -> bool {
-        model_name.contains("-live") || model_name.contains("-streaming")
-    }
-    
-    fn parse_model_name(name: &str) -> (Model, bool) {
-        let supports_streaming = Self::model_supports_streaming(name);
-        let model = match name {
-            "gemini-2.0-flash-live" => Model::Custom("models/gemini-2.0-flash-live"),
-            // ... other models
-        };
-        (model, supports_streaming)
-    }
-}
-```
-
-#### 2.3: Implement BoticelliDriver::generate_stream
-
-```rust
-#[async_trait]
-impl BoticelliDriver for GeminiClient {
-    async fn generate_stream(
-        &self,
-        request: &GenerateRequest,
-    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>> {
-        let model_name = self.resolve_model_name(request);
-        
-        // Check if model supports streaming
-        if !Self::model_supports_streaming(&model_name) {
-            return Err(GeminiError::new(GeminiErrorKind::StreamingNotSupported(model_name)).into());
-        }
-        
-        let wrapper = self.get_or_create_client(&model_name).await?;
-        let stream = wrapper.generate_stream(request).await?;
-        
-        Ok(Box::pin(stream))
-    }
-    
-    fn supports_streaming(&self, model: &str) -> bool {
-        Self::model_supports_streaming(model)
-    }
-}
-```
-
----
-
-## Concrete Implementation Plan (Based on Findings)
-
-### Quick Win: Minimal Streaming Implementation
-
-Based on our investigation, here's a **minimal viable implementation** that could be done in 1-2 days:
-
-#### Step 1: Add StreamChunk Type (5 minutes)
-
-```rust
-// In src/models/mod.rs or src/driver.rs
-
-/// Incremental response chunk from streaming API
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamChunk {
-    /// Text content in this chunk
-    pub text: String,
-    
-    /// Whether this is the final chunk
-    pub finished: bool,
-    
-    /// Optional metadata about this chunk
-    pub metadata: Option<ChunkMetadata>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChunkMetadata {
-    /// Tokens generated so far
-    pub tokens_generated: Option<u32>,
-    
-    /// Why generation stopped (if finished)
-    pub finish_reason: Option<String>,
-}
-```
-
-#### Step 2: Extend BoticelliDriver Trait (10 minutes)
-
-```rust
-// In src/driver.rs
-
-use futures::stream::Stream;
-use std::pin::Pin;
-
-#[async_trait]
-pub trait BoticelliDriver: Send + Sync {
-    // Existing method (unchanged)
-    async fn generate(&self, request: &GenerateRequest) -> BoticelliResult<GenerateResponse>;
-    
-    // New streaming method with default implementation
-    async fn generate_stream(
-        &self,
-        request: &GenerateRequest,
-    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>> {
-        // Default: not supported
-        Err(BackendError::new("Streaming not supported by this driver").into())
-    }
-    
-    // Check if driver supports streaming
-    fn supports_streaming(&self) -> bool {
-        false  // Default: no streaming
-    }
-}
-```
-
-#### Step 3: Implement in GeminiClient (30 minutes)
-
-```rust
-// In src/models/gemini.rs
-
-use futures::{Stream, StreamExt, TryStreamExt};
-use std::pin::Pin;
-
-#[async_trait]
-impl BoticelliDriver for GeminiClient {
-    // ... existing generate() implementation unchanged ...
-    
-    async fn generate_stream(
-        &self,
-        request: &GenerateRequest,
-    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>> {
-        let model_name = self.resolve_model_name(request);
-        let wrapper = self.get_or_create_client(&model_name).await?;
-        
-        // Apply rate limiting (count as single request)
-        if let Some(limiter) = &wrapper.rate_limiter {
-            limiter.acquire().await?;
-        }
-        
-        // Build gemini_rust request (reuse existing conversion)
-        let gemini_request = self.build_gemini_request(request)?;
-        
-        // Call gemini_rust streaming API
-        let gemini_stream = wrapper.client
-            .generate_content_stream(gemini_request)
-            .await
-            .map_err(|e| GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string())))?;
-        
-        // Transform gemini GenerationResponse stream to our StreamChunk stream
-        let chunk_stream = gemini_stream
-            .map(|result| {
-                result
-                    .map_err(|e| GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string())).into())
-                    .and_then(|response| convert_to_stream_chunk(response))
-            });
-        
-        Ok(Box::pin(chunk_stream))
-    }
-    
-    fn supports_streaming(&self) -> bool {
-        true  // Gemini supports streaming
-    }
-}
-
-/// Convert gemini_rust GenerationResponse to our StreamChunk
-fn convert_to_stream_chunk(response: gemini_rust::GenerationResponse) -> BoticelliResult<StreamChunk> {
-    let text = response.text();  // gemini_rust helper method
-    
-    let finished = response
-        .candidates
-        .first()
-        .and_then(|c| c.finish_reason.as_ref())
-        .is_some();
-    
-    let metadata = response.usage_metadata.map(|usage| ChunkMetadata {
-        tokens_generated: Some(usage.total_token_count),
-        finish_reason: response.candidates
-            .first()
-            .and_then(|c| c.finish_reason.as_ref())
-            .map(|r| format!("{:?}", r)),
-    });
-    
-    Ok(StreamChunk {
-        text,
-        finished,
-        metadata,
-    })
-}
-```
-
-#### Step 4: Add Basic Test (20 minutes)
-
-```rust
-// In tests/gemini_streaming_test.rs
-
-#![cfg(feature = "gemini")]
-
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input};
-use futures::StreamExt;
-
-#[tokio::test]
-async fn test_basic_streaming() {
-    let _ = dotenvy::dotenv();
-    
-    let client = GeminiClient::new().expect("Failed to create client");
-    
-    assert!(client.supports_streaming(), "Gemini should support streaming");
-    
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Count from 1 to 5".to_string())],
-        }],
-        model: Some("gemini-2.0-flash".to_string()),
-        ..Default::default()
-    };
-    
-    let mut stream = client.generate_stream(&request).await.expect("Stream creation failed");
-    
-    let mut chunks = Vec::new();
-    while let Some(chunk_result) = stream.next().await {
-        let chunk = chunk_result.expect("Chunk error");
-        chunks.push(chunk.text.clone());
-        
-        if chunk.finished {
-            break;
-        }
-    }
-    
-    assert!(!chunks.is_empty(), "Should receive at least one chunk");
-    
-    let full_text = chunks.join("");
-    println!("Streaming result: {}", full_text);
-    
-    // Should contain numbers
-    assert!(full_text.contains('1') || full_text.contains("one"), 
-        "Response should contain counting");
-}
-
-#[tokio::test]
-async fn test_streaming_matches_non_streaming() {
-    let _ = dotenvy::dotenv();
-    
-    let client = GeminiClient::new().expect("Failed to create client");
-    
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'Hello World' exactly".to_string())],
-        }],
-        model: Some("gemini-2.0-flash".to_string()),
-        ..Default::default()
-    };
-    
-    // Get streaming response
-    let mut stream = client.generate_stream(&request).await.expect("Stream failed");
-    let mut streaming_text = String::new();
-    while let Some(chunk_result) = stream.next().await {
-        let chunk = chunk_result.expect("Chunk error");
-        streaming_text.push_str(&chunk.text);
-        if chunk.finished {
-            break;
-        }
-    }
-    
-    // Get non-streaming response  
-    let response = client.generate(&request).await.expect("Generate failed");
-    let non_streaming_text = response.outputs.iter()
-        .filter_map(|o| match o {
-            boticelli::Output::Text(t) => Some(t.clone()),
-            _ => None,
-        })
-        .collect::<String>();
-    
-    // They should be similar (may have minor formatting differences)
-    assert!(!streaming_text.is_empty());
-    assert!(!non_streaming_text.is_empty());
-    
-    println!("Streaming: {}", streaming_text);
-    println!("Non-streaming: {}", non_streaming_text);
-}
-```
-
-#### Step 5: Update Dependencies (if needed)
-
-Check if we need to add to `Cargo.toml`:
-
-```toml
-[dependencies]
-# These might already be present for gemini_rust
-futures = "0.3"
-```
-
-#### Step 6: Documentation (15 minutes)
-
-Add to GEMINI.md:
-
-```markdown
-## Streaming Support
-
-Gemini models support streaming responses for real-time content generation:
-
-\`\`\`rust
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest};
-use futures::StreamExt;
-
-let client = GeminiClient::new()?;
-
-let request = GenerateRequest {
-    // ... your request
-};
-
-let mut stream = client.generate_stream(&request).await?;
-
-while let Some(chunk_result) = stream.next().await {
-    let chunk = chunk_result?;
-    print!("{}", chunk.text);
-    
-    if chunk.finished {
-        break;
-    }
-}
-\`\`\`
-
-### When to Use Streaming
-
-- **Real-time UI updates**: Show content as it's generated
-- **Long responses**: Display progress during generation
-- **Interactive applications**: Provide faster perceived responsiveness
-
-### Limitations
-
-- Rate limiting counts the entire stream as one request
-- Cannot partially cancel a stream (yet)
-- Narratives don't support streaming (use `generate()` instead)
-```
-
-### Total Time Estimate: 2-3 hours for MVP
-
-This gets you:
-- ✅ Working streaming support in GeminiClient
-- ✅ Backward compatible (no breaking changes)
-- ✅ Basic tests
-- ✅ Documentation
-
-### What's NOT Included in MVP
-
-- Streaming in narrative executor
-- Advanced rate limiting (per-chunk)
-- Cancellation support
-- CLI streaming output
-- Multiple simultaneous streams
-
-These can be added incrementally later.
-
----
-
-### Phase 3: Update Narrative Executor (Optional)
-
-**Decision Point**: Do we need streaming in narrative execution?
-
-#### Scenario A: No Narrative Streaming (Simpler)
-
-- Narratives continue using blocking `generate()`
-- Streaming is opt-in for custom code
-- No changes needed to narrative executor
-
-#### Scenario B: Progressive Narrative Execution (Advanced)
-
-- Allow narratives to show progress as content generates
-- Useful for long generations
-- Requires executor changes
-
-```rust
-// Example: Stream-aware executor
-impl<D: BoticelliDriver> NarrativeExecutor<D> {
-    pub async fn execute_with_progress<N, F>(
-        &self,
-        narrative: &N,
-        on_progress: F,
-    ) -> BoticelliResult<NarrativeExecution>
-    where
-        N: NarrativeProvider,
-        F: Fn(&str, &StreamChunk) + Send + Sync,
-    {
-        // For each act, if model supports streaming, use generate_stream
-        // Otherwise fall back to generate()
-        // ...
-    }
-}
-```
-
-**Recommendation**: Start with **Scenario A**. Add Scenario B later if needed.
-
----
-
-### Phase 4: Testing Strategy
-
-#### Unit Tests
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use futures::StreamExt;
-    
-    #[tokio::test]
-    async fn test_streaming_basic() {
-        let client = GeminiClient::new().unwrap();
-        
-        let request = GenerateRequest {
-            messages: vec![Message {
-                role: Role::User,
-                content: vec![Input::Text("Count to 10".to_string())],
-            }],
-            model: Some("gemini-2.0-flash-live".to_string()),
-            ..Default::default()
-        };
-        
-        let mut stream = client.generate_stream(&request).await.unwrap();
-        let mut chunks = Vec::new();
-        
-        while let Some(chunk_result) = stream.next().await {
-            let chunk = chunk_result.unwrap();
-            chunks.push(chunk.text.clone());
-            
-            if chunk.finished {
-                break;
-            }
-        }
-        
-        assert!(!chunks.is_empty());
-        let full_text = chunks.join("");
-        assert!(full_text.contains("1"));
-    }
-    
-    #[tokio::test]
-    async fn test_non_streaming_model_returns_error() {
-        let client = GeminiClient::new().unwrap();
-        
-        let request = GenerateRequest {
-            model: Some("gemini-2.0-flash".to_string()),  // Non-streaming
-            ..Default::default()
-        };
-        
-        let result = client.generate_stream(&request).await;
-        assert!(result.is_err());
-    }
-}
-```
-
-#### Integration Tests
-
-```rust
-#[tokio::test]
-async fn test_streaming_rate_limiting() {
-    // Verify rate limiter works with streaming
-}
-
-#[tokio::test]
-async fn test_streaming_error_handling() {
-    // Verify graceful handling of mid-stream errors
-}
-
-#[tokio::test]
-async fn test_streaming_cancellation() {
-    // Verify stream cleanup on early termination
-}
-```
-
----
-
-## Error Handling
-
-### New Error Types
-
-```rust
-pub enum GeminiErrorKind {
-    // Existing variants...
-    
-    /// Model doesn't support streaming
-    StreamingNotSupported(String),
-    
-    /// Stream was interrupted
-    StreamInterrupted(String),
-    
-    /// Stream exceeded timeout
-    StreamTimeout,
-}
-```
-
-### Error Scenarios
-
-1. **Model doesn't support streaming**: Return error immediately
-2. **Connection drops mid-stream**: Wrap in StreamInterrupted error
-3. **Rate limit hit during stream**: Pause stream, resume when allowed
-4. **Client cancels stream**: Clean up resources properly
-
----
-
-## Rate Limiting Considerations
-
-### Challenge
-
-Current rate limiter is designed for discrete requests. Streaming sessions may:
-- Last minutes (not milliseconds)
-- Generate many tokens incrementally
-- Need different RPM/TPM accounting
-
-### Solutions
-
-#### Option 1: Count Stream as Single Request
-
-```rust
-// Acquire rate limit token at start of stream
-limiter.acquire().await?;
-
-// Stream proceeds without further checks
-// Tokens counted at end of stream
-```
-
-**Pros**: Simple  
-**Cons**: Doesn't account for long-running streams
-
-#### Option 2: Periodic Rate Limit Checks
-
-```rust
-// Check rate limit every N chunks or N seconds
-let mut chunk_count = 0;
-while let Some(chunk) = stream.next().await {
-    chunk_count += 1;
-    
-    if chunk_count % 100 == 0 {
-        limiter.check_and_wait().await?;
-    }
-    
-    yield chunk;
-}
-```
-
-**Pros**: Better accounting  
-**Cons**: More complex, may interrupt flow
-
-**Recommendation**: Start with **Option 1**, monitor usage, add Option 2 if needed.
-
----
-
-## Migration Path
-
-### Phase 1: Foundation (Week 1-2)
-- [ ] Investigate gemini_rust streaming capabilities
-- [ ] Research Gemini Live API protocol
-- [ ] Design BoticelliDriver streaming extension
-- [ ] Create proof-of-concept with direct HTTP if needed
-
-### Phase 2: Core Implementation (Week 3-4)
-- [ ] Extend BoticelliDriver trait
-- [ ] Implement streaming in GeminiClient
-- [ ] Add model detection for streaming support
-- [ ] Write unit tests
-
-### Phase 3: Integration (Week 5)
-- [ ] Test with real Gemini Live models
-- [ ] Add integration tests
-- [ ] Document usage in GEMINI.md
-- [ ] Add examples
-
-### Phase 4: Polish (Week 6)
-- [ ] Rate limiting refinements
-- [ ] Error handling improvements
-- [ ] Performance testing
-- [ ] User guide for streaming
-
----
-
-## Open Questions
-
-1. **Does gemini_rust support streaming?**
-   - If no: Do we fork it, contribute upstream, or implement direct HTTP?
-
-2. **What protocol does Gemini Live use?**
-   - WebSocket? SSE? gRPC?
-   - This affects implementation significantly
-
-3. **How do Live models authenticate?**
-   - Same API key as regular models?
-   - Different endpoints?
-
-4. **Are there different rate limits for streaming?**
-   - Same RPM/TPM as non-streaming?
-   - Per-session limits?
-
-5. **Do we need streaming in narratives?**
-   - Or just for custom code/CLI?
-   - Impacts executor changes
-
-6. **Should we support cancellation?**
-   - Allow users to stop streams mid-generation?
-   - How does this interact with rate limiting?
-
----
-
-## Success Criteria
-
-### Minimum Viable Product (MVP)
-
-**Primary Goal**: Enable use of live models for better free tier rate limits
-
-- [ ] Can successfully connect to `gemini-2.0-flash-live` model
-- [ ] Receive incremental responses as stream
-- [ ] Stream completes successfully
-- [ ] Errors handled gracefully
-- [ ] Basic rate limiting works
-- [ ] **Can make significantly more requests with live models vs. standard models** ⭐
-
-### Validation Tests
-
-**Rate Limit Comparison** (run during testing):
-```bash
-# Test 1: Standard model
-time for i in {1..50}; do 
-    boticelli run --model gemini-2.0-flash quick_test.toml
-done
-
-# Test 2: Live model (should succeed where standard fails)
-time for i in {1..50}; do
-    boticelli run --model gemini-2.0-flash-live quick_test.toml  
-done
-```
-
-Expected: Live model allows more requests before hitting rate limits
-
-### Full Implementation
-
-- [ ] All live models work (flash-live, pro-live variants)
-- [ ] Standard models also support streaming (nice-to-have)
-- [ ] Rate limiting properly accounts for streaming
-- [ ] Comprehensive tests (unit + integration)
-- [ ] Documentation with live model usage guide
-- [ ] CLI supports streaming with `--stream` flag (optional)
-- [ ] Backward compatible with existing code
-- [ ] **Rate limit benefits clearly documented** ⭐
-
----
-
-## Resources
-
-### Documentation
-- [Gemini API Reference](https://ai.google.dev/api/generate-content)
-- [Tokio Streams](https://docs.rs/tokio-stream/latest/tokio_stream/)
-- [Async Streams in Rust](https://rust-lang.github.io/async-book/05_streams/01_chapter.html)
-
-### Libraries
-- `tokio-stream`: Stream utilities
-- `futures`: Stream trait and combinators
-- `async-stream`: Macro for creating streams
-- `pin-project`: Pin projection for streams
-
-### Similar Implementations
-- OpenAI Rust SDK (streaming support)
-- Anthropic Rust SDK (streaming support)
-- gRPC Rust examples (bidirectional streaming)
-
----
-
-## Notes
-
-- Start with read-only investigation of gemini_rust
-- Prototype with smallest possible change
-- Consider backward compatibility at each step
-- Document learnings as we go
-- Update this document with findings
-
----
-
-## Timeline Estimate
-
-### Original Estimate (Before Investigation)
-
-- **Investigation**: 1-2 weeks
-- **Design & Prototyping**: 1-2 weeks  
-- **Implementation**: 2-3 weeks
-- **Testing & Documentation**: 1 week
-- **Total**: 5-8 weeks for full implementation
-
-### Revised Estimate (After Investigation)
-
-**Major Discovery**: gemini_rust already has complete streaming support via SSE!
-
-#### Fast Track MVP: 2-3 hours ⚡
-
-- [ ] Add StreamChunk type (5 min)
-- [ ] Extend BoticelliDriver trait (10 min)
-- [ ] Implement in GeminiClient (30 min)
-- [ ] Add basic tests (20 min)
-- [ ] Update dependencies if needed (5 min)
-- [ ] Write documentation (15 min)
-- [ ] Test end-to-end (30 min)
-
-**Result**: Working streaming for all Gemini models
-
-#### Full Implementation: 1-2 weeks
-
-**Week 1**:
-- [ ] MVP implementation (Day 1)
-- [ ] Comprehensive tests (Day 2)
-- [ ] Rate limiting refinements (Day 3)
-- [ ] Error handling edge cases (Day 4)
-- [ ] Documentation and examples (Day 5)
-
-**Week 2** (Optional enhancements):
-- [ ] CLI streaming support
-- [ ] Narrative executor streaming (if desired)
-- [ ] Cancellation support
-- [ ] Performance optimization
-- [ ] Advanced rate limiting (per-chunk)
-
-**Complexity**: Reduced from HIGH to MEDIUM-LOW due to gemini_rust's existing support
-
----
-
-## Next Steps
-
-### Immediate (Day 1)
-
-1. ✅ **Investigation Complete** - gemini_rust supports streaming via SSE
-2. [ ] Create feature branch: `git checkout -b feature/gemini-streaming`
-3. [ ] Implement MVP (Steps 1-6 above)
-4. [ ] Run tests: `cargo test --features gemini`
-5. [ ] Commit: "Add streaming support to GeminiClient (MVP)"
-
-### Short Term (Week 1)
-
-6. [ ] Add integration tests
-7. [ ] Test with different models (gemini-2.0-flash, gemini-2.5-flash, etc.)
-8. [ ] Add CLI example: `boticelli run --stream narrative.toml`
-9. [ ] Update GEMINI.md with streaming guide
-10. [ ] PR review and merge
-
-### Future Enhancements (Week 2+)
-
-11. [ ] Narrative executor streaming support (if needed)
-12. [ ] Advanced rate limiting for long streams
-13. [ ] Streaming cancellation/timeout
-14. [ ] Performance benchmarks
-15. [ ] Real-time progress indicators in CLI
-16. [ ] Automatic model fallback (live → standard on rate limit)
-
----
-
-## Conclusion
-
-**Status Update**: Investigation phase COMPLETE ✅
-
-**Primary Goal**: Enable `gemini-2.0-flash-live` and other live models to access **significantly better rate limits** on the free tier, enabling more frequent API usage during development.
-
-**Key Finding**: gemini_rust v1.5.1 has excellent streaming support via Server-Sent Events (SSE). This dramatically simplifies our implementation.
-
-**Business Impact**: 
-- Unlock higher RPM/RPD limits on free tier
-- Enable more extensive testing without hitting limits
-- Faster iteration cycles during development
-- Better CI/CD test coverage
-
-**Technical Approach**: 
-- Implement streaming in 2-3 hours (MVP)
-- Test specifically with `gemini-2.0-flash-live` to validate rate limit benefits
-- Document rate limit differences for users
-- Provide clear migration path from standard to live models
-
-**Recommendation**: Proceed with MVP implementation immediately. The hard work is already done by gemini_rust - we just need to:
-1. Adapt the stream format to our `StreamChunk` type
-2. Add live model detection
-3. Test and document rate limit benefits
-
-**Confidence Level**: HIGH - Clear path forward with working examples and robust library support.
-
-**Next Action**: Create feature branch and implement Steps 1-6 of MVP plan (estimated 2-3 hours).
-
----
-
-## UPDATED RECOMMENDATIONS (2025-01-17)
-
-### Critical Discovery: "Live" Models Don't Exist
-
-After querying the Gemini v1beta API (`ListModels`), we confirmed:
-- ❌ **NO models named "gemini-2.0-flash-live" exist**
-- ❌ **NO models with "live" in the name exist**
-- ✅ 2 models support `bidiGenerateContent` (bidirectional streaming):
-  - `gemini-2.0-flash-exp`
-  - `gemini-2.0-flash-exp-image-generation`
-
-### What This Means
-
-**Original Plan**: Implement streaming to access "live" models with better rate limits
-**Reality**: The premise was incorrect - those models don't exist
-
-### Revised Options
-
-#### Option 1: STOP - No Action Needed (RECOMMENDED) ✅
-
-**Rationale**:
-- Original goal (better rate limits via "live" models) is unachievable
-- Current implementation works with all 48 available Gemini models
-- SSE streaming exists in gemini_rust but we don't need it yet
-- No user-facing benefit until we need interactive features
-
-**When to Revisit**:
-- Google releases actual "live" or bidirectional streaming models
-- We need real-time interactive features (voice, chat)
-- We hit rate limits and need experimental model access
-
-#### Option 2: Implement SSE Streaming Anyway (LOW PRIORITY)
-
-**Reasons TO implement**:
-- Future-proofing for when streaming models arrive
-- Enable progressive UI updates (show text as it generates)
-- Practice with streaming patterns
-
-**Reasons NOT TO implement**:
-- No immediate business value
-- Adds complexity without user benefit
-- Standard models work fine for our use case
-
-#### Option 3: Investigate Bidirectional Streaming (NOT RECOMMENDED)
-
-**Why NOT**:
-- Requires WebSocket/gRPC (much more complex than SSE)
-- Only 2 experimental models support it
-- Experimental models may be unstable/deprecated
-- No confirmed rate limit benefits
-- High effort, unknown reward
-
-### Final Recommendation
-
-**CLOSE THIS WORK ITEM** and update tests:
-
-1. Remove `test_streaming_with_live_model` test (model doesn't exist)
-2. Document finding in GEMINI.md: "Note: As of 2025-01-17, no 'live' models exist"
-3. Keep SSE streaming investigation in this doc for future reference
-4. Revisit if Google announces live/streaming models with better limits
-
-**Alternative**: If you want streaming UI (text appears as generated):
-- Implement SSE streaming as a nice-to-have feature
-- Use with existing models (2.0-flash, 2.5-flash, etc.)
-- Don't expect rate limit improvements
-
-### Test Cleanup Required
-
-Current failing test:
-```rust
-#[tokio::test]
-#[cfg_attr(not(feature = "api"), ignore)]
-async fn test_streaming_with_live_model() {
-    // ... tries to use "gemini-2.0-flash-live" which doesn't exist
-}
-```
-
-**Action**: Mark as `#[ignore]` with comment: "Model doesn't exist - see GEMINI_STREAMING.md"
-Or delete entirely since it's testing a non-existent model.
-
-
----
-
-## WebSocket Implementation Plan (Updated 2025-01-17)
-
-### Architecture Overview
-
-**Goal**: Add WebSocket client support to access Gemini Live API models (`gemini-2.0-flash-live`, `gemini-2.5-flash-live`)
-
-**Why**: Better free-tier rate limits confirmed by user's API dashboard
-
-### Key Requirements
-
-1. **New Protocol**: WebSocket (not REST API)
-2. **Separate Endpoint**: Different base URL from REST API
-3. **Bidirectional**: Can send while receiving (full-duplex)
-4. **Authentication**: API key via query parameter or headers
-5. **Message Format**: JSON over WebSocket frames
-6. **Connection Management**: Handshake, keepalive, reconnection logic
-
-### Implementation Strategy
-
-#### Phase 1: Dependency Selection
-
-**WebSocket Client Options**:
-1. `tokio-tungstenite` - Async WebSocket built on tokio (recommended)
-2. `async-tungstenite` - Alternative async WebSocket
-3. `ws` - Synchronous WebSocket (not suitable with tokio)
-
-**Recommendation**: Use `tokio-tungstenite` for seamless tokio integration
-
-**Dependencies to Add**:
-```toml
-[dependencies]
-tokio-tungstenite = "0.21"
-futures-util = "0.3" # For stream combinators
-serde_json = "1.0"   # Already have this
-```
-
-#### Phase 2: Client Architecture
-
-**New Module**: `src/gemini/live_client.rs`
+#### GeminiLiveClient
 
 ```rust
 pub struct GeminiLiveClient {
     api_key: String,
-    ws_endpoint: String, // Different from REST endpoint
-}
-
-pub struct LiveSession {
-    ws_stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    model: String,
 }
 
 impl GeminiLiveClient {
-    pub async fn connect(&self, model: &str) -> Result<LiveSession, GeminiError> {
+    pub async fn connect(&self, model: &str) -> GeminiResult<LiveSession> {
         // 1. Build WebSocket URL with API key
         // 2. Perform WebSocket handshake
-        // 3. Return session for bidirectional communication
+        // 3. Send setup message
+        // 4. Wait for setupComplete
+        // 5. Return LiveSession
     }
+}
+```
+
+#### LiveSession
+
+```rust
+pub struct LiveSession {
+    ws_stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    model: String,
+    rate_limiter: Option<LiveRateLimiter>,
 }
 
 impl LiveSession {
-    pub async fn send_text(&mut self, text: &str) -> Result<(), GeminiError> {
-        // Send text message as JSON WebSocket frame
-    }
-    
-    pub async fn receive(&mut self) -> Result<LiveResponse, GeminiError> {
-        // Receive and parse WebSocket frame
-    }
-    
-    pub fn stream_responses(&mut self) -> impl Stream<Item = Result<LiveResponse, GeminiError>> {
-        // Return futures::Stream for async iteration
-    }
+    /// Send a text message and get complete response
+    pub async fn send_text(&mut self, text: &str) -> GeminiResult<String>;
+
+    /// Send a text message and stream responses
+    pub async fn send_text_stream(&mut self, text: &str)
+        -> GeminiResult<impl Stream<Item = GeminiResult<LiveChunk>>>;
+
+    /// Close the session gracefully
+    pub async fn close(self) -> GeminiResult<()>;
 }
 ```
 
-#### Phase 3: Message Protocol
+#### Message Protocol Types
 
-**Request Format** (based on Google SDK documentation):
-```json
-{
-  "client_content": {
-    "turns": [{"role": "user", "parts": [{"text": "Hello"}]}],
-    "turn_complete": true
-  }
+```rust
+// Client messages
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupMessage {
+    pub setup: SetupConfig,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupConfig {
+    pub model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation_config: Option<GenerationConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_instruction: Option<SystemInstruction>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientContentMessage {
+    pub client_content: ClientContent,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientContent {
+    pub turns: Vec<Turn>,
+    pub turn_complete: bool,
+}
+
+// Server messages
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerMessage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub setup_complete: Option<SetupComplete>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_content: Option<ServerContent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage_metadata: Option<UsageMetadata>,
+    // ... other message types
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerContent {
+    pub model_turn: ModelTurn,
+    pub turn_complete: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelTurn {
+    pub parts: Vec<Part>,
 }
 ```
 
-**Response Format**:
-```json
-{
-  "server_content": {
-    "model_turn": {
-      "parts": [{"text": "Hello! How can I help you?"}]
-    },
-    "turn_complete": true
-  }
-}
-```
+### Integration with Existing Code
 
-#### Phase 4: Integration with Existing Code
+Update `GeminiClient` to detect and route to Live API:
 
-**Update `GeminiClient`**:
 ```rust
 pub struct GeminiClient {
-    rest_client: GeminiRestClient,  // Existing REST API client
-    live_client: Option<GeminiLiveClient>,  // New WebSocket client
+    rest_pool: ModelPool,           // Existing REST clients
+    live_client: GeminiLiveClient,  // New WebSocket client
 }
 
 impl GeminiClient {
-    pub async fn generate_stream(&self, request: &GenerateRequest) -> Result<Stream, GeminiError> {
-        if Self::is_live_model(&request.model) {
-            // Use WebSocket live client
-            self.live_client.as_ref()
-                .ok_or(GeminiError::new("Live client not initialized"))?
-                .generate_stream(request)
-                .await
+    fn is_live_model(model_name: &str) -> bool {
+        // Models that require Live API (WebSocket)
+        model_name.contains("-live") || model_name == "gemini-2.0-flash-exp"
+    }
+
+    pub async fn generate_stream(
+        &self,
+        request: &GenerateRequest
+    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>> {
+        let model_name = self.resolve_model_name(request);
+
+        if Self::is_live_model(&model_name) {
+            // Use WebSocket Live API
+            self.generate_stream_live(request).await
         } else {
-            // Use existing REST API client
-            self.rest_client.generate_stream(request).await
+            // Use existing REST API (if we implement SSE streaming later)
+            Err(BoticelliError::from(GeminiError::new(
+                GeminiErrorKind::StreamingNotSupported(model_name)
+            )))
         }
     }
-    
-    fn is_live_model(model: &Option<String>) -> bool {
-        model.as_ref()
-            .map(|m| m.contains("-live"))
-            .unwrap_or(false)
+
+    async fn generate_stream_live(
+        &self,
+        request: &GenerateRequest
+    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>> {
+        // 1. Connect to Live API
+        // 2. Send message
+        // 3. Stream responses
+        // 4. Convert to StreamChunk format
     }
 }
 ```
 
-#### Phase 5: Rate Limiting
+### Rate Limiting for WebSocket
 
-**Challenge**: WebSocket connections are persistent, not per-request
+**Challenge**: WebSocket connections are persistent, not discrete requests.
 
-**Solution**: Track message sends, not connections
+**Solution**: Track messages sent, not connections.
 
 ```rust
 pub struct LiveRateLimiter {
@@ -1588,143 +336,474 @@ pub struct LiveRateLimiter {
 }
 
 impl LiveRateLimiter {
-    pub async fn wait_if_needed(&self) {
+    pub async fn acquire(&self) {
         // If approaching limit, sleep until window resets
+        let elapsed = self.window_start.elapsed();
+        let count = self.messages_sent.load(Ordering::SeqCst);
+
+        if count >= self.max_messages_per_minute {
+            if elapsed < Duration::from_secs(60) {
+                let wait = Duration::from_secs(60) - elapsed;
+                tokio::time::sleep(wait).await;
+            }
+            // Reset window
+            self.messages_sent.store(0, Ordering::SeqCst);
+            self.window_start = Instant::now();
+        }
     }
-    
+
     pub fn record_message(&self) {
         self.messages_sent.fetch_add(1, Ordering::SeqCst);
     }
 }
 ```
 
-#### Phase 6: Testing Strategy
+### Error Handling
 
-**Unit Tests** (no API calls):
-- Message serialization/deserialization
-- Rate limiter logic
-- Model name detection
+New error types needed:
 
-**Integration Tests** (with `#[cfg(feature = "api")]`):
 ```rust
-#[tokio::test]
-#[cfg_attr(not(feature = "api"), ignore)]
-async fn test_live_model_connection() {
-    // Minimal test: connect, send one message, receive response
-    let client = GeminiClient::new().unwrap();
-    let mut session = client.connect_live("gemini-2.0-flash-live").await.unwrap();
-    
-    session.send_text("hello").await.unwrap();
-    let response = session.receive().await.unwrap();
-    
-    assert!(response.text().len() > 0);
-}
+pub enum GeminiErrorKind {
+    // Existing variants...
 
-#[tokio::test]
-#[cfg_attr(not(feature = "api"), ignore)]
-async fn test_live_vs_rest_rate_limits() {
-    // Compare: How many messages before rate limit?
-    // Expected: Live model allows more messages
+    /// WebSocket connection failed
+    WebSocketConnection(String),
+
+    /// WebSocket handshake failed (setup phase)
+    WebSocketHandshake(String),
+
+    /// Invalid message received from server
+    InvalidServerMessage(String),
+
+    /// Server sent goAway message
+    ServerDisconnect(String),
+
+    /// Stream was interrupted
+    StreamInterrupted(String),
 }
 ```
 
-### Implementation Phases
+---
 
-#### Sprint 1: WebSocket Foundation (3-5 hours)
-- [ ] Add `tokio-tungstenite` dependency
-- [ ] Create `live_client.rs` module
-- [ ] Implement WebSocket connection handshake
-- [ ] Implement basic send/receive
-- [ ] Write unit tests for message format
+## Implementation Plan
 
-#### Sprint 2: Integration (2-3 hours)
-- [ ] Add `is_live_model()` detection
-- [ ] Update `GeminiClient` to route to live client
-- [ ] Convert Live API responses to `StreamChunk` format
-- [ ] Maintain compatibility with existing code
+### Dependencies to Add
 
-#### Sprint 3: Rate Limiting (2 hours)
-- [ ] Implement `LiveRateLimiter`
-- [ ] Integrate with existing rate limit infrastructure
+```toml
+[dependencies]
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+```
+
+### Sprint 1: WebSocket Foundation (3-5 hours)
+
+**Files to Create**:
+- `src/gemini/live_protocol.rs` - Message type definitions
+- `src/gemini/live_client.rs` - WebSocket client implementation
+
+**Tasks**:
+- [ ] Add `tokio-tungstenite` and `futures-util` dependencies to `Cargo.toml`
+- [ ] Create `live_protocol.rs` with all message types (setup, client content, server messages)
+- [ ] Implement `GeminiLiveClient::connect()` - WebSocket handshake
+- [ ] Implement setup message send and `setupComplete` wait
+- [ ] Write unit tests for message serialization/deserialization
+- [ ] Test: Verify messages serialize to correct JSON format
+
+**Success Criteria**:
+- Can establish WebSocket connection to Live API endpoint
+- Can send setup message and receive setupComplete
+- All message types serialize/deserialize correctly
+
+### Sprint 2: Basic Message Exchange (2-3 hours)
+
+**Files to Modify**:
+- `src/gemini/live_client.rs`
+
+**Tasks**:
+- [ ] Implement `LiveSession::send_text()` - blocking text generation
+- [ ] Implement response parsing (serverContent -> String)
+- [ ] Handle `turnComplete` flag to know when response is done
+- [ ] Add basic error handling (connection drops, invalid messages)
+- [ ] Write integration test with `#[cfg_attr(not(feature = "api"), ignore)]`
+- [ ] Test: Send "Hello" and get response from `gemini-2.0-flash-exp`
+
+**Success Criteria**:
+- Can send text message via clientContent
+- Can receive complete text response via serverContent
+- Integration test passes with real API
+
+### Sprint 3: Streaming Support (2-3 hours)
+
+**Files to Modify**:
+- `src/gemini/live_client.rs`
+- `src/driver.rs` (add `StreamChunk` type if not exists)
+
+**Tasks**:
+- [ ] Implement `LiveSession::send_text_stream()` - returns `Stream<StreamChunk>`
+- [ ] Convert `serverContent` messages to `StreamChunk` format
+- [ ] Handle incremental responses (multiple serverContent before turnComplete)
+- [ ] Yield chunks as they arrive, set `finished: true` on last chunk
+- [ ] Test: Verify streaming with prompt that generates long response
+
+**Success Criteria**:
+- Streaming returns incremental chunks
+- Last chunk has `finished: true`
+- Can display text progressively as it arrives
+
+### Sprint 4: Integration with GeminiClient (2 hours)
+
+**Files to Modify**:
+- `src/gemini/client.rs` (GeminiClient)
+- `src/gemini/mod.rs` (exports)
+- `src/driver.rs` (BoticelliDriver trait)
+
+**Tasks**:
+- [ ] Add `StreamChunk` type to `src/driver.rs` (if not exists from earlier work)
+- [ ] Add `generate_stream()` method to `BoticelliDriver` trait
+- [ ] Add `GeminiLiveClient` field to `GeminiClient`
+- [ ] Implement `is_live_model()` detection
+- [ ] Route streaming requests to Live API vs REST API
+- [ ] Convert Live API stream to `StreamChunk` stream
+- [ ] Update exports in `src/lib.rs`
+
+**Success Criteria**:
+- `GeminiClient` automatically routes to Live API for live models
+- Existing REST API code continues working
+- Zero regressions in existing tests
+
+### Sprint 5: Rate Limiting (2 hours)
+
+**Files to Create**:
+- Tests in `tests/gemini_live_rate_limit_test.rs`
+
+**Files to Modify**:
+- `src/gemini/live_client.rs`
+- `src/gemini/rate_limit.rs` (or new file)
+
+**Tasks**:
+- [ ] Implement `LiveRateLimiter` struct
+- [ ] Add rate limiting to `LiveSession::send_text()` and `send_text_stream()`
+- [ ] Use existing rate limit configuration from `TierConfig`
 - [ ] Add backoff/retry logic for rate limit errors
+- [ ] Test: Verify rate limiter prevents exceeding limits
 
-#### Sprint 4: Testing & Validation (2-3 hours)
-- [ ] Write integration tests with `api` feature flag
-- [ ] Test actual rate limit differences (Live vs REST)
-- [ ] Document findings
-- [ ] Update GEMINI.md with Live API usage
+**Success Criteria**:
+- Rate limiter prevents sending messages too quickly
+- Properly sleeps and resets window
+- Integrates with existing rate limit infrastructure
 
-#### Sprint 5: Polish (1-2 hours)
-- [ ] Error handling improvements
-- [ ] Logging/tracing
-- [ ] Documentation
-- [ ] Example code
+### Sprint 6: Testing & Documentation (2-3 hours)
+
+**Files to Create**:
+- `tests/gemini_live_basic_test.rs`
+- `tests/gemini_live_streaming_test.rs`
+
+**Files to Modify**:
+- `GEMINI.md` - Add Live API usage section
+- `README.md` - Mention Live API support
+
+**Tasks**:
+- [ ] Write comprehensive integration tests (all with `#[cfg_attr(not(feature = "api"), ignore)]`)
+- [ ] Test basic text generation
+- [ ] Test streaming
+- [ ] Test rate limiting
+- [ ] Test error handling (invalid model, connection drop)
+- [ ] **Empirical rate limit comparison**: Measure actual RPM/TPD for live vs standard models
+- [ ] Document findings in GEMINI.md
+- [ ] Add usage examples to documentation
+- [ ] Add Live API section to GEMINI.md
+
+**Success Criteria**:
+- All tests pass
+- Rate limit benefits documented with actual numbers
+- Clear usage examples in docs
+
+### Sprint 7: Polish & Error Handling (1-2 hours)
+
+**Files to Modify**:
+- `src/gemini/error.rs`
+- `src/gemini/live_client.rs`
+
+**Tasks**:
+- [ ] Add comprehensive error types for Live API
+- [ ] Implement graceful connection cleanup
+- [ ] Add logging/tracing with `tracing` crate
+- [ ] Handle `goAway` server message gracefully
+- [ ] Implement connection timeout handling
+- [ ] Test edge cases (network interruption, server errors)
+
+**Success Criteria**:
+- All error scenarios handled gracefully
+- Good tracing/logging for debugging
+- Clean resource cleanup on connection close
+
+---
+
+## Testing Strategy
+
+### Unit Tests (No API Calls)
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_setup_message_serialization() {
+        let msg = SetupMessage {
+            setup: SetupConfig {
+                model: "models/gemini-2.0-flash-exp".to_string(),
+                generation_config: None,
+                system_instruction: None,
+            }
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("\"model\":\"models/gemini-2.0-flash-exp\""));
+    }
+
+    #[test]
+    fn test_server_message_deserialization() {
+        let json = r#"{"setupComplete": {}}"#;
+        let msg: ServerMessage = serde_json::from_str(json).unwrap();
+        assert!(msg.setup_complete.is_some());
+    }
+
+    #[test]
+    fn test_is_live_model() {
+        assert!(GeminiClient::is_live_model("gemini-2.0-flash-live"));
+        assert!(GeminiClient::is_live_model("gemini-2.0-flash-exp"));
+        assert!(!GeminiClient::is_live_model("gemini-2.0-flash"));
+    }
+}
+```
+
+### Integration Tests (With API)
+
+```rust
+// tests/gemini_live_basic_test.rs
+#![cfg(feature = "gemini")]
+
+use boticelli::{GeminiClient, BoticelliDriver, GenerateRequest, Message, Role, Input};
+use futures::StreamExt;
+
+#[tokio::test]
+#[cfg_attr(not(feature = "api"), ignore)]
+async fn test_live_model_basic_generation() {
+    let _ = dotenvy::dotenv();
+
+    let client = GeminiClient::new().expect("Failed to create client");
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Say 'Hello World' exactly".to_string())],
+        }],
+        model: Some("gemini-2.0-flash-exp".to_string()),
+        max_tokens: Some(10),
+        ..Default::default()
+    };
+
+    let mut stream = client.generate_stream(&request).await.expect("Stream failed");
+
+    let mut full_text = String::new();
+    while let Some(chunk_result) = stream.next().await {
+        let chunk = chunk_result.expect("Chunk error");
+        full_text.push_str(&chunk.text);
+        if chunk.finished {
+            break;
+        }
+    }
+
+    assert!(!full_text.is_empty());
+    println!("Live API response: {}", full_text);
+}
+
+#[tokio::test]
+#[cfg_attr(not(feature = "api"), ignore)]
+async fn test_live_model_streaming() {
+    let _ = dotenvy::dotenv();
+
+    let client = GeminiClient::new().expect("Failed to create client");
+
+    let request = GenerateRequest {
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![Input::Text("Count from 1 to 10".to_string())],
+        }],
+        model: Some("gemini-2.0-flash-exp".to_string()),
+        max_tokens: Some(100),
+        ..Default::default()
+    };
+
+    let mut stream = client.generate_stream(&request).await.expect("Stream failed");
+
+    let mut chunks = Vec::new();
+    while let Some(chunk_result) = stream.next().await {
+        let chunk = chunk_result.expect("Chunk error");
+        println!("Chunk: {}", chunk.text);
+        chunks.push(chunk.text.clone());
+
+        if chunk.finished {
+            break;
+        }
+    }
+
+    assert!(chunks.len() > 1, "Should receive multiple chunks");
+
+    let full_text = chunks.join("");
+    assert!(full_text.contains('1') || full_text.contains("one"));
+}
+```
+
+### Rate Limit Measurement Test
+
+```rust
+#[tokio::test]
+#[cfg_attr(not(feature = "api"), ignore)]
+#[ignore] // Only run manually to measure rate limits
+async fn test_measure_live_model_rate_limits() {
+    // This test measures actual rate limits by making many requests
+    // Run manually with: cargo test --features gemini,api -- --ignored test_measure_live_model_rate_limits
+
+    let _ = dotenvy::dotenv();
+    let client = GeminiClient::new().unwrap();
+
+    let mut successes = 0;
+    let mut rate_limited = false;
+
+    for i in 1..=100 {
+        let request = GenerateRequest {
+            messages: vec![Message {
+                role: Role::User,
+                content: vec![Input::Text("Hi".to_string())],
+            }],
+            model: Some("gemini-2.0-flash-exp".to_string()),
+            max_tokens: Some(5),
+            ..Default::default()
+        };
+
+        match client.generate_stream(&request).await {
+            Ok(mut stream) => {
+                while let Some(_) = stream.next().await {}
+                successes += 1;
+                println!("Request {}: Success", i);
+            }
+            Err(e) => {
+                println!("Request {}: Failed - {}", i, e);
+                rate_limited = true;
+                break;
+            }
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+
+    println!("\nLive Model Results:");
+    println!("  Successful requests: {}", successes);
+    println!("  Rate limited: {}", rate_limited);
+}
+```
+
+---
+
+## Open Questions & Verification Needed
+
+### 1. Model Names
+
+**Question**: Do `gemini-2.0-flash-live` or `gemini-2.5-flash-live` actually exist?
+
+**Research Shows**: Only `gemini-2.0-flash-exp` confirmed in examples.
+
+**Action**: Test with both during implementation:
+- Try `gemini-2.0-flash-live` (what user mentioned)
+- Try `gemini-2.0-flash-exp` (what docs show)
+- Document which actually work
+
+### 2. Rate Limits
+
+**Question**: What are the actual rate limits for Live API models on free tier?
+
+**Action**: Run empirical test (Sprint 6) to measure:
+- RPM (requests per minute)
+- TPD (tokens per day)
+- Compare to standard models
+
+### 3. Connection Lifecycle
+
+**Question**: How long can WebSocket connections stay open?
+
+**Unknowns**:
+- Idle timeout?
+- Need keepalive pings?
+- Automatic reconnection?
+
+**Action**: Test during implementation, handle `goAway` message.
+
+### 4. API Version
+
+**Observation**: Some examples use `v1alpha`, official docs show `v1beta`.
+
+**Action**: Use `v1beta` (official API reference), fall back to `v1alpha` if needed.
+
+---
+
+## Success Criteria
+
+### Minimum Viable Product (MVP)
+
+- [ ] Can connect to Live API via WebSocket
+- [ ] Can send text message and receive response
+- [ ] Streaming works (incremental chunks)
+- [ ] Basic error handling (connection failures)
+- [ ] At least one integration test passes
+- [ ] Can use from existing `GeminiClient` API
+
+### Full Implementation
+
+- [ ] All Live API message types supported (text, audio, tools)
+- [ ] Rate limiting prevents quota exhaustion
+- [ ] Comprehensive error handling
+- [ ] All integration tests pass
+- [ ] Documentation complete with examples
+- [ ] **Rate limit benefits measured and documented**
+- [ ] Zero regressions in existing tests
+
+---
+
+## Timeline
 
 **Total Estimate**: 10-15 hours
 
-### Success Criteria
+**Sprint Breakdown**:
+1. WebSocket Foundation: 3-5 hours
+2. Basic Message Exchange: 2-3 hours
+3. Streaming Support: 2-3 hours
+4. Integration with GeminiClient: 2 hours
+5. Rate Limiting: 2 hours
+6. Testing & Documentation: 2-3 hours
+7. Polish & Error Handling: 1-2 hours
 
-✅ Can connect to `gemini-2.0-flash-live` via WebSocket
-✅ Can send text messages and receive responses
-✅ Streaming works (progressive text chunks)
-✅ Rate limiting prevents quota exhaustion
-✅ Integration tests validate rate limit benefits
-✅ Existing REST API code continues working
-✅ Zero regressions in existing tests
+**Recommended Schedule**:
+- Week 1: Sprints 1-4 (foundation + integration)
+- Week 2: Sprints 5-7 (rate limiting + polish)
 
-### Risks & Mitigations
+---
 
-| Risk | Mitigation |
-|------|------------|
-| WebSocket endpoint URL unknown | Research Google docs, inspect SDK source |
-| Authentication differs from REST | Test with different auth methods |
-| Message format undocumented | Reverse-engineer from SDK |
-| Rate limits not actually better | Measure empirically in tests |
-| Connection stability issues | Implement reconnection logic |
+## Next Steps
 
-### Open Questions
+1. **Create feature branch**: `git checkout -b feature/gemini-live-api`
+2. **Start Sprint 1**: Add dependencies, create `live_protocol.rs`, implement basic WebSocket connection
+3. **Test early**: Get a working WebSocket connection as soon as possible
+4. **Iterate**: Build incrementally, test each sprint before moving to next
 
-1. **Endpoint URL**: What is the exact WebSocket endpoint for Live API?
-   - Need to find in Google docs or SDK source code
-   
-2. **Authentication**: How is API key passed in WebSocket handshake?
-   - Query parameter? Header? Subprotocol?
-   
-3. **Message Protocol**: Exact JSON schema for requests/responses?
-   - Can inspect Google's Python SDK for examples
-   
-4. **Rate Limit Details**: What are the exact free-tier limits?
-   - RPM (requests per minute)?
-   - Messages per minute?
-   - Tokens per day?
-   
-5. **Connection Lifecycle**: How long can WebSocket stay open?
-   - Idle timeout?
-   - Need keepalive pings?
+---
 
-### Next Steps
+## References
 
-1. **Research Phase** (30 min):
-   - Read: https://ai.google.dev/gemini-api/docs/live
-   - Inspect Google's Python SDK source code
-   - Document endpoint URL, auth method, message format
-   
-2. **Prototype** (2 hours):
-   - Write minimal WebSocket client
-   - Hardcode a test connection
-   - Validate message format
-   
-3. **Integrate** (2 hours):
-   - Wire into existing `GeminiClient`
-   - Add tests
-   - Measure rate limits
-
-4. **Iterate**: Based on test results, refine implementation
-
-### References
-
-- Live API Documentation: https://ai.google.dev/gemini-api/docs/live
-- Google GenAI SDK (Python): https://github.com/googleapis/python-genai
-- Tokio Tungstenite: https://docs.rs/tokio-tungstenite/latest/tokio_tungstenite/
-- WebSocket Protocol: https://datatracker.ietf.org/doc/html/rfc6455
-
+- [Live API WebSocket Reference](https://ai.google.dev/api/live)
+- [Live API Documentation](https://ai.google.dev/gemini-api/docs/live)
+- [Gemini 2.0 WebSocket Examples](https://gist.github.com/quartzjer/9636066e96b4f904162df706210770e4)
+- [Live API Web Console (React Example)](https://github.com/google-gemini/live-api-web-console)
+- [Tokio Tungstenite Docs](https://docs.rs/tokio-tungstenite/latest/tokio_tungstenite/)
+- [WebSocket Protocol RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)

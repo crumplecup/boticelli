@@ -45,6 +45,22 @@ diesel::table! {
 }
 
 diesel::table! {
+    content_generations (id) {
+        id -> Int4,
+        table_name -> Text,
+        narrative_file -> Text,
+        narrative_name -> Text,
+        generated_at -> Timestamptz,
+        completed_at -> Nullable<Timestamptz>,
+        row_count -> Nullable<Int4>,
+        generation_duration_ms -> Nullable<Int4>,
+        status -> Text,
+        error_message -> Nullable<Text>,
+        created_by -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::DiscordChannelType;
 
@@ -269,6 +285,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     act_executions,
     act_inputs,
     content_generation_tables,
+    content_generations,
     discord_channels,
     discord_guild_members,
     discord_guilds,

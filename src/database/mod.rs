@@ -1,5 +1,6 @@
 //! Database module for storing and retrieving model responses and narrative executions.
 
+mod content_generation_models;
 mod content_management;
 mod error;
 mod models;
@@ -34,6 +35,9 @@ pub use narrative_models::{
     NewNarrativeExecutionRow,
 };
 pub use narrative_repository::PostgresNarrativeRepository;
+pub use content_generation_models::{
+    ContentGenerationRow, NewContentGenerationRow, UpdateContentGenerationRow,
+};
 // Schema reflection exports will be used in Phase 2 for content generation processor
 #[allow(unused_imports)]
 pub use schema_reflection::{

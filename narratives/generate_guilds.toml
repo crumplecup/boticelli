@@ -5,8 +5,8 @@
 #
 # Workflow:
 # 1. Run: boticelli run --narrative narratives/generate_guilds.toml
-# 2. Review: boticelli content list guilds_gen_001
-# 3. Promote: boticelli content promote guilds_gen_001 1 --target discord_guilds
+# 2. Review: boticelli content list potential_guilds
+# 3. Promote: boticelli content promote potential_guilds 1 --target discord_guilds
 
 [narration]
 name = "potential_guilds"

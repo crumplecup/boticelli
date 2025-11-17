@@ -76,6 +76,7 @@ pub use database::{
     // Database row types
     ActExecutionRow,
     ActInputRow,
+    ContentGenerationRow,
     DatabaseError,
     DatabaseErrorKind,
     DatabaseResult,
@@ -83,10 +84,12 @@ pub use database::{
     NarrativeExecutionRow,
     NewActExecutionRow,
     NewActInputRow,
+    NewContentGenerationRow,
     NewModelResponse,
     NewNarrativeExecutionRow,
     PostgresNarrativeRepository,
     SerializableModelResponse,
+    UpdateContentGenerationRow,
     // Re-export schema tables for migration tools and tests
     act_inputs,
     // Schema documentation functions (Phase 5)

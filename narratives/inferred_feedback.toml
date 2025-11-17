@@ -1,0 +1,26 @@
+[narration]
+name = "user_feedback"
+description = "Generate sample user feedback for testing review workflows"
+# No template - schema inferred from JSON
+
+[toc]
+order = ["generate_feedback"]
+
+[acts]
+generate_feedback = """
+Generate 10 user feedback entries for a mobile app with the following structure:
+{
+  "feedback_id": unique integer starting from 1,
+  "user_name": string (random names),
+  "email": string (email address),
+  "rating": integer (1-5 stars),
+  "category": one of: "bug_report", "feature_request", "general_feedback", "praise",
+  "comment": string (realistic feedback comment),
+  "submitted_at": ISO 8601 timestamp string,
+  "platform": one of: "ios", "android", "web",
+  "app_version": string (e.g., "2.1.3")
+}
+
+Return as a JSON array of 10 feedback entries with diverse ratings, categories, and platforms.
+Output ONLY valid JSON with no additional text or markdown.
+"""

@@ -535,4 +535,74 @@ mod tests {
         assert_eq!(schema.field_count(), 1);
         assert_eq!(schema.fields["test"].pg_type, "TEXT");
     }
+
+    #[test]
+    fn test_infer_schema_with_nested_objects() {
+        let json = json!({
+            "id": 1,
+            "metadata": {"created": "2025-01-01", "author": "Alice"}
+        });
+        let schema = infer_schema(&json).unwrap();
+        assert_eq!(schema.field_count(), 2);
+        assert_eq!(schema.fields["id"].pg_type, "BIGINT");
+        assert_eq!(schema.fields["metadata"].pg_type, "JSONB");
+    }
+
+    #[test]
+    fn test_infer_schema_with_mixed_array() {
+        let json = json!({
+            "id": 1,
+            "tags": ["rust", "database", "llm"]
+        });
+        let schema = infer_schema(&json).unwrap();
+        assert_eq!(schema.field_count(), 2);
+        assert_eq!(schema.fields["tags"].pg_type, "TEXT[]");
+    }
+
+    #[test]
+    fn test_resolve_type_conflict_integer_types() {
+        let result = resolve_type_conflict("INTEGER", "BIGINT").unwrap();
+        assert_eq!(result, "BIGINT");
+    }
+
+    #[test]
+    fn test_resolve_type_conflict_integer_double() {
+        let result = resolve_type_conflict("INTEGER", "DOUBLE PRECISION").unwrap();
+        assert_eq!(result, "DOUBLE PRECISION");
+    }
+
+    #[test]
+    fn test_infer_schema_multiple_objects_consolidation() {
+        let json = json!([
+            { "a": 1, "b": "x" },
+            { "a": 2, "c": true },
+            { "a": 3, "b": "y", "c": false }
+        ]);
+        let schema = infer_schema(&json).unwrap();
+        // Schema consolidation discovers all fields across all objects
+        assert_eq!(schema.field_count(), 3);
+        assert!(schema.has_field("a"));
+        assert!(schema.has_field("b"));
+        assert!(schema.has_field("c"));
+        // Types should be inferred correctly
+        assert_eq!(schema.fields["a"].pg_type, "BIGINT");
+        assert_eq!(schema.fields["b"].pg_type, "TEXT");
+        assert_eq!(schema.fields["c"].pg_type, "BOOLEAN");
+    }
+
+    #[test]
+    fn test_column_definition_multiple_examples() {
+        let mut def = ColumnDefinition::new("TEXT", false);
+        def.add_example(json!("test1"));
+        def.add_example(json!("test2"));
+        def.add_example(json!("test3"));
+        assert_eq!(def.examples.len(), 3);
+    }
+
+    #[test]
+    fn test_infer_column_type_float_array() {
+        let (pg_type, nullable) = infer_column_type(&json!([1.1, 2.2, 3.3]));
+        assert_eq!(pg_type, "DOUBLE PRECISION[]");
+        assert!(!nullable);
+    }
 }

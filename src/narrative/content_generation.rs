@@ -4,20 +4,21 @@
 //! content into custom tables based on Discord schema templates, OR infers
 //! schema automatically from JSON responses when no template is provided.
 
-use crate::{ActProcessor, BoticelliResult, ProcessorContext, extract_json, parse_json};
-use async_trait::async_trait;
-use serde_json::Value as JsonValue;
-
 #[cfg(feature = "database")]
 use crate::{
-    ContentGenerationRepository, NewContentGenerationRow, PgConnection,
-    PostgresContentGenerationRepository, UpdateContentGenerationRow, create_content_table,
-    create_inferred_table, infer_schema,
+    ActProcessor, BoticelliResult, ContentGenerationRepository, NewContentGenerationRow,
+    PgConnection, PostgresContentGenerationRepository, ProcessorContext,
+    UpdateContentGenerationRow, create_content_table, create_inferred_table, extract_json,
+    infer_schema, parse_json,
 };
+#[cfg(feature = "database")]
+use async_trait::async_trait;
 #[cfg(feature = "database")]
 use chrono::Utc;
 #[cfg(feature = "database")]
 use diesel::prelude::*;
+#[cfg(feature = "database")]
+use serde_json::Value as JsonValue;
 #[cfg(feature = "database")]
 use std::sync::{Arc, Mutex};
 

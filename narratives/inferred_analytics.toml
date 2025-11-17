@@ -1,0 +1,29 @@
+[narration]
+name = "analytics_events"
+description = "Generate custom analytics events with flexible schema"
+# No template - schema inferred from JSON
+
+[toc]
+order = ["generate_events"]
+
+[acts]
+generate_events = """
+Generate 15 analytics events for an e-commerce mobile app with this structure:
+{
+  "event_id": unique integer,
+  "event_type": one of: "page_view", "button_click", "purchase", "search", "add_to_cart", "checkout_start",
+  "user_id": integer (1-100),
+  "session_id": string (UUID format),
+  "timestamp": ISO 8601 timestamp string,
+  "properties": JSON object with event-specific data (flexible structure):
+    - page_view: {"page_name": string, "duration_seconds": integer}
+    - button_click": {"button_id": string, "screen": string}
+    - purchase: {"product_id": integer, "amount": float, "currency": string}
+    - search: {"query": string, "results_count": integer}
+    - add_to_cart: {"product_id": integer, "quantity": integer}
+    - checkout_start: {"cart_total": float, "item_count": integer}
+}
+
+Return as a JSON array of 15 events with diverse event types.
+Output ONLY valid JSON with no additional text or markdown.
+"""

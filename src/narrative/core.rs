@@ -2,13 +2,12 @@
 
 use crate::narrative::toml as toml_parsing;
 use crate::narrative::{ActConfig, NarrativeError, NarrativeErrorKind, NarrativeProvider};
-use crate::Input;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 
 #[cfg(feature = "database")]
-use crate::{assemble_prompt, is_content_focus};
+use crate::{Input, assemble_prompt, is_content_focus};
 #[cfg(feature = "database")]
 use diesel::pg::PgConnection;
 

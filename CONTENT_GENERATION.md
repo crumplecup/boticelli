@@ -1490,6 +1490,330 @@ Create test narratives for each template:
 
 **Note:** Multi-prompt narratives not yet supported - each act must be a single prompt. This is intentional for Phase 5 scope.
 
+---
+
+## Schema Inference Mode
+
+### Overview
+
+While template-based content generation uses existing Discord tables as schema blueprints, **schema inference mode** automatically derives table schemas from the JSON structure in LLM responses. This enables flexible content generation without predefined templates.
+
+**When to Use Each Mode:**
+
+| Mode | Use When | Example Use Cases |
+|------|----------|------------------|
+| **Template** | You want to match an existing table structure | Discord content, standardized data formats |
+| **Inference** | You want flexible schemas determined by content | Analytics events, user feedback, dynamic workflows |
+
+### How Inference Works
+
+**Schema inference is the default behavior when no template is specified:**
+
+```toml
+[narration]
+name = "user_feedback"
+description = "Generate sample user feedback"
+# No template field → schema inferred from JSON response
+
+[toc]
+order = ["generate_feedback"]
+
+[acts]
+generate_feedback = """
+Generate 10 user feedback entries with this structure:
+{
+  "feedback_id": unique integer,
+  "user_name": string,
+  "rating": integer (1-5),
+  "comment": string,
+  "submitted_at": ISO 8601 timestamp
+}
+
+Output ONLY valid JSON with no additional text.
+"""
+```
+
+**What Happens:**
+
+1. **LLM generates JSON** based on your prompt structure specification
+2. **Schema inference analyzes JSON** to determine PostgreSQL column types
+3. **Table is created automatically** with inferred schema + metadata columns
+4. **Content is inserted** into the newly created table
+
+**Type Mapping:**
+
+| JSON Type | PostgreSQL Type | Example |
+|-----------|----------------|---------|
+| String | TEXT | "Hello world" → TEXT |
+| Integer | BIGINT | 42 → BIGINT |
+| Float | DOUBLE PRECISION | 3.14 → DOUBLE PRECISION |
+| Boolean | BOOLEAN | true → BOOLEAN |
+| Array (homogeneous) | TYPE[] | [1,2,3] → BIGINT[] |
+| Array (mixed) | JSONB | [1,"a"] → JSONB |
+| Object | JSONB | {"key": "value"} → JSONB |
+| Null | (field omitted) | null values make column nullable |
+
+### Configuration Options
+
+**Default Behavior (Inference):**
+
+```toml
+[narration]
+name = "my_table"
+description = "Generate content"
+# No template → uses inference mode
+```
+
+**Explicit Template Mode:**
+
+```toml
+[narration]
+name = "potential_posts"
+template = "discord_messages"  # Explicit template
+description = "Generate post ideas"
+```
+
+**Opt-Out of Content Generation:**
+
+```toml
+[narration]
+name = "analysis_only"
+description = "Analyze data without storing"
+skip_content_generation = true  # No table created, no content stored
+
+[acts]
+analyze = "Analyze the following data and provide insights..."
+```
+
+Use `skip_content_generation = true` when your narrative performs analysis or transformation without needing database storage.
+
+### Example Narratives
+
+#### Example 1: User Feedback Collection
+
+```toml
+[narration]
+name = "user_feedback"
+description = "Generate sample user feedback for testing review workflows"
+
+[toc]
+order = ["generate_feedback"]
+
+[acts]
+generate_feedback = """
+Generate 10 user feedback entries for a mobile app with the following structure:
+{
+  "feedback_id": unique integer starting from 1,
+  "user_name": string (random names),
+  "email": string (email address),
+  "rating": integer (1-5 stars),
+  "category": one of: "bug_report", "feature_request", "general_feedback", "praise",
+  "comment": string (realistic feedback comment),
+  "submitted_at": ISO 8601 timestamp string,
+  "platform": one of: "ios", "android", "web",
+  "app_version": string (e.g., "2.1.3")
+}
+
+Return as a JSON array of 10 feedback entries with diverse ratings, categories, and platforms.
+Output ONLY valid JSON with no additional text or markdown.
+"""
+```
+
+**Result:** Creates `user_feedback` table with columns:
+- `feedback_id BIGINT NOT NULL`
+- `user_name TEXT NOT NULL`
+- `email TEXT NOT NULL`
+- `rating BIGINT NOT NULL`
+- `category TEXT NOT NULL`
+- `comment TEXT NOT NULL`
+- `submitted_at TEXT NOT NULL`
+- `platform TEXT NOT NULL`
+- `app_version TEXT NOT NULL`
+- Plus metadata columns (generated_at, source_narrative, etc.)
+
+#### Example 2: Analytics Events with Flexible Properties
+
+```toml
+[narration]
+name = "analytics_events"
+description = "Generate custom analytics events with flexible schema"
+
+[toc]
+order = ["generate_events"]
+
+[acts]
+generate_events = """
+Generate 15 analytics events for an e-commerce mobile app with this structure:
+{
+  "event_id": unique integer,
+  "event_type": one of: "page_view", "button_click", "purchase", "search", "add_to_cart",
+  "user_id": integer (1-100),
+  "session_id": string (UUID format),
+  "timestamp": ISO 8601 timestamp string,
+  "properties": JSON object with event-specific data (flexible structure):
+    - page_view: {"page_name": string, "duration_seconds": integer}
+    - button_click: {"button_id": string, "screen": string}
+    - purchase: {"product_id": integer, "amount": float, "currency": string}
+    - search: {"query": string, "results_count": integer}
+    - add_to_cart: {"product_id": integer, "quantity": integer}
+}
+
+Return as a JSON array of 15 events with diverse event types.
+Output ONLY valid JSON with no additional text or markdown.
+"""
+```
+
+**Result:** Creates `analytics_events` table with:
+- `event_id BIGINT NOT NULL`
+- `event_type TEXT NOT NULL`
+- `user_id BIGINT NOT NULL`
+- `session_id TEXT NOT NULL`
+- `timestamp TEXT NOT NULL`
+- `properties JSONB NOT NULL` (flexible nested structure stored as JSONB)
+
+#### Example 3: Analysis Without Storage
+
+```toml
+[narration]
+name = "data_analysis"
+description = "Analyze user behavior patterns without database storage"
+skip_content_generation = true
+
+[toc]
+order = ["analyze_patterns", "generate_report"]
+
+[acts]
+analyze_patterns = """
+Analyze the following user activity data and identify key patterns:
+[data would be here]
+
+Provide insights on:
+1. Peak usage times
+2. Most common user flows
+3. Drop-off points
+"""
+
+generate_report = """
+Based on the previous analysis, create a summary report with recommendations.
+"""
+```
+
+**Result:** No table created. Execution results are returned in `NarrativeExecution` but not stored in database.
+
+### Type Conflict Resolution
+
+When processing JSON arrays with inconsistent types, inference uses **type widening**:
+
+```json
+[
+  {"count": 42},
+  {"count": 3.14}
+]
+```
+
+**Resolution:** `count DOUBLE PRECISION` (BIGINT widened to DOUBLE PRECISION)
+
+**Widening Rules:**
+
+1. `BIGINT + DOUBLE PRECISION → DOUBLE PRECISION`
+2. `Any type + TEXT → TEXT` (universal fallback)
+3. `Mismatched array types → JSONB`
+
+**Warnings are logged** when widening occurs so you can monitor schema consistency.
+
+### Error Handling
+
+**Common errors and solutions:**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "No JSON found in response" | LLM didn't output JSON | Add "Output ONLY valid JSON" to prompt |
+| "Failed to parse JSON" | Syntax errors in LLM output | Improve prompt clarity, retry generation |
+| "Type conflict cannot be resolved" | Incompatible types for same field | Review JSON structure, ensure consistency |
+
+**All errors include actionable hints** in the error message to guide debugging.
+
+### Metadata Columns
+
+Both template and inference modes add the same metadata columns:
+
+```sql
+-- Automatically added to all generated content tables
+generated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+source_narrative TEXT,           -- Narrative name
+source_act TEXT,                 -- Act that generated this content
+generation_model TEXT,           -- AI model used (e.g., "gemini-1.5-pro")
+review_status TEXT DEFAULT 'pending',
+tags TEXT[],
+rating INTEGER
+```
+
+These columns enable:
+- **Tracking**: Which narrative and act created the content
+- **Review workflows**: Approve/reject content before promotion
+- **Filtering**: Query by tags, rating, or status
+- **Auditing**: Full history of content generation
+
+### Template vs Inference Decision Matrix
+
+| Criterion | Use Template | Use Inference |
+|-----------|-------------|---------------|
+| **Schema is known** | ✅ Yes | ❌ No |
+| **Need to match existing table** | ✅ Yes | ❌ No |
+| **Schema varies by use case** | ❌ No | ✅ Yes |
+| **Experimenting with structure** | ❌ No | ✅ Yes |
+| **Production consistency required** | ✅ Yes | ⚠️ Verify schema |
+| **Rapid prototyping** | ❌ No | ✅ Yes |
+| **Complex nested data** | ⚠️ Limited | ✅ Yes (JSONB) |
+
+### Implementation Details
+
+For complete technical documentation on schema inference, see [SCHEMA_INFERENCE.md](SCHEMA_INFERENCE.md), which covers:
+- Algorithm details
+- Type mapping reference
+- Conflict resolution strategies
+- Logging and observability
+- Testing approach
+- Advanced use cases
+
+### Best Practices
+
+**Prompt Design for Inference:**
+
+1. **Be explicit about structure** - Specify each field and its type
+2. **Use consistent types** - Avoid mixing integers and floats for same field
+3. **Specify output format** - Always include "Output ONLY valid JSON"
+4. **Test with small counts** - Generate 5-10 items first, then scale
+5. **Review inferred schema** - Check table structure before generating large datasets
+
+**Example of well-structured prompt:**
+
+```toml
+[acts]
+generate = """
+Generate 10 items with this EXACT structure:
+{
+  "id": unique integer starting from 1,
+  "name": string (max 100 chars),
+  "score": float (0.0-100.0),
+  "active": boolean
+}
+
+Return as JSON array. Output ONLY valid JSON with no markdown or explanations.
+"""
+```
+
+**Migration Path:**
+
+Start with inference mode for prototyping, then migrate to template mode for production:
+
+1. **Prototype**: Use inference to experiment with schema
+2. **Validate**: Review generated table structure
+3. **Formalize**: Create proper migration with validated schema
+4. **Switch**: Update narrative to use template mode for consistency
+
+---
+
 ### Final Success Criteria
 
 - [ ] Complete tutorial narrative with examples

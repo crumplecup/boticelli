@@ -1,0 +1,18 @@
+[package]
+name = "botticelli-interface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Trait definitions for the Botticelli LLM API library"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+futures-util = "0.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+botticelli-core = { workspace = true }
+botticelli-error = { workspace = true }

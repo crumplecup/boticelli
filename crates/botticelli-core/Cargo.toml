@@ -1,0 +1,17 @@
+[package]
+name = "botticelli-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Core data types for the Botticelli LLM API library"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+derive_more = { workspace = true }
+derive-new = { workspace = true }
+botticelli-error = { workspace = true }

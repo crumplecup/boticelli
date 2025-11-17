@@ -2,11 +2,14 @@
 
 ## Workflow
 
-- After generating new code and correcting any cargo check errors and warnings:
-  1. Run cargo test and clear **all** errors, including any pre-existing failures.
-  2. Run cargo clippy and clear **all** warnings, including any pre-existing warnings.
-  3. Commit the changes to git using best practices for code auditing.
-  4. Push the changes to their respective github branch.
+- Use a planning document (.md file) to break the current task into steps and discuss the implementation, so the developer can review the implementation plan prior to writing the actual code. Blocks of code with comments are nice, but be sure to couch these blocks with a lot of interpretive context, for consumption by a human reader.
+- For each step in the planning document:
+  - After generating new code and correcting any cargo check errors and warnings:
+    1. Run cargo test and clear **all** errors, including any pre-existing failures.
+    2. Run cargo clippy and clear **all** warnings, including any pre-existing warnings.
+    3. Commit the changes to git using best practices for code auditing.
+    4. Push the changes to their respective github branch.
+- After each step is complete, update the planning document, so it can serve as a user guide when all the tracked tasks are complete.
 - Avoid running cargo clean often, to take advantage of incremental compilation during development.
 
 ### Critical Rule: Fix Everything
@@ -98,6 +101,21 @@
 - **Import patterns**: Import from crate-level exports (`use boticelli::Type`) not module paths (`use boticelli::module::Type`)
 - **Test independence**: Each test should be self-contained and not depend on other tests.
 - **Use test utilities**: Create helper functions within test files to reduce duplication (e.g., `create_test_execution()`).
+
+### API Rate Limit Conservation in Tests
+
+- Tests that make API calls should minimize ALL rate limit consumption (TPM, RPM, TPD, RPD).
+- Design tests to use the **minimum necessary** to validate behavior:
+  - **Tokens**: Use minimal prompts and low max_tokens (e.g., 10)
+  - **Requests**: Use fewest API calls possible (e.g., 1-3 requests, not 20+)
+  - **Time**: Keep test duration short to avoid extended quota usage
+- Mark API tests with `#[ignore]` and require explicit opt-in via `cargo test -- --ignored`
+- Follow existing patterns in the codebase (see `gemini_model_test.rs` for examples)
+- If extensive testing is needed, consider:
+  - Mocking API responses instead of real calls
+  - Creating separate "expensive" test suite with clear warnings
+  - Using local test doubles or fake implementations
+- Use environment variables to manage API keys securely during testing
 
 ## Error Handling
 
@@ -283,6 +301,7 @@ fn example() -> Result<(), FormError> {
 ### Visibility and Export Patterns
 
 **Module declarations:**
+
 - Use private `mod` declarations (not `pub mod`) in both lib.rs and module mod.rs files
 - Keep internal module structure hidden from external users
 
@@ -294,6 +313,7 @@ mod internal_helper; // Private module
 ```
 
 **Module-level exports (mod.rs):**
+
 - Re-export public types from submodules using `pub use`
 - This creates the public API for the module
 
@@ -309,6 +329,7 @@ pub use models::{Model, NewModel, ModelRow};
 ```
 
 **Crate-level exports (lib.rs):**
+
 - Re-export ALL public types from all modules at the crate root
 - This ensures a single, consistent import path throughout the codebase
 
@@ -324,6 +345,7 @@ pub use mymodule::{
 ### Import Patterns
 
 **For crate-level types (exported from lib.rs):**
+
 - Always use `use crate::{Type1, Type2}` syntax
 - Never use module paths like `crate::module::Type`
 - Never use `super::` paths
@@ -344,6 +366,7 @@ use crate::mymodule::*;
 ```
 
 **For internal module helpers (not exported at crate level):**
+
 - Use explicit module paths: `use crate::module::helper::function`
 - For schema tables or module-private items: `use crate::module::schema::table_name`
 
@@ -390,6 +413,7 @@ use crate::database::schema::users;             // Internal schema
 ### Benefits
 
 This pattern provides:
+
 1. **Single import path** - All types imported as `use crate::{Type}`
 2. **No ambiguity** - Only one way to import each type
 3. **Clean public API** - Internal module structure is hidden

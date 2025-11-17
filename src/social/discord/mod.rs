@@ -1,7 +1,7 @@
-//! Discord integration for Boticelli.
+//! Discord integration for Botticelli.
 //!
 //! This module provides a complete Discord bot implementation using the Serenity library.
-//! It enables Boticelli to:
+//! It enables Botticelli to:
 //! - Connect to Discord servers (guilds)
 //! - Listen for events (messages, commands, interactions)
 //! - Post narrative content to channels
@@ -10,7 +10,7 @@
 //!
 //! # Architecture
 //!
-//! The Discord integration follows Boticelli's layered architecture:
+//! The Discord integration follows Botticelli's layered architecture:
 //!
 //! ## Data Layer
 //! - **models**: Diesel models for Discord entities (guilds, channels, users, messages, etc.)
@@ -30,11 +30,11 @@
 //! Available with the `discord` feature.
 //!
 //! ```rust,ignore
-//! use boticelli::social::discord::BoticelliBot;
+//! use botticelli::social::discord::BotticelliBot;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let bot = BoticelliBot::new(
+//!     let bot = BotticelliBot::new(
 //!         std::env::var("DISCORD_TOKEN")?,
 //!         std::env::var("DATABASE_URL")?,
 //!     ).await?;
@@ -57,10 +57,10 @@ mod repository;
 // mod poster;
 
 // Public re-exports
-pub use client::BoticelliBot;
+pub use client::BotticelliBot;
 pub use conversions::{NewMemberRole, parse_channel_type, parse_iso_timestamp};
 pub use error::{DiscordError, DiscordErrorKind, DiscordResult as DiscordErrorResult};
-pub use handler::BoticelliHandler;
+pub use handler::BotticelliHandler;
 pub use json_models::{
     DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson, DiscordMemberRoleJson,
     DiscordRoleJson, DiscordUserJson,

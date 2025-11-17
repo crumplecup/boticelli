@@ -1,7 +1,7 @@
-//! Social media platform integrations for Boticelli.
+//! Social media platform integrations for Botticelli.
 //!
 //! This module provides integrations with various social media platforms,
-//! enabling Boticelli to post narrative content, respond to events, and
+//! enabling Botticelli to post narrative content, respond to events, and
 //! interact with users across different platforms.
 //!
 //! Each platform is feature-gated and lives in its own submodule:
@@ -14,7 +14,7 @@
 //! - Diesel models for database persistence
 //! - Repository layer for data access
 //! - Client/handler for platform API interaction
-//! - Integration with Boticelli's narrative system
+//! - Integration with Botticelli's narrative system
 
 #[cfg(feature = "discord")]
 pub mod discord;

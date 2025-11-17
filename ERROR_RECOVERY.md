@@ -25,7 +25,7 @@ let response = builder
 The error propagates up through:
 
 1. `GeminiClient::generate()` → `GeminiError`
-2. `NarrativeExecutor::execute()` → `BoticelliError`
+2. `NarrativeExecutor::execute()` → `BotticelliError`
 3. `main.rs:execute_with_driver()` → Prints "❌ Execution failed" and exits
 
 **No retry logic exists at any level.**
@@ -160,7 +160,7 @@ use tokio_retry2::strategy::{ExponentialBackoff, jitter};
 
 impl GeminiClient {
     /// Generate content with automatic retry on transient errors
-    async fn generate(&self, req: GenerateRequest) -> BoticelliResult<GenerateResponse> {
+    async fn generate(&self, req: GenerateRequest) -> BotticelliResult<GenerateResponse> {
         // Configure retry strategy based on context
         let retry_strategy = self.retry_strategy();
 
@@ -647,7 +647,7 @@ impl GeminiClient {
     }
     
     // In generate() method, use self.base_url instead of hardcoded URL
-    async fn generate_once(&self, request: &GenerateRequest) -> Result<GenerateResponse, BoticelliError> {
+    async fn generate_once(&self, request: &GenerateRequest) -> Result<GenerateResponse, BotticelliError> {
         let url = format!("{}/v1beta/models/{}:generateContent", 
             self.base_url, // Use configurable base_url
             model_name);

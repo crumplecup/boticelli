@@ -1,6 +1,6 @@
 //! Tests for header-based rate limit detection.
 
-use boticelli::HeaderRateLimitDetector;
+use botticelli::HeaderRateLimitDetector;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
 fn create_headers(entries: &[(&str, &str)]) -> HeaderMap {

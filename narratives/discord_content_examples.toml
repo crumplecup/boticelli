@@ -7,7 +7,7 @@
 # messages in the database. Discord messages are sent via the Discord API, not
 # stored in our local database. This is for demonstration of content generation.
 #
-# Run with: boticelli run --narrative narratives/discord_content_examples.toml
+# Run with: botticelli run --narrative narratives/discord_content_examples.toml
 
 [narration]
 name = "Discord Content Examples"

@@ -1,6 +1,6 @@
 //! Event handling for TUI.
 
-use crate::{BoticelliError, BoticelliResult, TuiError, TuiErrorKind};
+use crate::{BotticelliError, BotticelliResult, TuiError, TuiErrorKind};
 use crossterm::event::{self, Event as CrosstermEvent, KeyEvent};
 use std::time::Duration;
 
@@ -28,12 +28,12 @@ impl EventHandler {
     }
 
     /// Get the next event, blocking until an event is available or timeout.
-    pub fn next(&self) -> BoticelliResult<Option<Event>> {
+    pub fn next(&self) -> BotticelliResult<Option<Event>> {
         if event::poll(self.tick_rate).map_err(|e| {
-            BoticelliError::from(TuiError::new(TuiErrorKind::EventPoll(e.to_string())))
+            BotticelliError::from(TuiError::new(TuiErrorKind::EventPoll(e.to_string())))
         })? {
             match event::read().map_err(|e| {
-                BoticelliError::from(TuiError::new(TuiErrorKind::EventRead(e.to_string())))
+                BotticelliError::from(TuiError::new(TuiErrorKind::EventRead(e.to_string())))
             })? {
                 CrosstermEvent::Key(key) => Ok(Some(Event::Key(key))),
                 _ => Ok(None),

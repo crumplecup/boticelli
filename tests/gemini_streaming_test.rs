@@ -6,7 +6,7 @@
 
 #![cfg(feature = "gemini")]
 
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role, Streaming};
+use botticelli::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role, Streaming};
 use futures_util::StreamExt;
 
 /// Helper to create a simple test request.
@@ -60,7 +60,7 @@ async fn test_streaming_basic() {
     let full_text: String = chunks
         .iter()
         .filter_map(|c| match &c.content {
-            boticelli::Output::Text(t) => Some(t.as_str()),
+            botticelli::Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
         .collect();
@@ -102,7 +102,7 @@ async fn test_streaming_with_standard_model() {
     let full_text: String = chunks
         .iter()
         .filter_map(|c| match &c.content {
-            boticelli::Output::Text(t) => Some(t.as_str()),
+            botticelli::Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
         .collect();
@@ -142,7 +142,7 @@ async fn test_streaming_with_live_model() {
     let full_text: String = chunks
         .iter()
         .filter_map(|c| match &c.content {
-            boticelli::Output::Text(t) => Some(t.as_str()),
+            botticelli::Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
         .collect();
@@ -205,7 +205,7 @@ async fn test_streaming_vs_non_streaming_consistency() {
     let mut streaming_text = String::new();
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.expect("Chunk error");
-        if let boticelli::Output::Text(t) = &chunk.content {
+        if let botticelli::Output::Text(t) = &chunk.content {
             streaming_text.push_str(t);
         }
         if chunk.is_final {
@@ -219,7 +219,7 @@ async fn test_streaming_vs_non_streaming_consistency() {
         .outputs
         .iter()
         .filter_map(|o| match o {
-            boticelli::Output::Text(t) => Some(t.clone()),
+            botticelli::Output::Text(t) => Some(t.clone()),
             _ => None,
         })
         .collect::<String>();

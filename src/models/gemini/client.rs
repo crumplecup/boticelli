@@ -20,7 +20,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input};
+//! use botticelli::{BotticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input};
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -59,7 +59,7 @@ use std::sync::{Arc, Mutex};
 use gemini_rust::{Gemini, client::Model};
 
 use crate::{
-    BoticelliConfig, BoticelliDriver, BoticelliError, BoticelliResult, GenerateRequest,
+    BotticelliConfig, BotticelliDriver, BotticelliError, BotticelliResult, GenerateRequest,
     GenerateResponse, Input, Metadata, ModelMetadata, Output, RateLimiter, Role, Tier, TierConfig,
     Vision,
 };
@@ -86,7 +86,7 @@ use super::error::{GeminiError, GeminiErrorKind, GeminiResult};
 /// # Example
 ///
 /// ```rust,ignore
-/// use boticelli::{TieredGemini, GeminiTier};
+/// use botticelli::{TieredGemini, GeminiTier};
 /// use gemini_rust::Gemini;
 ///
 /// let client = Gemini::with_model(api_key, "gemini-2.0-flash")?;
@@ -218,14 +218,14 @@ impl GeminiClient {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::GeminiClient;
+    /// use botticelli::GeminiClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = GeminiClient::new()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new() -> BoticelliResult<Self> {
+    pub fn new() -> BotticelliResult<Self> {
         Self::new_with_tier(None)
     }
 
@@ -240,7 +240,7 @@ impl GeminiClient {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::{GeminiClient, GeminiTier};
+    /// use botticelli::{GeminiClient, GeminiTier};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // Using GeminiTier directly is preferred
@@ -248,7 +248,7 @@ impl GeminiClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new_with_tier(tier: Option<Box<dyn Tier>>) -> BoticelliResult<Self> {
+    pub fn new_with_tier(tier: Option<Box<dyn Tier>>) -> BotticelliResult<Self> {
         Self::new_internal(tier).map_err(Into::into)
     }
 
@@ -264,7 +264,7 @@ impl GeminiClient {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::GeminiClient;
+    /// use botticelli::GeminiClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // Create client with retry disabled
@@ -280,14 +280,14 @@ impl GeminiClient {
         no_retry: bool,
         max_retries: Option<usize>,
         retry_backoff_ms: Option<u64>,
-    ) -> BoticelliResult<Self> {
+    ) -> BotticelliResult<Self> {
         Self::new_internal_with_retry(tier, no_retry, max_retries, retry_backoff_ms)
             .map_err(Into::into)
     }
 
     /// Create a new Gemini client with rate limiting from configuration.
     ///
-    /// Loads tier configuration from boticelli.toml and applies rate limiting,
+    /// Loads tier configuration from botticelli.toml and applies rate limiting,
     /// including model-specific rate limit overrides.
     ///
     /// # Arguments
@@ -297,7 +297,7 @@ impl GeminiClient {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::GeminiClient;
+    /// use botticelli::GeminiClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // Use default tier from config (includes model-specific limits)
@@ -308,8 +308,8 @@ impl GeminiClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new_with_config(tier_name: Option<&str>) -> BoticelliResult<Self> {
-        let tier_config = BoticelliConfig::load()
+    pub fn new_with_config(tier_name: Option<&str>) -> BotticelliResult<Self> {
+        let tier_config = BotticelliConfig::load()
             .ok()
             .and_then(|config| config.get_tier("gemini", tier_name));
 
@@ -317,12 +317,12 @@ impl GeminiClient {
     }
 
     /// Create a new Gemini client with a TierConfig (preserves model-specific overrides).
-    fn new_with_tier_config(tier_config: Option<TierConfig>) -> BoticelliResult<Self> {
+    fn new_with_tier_config(tier_config: Option<TierConfig>) -> BotticelliResult<Self> {
         // Load .env file if present
         let _ = dotenvy::dotenv();
 
         let api_key = env::var("GEMINI_API_KEY")
-            .map_err(|_| BoticelliError::from(GeminiError::new(GeminiErrorKind::MissingApiKey)))?;
+            .map_err(|_| BotticelliError::from(GeminiError::new(GeminiErrorKind::MissingApiKey)))?;
 
         let base_tier = tier_config.unwrap_or_else(|| {
             // Default tier configuration (Free tier, gemini-2.5-flash defaults)
@@ -777,8 +777,8 @@ impl GeminiClient {
 }
 
 #[async_trait]
-impl BoticelliDriver for GeminiClient {
-    async fn generate(&self, req: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+impl BotticelliDriver for GeminiClient {
+    async fn generate(&self, req: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
         self.generate_internal(req).await.map_err(Into::into)
     }
 
@@ -803,10 +803,10 @@ impl GeminiClient {
         &self,
         req: &GenerateRequest,
         model_name: &str,
-    ) -> BoticelliResult<
+    ) -> BotticelliResult<
         std::pin::Pin<
             Box<
-                dyn futures_util::stream::Stream<Item = BoticelliResult<crate::StreamChunk>> + Send,
+                dyn futures_util::stream::Stream<Item = BotticelliResult<crate::StreamChunk>> + Send,
             >,
         >,
     > {
@@ -814,7 +814,7 @@ impl GeminiClient {
 
         // Ensure we have a Live API client
         let live_client = self.live_client.as_ref().ok_or_else(|| {
-            BoticelliError::from(GeminiError::new(GeminiErrorKind::ClientCreation(
+            BotticelliError::from(GeminiError::new(GeminiErrorKind::ClientCreation(
                 "Live API client not available".to_string(),
             )))
         })?;
@@ -830,7 +830,7 @@ impl GeminiClient {
         let session = live_client
             .connect_with_config(model_name, config)
             .await
-            .map_err(BoticelliError::from)?;
+            .map_err(BotticelliError::from)?;
 
         // Combine all user messages into a single text
         let mut combined_text = String::new();
@@ -847,10 +847,10 @@ impl GeminiClient {
         let live_stream = session
             .send_text_stream(&combined_text)
             .await
-            .map_err(BoticelliError::from)?;
+            .map_err(BotticelliError::from)?;
 
-        // Convert Live API stream to BoticelliResult stream
-        let converted_stream = live_stream.map(|result| result.map_err(BoticelliError::from));
+        // Convert Live API stream to BotticelliResult stream
+        let converted_stream = live_stream.map(|result| result.map_err(BotticelliError::from));
 
         Ok(Box::pin(converted_stream))
     }
@@ -861,10 +861,10 @@ impl crate::Streaming for GeminiClient {
     async fn generate_stream(
         &self,
         req: &GenerateRequest,
-    ) -> BoticelliResult<
+    ) -> BotticelliResult<
         std::pin::Pin<
             Box<
-                dyn futures_util::stream::Stream<Item = BoticelliResult<crate::StreamChunk>> + Send,
+                dyn futures_util::stream::Stream<Item = BotticelliResult<crate::StreamChunk>> + Send,
             >,
         >,
     > {
@@ -971,7 +971,7 @@ impl crate::Streaming for GeminiClient {
                 Ok(response) => Self::convert_to_stream_chunk(response),
                 Err(e) => {
                     let gemini_err = GeminiError::new(GeminiErrorKind::ApiRequest(e.to_string()));
-                    Err(BoticelliError::from(gemini_err))
+                    Err(BotticelliError::from(gemini_err))
                 }
             });
 
@@ -983,7 +983,7 @@ impl GeminiClient {
     /// Convert gemini_rust GenerationResponse to our StreamChunk.
     fn convert_to_stream_chunk(
         response: gemini_rust::generation::model::GenerationResponse,
-    ) -> BoticelliResult<crate::StreamChunk> {
+    ) -> BotticelliResult<crate::StreamChunk> {
         // Extract text from response
         let text = response.text();
 

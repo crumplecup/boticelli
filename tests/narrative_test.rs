@@ -1,4 +1,4 @@
-use boticelli::{Input, MediaSource, Narrative, NarrativeErrorKind};
+use botticelli::{Input, MediaSource, Narrative, NarrativeErrorKind};
 
 #[test]
 fn test_load_mint_narrative() {

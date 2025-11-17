@@ -24,17 +24,17 @@ fn timestamp_to_naive(ts: &Timestamp) -> NaiveDateTime {
         .naive_utc()
 }
 
-/// Event handler for the Boticelli Discord bot.
+/// Event handler for the Botticelli Discord bot.
 ///
 /// Implements Serenity's EventHandler trait to respond to Discord events
 /// and persist data to the database via DiscordRepository.
-pub struct BoticelliHandler {
+pub struct BotticelliHandler {
     /// Repository for database operations
     repository: Arc<DiscordRepository>,
 }
 
-impl BoticelliHandler {
-    /// Create a new BoticelliHandler with the given repository.
+impl BotticelliHandler {
+    /// Create a new BotticelliHandler with the given repository.
     pub fn new(repository: Arc<DiscordRepository>) -> Self {
         Self { repository }
     }
@@ -294,7 +294,7 @@ impl BoticelliHandler {
 }
 
 #[async_trait]
-impl EventHandler for BoticelliHandler {
+impl EventHandler for BotticelliHandler {
     /// Called when the bot successfully connects to Discord.
     async fn ready(&self, _ctx: Context, ready: Ready) {
         info!(

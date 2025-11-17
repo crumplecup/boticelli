@@ -5,8 +5,8 @@
 
 #![cfg(all(feature = "database", feature = "discord"))]
 
-use boticelli::{
-    BoticelliDriver, DiscordChannelProcessor, DiscordGuildProcessor, DiscordRepository,
+use botticelli::{
+    BotticelliDriver, DiscordChannelProcessor, DiscordGuildProcessor, DiscordRepository,
     DiscordUserProcessor, GenerateRequest, GenerateResponse, Narrative, NarrativeExecutor, Output,
     ProcessorRegistry,
 };
@@ -28,7 +28,7 @@ impl MockDriver {
 }
 
 #[async_trait::async_trait]
-impl BoticelliDriver for MockDriver {
+impl BotticelliDriver for MockDriver {
     fn provider_name(&self) -> &'static str {
         "mock"
     }
@@ -40,7 +40,7 @@ impl BoticelliDriver for MockDriver {
     async fn generate(
         &self,
         _request: &GenerateRequest,
-    ) -> boticelli::BoticelliResult<GenerateResponse> {
+    ) -> botticelli::BotticelliResult<GenerateResponse> {
         let mut count = self.call_count.lock().unwrap();
         let response = self.responses.get(*count).cloned().unwrap_or_default();
         *count += 1;
@@ -67,7 +67,7 @@ fn create_test_db() -> diesel::PgConnection {
 
 /// Clean up test guilds.
 fn cleanup_guilds(conn: &mut diesel::PgConnection, guild_ids: &[i64]) {
-    use boticelli::discord_guilds;
+    use botticelli::discord_guilds;
     use diesel::prelude::*;
 
     for guild_id in guild_ids {
@@ -79,7 +79,7 @@ fn cleanup_guilds(conn: &mut diesel::PgConnection, guild_ids: &[i64]) {
 
 /// Clean up test users.
 fn cleanup_users(conn: &mut diesel::PgConnection, user_ids: &[i64]) {
-    use boticelli::discord_users;
+    use botticelli::discord_users;
     use diesel::prelude::*;
 
     for user_id in user_ids {
@@ -91,7 +91,7 @@ fn cleanup_users(conn: &mut diesel::PgConnection, user_ids: &[i64]) {
 
 /// Clean up test channels.
 fn cleanup_channels(conn: &mut diesel::PgConnection, channel_ids: &[i64]) {
-    use boticelli::discord_channels;
+    use botticelli::discord_channels;
     use diesel::prelude::*;
 
     for channel_id in channel_ids {
@@ -152,12 +152,12 @@ generate_guild = "Generate guild JSON"
         .expect("Narrative execution failed");
 
     // Verify data was inserted into database
-    use boticelli::discord_guilds;
+    use botticelli::discord_guilds;
     use diesel::prelude::*;
 
     let guild = discord_guilds::table
         .find(test_guild_id)
-        .first::<boticelli::GuildRow>(&mut conn)
+        .first::<botticelli::GuildRow>(&mut conn)
         .expect("Guild not found in database");
 
     assert_eq!(guild.id, test_guild_id);
@@ -223,12 +223,12 @@ generate_user = "Generate user JSON"
         .expect("Narrative execution failed");
 
     // Verify data was inserted
-    use boticelli::discord_users;
+    use botticelli::discord_users;
     use diesel::prelude::*;
 
     let user = discord_users::table
         .find(test_user_id)
-        .first::<boticelli::UserRow>(&mut conn)
+        .first::<botticelli::UserRow>(&mut conn)
         .expect("User not found in database");
 
     assert_eq!(user.id, test_user_id);
@@ -307,12 +307,12 @@ generate_channel = "Generate channel JSON"
         .expect("Narrative execution failed");
 
     // Verify both entities were inserted
-    use boticelli::{discord_channels, discord_guilds};
+    use botticelli::{discord_channels, discord_guilds};
     use diesel::prelude::*;
 
     let guild = discord_guilds::table
         .find(test_guild_id)
-        .first::<boticelli::GuildRow>(&mut conn)
+        .first::<botticelli::GuildRow>(&mut conn)
         .expect("Guild not found in database");
 
     assert_eq!(guild.id, test_guild_id);
@@ -320,7 +320,7 @@ generate_channel = "Generate channel JSON"
 
     let channel = discord_channels::table
         .find(test_channel_id)
-        .first::<boticelli::ChannelRow>(&mut conn)
+        .first::<botticelli::ChannelRow>(&mut conn)
         .expect("Channel not found in database");
 
     assert_eq!(channel.id, test_channel_id);

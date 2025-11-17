@@ -11,7 +11,7 @@
 /// # Example
 ///
 /// ```
-/// use boticelli::Tier;
+/// use botticelli::Tier;
 ///
 /// struct FreeTier;
 ///

@@ -1,4 +1,4 @@
-//! Error types for the Boticelli library.
+//! Error types for the Botticelli library.
 
 #[cfg(feature = "database")]
 use crate::DatabaseError;
@@ -192,7 +192,7 @@ impl std::error::Error for BackendError {}
 
 /// Crate-level error variants.
 #[derive(Debug, derive_more::From)]
-pub enum BoticelliErrorKind {
+pub enum BotticelliErrorKind {
     /// HTTP error from reqwest
     #[from(HttpError)]
     Http(HttpError),
@@ -232,56 +232,56 @@ pub enum BoticelliErrorKind {
     Tui(TuiError),
 }
 
-impl std::fmt::Display for BoticelliErrorKind {
+impl std::fmt::Display for BotticelliErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BoticelliErrorKind::Http(e) => write!(f, "{}", e),
-            BoticelliErrorKind::Json(e) => write!(f, "{}", e),
-            BoticelliErrorKind::Backend(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Http(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Json(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Backend(e) => write!(f, "{}", e),
             #[cfg(feature = "gemini")]
-            BoticelliErrorKind::Gemini(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Gemini(e) => write!(f, "{}", e),
             #[cfg(feature = "database")]
-            BoticelliErrorKind::Database(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Database(e) => write!(f, "{}", e),
             #[cfg(feature = "discord")]
-            BoticelliErrorKind::Discord(e) => write!(f, "{}", e),
-            BoticelliErrorKind::Narrative(e) => write!(f, "{}", e),
-            BoticelliErrorKind::Config(e) => write!(f, "{}", e),
-            BoticelliErrorKind::NotImplemented(e) => write!(f, "{}", e),
-            BoticelliErrorKind::Storage(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Discord(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Narrative(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Config(e) => write!(f, "{}", e),
+            BotticelliErrorKind::NotImplemented(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Storage(e) => write!(f, "{}", e),
             #[cfg(feature = "tui")]
-            BoticelliErrorKind::Tui(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Tui(e) => write!(f, "{}", e),
         }
     }
 }
 
-/// Boticelli error with kind discrimination.
+/// Botticelli error with kind discrimination.
 #[derive(Debug)]
-pub struct BoticelliError(Box<BoticelliErrorKind>);
+pub struct BotticelliError(Box<BotticelliErrorKind>);
 
-impl BoticelliError {
+impl BotticelliError {
     /// Create a new error from a kind.
-    pub fn new(kind: BoticelliErrorKind) -> Self {
+    pub fn new(kind: BotticelliErrorKind) -> Self {
         Self(Box::new(kind))
     }
 
     /// Get the error kind.
-    pub fn kind(&self) -> &BoticelliErrorKind {
+    pub fn kind(&self) -> &BotticelliErrorKind {
         &self.0
     }
 }
 
-impl std::fmt::Display for BoticelliError {
+impl std::fmt::Display for BotticelliError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Boticelli Error: {}", self.0)
+        write!(f, "Botticelli Error: {}", self.0)
     }
 }
 
-impl std::error::Error for BoticelliError {}
+impl std::error::Error for BotticelliError {}
 
-// Generic From implementation for any type that converts to BoticelliErrorKind
-impl<T> From<T> for BoticelliError
+// Generic From implementation for any type that converts to BotticelliErrorKind
+impl<T> From<T> for BotticelliError
 where
-    T: Into<BoticelliErrorKind>,
+    T: Into<BotticelliErrorKind>,
 {
     fn from(err: T) -> Self {
         Self::new(err.into())
@@ -289,11 +289,11 @@ where
 }
 
 #[cfg(feature = "database")]
-impl From<diesel::result::Error> for BoticelliError {
+impl From<diesel::result::Error> for BotticelliError {
     fn from(err: diesel::result::Error) -> Self {
         BackendError::new(format!("Database error: {}", err)).into()
     }
 }
 
-/// Result type for Boticelli operations.
-pub type BoticelliResult<T> = std::result::Result<T, BoticelliError>;
+/// Result type for Botticelli operations.
+pub type BotticelliResult<T> = std::result::Result<T, BotticelliError>;

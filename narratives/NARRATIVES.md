@@ -1,6 +1,6 @@
 # Example Narratives
 
-This directory contains example narratives demonstrating how to use Boticelli's narrative system and processor pipeline.
+This directory contains example narratives demonstrating how to use Botticelli's narrative system and processor pipeline.
 
 ## Available Narratives
 
@@ -26,22 +26,22 @@ Generates 5 different channel types:
 
 ```bash
 # 1. Generate content
-boticelli run --narrative narratives/generate_channel_posts.toml
+botticelli run --narrative narratives/generate_channel_posts.toml
 
 # 2. Review what was generated
-boticelli content list potential_channel_posts
+botticelli content list potential_channel_posts
 
 # 3. View a specific channel
-boticelli content show potential_channel_posts 1
+botticelli content show potential_channel_posts 1
 
 # 4. Rate your favorites
-boticelli content tag potential_channel_posts 1 --rating 5 --tags "useful,professional"
+botticelli content tag potential_channel_posts 1 --rating 5 --tags "useful,professional"
 
 # 5. Approve for production
-boticelli content review potential_channel_posts 1 approved
+botticelli content review potential_channel_posts 1 approved
 
 # 6. Promote to production
-boticelli content promote potential_channel_posts 1 --target discord_channels
+botticelli content promote potential_channel_posts 1 --target discord_channels
 ```
 
 #### generate_users.toml
@@ -62,15 +62,15 @@ Generates 5 persona types:
 
 ```bash
 # Generate profiles
-boticelli run --narrative narratives/generate_users.toml
+botticelli run --narrative narratives/generate_users.toml
 
 # Review and tag by persona
-boticelli content list potential_users
-boticelli content tag potential_users 2 --tags "moderator,trusted"
+botticelli content list potential_users
+botticelli content tag potential_users 2 --tags "moderator,trusted"
 
 # Approve and promote
-boticelli content review potential_users 2 approved
-boticelli content promote potential_users 2 --target discord_users
+botticelli content review potential_users 2 approved
+botticelli content promote potential_users 2 --target discord_users
 ```
 
 #### generate_guilds.toml
@@ -91,18 +91,18 @@ Generates 5 community types:
 
 ```bash
 # Generate server ideas
-boticelli run --narrative narratives/generate_guilds.toml
+botticelli run --narrative narratives/generate_guilds.toml
 
 # Review and compare
-boticelli content list potential_guilds
-boticelli content show potential_guilds 1
+botticelli content list potential_guilds
+botticelli content show potential_guilds 1
 
 # Tag by theme
-boticelli content tag potential_guilds 1 --tags "creative,active" --rating 5
+botticelli content tag potential_guilds 1 --tags "creative,active" --rating 5
 
 # Select and promote
-boticelli content review potential_guilds 1 approved
-boticelli content promote potential_guilds 1 --target discord_guilds
+botticelli content review potential_guilds 1 approved
+botticelli content promote potential_guilds 1 --target discord_guilds
 ```
 
 **Key Features:**
@@ -128,7 +128,7 @@ Creates basic Discord infrastructure in the database:
 **Run with:**
 
 ```bash
-boticelli run --narrative narratives/discord_infrastructure.toml --process-discord
+botticelli run --narrative narratives/discord_infrastructure.toml --process-discord
 ```
 
 **What it demonstrates:**
@@ -169,7 +169,7 @@ Generates creative content examples for Discord bot posts:
 **Run with:**
 
 ```bash
-boticelli run --narrative narratives/discord_content_examples.toml
+botticelli run --narrative narratives/discord_content_examples.toml
 ```
 
 **What it demonstrates:**
@@ -209,12 +209,12 @@ To enable automatic Discord data processing:
 
 1. **Add the flag**: Use `--process-discord` when running the narrative
 2. **Use proper JSON**: Follow the schema from DISCORD_NARRATIVE.md
-3. **Check logs**: Use `RUST_LOG=boticelli=info` to see processor activity
+3. **Check logs**: Use `RUST_LOG=botticelli=info` to see processor activity
 
 **Example:**
 
 ```bash
-RUST_LOG=boticelli=info boticelli run \
+RUST_LOG=botticelli=info botticelli run \
   --narrative narratives/discord_infrastructure.toml \
   --process-discord
 ```
@@ -246,7 +246,7 @@ See [NARRATIVE_PROCESSORS.md](../NARRATIVE_PROCESSORS.md) for:
 
 1. **Test incrementally**: Start with one act, verify it works, then add more
 2. **Check the database**: Query after running to verify data was inserted
-3. **Use logging**: `RUST_LOG=boticelli=trace` shows detailed processor activity
+3. **Use logging**: `RUST_LOG=botticelli=trace` shows detailed processor activity
 4. **Handle errors**: Processor errors are logged but don't fail the narrative
 5. **Unique IDs**: Use different Discord snowflake IDs for each entity to avoid conflicts
 
@@ -273,7 +273,7 @@ See [NARRATIVE_PROCESSORS.md](../NARRATIVE_PROCESSORS.md) for:
 
 ## Content Generation vs Direct Insertion
 
-Boticelli supports two workflows for working with Discord data:
+Botticelli supports two workflows for working with Discord data:
 
 ### Content Generation (Review Workflow)
 

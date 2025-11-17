@@ -6,7 +6,7 @@
 # 3. Add the bot as a member of the guild
 # 4. Create a text channel for content
 #
-# Run with: boticelli run --narrative narratives/discord_infrastructure.toml --process-discord
+# Run with: botticelli run --narrative narratives/discord_infrastructure.toml --process-discord
 
 [narration]
 name = "Discord Infrastructure Setup"
@@ -89,7 +89,7 @@ You are generating data for Discord user profiles. Please provide the following 
 
 Generate a bot user account with:
 - id: 1100000000000000200
-- username: "boticelli_bot"
+- username: "botticelli_bot"
 - global_name: "Boticelli Content Bot"
 - bot: true
 - A creative description in bio about generating narrative-driven content

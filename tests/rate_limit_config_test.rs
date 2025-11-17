@@ -1,11 +1,11 @@
 //! Tests for rate limit configuration system.
 
-use boticelli::{BoticelliConfig, Tier, TierConfig};
+use botticelli::{BotticelliConfig, Tier, TierConfig};
 use std::collections::HashMap;
 
 #[test]
 fn test_load_bundled_defaults() {
-    let config = BoticelliConfig::load().unwrap();
+    let config = BotticelliConfig::load().unwrap();
 
     // Should have at least Gemini provider
     assert!(config.providers.contains_key("gemini"));
@@ -49,7 +49,7 @@ fn test_tier_config_implements_tier_trait() {
 
 #[test]
 fn test_get_tier_with_default() {
-    let config = BoticelliConfig::load().unwrap();
+    let config = BotticelliConfig::load().unwrap();
 
     // Get default tier (should be "free" for Gemini)
     let tier = config.get_tier("gemini", None).unwrap();
@@ -58,7 +58,7 @@ fn test_get_tier_with_default() {
 
 #[test]
 fn test_get_tier_with_specific_name() {
-    let config = BoticelliConfig::load().unwrap();
+    let config = BotticelliConfig::load().unwrap();
 
     // Get specific tier
     let tier = config.get_tier("gemini", Some("payasyougo")).unwrap();
@@ -87,7 +87,7 @@ tpm = 999_000
     .unwrap();
 
     // Load config from the temporary file
-    let config = BoticelliConfig::from_file(temp_file.path()).unwrap();
+    let config = BotticelliConfig::from_file(temp_file.path()).unwrap();
 
     // Verify the config was loaded correctly
     assert!(config.providers.contains_key("test"));

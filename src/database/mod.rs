@@ -78,7 +78,7 @@ use crate::{GenerateRequest, GenerateResponse};
 /// - `DATABASE_PASSWORD` - PostgreSQL password (required)
 /// - `DATABASE_HOST` - Database host (defaults to "localhost")
 /// - `DATABASE_PORT` - Database port (defaults to "5432")
-/// - `DATABASE_NAME` - Database name (defaults to "boticelli")
+/// - `DATABASE_NAME` - Database name (defaults to "botticelli")
 ///
 /// Alternatively, you can provide a complete `DATABASE_URL` which takes precedence.
 pub fn establish_connection() -> DatabaseResult<PgConnection> {
@@ -104,7 +104,7 @@ pub fn establish_connection() -> DatabaseResult<PgConnection> {
 
     let host = std::env::var("DATABASE_HOST").unwrap_or_else(|_| "localhost".to_string());
     let port = std::env::var("DATABASE_PORT").unwrap_or_else(|_| "5432".to_string());
-    let name = std::env::var("DATABASE_NAME").unwrap_or_else(|_| "boticelli".to_string());
+    let name = std::env::var("DATABASE_NAME").unwrap_or_else(|_| "botticelli".to_string());
 
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",

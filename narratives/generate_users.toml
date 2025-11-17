@@ -4,9 +4,9 @@
 # The schema is automatically injected based on the template field.
 #
 # Workflow:
-# 1. Run: boticelli run --narrative narratives/generate_users.toml
-# 2. Review: boticelli content list users_gen_001
-# 3. Promote: boticelli content promote users_gen_001 1 --target discord_users
+# 1. Run: botticelli run --narrative narratives/generate_users.toml
+# 2. Review: botticelli content list users_gen_001
+# 3. Promote: botticelli content promote users_gen_001 1 --target discord_users
 
 [narration]
 name = "potential_users"

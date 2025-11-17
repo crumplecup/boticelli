@@ -4,7 +4,7 @@
 //! in dynamically created generation tables.
 
 use crate::database::schema_reflection::reflect_table_schema;
-use crate::{BoticelliResult, DatabaseError, DatabaseErrorKind};
+use crate::{BotticelliResult, DatabaseError, DatabaseErrorKind};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use serde_json::Value as JsonValue;
@@ -29,7 +29,7 @@ pub fn list_content(
     table_name: &str,
     status_filter: Option<&str>,
     limit: usize,
-) -> BoticelliResult<Vec<JsonValue>> {
+) -> BotticelliResult<Vec<JsonValue>> {
     // Build query dynamically
     let mut query = format!(
         "SELECT row_to_json(t) FROM (SELECT * FROM {} WHERE 1=1",
@@ -76,7 +76,7 @@ pub fn get_content_by_id(
     conn: &mut PgConnection,
     table_name: &str,
     id: i64,
-) -> BoticelliResult<JsonValue> {
+) -> BotticelliResult<JsonValue> {
     let query = format!(
         "SELECT row_to_json(t) FROM (SELECT * FROM {} WHERE id = {}) t",
         table_name, id
@@ -108,7 +108,7 @@ pub fn update_content_metadata(
     id: i64,
     tags: Option<&[String]>,
     rating: Option<i32>,
-) -> BoticelliResult<()> {
+) -> BotticelliResult<()> {
     let mut updates = Vec::new();
 
     if let Some(tag_list) = tags {
@@ -167,7 +167,7 @@ pub fn update_review_status(
     table_name: &str,
     id: i64,
     status: &str,
-) -> BoticelliResult<()> {
+) -> BotticelliResult<()> {
     // Validate status
     if !["pending", "approved", "rejected"].contains(&status) {
         return Err(DatabaseError::new(DatabaseErrorKind::Query(
@@ -197,7 +197,7 @@ pub fn update_review_status(
 /// * `conn` - Database connection
 /// * `table_name` - Name of the content table
 /// * `id` - Content ID
-pub fn delete_content(conn: &mut PgConnection, table_name: &str, id: i64) -> BoticelliResult<()> {
+pub fn delete_content(conn: &mut PgConnection, table_name: &str, id: i64) -> BotticelliResult<()> {
     let query = format!("DELETE FROM {} WHERE id = {}", table_name, id);
 
     tracing::debug!(sql = %query, "Deleting content");
@@ -229,7 +229,7 @@ pub fn promote_content(
     source_table: &str,
     target_table: &str,
     id: i64,
-) -> BoticelliResult<i64> {
+) -> BotticelliResult<i64> {
     tracing::info!(
         source = source_table,
         target = target_table,

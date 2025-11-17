@@ -4,7 +4,7 @@
 //! execution history, allowing multiple storage backends (database, filesystem, etc.)
 //! without coupling application logic to a specific implementation.
 
-use crate::{BoticelliResult, NarrativeExecution};
+use crate::{BotticelliResult, NarrativeExecution};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +30,7 @@ pub trait NarrativeRepository: Send + Sync {
     ///
     /// # Returns
     /// The unique ID of the saved execution
-    async fn save_execution(&self, execution: &NarrativeExecution) -> BoticelliResult<i32>;
+    async fn save_execution(&self, execution: &NarrativeExecution) -> BotticelliResult<i32>;
 
     /// Load a narrative execution by its unique ID.
     ///
@@ -41,7 +41,7 @@ pub trait NarrativeRepository: Send + Sync {
     ///
     /// # Returns
     /// The complete execution, or an error if not found
-    async fn load_execution(&self, id: i32) -> BoticelliResult<NarrativeExecution>;
+    async fn load_execution(&self, id: i32) -> BotticelliResult<NarrativeExecution>;
 
     /// List executions matching the given filter criteria.
     ///
@@ -55,7 +55,7 @@ pub trait NarrativeRepository: Send + Sync {
     async fn list_executions(
         &self,
         filter: &ExecutionFilter,
-    ) -> BoticelliResult<Vec<ExecutionSummary>>;
+    ) -> BotticelliResult<Vec<ExecutionSummary>>;
 
     /// Update the status of a running execution.
     ///
@@ -65,7 +65,7 @@ pub trait NarrativeRepository: Send + Sync {
     /// # Arguments
     /// * `id` - The execution ID to update
     /// * `status` - The new status
-    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BoticelliResult<()>;
+    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BotticelliResult<()>;
 
     /// Delete an execution and all associated data.
     ///
@@ -73,7 +73,7 @@ pub trait NarrativeRepository: Send + Sync {
     ///
     /// # Arguments
     /// * `id` - The execution ID to delete
-    async fn delete_execution(&self, id: i32) -> BoticelliResult<()>;
+    async fn delete_execution(&self, id: i32) -> BotticelliResult<()>;
 
     // Media storage methods - new unified approach for images/audio/video
 
@@ -93,7 +93,7 @@ pub trait NarrativeRepository: Send + Sync {
         &self,
         data: &[u8],
         metadata: &crate::MediaMetadata,
-    ) -> BoticelliResult<crate::MediaReference>;
+    ) -> BotticelliResult<crate::MediaReference>;
 
     /// Retrieve media by reference.
     ///
@@ -102,7 +102,7 @@ pub trait NarrativeRepository: Send + Sync {
     ///
     /// # Returns
     /// The raw media bytes
-    async fn load_media(&self, reference: &crate::MediaReference) -> BoticelliResult<Vec<u8>>;
+    async fn load_media(&self, reference: &crate::MediaReference) -> BotticelliResult<Vec<u8>>;
 
     /// Get media reference by content hash for deduplication.
     ///
@@ -116,7 +116,7 @@ pub trait NarrativeRepository: Send + Sync {
     async fn get_media_by_hash(
         &self,
         content_hash: &str,
-    ) -> BoticelliResult<Option<crate::MediaReference>>;
+    ) -> BotticelliResult<Option<crate::MediaReference>>;
 
     // Video storage methods - DEPRECATED, use store_media/load_media instead
     // Kept for backward compatibility, default implementations return NotImplemented
@@ -136,8 +136,8 @@ pub trait NarrativeRepository: Send + Sync {
         &self,
         _video_data: &[u8],
         _metadata: &VideoMetadata,
-    ) -> BoticelliResult<String> {
-        Err(crate::BoticelliError::from(
+    ) -> BotticelliResult<String> {
+        Err(crate::BotticelliError::from(
             crate::NotImplementedError::new(
                 "Video storage not yet implemented for this repository",
             ),
@@ -151,8 +151,8 @@ pub trait NarrativeRepository: Send + Sync {
     ///
     /// # Returns
     /// The raw video bytes
-    async fn load_video(&self, _video_ref: &str) -> BoticelliResult<Vec<u8>> {
-        Err(crate::BoticelliError::from(
+    async fn load_video(&self, _video_ref: &str) -> BotticelliResult<Vec<u8>> {
+        Err(crate::BotticelliError::from(
             crate::NotImplementedError::new(
                 "Video loading not yet implemented for this repository",
             ),

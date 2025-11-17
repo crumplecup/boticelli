@@ -2,7 +2,7 @@
 
 ## Overview
 
-Boticelli has a comprehensive test suite designed to maximize coverage while minimizing API usage and costs. Most tests use mock drivers to avoid hitting actual LLM APIs.
+Botticelli has a comprehensive test suite designed to maximize coverage while minimizing API usage and costs. Most tests use mock drivers to avoid hitting actual LLM APIs.
 
 ## Test Categories
 
@@ -247,8 +247,8 @@ async fn test_new_feature() {
     struct MockDriver;
 
     #[async_trait]
-    impl BoticelliDriver for MockDriver {
-        async fn generate(&self, _req: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+    impl BotticelliDriver for MockDriver {
+        async fn generate(&self, _req: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
             Ok(GenerateResponse {
                 outputs: vec![Output::Text("mock response".to_string())],
             })

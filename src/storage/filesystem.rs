@@ -4,7 +4,7 @@
 //! organized by media type and content hash for automatic deduplication.
 
 use crate::{
-    BoticelliResult, MediaMetadata, MediaReference, MediaStorage, MediaType, StorageError,
+    BotticelliResult, MediaMetadata, MediaReference, MediaStorage, MediaType, StorageError,
     StorageErrorKind,
 };
 use sha2::{Digest, Sha256};
@@ -20,7 +20,7 @@ use uuid::Uuid;
 /// # Example Structure
 ///
 /// ```text
-/// /var/boticelli/media/
+/// /var/botticelli/media/
 /// ├── images/
 /// │   ├── ab/
 /// │   │   └── cd/
@@ -57,7 +57,7 @@ impl FileSystemStorage {
     /// # Errors
     ///
     /// Returns error if the directory cannot be created or accessed.
-    pub fn new(base_path: impl Into<PathBuf>) -> BoticelliResult<Self> {
+    pub fn new(base_path: impl Into<PathBuf>) -> BotticelliResult<Self> {
         let base_path = base_path.into();
 
         std::fs::create_dir_all(&base_path).map_err(|e| {
@@ -96,7 +96,7 @@ impl FileSystemStorage {
     }
 
     /// Verify content hash matches expected hash.
-    fn verify_hash(data: &[u8], expected_hash: &str) -> BoticelliResult<()> {
+    fn verify_hash(data: &[u8], expected_hash: &str) -> BotticelliResult<()> {
         let actual_hash = Self::compute_hash(data);
         if actual_hash != expected_hash {
             return Err(StorageError::new(StorageErrorKind::HashMismatch {
@@ -115,7 +115,7 @@ impl MediaStorage for FileSystemStorage {
         &self,
         data: &[u8],
         metadata: &MediaMetadata,
-    ) -> BoticelliResult<MediaReference> {
+    ) -> BotticelliResult<MediaReference> {
         let hash = Self::compute_hash(data);
         let path = self.get_path(&hash, metadata.media_type);
 
@@ -187,7 +187,7 @@ impl MediaStorage for FileSystemStorage {
         })
     }
 
-    async fn retrieve(&self, reference: &MediaReference) -> BoticelliResult<Vec<u8>> {
+    async fn retrieve(&self, reference: &MediaReference) -> BotticelliResult<Vec<u8>> {
         let path = Path::new(&reference.storage_path);
 
         let data = tokio::fs::read(path).await.map_err(|e| {
@@ -219,12 +219,12 @@ impl MediaStorage for FileSystemStorage {
         &self,
         _reference: &MediaReference,
         _expires_in: Duration,
-    ) -> BoticelliResult<Option<String>> {
+    ) -> BotticelliResult<Option<String>> {
         // Filesystem storage doesn't support direct URLs
         Ok(None)
     }
 
-    async fn delete(&self, reference: &MediaReference) -> BoticelliResult<()> {
+    async fn delete(&self, reference: &MediaReference) -> BotticelliResult<()> {
         let path = Path::new(&reference.storage_path);
 
         tokio::fs::remove_file(path).await.map_err(|e| {
@@ -248,7 +248,7 @@ impl MediaStorage for FileSystemStorage {
         Ok(())
     }
 
-    async fn exists(&self, reference: &MediaReference) -> BoticelliResult<bool> {
+    async fn exists(&self, reference: &MediaReference) -> BotticelliResult<bool> {
         let path = Path::new(&reference.storage_path);
         Ok(tokio::fs::try_exists(path).await.unwrap_or(false))
     }

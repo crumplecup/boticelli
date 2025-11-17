@@ -10,7 +10,7 @@ mod limiter;
 mod tier;
 mod tiers;
 
-pub use config::{BoticelliConfig, ProviderConfig, TierConfig};
+pub use config::{BotticelliConfig, ProviderConfig, TierConfig};
 pub use detector::HeaderRateLimitDetector;
 pub use limiter::{RateLimiter, RateLimiterGuard};
 pub use tier::Tier;

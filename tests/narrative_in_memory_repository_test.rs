@@ -1,6 +1,6 @@
 //! Tests for in-memory narrative repository.
 
-use boticelli::{
+use botticelli::{
     ActExecution, ExecutionFilter, ExecutionStatus, InMemoryNarrativeRepository, Input,
     NarrativeExecution, NarrativeRepository, VideoMetadata,
 };

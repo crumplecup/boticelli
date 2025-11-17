@@ -3,8 +3,8 @@
 //! This module provides the executor that processes multi-act narratives
 //! by calling LLM APIs in sequence, passing context between acts.
 
-use crate::{BoticelliDriver, GenerateRequest, Input, Message, Output, Role};
-use crate::{BoticelliResult, NarrativeProvider, ProcessorContext, ProcessorRegistry};
+use crate::{BotticelliDriver, GenerateRequest, Input, Message, Output, Role};
+use crate::{BotticelliResult, NarrativeProvider, ProcessorContext, ProcessorRegistry};
 use serde::{Deserialize, Serialize};
 
 /// Execution result for a single act in a narrative.
@@ -49,12 +49,12 @@ pub struct NarrativeExecution {
 ///
 /// Optionally, processors can be registered to extract and process structured
 /// data from act responses (e.g., JSON extraction, database insertion).
-pub struct NarrativeExecutor<D: BoticelliDriver> {
+pub struct NarrativeExecutor<D: BotticelliDriver> {
     driver: D,
     processor_registry: Option<ProcessorRegistry>,
 }
 
-impl<D: BoticelliDriver> NarrativeExecutor<D> {
+impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// Create a new narrative executor with the given LLM driver.
     pub fn new(driver: D) -> Self {
         Self {
@@ -71,7 +71,7 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use boticelli::{NarrativeExecutor, ProcessorRegistry};
+    /// use botticelli::{NarrativeExecutor, ProcessorRegistry};
     ///
     /// let mut registry = ProcessorRegistry::new();
     /// registry.register(Box::new(MyProcessor::new()));
@@ -99,7 +99,7 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
     pub async fn execute<N: NarrativeProvider>(
         &self,
         narrative: &N,
-    ) -> BoticelliResult<NarrativeExecution> {
+    ) -> BotticelliResult<NarrativeExecution> {
         let mut act_executions = Vec::new();
         let mut conversation_history: Vec<Message> = Vec::new();
 
@@ -190,7 +190,7 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
 /// Extract text content from LLM outputs.
 ///
 /// Concatenates all text outputs with newlines between them.
-fn extract_text_from_outputs(outputs: &[Output]) -> BoticelliResult<String> {
+fn extract_text_from_outputs(outputs: &[Output]) -> BotticelliResult<String> {
     let mut texts = Vec::new();
 
     for output in outputs {

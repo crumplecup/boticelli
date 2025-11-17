@@ -1,10 +1,10 @@
-# Boticelli
+# Botticelli
 
 A unified Rust library and CLI for executing multi-act LLM narratives with support for multiple backends (Gemini, Anthropic, etc.) and optional PostgreSQL persistence.
 
 ## Overview
 
-Boticelli enables you to define complex, multi-step LLM workflows in TOML files called "narratives." Each narrative consists of multiple "acts" that execute sequentially, with each act seeing the outputs from previous acts as context. This enables powerful workflows like:
+Botticelli enables you to define complex, multi-step LLM workflows in TOML files called "narratives." Each narrative consists of multiple "acts" that execute sequentially, with each act seeing the outputs from previous acts as context. This enables powerful workflows like:
 
 - Generate content → Critique → Improve
 - Analyze image → Summarize → Translate
@@ -33,13 +33,13 @@ Boticelli enables you to define complex, multi-step LLM workflows in TOML files 
 
 ```bash
 # Clone the repository
-git clone https://github.com/crumplecup/boticelli.git
-cd boticelli
+git clone https://github.com/crumplecup/botticelli.git
+cd botticelli
 
 # Build the project
 cargo build --release
 
-# The binary will be at ./target/release/boticelli
+# The binary will be at ./target/release/botticelli
 ```
 
 ### Basic Configuration
@@ -60,9 +60,9 @@ GEMINI_API_KEY=your_gemini_api_key_here
 RUST_LOG=info
 
 # Optional: Only needed if using --save flag (component-based)
-DATABASE_USER=boticelli_user
+DATABASE_USER=botticelli_user
 DATABASE_PASSWORD=your_password
-DATABASE_NAME=boticelli  # Optional: defaults to boticelli
+DATABASE_NAME=botticelli  # Optional: defaults to botticelli
 ```
 
 3. **Get an API key**:
@@ -75,7 +75,7 @@ DATABASE_NAME=boticelli  # Optional: defaults to boticelli
 export GEMINI_API_KEY="your-key-here"
 
 # Run the example narrative
-./target/release/boticelli run --narrative narrations/mint.toml --verbose
+./target/release/botticelli run --narrative narrations/mint.toml --verbose
 ```
 
 You should see output like:
@@ -167,9 +167,9 @@ Download from [postgresql.org](https://www.postgresql.org/download/windows/)
 psql postgres
 
 # Create database and user
-CREATE DATABASE boticelli;
-CREATE USER boticelli_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE boticelli TO boticelli_user;
+CREATE DATABASE botticelli;
+CREATE USER botticelli_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE botticelli TO botticelli_user;
 \q
 ```
 
@@ -179,14 +179,14 @@ Add to your `.env` file (component-based approach recommended):
 
 ```env
 # Option 1: Component-based (recommended)
-DATABASE_USER=boticelli_user
+DATABASE_USER=botticelli_user
 DATABASE_PASSWORD=your_password
 DATABASE_HOST=localhost      # Optional: defaults to localhost
 DATABASE_PORT=5432            # Optional: defaults to 5432
-DATABASE_NAME=boticelli       # Optional: defaults to boticelli
+DATABASE_NAME=botticelli       # Optional: defaults to botticelli
 
 # Option 2: Complete URL (alternative - takes precedence)
-# DATABASE_URL=postgres://boticelli_user:your_password@localhost:5432/boticelli
+# DATABASE_URL=postgres://botticelli_user:your_password@localhost:5432/botticelli
 ```
 
 The component-based approach composes the connection URL automatically and makes it easier to manage credentials separately.
@@ -205,13 +205,13 @@ diesel migration run
 
 ```bash
 # Run narrative and save to database
-./target/release/boticelli run -n narrations/mint.toml --save
+./target/release/botticelli run -n narrations/mint.toml --save
 
 # List saved executions
-./target/release/boticelli list
+./target/release/botticelli list
 
 # View execution details
-./target/release/boticelli show 1
+./target/release/botticelli show 1
 ```
 
 ## Creating Narratives
@@ -277,7 +277,7 @@ See `narrations/showcase.toml` for a comprehensive example and `NARRATIVE_TOML_S
 ### `run` - Execute a narrative
 
 ```bash
-boticelli run --narrative <PATH> [OPTIONS]
+botticelli run --narrative <PATH> [OPTIONS]
 
 Options:
   -n, --narrative <PATH>   Path to narrative TOML file (required)
@@ -291,22 +291,22 @@ Options:
 
 ```bash
 # Basic execution
-boticelli run -n narrations/mint.toml
+botticelli run -n narrations/mint.toml
 
 # With verbose output
-boticelli run -n narrations/showcase.toml -v
+botticelli run -n narrations/showcase.toml -v
 
 # Save to database
-boticelli run -n narrations/mint.toml --save
+botticelli run -n narrations/mint.toml --save
 
 # Use custom API key
-boticelli run -n narrations/mint.toml -a sk-your-key-here
+botticelli run -n narrations/mint.toml -a sk-your-key-here
 ```
 
 ### `list` - List stored executions
 
 ```bash
-boticelli list [OPTIONS]
+botticelli list [OPTIONS]
 
 Options:
   -n, --name <NAME>    Filter by narrative name
@@ -317,26 +317,26 @@ Options:
 
 ```bash
 # List recent executions
-boticelli list
+botticelli list
 
 # Filter by name
-boticelli list --name "Social Media Post Generation"
+botticelli list --name "Social Media Post Generation"
 
 # Show more results
-boticelli list --limit 50
+botticelli list --limit 50
 ```
 
 ### `show` - Display execution details
 
 ```bash
-boticelli show <ID>
+botticelli show <ID>
 ```
 
 **Example:**
 
 ```bash
 # Show execution ID 1
-boticelli show 1
+botticelli show 1
 ```
 
 ## Troubleshooting
@@ -354,7 +354,7 @@ echo 'GEMINI_API_KEY=your-key-here' >> .env
 export GEMINI_API_KEY="your-key-here"
 
 # Option 3: Pass via command line
-boticelli run -n narrations/mint.toml -a your-key-here
+botticelli run -n narrations/mint.toml -a your-key-here
 ```
 
 ### "DATABASE_USER environment variable not set" or "DATABASE_URL environment variable not set"
@@ -365,13 +365,13 @@ boticelli run -n narrations/mint.toml -a your-key-here
 1. Follow [Database Setup](#database-setup-optional) above
 2. Add database credentials to your `.env` file (component-based approach):
    ```env
-   DATABASE_USER=boticelli_user
+   DATABASE_USER=botticelli_user
    DATABASE_PASSWORD=your_password
-   DATABASE_NAME=boticelli
+   DATABASE_NAME=botticelli
    ```
    Or use the complete URL:
    ```env
-   DATABASE_URL=postgres://boticelli_user:password@localhost/boticelli
+   DATABASE_URL=postgres://botticelli_user:password@localhost/botticelli
    ```
 3. Run `diesel migration run`
 
@@ -392,7 +392,7 @@ brew services list
 psql $DATABASE_URL
 ```
 
-### "role 'boticelli' does not exist" or "database 'boticelli' does not exist"
+### "role 'botticelli' does not exist" or "database 'botticelli' does not exist"
 
 **Problem:** PostgreSQL database and user haven't been created yet.
 
@@ -402,13 +402,13 @@ psql $DATABASE_URL
 sudo -u postgres psql
 
 # Create user
-CREATE USER boticelli WITH PASSWORD 'your_password';
+CREATE USER botticelli WITH PASSWORD 'your_password';
 
 # Create database
-CREATE DATABASE boticelli OWNER boticelli;
+CREATE DATABASE botticelli OWNER botticelli;
 
 # Grant privileges
-GRANT ALL PRIVILEGES ON DATABASE boticelli TO boticelli;
+GRANT ALL PRIVILEGES ON DATABASE botticelli TO botticelli;
 
 # Exit
 \q
@@ -439,8 +439,8 @@ my_act = "Describe the task to perform"
 diesel database reset
 
 # Or manually drop and recreate
-dropdb boticelli
-createdb boticelli
+dropdb botticelli
+createdb botticelli
 diesel migration run
 ```
 
@@ -488,13 +488,13 @@ cargo fmt -- --check
 ### Project Structure
 
 ```
-boticelli/
+botticelli/
 ├── src/
 │   ├── lib.rs              # Library exports
 │   ├── main.rs             # CLI implementation
 │   ├── core.rs             # Core types (Input, Output, etc.)
 │   ├── error.rs            # Error handling
-│   ├── interface/          # Traits (BoticelliDriver, etc.)
+│   ├── interface/          # Traits (BotticelliDriver, etc.)
 │   ├── models/             # Backend implementations
 │   │   └── gemini.rs       # Gemini client
 │   ├── narrative/          # Narrative system

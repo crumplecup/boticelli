@@ -1,6 +1,6 @@
 # Discord Bot Setup Guide
 
-This guide explains how to create a Discord bot, get your bot token, and configure it for use with Boticelli.
+This guide explains how to create a Discord bot, get your bot token, and configure it for use with Botticelli.
 
 ## Prerequisites
 
@@ -11,7 +11,7 @@ This guide explains how to create a Discord bot, get your bot token, and configu
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
 2. Click **"New Application"** in the top-right corner
-3. Enter a name for your application (e.g., "Boticelli Bot")
+3. Enter a name for your application (e.g., "Botticelli Bot")
 4. Read and accept the Discord Developer Terms of Service
 5. Click **"Create"**
 
@@ -38,7 +38,7 @@ Your bot is now created!
 
 ### Required Privileged Gateway Intents
 
-Boticelli requires specific gateway intents to function properly:
+Botticelli requires specific gateway intents to function properly:
 
 1. On the Bot page, scroll down to **"Privileged Gateway Intents"**
 2. Enable the following intents:
@@ -48,7 +48,7 @@ Boticelli requires specific gateway intents to function properly:
 
 ### Bot Permissions
 
-Boticelli needs certain permissions to read Discord data:
+Botticelli needs certain permissions to read Discord data:
 
 1. In the left sidebar, click **"OAuth2"** → **"URL Generator"**
 2. Under **"SCOPES"**, select:
@@ -77,7 +77,7 @@ Your bot is now in your server! It will appear offline until you start it.
 
 ### Option 1: Using a .env File (Recommended)
 
-1. In your Boticelli project directory, create a `.env` file:
+1. In your Botticelli project directory, create a `.env` file:
 
 ```bash
 # Create or edit .env file
@@ -91,7 +91,7 @@ nano .env
 DISCORD_TOKEN=your_bot_token_here
 
 # Database URL (if not already set)
-DATABASE_URL=postgres://username:password@localhost/boticelli
+DATABASE_URL=postgres://username:password@localhost/botticelli
 ```
 
 3. Save the file (Ctrl+O, Enter, Ctrl+X in nano)
@@ -118,7 +118,7 @@ Note: This only lasts for your current terminal session.
 You can also pass the token via command line (not recommended for security):
 
 ```bash
-boticelli discord start --token "your_bot_token_here"
+botticelli discord start --token "your_bot_token_here"
 ```
 
 ## Step 7: Run the Database Migrations
@@ -157,16 +157,16 @@ Or using the binary directly:
 
 ```bash
 # Using .env or environment variable
-./target/release/boticelli discord start
+./target/release/botticelli discord start
 
 # Using CLI argument
-./target/release/boticelli discord start --token "your_bot_token_here"
+./target/release/botticelli discord start --token "your_bot_token_here"
 ```
 
 You should see output like:
 
 ```
-🤖 Starting Boticelli Discord bot...
+🤖 Starting Botticelli Discord bot...
 ✓ Bot initialized successfully
 🚀 Connecting to Discord...
    (Press Ctrl+C to stop)
@@ -293,7 +293,7 @@ Now that your bot is running:
 
 ## Support
 
-For issues specific to Boticelli's Discord integration, check:
+For issues specific to Botticelli's Discord integration, check:
 
 - Console error messages (enable with `RUST_LOG=debug`)
 - Database logs in PostgreSQL

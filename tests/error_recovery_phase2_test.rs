@@ -1,6 +1,6 @@
 //! Tests for error-specific retry strategies (Phase 2)
 
-use boticelli::{GeminiError, GeminiErrorKind, RetryableError};
+use botticelli::{GeminiError, GeminiErrorKind, RetryableError};
 
 #[test]
 fn test_error_classification() {

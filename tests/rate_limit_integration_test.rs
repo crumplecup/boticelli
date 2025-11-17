@@ -8,16 +8,16 @@
 //!
 //! API tests are minimal (1 request, ~10 tokens) to conserve quota.
 
-use boticelli::{RateLimiter, Tier, TierConfig};
+use botticelli::{RateLimiter, Tier, TierConfig};
 use std::collections::HashMap;
 
 #[cfg(feature = "gemini")]
-use boticelli::BoticelliDriver;
+use botticelli::BotticelliDriver;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 #[cfg(feature = "gemini")]
-use boticelli::{GenerateRequest, Input, Message, Role};
+use botticelli::{GenerateRequest, Input, Message, Role};
 
 /// Check if API tests should run
 #[cfg(feature = "gemini")]
@@ -121,7 +121,7 @@ async fn test_rate_limiter_releases_concurrent_slots() {
 #[cfg(feature = "gemini")]
 #[tokio::test]
 async fn test_gemini_client_without_rate_limiting() {
-    use boticelli::GeminiClient;
+    use botticelli::GeminiClient;
 
     skip_unless_api_tests_enabled!();
 
@@ -156,7 +156,7 @@ async fn test_gemini_client_without_rate_limiting() {
 #[cfg(feature = "gemini")]
 #[tokio::test]
 async fn test_gemini_client_with_rate_limiting() {
-    use boticelli::{GeminiClient, GeminiTier};
+    use botticelli::{GeminiClient, GeminiTier};
 
     skip_unless_api_tests_enabled!();
 
@@ -251,7 +251,7 @@ fn test_tier_trait_from_config() {
 #[cfg(feature = "gemini")]
 #[test]
 fn test_gemini_tier_enum() {
-    use boticelli::GeminiTier;
+    use botticelli::GeminiTier;
 
     // Verify GeminiTier enum has correct values (no API)
 

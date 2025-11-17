@@ -39,7 +39,7 @@ The `narrations/mint.toml` file defines a three-act narrative for generating soc
   - All acts referenced in toc exist
   - No empty prompts
 - Error handling with `NarrativeError` and `NarrativeErrorKind`
-  - Integrated into crate-level `BoticelliError`
+  - Integrated into crate-level `BotticelliError`
   - Uses `derive_new` for clean construction
   - Uses `derive_more::Display` for formatting
 - Full compliance with CLAUDE.md guidelines:
@@ -68,10 +68,10 @@ The `narrations/mint.toml` file defines a three-act narrative for generating soc
 ### Step 3: Implement Narrative Executor ✓ COMPLETE
 
 **Completed:**
-- Created `NarrativeExecutor<D: BoticelliDriver>` in `src/narrative/executor.rs`
+- Created `NarrativeExecutor<D: BotticelliDriver>` in `src/narrative/executor.rs`
 - Implemented sequential act processing:
   - Builds `GenerateRequest` with conversation history
-  - Calls LLM API using `BoticelliDriver::generate()`
+  - Calls LLM API using `BotticelliDriver::generate()`
   - Extracts text responses from `Output` enum
   - Maintains alternating User/Assistant message history
 - Context passing strategy: conversation history approach
@@ -81,7 +81,7 @@ The `narrations/mint.toml` file defines a three-act narrative for generating soc
   - `ActExecution` - stores inputs, model, temperature, max_tokens, response, and metadata
   - `NarrativeExecution` - aggregates complete execution with all acts
 - Proper derives: `Debug, Clone, PartialEq, Serialize, Deserialize`
-- Error handling with `BoticelliResult`
+- Error handling with `BotticelliResult`
 - Exported types at crate level in `lib.rs`
 - Tests: 6 passing tests in `tests/narrative_executor_test.rs`
   - Mock driver for deterministic testing
@@ -193,26 +193,26 @@ TOML file → Parse → ActConfig → NarrativeExecutor → LLM API
 /// Repository for storing and retrieving narrative executions.
 pub trait NarrativeRepository {
     /// Save a complete narrative execution.
-    async fn save_execution(&self, execution: &NarrativeExecution) -> BoticelliResult<i32>;
+    async fn save_execution(&self, execution: &NarrativeExecution) -> BotticelliResult<i32>;
 
     /// Load a narrative execution by ID.
-    async fn load_execution(&self, id: i32) -> BoticelliResult<NarrativeExecution>;
+    async fn load_execution(&self, id: i32) -> BotticelliResult<NarrativeExecution>;
 
     /// List executions with optional filtering.
-    async fn list_executions(&self, filter: ExecutionFilter) -> BoticelliResult<Vec<ExecutionSummary>>;
+    async fn list_executions(&self, filter: ExecutionFilter) -> BotticelliResult<Vec<ExecutionSummary>>;
 
     /// Update execution status (for long-running executions).
-    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BoticelliResult<()>;
+    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BotticelliResult<()>;
 
     /// Delete an execution and all associated data.
-    async fn delete_execution(&self, id: i32) -> BoticelliResult<()>;
+    async fn delete_execution(&self, id: i32) -> BotticelliResult<()>;
 
     // Video storage methods - defined in trait, implemented later
     /// Store video input separately (large file handling).
-    async fn store_video(&self, video_data: &[u8], metadata: VideoMetadata) -> BoticelliResult<String>;
+    async fn store_video(&self, video_data: &[u8], metadata: VideoMetadata) -> BotticelliResult<String>;
 
     /// Retrieve video input by reference.
-    async fn load_video(&self, video_ref: &str) -> BoticelliResult<Vec<u8>>;
+    async fn load_video(&self, video_ref: &str) -> BotticelliResult<Vec<u8>>;
 }
 
 /// Filter criteria for querying executions.
@@ -465,7 +465,7 @@ let repo: Box<dyn NarrativeRepository> = Box::new(HybridRepository::new(db_pool,
 - Existing: `serde` for deserialization (already in project)
 - Existing: `derive_more` for Display/Error derives
 - Existing: Database infrastructure (Diesel) - for future steps
-- Existing: BoticelliDriver trait for LLM calls - integrated ✓
+- Existing: BotticelliDriver trait for LLM calls - integrated ✓
 
 ## Current Implementation Status
 

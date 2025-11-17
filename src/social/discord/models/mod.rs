@@ -5,7 +5,7 @@
 //! - `New*` - Insert representation (Insertable, for INSERT queries)
 //! - `*` - Business logic representation (domain models, future use)
 //!
-//! Following Boticelli patterns, these models map directly to the database schema
+//! Following Botticelli patterns, these models map directly to the database schema
 //! and provide type-safe access to Discord data.
 
 mod channel;

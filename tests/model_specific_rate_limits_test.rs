@@ -1,10 +1,10 @@
 //! Tests for model-specific rate limit configuration.
 
-use boticelli::{BoticelliConfig, Tier};
+use botticelli::{BotticelliConfig, Tier};
 
 #[test]
 fn test_load_model_specific_overrides() {
-    let config = BoticelliConfig::load().unwrap();
+    let config = BotticelliConfig::load().unwrap();
 
     // Get Gemini free tier
     let gemini = &config.providers["gemini"];
@@ -42,7 +42,7 @@ fn test_load_model_specific_overrides() {
 
 #[test]
 fn test_for_model_method() {
-    let config = BoticelliConfig::load().unwrap();
+    let config = BotticelliConfig::load().unwrap();
 
     let gemini = &config.providers["gemini"];
     let free_tier = &gemini.tiers["free"];
@@ -75,7 +75,7 @@ fn test_for_model_method() {
 
 #[test]
 fn test_payasyougo_model_overrides() {
-    let config = BoticelliConfig::load().unwrap();
+    let config = BotticelliConfig::load().unwrap();
 
     let gemini = &config.providers["gemini"];
     let payasyougo_tier = &gemini.tiers["payasyougo"];

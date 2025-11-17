@@ -37,7 +37,7 @@ pub fn draw(f: &mut Frame, app: &App) {
 
 /// Draw the header.
 fn draw_header(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
-    let title = format!("Boticelli Content Review - {}", app.table_name);
+    let title = format!("Botticelli Content Review - {}", app.table_name);
     let header = Paragraph::new(title)
         .block(Block::default().borders(Borders::ALL))
         .style(

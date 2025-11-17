@@ -1,11 +1,11 @@
 [package]
-name = "boticelli"
+name = "botticelli"
 version = "0.1.0"
 edition = "2024"
 description = "Unified library for bot-driver interaction with multiple LLM APIs (Gemini, Anthropic, Hugging Face, Groq, Perplexity)."
 license = "MIT OR Apache-2.0"
 authors = ["Erik Rose <erik.w.rose@gmail.com>"]
-repository = "https://github.com/crumplecup/boticelli"
+repository = "https://github.com/crumplecup/botticelli"
 # readme = "README.md"
 keywords = ["llm", "chatbot", "ai", "nlp", "api"]
 categories = ["api-bindings", "asynchronous", "ai"]
@@ -14,7 +14,7 @@ categories = ["api-bindings", "asynchronous", "ai"]
 path = "src/lib.rs"
 
 [[bin]]
-name = "boticelli"
+name = "botticelli"
 path = "src/main.rs"
 
 

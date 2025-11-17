@@ -1,14 +1,14 @@
 #[cfg(feature = "database")]
-use boticelli::NarrativeRepository;
-use boticelli::{BoticelliDriver, Cli, Commands, Narrative, NarrativeExecutor, RateLimitOptions};
+use botticelli::NarrativeRepository;
+use botticelli::{BotticelliDriver, Cli, Commands, Narrative, NarrativeExecutor, RateLimitOptions};
 use clap::Parser;
 use std::path::PathBuf;
 
 #[cfg(feature = "discord")]
-use boticelli::DiscordCommands;
+use botticelli::DiscordCommands;
 
 #[cfg(feature = "database")]
-use boticelli::ContentCommands;
+use botticelli::ContentCommands;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -153,15 +153,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "database")]
 fn create_postgres_repository()
--> Result<boticelli::PostgresNarrativeRepository, Box<dyn std::error::Error>> {
-    let conn = boticelli::establish_connection()?;
+-> Result<botticelli::PostgresNarrativeRepository, Box<dyn std::error::Error>> {
+    let conn = botticelli::establish_connection()?;
 
     // Create filesystem storage in temp directory
     // TODO: Make this configurable via CLI args or config file
-    let storage_path = std::env::temp_dir().join("boticelli_media");
-    let storage = std::sync::Arc::new(boticelli::FileSystemStorage::new(storage_path)?);
+    let storage_path = std::env::temp_dir().join("botticelli_media");
+    let storage = std::sync::Arc::new(botticelli::FileSystemStorage::new(storage_path)?);
 
-    Ok(boticelli::PostgresNarrativeRepository::new(conn, storage))
+    Ok(botticelli::PostgresNarrativeRepository::new(conn, storage))
 }
 
 async fn run_narrative(
@@ -184,7 +184,7 @@ async fn run_narrative(
 
         if has_template {
             // Load with database connection for prompt assembly
-            let mut conn = boticelli::establish_connection()?;
+            let mut conn = botticelli::establish_connection()?;
             Narrative::from_file_with_db(&narrative_path, &mut conn)?
         } else {
             // Load normally without database
@@ -230,7 +230,7 @@ async fn run_narrative(
             }
         }
 
-        let driver = boticelli::GeminiClient::new_with_retry(
+        let driver = botticelli::GeminiClient::new_with_retry(
             tier,
             rate_limit_opts.no_retry,
             rate_limit_opts.max_retries,
@@ -257,7 +257,7 @@ async fn run_narrative(
 }
 
 #[allow(dead_code)]
-async fn execute_with_driver<D: BoticelliDriver>(
+async fn execute_with_driver<D: BotticelliDriver>(
     driver: D,
     narrative: Narrative,
     #[cfg(feature = "database")] save: bool,
@@ -275,13 +275,13 @@ async fn execute_with_driver<D: BoticelliDriver>(
         let needs_discord = false;
 
         if has_template || needs_discord {
-            let mut registry = boticelli::ProcessorRegistry::new();
+            let mut registry = botticelli::ProcessorRegistry::new();
 
             // Register content generation processor if template present
             if has_template {
                 println!("🔧 Enabling content generation processing...");
-                let conn = boticelli::establish_connection()?;
-                let content_processor = boticelli::ContentGenerationProcessor::new(
+                let conn = botticelli::establish_connection()?;
+                let content_processor = botticelli::ContentGenerationProcessor::new(
                     std::sync::Arc::new(std::sync::Mutex::new(conn)),
                 );
                 registry.register(Box::new(content_processor));
@@ -292,21 +292,21 @@ async fn execute_with_driver<D: BoticelliDriver>(
             #[cfg(feature = "discord")]
             if needs_discord {
                 println!("🔧 Enabling Discord data processing...");
-                let conn = boticelli::establish_connection()?;
-                let repo = std::sync::Arc::new(boticelli::DiscordRepository::new(conn));
+                let conn = botticelli::establish_connection()?;
+                let repo = std::sync::Arc::new(botticelli::DiscordRepository::new(conn));
 
-                registry.register(Box::new(boticelli::DiscordGuildProcessor::new(
+                registry.register(Box::new(botticelli::DiscordGuildProcessor::new(
                     repo.clone(),
                 )));
-                registry.register(Box::new(boticelli::DiscordUserProcessor::new(repo.clone())));
-                registry.register(Box::new(boticelli::DiscordChannelProcessor::new(
+                registry.register(Box::new(botticelli::DiscordUserProcessor::new(repo.clone())));
+                registry.register(Box::new(botticelli::DiscordChannelProcessor::new(
                     repo.clone(),
                 )));
-                registry.register(Box::new(boticelli::DiscordRoleProcessor::new(repo.clone())));
-                registry.register(Box::new(boticelli::DiscordGuildMemberProcessor::new(
+                registry.register(Box::new(botticelli::DiscordRoleProcessor::new(repo.clone())));
+                registry.register(Box::new(botticelli::DiscordGuildMemberProcessor::new(
                     repo.clone(),
                 )));
-                registry.register(Box::new(boticelli::DiscordMemberRoleProcessor::new(
+                registry.register(Box::new(botticelli::DiscordMemberRoleProcessor::new(
                     repo.clone(),
                 )));
 
@@ -314,9 +314,9 @@ async fn execute_with_driver<D: BoticelliDriver>(
             }
 
             println!();
-            boticelli::NarrativeExecutor::with_processors(driver, registry)
+            botticelli::NarrativeExecutor::with_processors(driver, registry)
         } else {
-            boticelli::NarrativeExecutor::new(driver)
+            botticelli::NarrativeExecutor::new(driver)
         }
     };
 
@@ -369,11 +369,11 @@ async fn execute_with_driver<D: BoticelliDriver>(
 }
 
 #[allow(dead_code)]
-async fn execute_with_progress<D: BoticelliDriver>(
+async fn execute_with_progress<D: BotticelliDriver>(
     executor: &NarrativeExecutor<D>,
     narrative: &Narrative,
     verbose: bool,
-) -> Result<boticelli::NarrativeExecution, Box<dyn std::error::Error>> {
+) -> Result<botticelli::NarrativeExecution, Box<dyn std::error::Error>> {
     if verbose {
         println!(
             "Executing {} acts in sequence:\n",
@@ -405,7 +405,7 @@ async fn list_executions(
     name_filter: Option<String>,
     limit: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use boticelli::ExecutionFilter;
+    use botticelli::ExecutionFilter;
 
     let repo = create_postgres_repository()?;
 
@@ -478,13 +478,13 @@ async fn start_discord_bot(token: Option<String>) -> Result<(), Box<dyn std::err
             "Discord token not provided. Use --token or set DISCORD_TOKEN environment variable",
         )?;
 
-    println!("🤖 Starting Boticelli Discord bot...");
+    println!("🤖 Starting Botticelli Discord bot...");
 
     // Establish database connection
-    let conn = boticelli::establish_connection()?;
+    let conn = botticelli::establish_connection()?;
 
     // Create and start the bot
-    let mut bot = boticelli::BoticelliBot::new(token, conn).await?;
+    let mut bot = botticelli::BotticelliBot::new(token, conn).await?;
 
     println!("✓ Bot initialized successfully");
     println!("🚀 Connecting to Discord...");
@@ -504,9 +504,9 @@ async fn list_content(
     status: Option<&str>,
     limit: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
 
-    let results = boticelli::list_content(&mut conn, table, status, limit)?;
+    let results = botticelli::list_content(&mut conn, table, status, limit)?;
 
     if results.is_empty() {
         println!("No content found in table '{}'", table);
@@ -558,9 +558,9 @@ async fn list_content(
 
 #[cfg(feature = "database")]
 async fn show_content(table: &str, id: i64) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
 
-    let item = boticelli::get_content_by_id(&mut conn, table, id)?;
+    let item = botticelli::get_content_by_id(&mut conn, table, id)?;
 
     println!("📄 Content from '{}' (ID: {})\n", table, id);
 
@@ -577,7 +577,7 @@ async fn tag_content(
     tags: Option<&str>,
     rating: Option<i32>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
 
     let tag_list = tags.map(|t| {
         t.split(',')
@@ -585,7 +585,7 @@ async fn tag_content(
             .collect::<Vec<_>>()
     });
 
-    boticelli::update_content_metadata(&mut conn, table, id, tag_list.as_deref(), rating)?;
+    botticelli::update_content_metadata(&mut conn, table, id, tag_list.as_deref(), rating)?;
 
     println!("✓ Updated content {} in '{}'", id, table);
     if let Some(t) = tags {
@@ -604,9 +604,9 @@ async fn review_content(
     id: i64,
     status: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
 
-    boticelli::update_review_status(&mut conn, table, id, status)?;
+    botticelli::update_review_status(&mut conn, table, id, status)?;
 
     println!("✓ Updated review status for content {} in '{}'", id, table);
     println!("  Status: {}", status);
@@ -630,8 +630,8 @@ async fn delete_content(table: &str, id: i64, yes: bool) -> Result<(), Box<dyn s
         }
     }
 
-    let mut conn = boticelli::establish_connection()?;
-    boticelli::delete_content(&mut conn, table, id)?;
+    let mut conn = botticelli::establish_connection()?;
+    botticelli::delete_content(&mut conn, table, id)?;
 
     println!("✓ Deleted content {} from '{}'", id, table);
     Ok(())
@@ -643,7 +643,7 @@ async fn promote_content(
     id: i64,
     target: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
 
     // Determine target table
     // If not specified, try to derive from source table name
@@ -663,7 +663,7 @@ async fn promote_content(
         id, table, target_table
     );
 
-    let new_id = boticelli::promote_content(&mut conn, table, &target_table, id)?;
+    let new_id = botticelli::promote_content(&mut conn, table, &target_table, id)?;
 
     println!("✓ Content promoted successfully!");
     println!("  Source: {} (ID: {})", table, id);
@@ -674,8 +674,8 @@ async fn promote_content(
 
 #[cfg(feature = "tui")]
 async fn run_tui_app(table: String) -> Result<(), Box<dyn std::error::Error>> {
-    let conn = boticelli::establish_connection()?;
-    boticelli::run_tui(table, conn)?;
+    let conn = botticelli::establish_connection()?;
+    botticelli::run_tui(table, conn)?;
     Ok(())
 }
 
@@ -686,9 +686,9 @@ fn list_generations(
     limit: i64,
     format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+    use botticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
 
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
     let mut repo = PostgresContentGenerationRepository::new(&mut conn);
 
     let generations = repo.list_generations(status.map(|s| s.to_string()), limit)?;
@@ -739,9 +739,9 @@ fn list_generations(
 /// Show the most recently completed generation.
 #[cfg(feature = "database")]
 fn show_last_generation(format: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+    use botticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
 
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
     let mut repo = PostgresContentGenerationRepository::new(&mut conn);
 
     let generation = repo.get_last_successful()?;
@@ -781,9 +781,9 @@ fn show_last_generation(format: &str) -> Result<(), Box<dyn std::error::Error>> 
 /// Show details of a specific generation.
 #[cfg(feature = "database")]
 fn show_generation_info(table: &str, format: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+    use botticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
 
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
     let mut repo = PostgresContentGenerationRepository::new(&mut conn);
 
     let generation = repo.get_by_table_name(table)?;
@@ -839,9 +839,9 @@ fn clean_generations(
     older_than_days: Option<i64>,
     yes: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use boticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
+    use botticelli::{ContentGenerationRepository, PostgresContentGenerationRepository};
 
-    let mut conn = boticelli::establish_connection()?;
+    let mut conn = botticelli::establish_connection()?;
     let mut repo = PostgresContentGenerationRepository::new(&mut conn);
 
     // Get all generations

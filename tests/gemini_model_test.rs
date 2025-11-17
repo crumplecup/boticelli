@@ -16,7 +16,7 @@
 
 mod test_utils;
 
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
+use botticelli::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
 use test_utils::MockGeminiClient;
 
 //
@@ -195,7 +195,7 @@ async fn test_multiple_model_requests() {
 #[tokio::test]
 #[cfg_attr(not(feature = "api"), ignore)] // Requires GEMINI_API_KEY and narrative file
 async fn test_narrative_multi_model_execution() {
-    use boticelli::{Narrative, NarrativeExecutor};
+    use botticelli::{Narrative, NarrativeExecutor};
     use std::path::Path;
 
     let client = GeminiClient::new().expect("Failed to create client");

@@ -4,7 +4,7 @@
 //! in memory. Useful for unit tests and demonstrating the trait interface.
 
 use crate::{
-    BackendError, BoticelliError, BoticelliResult, ExecutionFilter, ExecutionStatus,
+    BackendError, BotticelliError, BotticelliResult, ExecutionFilter, ExecutionStatus,
     ExecutionSummary, NarrativeExecution, NarrativeRepository,
 };
 use async_trait::async_trait;
@@ -22,7 +22,7 @@ use chrono::Utc;
 ///
 /// # Example
 /// ```no_run
-/// use boticelli::{InMemoryNarrativeRepository, NarrativeRepository};
+/// use botticelli::{InMemoryNarrativeRepository, NarrativeRepository};
 ///
 /// #[tokio::main]
 /// async fn main() {
@@ -87,7 +87,7 @@ impl Default for InMemoryNarrativeRepository {
 
 #[async_trait]
 impl NarrativeRepository for InMemoryNarrativeRepository {
-    async fn save_execution(&self, execution: &NarrativeExecution) -> BoticelliResult<i32> {
+    async fn save_execution(&self, execution: &NarrativeExecution) -> BotticelliResult<i32> {
         let mut next_id_guard = self.next_id.write().await;
         let id = *next_id_guard;
         *next_id_guard += 1;
@@ -110,20 +110,20 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
         Ok(id)
     }
 
-    async fn load_execution(&self, id: i32) -> BoticelliResult<NarrativeExecution> {
+    async fn load_execution(&self, id: i32) -> BotticelliResult<NarrativeExecution> {
         let executions = self.executions.read().await;
         executions
             .get(&id)
             .map(|stored| stored.execution.clone())
             .ok_or_else(|| {
-                BoticelliError::from(BackendError::new(format!("Execution {} not found", id)))
+                BotticelliError::from(BackendError::new(format!("Execution {} not found", id)))
             })
     }
 
     async fn list_executions(
         &self,
         filter: &ExecutionFilter,
-    ) -> BoticelliResult<Vec<ExecutionSummary>> {
+    ) -> BotticelliResult<Vec<ExecutionSummary>> {
         let executions = self.executions.read().await;
         let mut results: Vec<ExecutionSummary> = executions
             .values()
@@ -184,7 +184,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
         Ok(results.into_iter().skip(offset).take(limit).collect())
     }
 
-    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BoticelliResult<()> {
+    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BotticelliResult<()> {
         let mut executions = self.executions.write().await;
         executions
             .get_mut(&id)
@@ -196,18 +196,18 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
                 }
             })
             .ok_or_else(|| {
-                BoticelliError::from(BackendError::new(format!("Execution {} not found", id)))
+                BotticelliError::from(BackendError::new(format!("Execution {} not found", id)))
             })
     }
 
-    async fn delete_execution(&self, id: i32) -> BoticelliResult<()> {
+    async fn delete_execution(&self, id: i32) -> BotticelliResult<()> {
         self.executions
             .write()
             .await
             .remove(&id)
             .map(|_| ())
             .ok_or_else(|| {
-                BoticelliError::from(BackendError::new(format!("Execution {} not found", id)))
+                BotticelliError::from(BackendError::new(format!("Execution {} not found", id)))
             })
     }
 
@@ -216,16 +216,16 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
         &self,
         _data: &[u8],
         _metadata: &crate::MediaMetadata,
-    ) -> BoticelliResult<crate::MediaReference> {
-        Err(crate::BoticelliError::from(
+    ) -> BotticelliResult<crate::MediaReference> {
+        Err(crate::BotticelliError::from(
             crate::NotImplementedError::new(
                 "Media storage not yet implemented for in-memory repository",
             ),
         ))
     }
 
-    async fn load_media(&self, _reference: &crate::MediaReference) -> BoticelliResult<Vec<u8>> {
-        Err(crate::BoticelliError::from(
+    async fn load_media(&self, _reference: &crate::MediaReference) -> BotticelliResult<Vec<u8>> {
+        Err(crate::BotticelliError::from(
             crate::NotImplementedError::new(
                 "Media loading not yet implemented for in-memory repository",
             ),
@@ -235,7 +235,7 @@ impl NarrativeRepository for InMemoryNarrativeRepository {
     async fn get_media_by_hash(
         &self,
         _content_hash: &str,
-    ) -> BoticelliResult<Option<crate::MediaReference>> {
+    ) -> BotticelliResult<Option<crate::MediaReference>> {
         Ok(None)
     }
 

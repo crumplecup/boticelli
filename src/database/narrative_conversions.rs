@@ -1,7 +1,7 @@
 //! Conversions between domain types and database models for narrative executions.
 
 use crate::{
-    ActExecution, ActExecutionRow, ActInputRow, BackendError, BoticelliError, BoticelliResult,
+    ActExecution, ActExecutionRow, ActInputRow, BackendError, BotticelliError, BotticelliResult,
     ExecutionStatus, Input, NarrativeExecution, NarrativeExecutionRow, NewActExecutionRow,
     NewActInputRow, NewNarrativeExecutionRow,
 };
@@ -17,9 +17,9 @@ pub fn status_to_string(status: ExecutionStatus) -> String {
 }
 
 /// Convert database string to ExecutionStatus.
-pub fn string_to_status(s: &str) -> BoticelliResult<ExecutionStatus> {
+pub fn string_to_status(s: &str) -> BotticelliResult<ExecutionStatus> {
     s.parse().map_err(|e| {
-        BoticelliError::from(BackendError::new(format!(
+        BotticelliError::from(BackendError::new(format!(
             "Invalid execution status: {}",
             e
         )))
@@ -62,7 +62,7 @@ pub fn input_to_new_row(
     input: &Input,
     act_execution_id: i32,
     order: usize,
-) -> BoticelliResult<NewActInputRow> {
+) -> BotticelliResult<NewActInputRow> {
     let row = match input {
         Input::Text(text) => NewActInputRow {
             act_execution_id,
@@ -117,7 +117,7 @@ fn input_type_string(input: &Input) -> String {
 pub fn rows_to_act_execution(
     act_row: ActExecutionRow,
     input_rows: Vec<ActInputRow>,
-) -> BoticelliResult<ActExecution> {
+) -> BotticelliResult<ActExecution> {
     let mut inputs = Vec::with_capacity(input_rows.len());
 
     // Sort by input_order to maintain correct sequence
@@ -140,11 +140,11 @@ pub fn rows_to_act_execution(
 }
 
 /// Convert ActInputRow to Input.
-fn row_to_input(row: ActInputRow) -> BoticelliResult<Input> {
+fn row_to_input(row: ActInputRow) -> BotticelliResult<Input> {
     match row.input_type.as_str() {
         "text" => {
             let text = row.text_content.ok_or_else(|| {
-                BoticelliError::from(BackendError::new(
+                BotticelliError::from(BackendError::new(
                     "Text input missing text_content".to_string(),
                 ))
             })?;
@@ -152,12 +152,12 @@ fn row_to_input(row: ActInputRow) -> BoticelliResult<Input> {
         }
         "image" | "audio" | "video" | "document" => {
             // Media inputs require loading via media_ref_id
-            Err(BoticelliError::from(BackendError::new(format!(
+            Err(BotticelliError::from(BackendError::new(format!(
                 "Media input reconstruction not yet implemented for type: {} (use media_ref_id)",
                 row.input_type
             ))))
         }
-        _ => Err(BoticelliError::from(BackendError::new(format!(
+        _ => Err(BotticelliError::from(BackendError::new(format!(
             "Unknown input type: {}",
             row.input_type
         )))),

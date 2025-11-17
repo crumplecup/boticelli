@@ -25,7 +25,7 @@ use tokio::sync::RwLock;
 /// # Example
 ///
 /// ```rust,ignore
-/// use boticelli::HeaderRateLimitDetector;
+/// use botticelli::HeaderRateLimitDetector;
 ///
 /// let detector = HeaderRateLimitDetector::new();
 ///

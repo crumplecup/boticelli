@@ -3,7 +3,7 @@
 //! Processors are invoked after an act completes to extract structured
 //! data and perform side effects (database insertion, file writing, etc.).
 
-use crate::{ActExecution, BoticelliResult, NarrativeMetadata};
+use crate::{ActExecution, BotticelliResult, NarrativeMetadata};
 use async_trait::async_trait;
 
 /// Context provided to processors for act processing.
@@ -33,14 +33,14 @@ pub struct ProcessorContext<'a> {
 /// # Example
 ///
 /// ```rust,ignore
-/// use boticelli::{ActProcessor, ProcessorContext, BoticelliResult};
+/// use botticelli::{ActProcessor, ProcessorContext, BotticelliResult};
 /// use async_trait::async_trait;
 ///
 /// struct MyProcessor;
 ///
 /// #[async_trait]
 /// impl ActProcessor for MyProcessor {
-///     async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+///     async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
 ///         // Extract and process data from context.execution.response
 ///         // Access narrative metadata via context.narrative_metadata
 ///         Ok(())
@@ -73,7 +73,7 @@ pub trait ActProcessor: Send + Sync {
     /// Returns an error if processing fails. The error should be descriptive
     /// and include context about what went wrong. Note that processor errors
     /// do not fail the entire narrative execution.
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()>;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()>;
 
     /// Check if this processor should handle the given act.
     ///
@@ -103,7 +103,7 @@ pub trait ActProcessor: Send + Sync {
 /// # Example
 ///
 /// ```rust,ignore
-/// use boticelli::ProcessorRegistry;
+/// use botticelli::ProcessorRegistry;
 ///
 /// let mut registry = ProcessorRegistry::new();
 /// registry.register(Box::new(DiscordGuildProcessor::new(pool.clone())));
@@ -145,7 +145,7 @@ impl ProcessorRegistry {
     ///
     /// Returns an error if any processor fails. The error message includes
     /// all processor errors concatenated together.
-    pub async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    pub async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let mut errors = Vec::new();
 
         for processor in &self.processors {
@@ -217,7 +217,7 @@ mod tests {
 
     #[async_trait]
     impl ActProcessor for TestProcessor {
-        async fn process(&self, _context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+        async fn process(&self, _context: &ProcessorContext<'_>) -> BotticelliResult<()> {
             if self.fail {
                 Err(crate::BackendError::new("Test error").into())
             } else {

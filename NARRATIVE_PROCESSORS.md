@@ -124,7 +124,7 @@ tests/
 ```rust
 //! Utilities for extracting structured data from LLM responses.
 
-use crate::{BoticelliError, BoticelliResult};
+use crate::{BotticelliError, BotticelliResult};
 
 /// Extract JSON from a response that may contain markdown or extra text.
 ///
@@ -136,7 +136,7 @@ use crate::{BoticelliError, BoticelliResult};
 /// # Errors
 ///
 /// Returns an error if no valid JSON is found in the response.
-pub fn extract_json(response: &str) -> BoticelliResult<String> {
+pub fn extract_json(response: &str) -> BotticelliResult<String> {
     // Strategy 1: Extract from markdown code blocks
     if let Some(json) = extract_from_code_block(response, "json") {
         return Ok(json);
@@ -152,14 +152,14 @@ pub fn extract_json(response: &str) -> BoticelliResult<String> {
         return Ok(json);
     }
 
-    Err(BoticelliError::new(format!(
+    Err(BotticelliError::new(format!(
         "No JSON found in response (length: {})",
         response.len()
     )))
 }
 
 /// Extract TOML from a response that may contain markdown or extra text.
-pub fn extract_toml(response: &str) -> BoticelliResult<String> {
+pub fn extract_toml(response: &str) -> BotticelliResult<String> {
     // Strategy 1: Extract from markdown code blocks
     if let Some(toml) = extract_from_code_block(response, "toml") {
         return Ok(toml);
@@ -173,7 +173,7 @@ pub fn extract_toml(response: &str) -> BoticelliResult<String> {
         }
     }
 
-    Err(BoticelliError::new(format!(
+    Err(BotticelliError::new(format!(
         "No TOML found in response (length: {})",
         response.len()
     )))
@@ -249,12 +249,12 @@ fn extract_balanced(response: &str, open: char, close: char) -> Option<String> {
 }
 
 /// Parse and validate JSON, returning a specific type.
-pub fn parse_json<T>(json_str: &str) -> BoticelliResult<T>
+pub fn parse_json<T>(json_str: &str) -> BotticelliResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
     serde_json::from_str(json_str).map_err(|e| {
-        BoticelliError::new(format!(
+        BotticelliError::new(format!(
             "Failed to parse JSON: {} (JSON: {}...)",
             e,
             &json_str[..json_str.len().min(100)]
@@ -263,12 +263,12 @@ where
 }
 
 /// Parse and validate TOML, returning a specific type.
-pub fn parse_toml<T>(toml_str: &str) -> BoticelliResult<T>
+pub fn parse_toml<T>(toml_str: &str) -> BotticelliResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
     toml::from_str(toml_str).map_err(|e| {
-        BoticelliError::new(format!(
+        BotticelliError::new(format!(
             "Failed to parse TOML: {} (TOML: {}...)",
             e,
             &toml_str[..toml_str.len().min(100)]
@@ -341,7 +341,7 @@ Here are the items:
 ```rust
 //! Act processing traits and registry.
 
-use crate::{ActExecution, BoticelliResult};
+use crate::{ActExecution, BotticelliResult};
 use async_trait::async_trait;
 use std::collections::HashMap;
 
@@ -357,7 +357,7 @@ pub trait ActProcessor: Send + Sync {
     ///
     /// Returns an error if processing fails. The error should be descriptive
     /// and include context about what went wrong.
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()>;
+    async fn process(&self, execution: &ActExecution) -> BotticelliResult<()>;
 
     /// Check if this processor should handle the given act.
     ///
@@ -390,7 +390,7 @@ impl ProcessorRegistry {
     ///
     /// Calls each processor that returns `true` from `should_process`.
     /// Continues processing even if some processors fail, collecting all errors.
-    pub async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
+    pub async fn process(&self, execution: &ActExecution) -> BotticelliResult<()> {
         let mut errors = Vec::new();
 
         for processor in &self.processors {
@@ -414,7 +414,7 @@ impl ProcessorRegistry {
         }
 
         if !errors.is_empty() {
-            return Err(crate::BoticelliError::new(format!(
+            return Err(crate::BotticelliError::new(format!(
                 "Processor errors: {}",
                 errors.join("; ")
             )));
@@ -454,12 +454,12 @@ impl Default for ProcessorRegistry {
 use crate::ProcessorRegistry;
 
 // Add field to NarrativeExecutor
-pub struct NarrativeExecutor<D: BoticelliDriver> {
+pub struct NarrativeExecutor<D: BotticelliDriver> {
     driver: D,
     processor_registry: Option<ProcessorRegistry>,
 }
 
-impl<D: BoticelliDriver> NarrativeExecutor<D> {
+impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// Create a new narrative executor with the given LLM driver.
     pub fn new(driver: D) -> Self {
         Self {
@@ -483,7 +483,7 @@ impl<D: BoticelliDriver> NarrativeExecutor<D> {
     pub async fn execute<N: NarrativeProvider>(
         &self,
         narrative: &N,
-    ) -> BoticelliResult<NarrativeExecution> {
+    ) -> BotticelliResult<NarrativeExecution> {
         let mut act_executions = Vec::new();
         let mut conversation_history: Vec<Message> = Vec::new();
 
@@ -732,7 +732,7 @@ Created TryFrom trait implementations for idiomatic Rust conversions between JSO
 **Example usage:**
 
 ```rust
-use boticelli::{DiscordGuildJson, NewGuild};
+use botticelli::{DiscordGuildJson, NewGuild};
 
 let json = DiscordGuildJson {
     id: 123456789,
@@ -925,8 +925,8 @@ async fn run_narrative(
 
     #[cfg(all(feature = "database", feature = "discord"))]
     let discord_repository = if process_discord {
-        let conn = boticelli::establish_connection()?;
-        Some(std::sync::Arc::new(boticelli::DiscordRepository::new(conn)))
+        let conn = botticelli::establish_connection()?;
+        Some(std::sync::Arc::new(botticelli::DiscordRepository::new(conn)))
     } else {
         None
     };
@@ -950,19 +950,19 @@ Registers all 6 Discord processors when repository is available:
 ```rust
 #[cfg(all(feature = "database", feature = "discord"))]
 let executor = if let Some(repo) = discord_repository {
-    let mut registry = boticelli::ProcessorRegistry::new();
+    let mut registry = botticelli::ProcessorRegistry::new();
 
     // Register all Discord processors
-    registry.register(Box::new(boticelli::DiscordGuildProcessor::new(repo.clone())));
-    registry.register(Box::new(boticelli::DiscordUserProcessor::new(repo.clone())));
-    registry.register(Box::new(boticelli::DiscordChannelProcessor::new(repo.clone())));
-    registry.register(Box::new(boticelli::DiscordRoleProcessor::new(repo.clone())));
-    registry.register(Box::new(boticelli::DiscordGuildMemberProcessor::new(repo.clone())));
-    registry.register(Box::new(boticelli::DiscordMemberRoleProcessor::new(repo.clone())));
+    registry.register(Box::new(botticelli::DiscordGuildProcessor::new(repo.clone())));
+    registry.register(Box::new(botticelli::DiscordUserProcessor::new(repo.clone())));
+    registry.register(Box::new(botticelli::DiscordChannelProcessor::new(repo.clone())));
+    registry.register(Box::new(botticelli::DiscordRoleProcessor::new(repo.clone())));
+    registry.register(Box::new(botticelli::DiscordGuildMemberProcessor::new(repo.clone())));
+    registry.register(Box::new(botticelli::DiscordMemberRoleProcessor::new(repo.clone())));
 
-    boticelli::NarrativeExecutor::with_processors(driver, registry)
+    botticelli::NarrativeExecutor::with_processors(driver, registry)
 } else {
-    boticelli::NarrativeExecutor::new(driver)
+    botticelli::NarrativeExecutor::new(driver)
 };
 ```
 
@@ -1010,7 +1010,7 @@ if process_discord {
 
 ```bash
 # Set up database
-export DATABASE_URL="postgres://user:password@localhost/boticelli"
+export DATABASE_URL="postgres://user:password@localhost/botticelli"
 diesel migration run
 
 # Create test narrative (see examples/discord_server.toml)
@@ -1079,8 +1079,8 @@ psql $DATABASE_URL -c "SELECT id, name FROM discord_guilds WHERE id = 1234567890
 Create `tests/narrative_processor_integration_test.rs`:
 
 ```rust
-use boticelli::{
-    ActExecution, BoticelliDriver, DiscordChannelProcessor, DiscordGuildProcessor,
+use botticelli::{
+    ActExecution, BotticelliDriver, DiscordChannelProcessor, DiscordGuildProcessor,
     DiscordRepository, GenerateRequest, GenerateResponse, Input, Message, Narrative,
     NarrativeExecutor, Output, ProcessorRegistry, Role,
 };
@@ -1102,8 +1102,8 @@ impl MockDriver {
 }
 
 #[async_trait::async_trait]
-impl BoticelliDriver for MockDriver {
-    async fn generate(&self, _request: &GenerateRequest) -> boticelli::BoticelliResult<GenerateResponse> {
+impl BotticelliDriver for MockDriver {
+    async fn generate(&self, _request: &GenerateRequest) -> botticelli::BotticelliResult<GenerateResponse> {
         let mut count = self.call_count.lock().unwrap();
         let response = self.responses.get(*count).cloned().unwrap_or_default();
         *count += 1;
@@ -1127,7 +1127,7 @@ fn create_test_db() -> diesel::PgConnection {
 
 /// Clean up test data
 fn cleanup_test_data(conn: &mut diesel::PgConnection, guild_id: i64) {
-    use boticelli::database::schema::discord_guilds;
+    use botticelli::database::schema::discord_guilds;
     use diesel::prelude::*;
 
     diesel::delete(discord_guilds::table.filter(discord_guilds::id.eq(guild_id)))
@@ -1170,7 +1170,7 @@ async fn test_discord_guild_processor_integration() {
 
     // Setup repository and processor
     let repository = Arc::new(DiscordRepository::new(
-        boticelli::establish_connection().unwrap()
+        botticelli::establish_connection().unwrap()
     ));
     let mut registry = ProcessorRegistry::new();
     registry.register(Box::new(DiscordGuildProcessor::new(repository.clone())));
@@ -1198,10 +1198,10 @@ prompt = "Generate guild JSON"
     assert_eq!(result.act_executions[0].act_name, "create_guild");
 
     // Verify database insertion
-    use boticelli::database::schema::discord_guilds;
+    use botticelli::database::schema::discord_guilds;
     use diesel::prelude::*;
 
-    let guild: boticelli::GuildRow = discord_guilds::table
+    let guild: botticelli::GuildRow = discord_guilds::table
         .filter(discord_guilds::id.eq(test_guild_id))
         .first(&mut conn)
         .expect("Guild should be inserted");
@@ -1241,7 +1241,7 @@ async fn test_processor_error_does_not_fail_narrative() {
 
     // Setup processor that will fail to parse
     let repository = Arc::new(DiscordRepository::new(
-        boticelli::establish_connection().unwrap()
+        botticelli::establish_connection().unwrap()
     ));
     let mut registry = ProcessorRegistry::new();
     registry.register(Box::new(DiscordGuildProcessor::new(repository)));
@@ -1277,7 +1277,7 @@ async fn test_multiple_processors_with_partial_match() {
     let driver = MockDriver::new(mock_responses);
 
     let repository = Arc::new(DiscordRepository::new(
-        boticelli::establish_connection().unwrap()
+        botticelli::establish_connection().unwrap()
     ));
 
     let mut registry = ProcessorRegistry::new();
@@ -1377,7 +1377,7 @@ Test each component in isolation:
 
 ```rust
 // tests/narrative_extraction_test.rs
-use boticelli::{extract_json, parse_json};
+use botticelli::{extract_json, parse_json};
 
 fn test_extract_json_from_markdown() {
     let response = r#"
@@ -1401,7 +1401,7 @@ fn test_extract_json_with_nested_objects() {
 
 ```rust
 // tests/discord_processors_test.rs
-use boticelli::{ActExecution, DiscordGuildProcessor};
+use botticelli::{ActExecution, DiscordGuildProcessor};
 
 async fn test_guild_processor() {
     let pool = setup_test_db_pool();
@@ -1426,7 +1426,7 @@ Test the full pipeline:
 
 ```rust
 // tests/narrative_processor_integration_test.rs
-use boticelli::{
+use botticelli::{
     DiscordChannelProcessor, DiscordGuildProcessor, NarrativeExecutor, ProcessorRegistry,
 };
 
@@ -1469,7 +1469,7 @@ pub struct ExecuteDiscordNarrative {
 }
 
 impl ExecuteDiscordNarrative {
-    pub async fn run(&self) -> BoticelliResult<()> {
+    pub async fn run(&self) -> BotticelliResult<()> {
         // Load narrative
         let narrative = load_narrative(&self.narrative_path)?;
 
@@ -1508,7 +1508,7 @@ This section demonstrates how to use the complete narrative processor system to 
 Here's a complete example that generates a Discord server with channels:
 
 ```rust
-use boticelli::{
+use botticelli::{
     // Core narrative types
     Narrative, NarrativeExecutor, ProcessorRegistry,
     // Discord processors
@@ -1679,7 +1679,7 @@ Before running narratives, ensure your database is ready:
 
 ```bash
 # Set database URL
-export DATABASE_URL="postgres://user:password@localhost/boticelli"
+export DATABASE_URL="postgres://user:password@localhost/botticelli"
 
 # Run migrations
 diesel migration run
@@ -1701,7 +1701,7 @@ You should see these tables:
 After narrative execution, query the results:
 
 ```rust
-use boticelli::{DiscordRepository, establish_connection};
+use botticelli::{DiscordRepository, establish_connection};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -1800,9 +1800,9 @@ toc = ["create_users", "create_members"]
 
 Run each narrative separately:
 ```bash
-./boticelli execute guild.toml
-./boticelli execute channels.toml
-./boticelli execute users.toml
+./botticelli execute guild.toml
+./botticelli execute channels.toml
+./botticelli execute users.toml
 ```
 
 #### Pattern 3: Multi-Community Generation
@@ -1842,7 +1842,7 @@ tracing_subscriber::fmt()
 1. **Explore DISCORD_NARRATIVE.md** - Complete schema reference and examples
 2. **Create custom narratives** - Use the preambles as starting points
 3. **Query the database** - Use DiscordRepository methods
-4. **Build Discord bot** - Use BoticelliBot to post content to real Discord servers
+4. **Build Discord bot** - Use BotticelliBot to post content to real Discord servers
 
 ## Error Handling
 
@@ -1874,7 +1874,7 @@ Provide clear error messages:
 ```rust
 // In processor
 let json_str = extract_json(&execution.response).map_err(|e| {
-    BoticelliError::new(format!(
+    BotticelliError::new(format!(
         "Failed to extract JSON from act '{}': {}. Response preview: {}",
         execution.act_name,
         e,
@@ -1954,7 +1954,7 @@ pub struct DryRunProcessor {
 }
 
 impl ActProcessor for DryRunProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
+    async fn process(&self, execution: &ActExecution) -> BotticelliResult<()> {
         println!("DRY RUN: Would process with {}", self.inner.name());
         // Parse and validate but don't insert
         Ok(())
@@ -1969,7 +1969,7 @@ Track processor performance:
 ```rust
 #[async_trait]
 impl ActProcessor for InstrumentedProcessor {
-    async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
+    async fn process(&self, execution: &ActExecution) -> BotticelliResult<()> {
         let start = std::time::Instant::now();
         let result = self.inner.process(execution).await;
         let duration = start.elapsed();
@@ -2026,7 +2026,7 @@ This architecture provides a clean, extensible way to process narrative outputs.
 
 The system is production-ready and actively used in the CLI. Users can now:
 1. Write narratives that generate Discord data
-2. Execute with `boticelli run --narrative file.toml --process-discord`
+2. Execute with `botticelli run --narrative file.toml --process-discord`
 3. Automatically extract JSON and insert into database
 4. View results in database for analysis
 

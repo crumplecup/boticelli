@@ -1,13 +1,13 @@
-# PostgreSQL Setup Guide for Boticelli
+# PostgreSQL Setup Guide for Botticelli
 
-This guide walks you through setting up PostgreSQL from scratch for use with Boticelli. Whether you're new to PostgreSQL or just need a refresher, this will get you up and running.
+This guide walks you through setting up PostgreSQL from scratch for use with Botticelli. Whether you're new to PostgreSQL or just need a refresher, this will get you up and running.
 
 ## Table of Contents
 
 1. [Installation](#installation)
 2. [Initial Setup](#initial-setup)
 3. [Creating Database and User](#creating-database-and-user)
-4. [Configuring Boticelli](#configuring-boticelli)
+4. [Configuring Botticelli](#configuring-botticelli)
 5. [Running Migrations](#running-migrations)
 6. [Testing the Connection](#testing-the-connection)
 7. [Troubleshooting](#troubleshooting)
@@ -91,12 +91,12 @@ This means you're connected to PostgreSQL!
 
 ## Creating Database and User
 
-Now we'll create a dedicated user and database for Boticelli. Run these commands in the `psql` prompt:
+Now we'll create a dedicated user and database for Botticelli. Run these commands in the `psql` prompt:
 
-### Step 2: Create the Boticelli User (Role)
+### Step 2: Create the Botticelli User (Role)
 
 ```sql
-CREATE USER boticelli WITH PASSWORD 'renaissance';
+CREATE USER botticelli WITH PASSWORD 'renaissance';
 ```
 
 **Note:** Replace `'renaissance'` with a secure password of your choice. Remember this password - you'll need it in your `.env` file.
@@ -106,10 +106,10 @@ You should see:
 CREATE ROLE
 ```
 
-### Step 3: Create the Boticelli Database
+### Step 3: Create the Botticelli Database
 
 ```sql
-CREATE DATABASE boticelli OWNER boticelli;
+CREATE DATABASE botticelli OWNER botticelli;
 ```
 
 You should see:
@@ -120,7 +120,7 @@ CREATE DATABASE
 ### Step 4: Grant Privileges
 
 ```sql
-GRANT ALL PRIVILEGES ON DATABASE boticelli TO boticelli;
+GRANT ALL PRIVILEGES ON DATABASE botticelli TO botticelli;
 ```
 
 You should see:
@@ -136,9 +136,9 @@ GRANT
 
 This returns you to your regular terminal prompt.
 
-## Configuring Boticelli
+## Configuring Botticelli
 
-Now configure Boticelli to use your new database by editing the `.env` file:
+Now configure Botticelli to use your new database by editing the `.env` file:
 
 ### Step 6: Create or Edit `.env`
 
@@ -152,9 +152,9 @@ cp .env.example .env
 Edit `.env` and add these lines (or uncomment if they exist):
 
 ```env
-DATABASE_USER=boticelli
+DATABASE_USER=botticelli
 DATABASE_PASSWORD=renaissance
-DATABASE_NAME=boticelli
+DATABASE_NAME=botticelli
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 ```
@@ -163,7 +163,7 @@ DATABASE_PORT=5432
 
 ## Running Migrations
 
-Migrations create the database tables that Boticelli needs to store execution history.
+Migrations create the database tables that Botticelli needs to store execution history.
 
 ### Step 8: Install Diesel CLI (One-Time Setup)
 
@@ -176,7 +176,7 @@ This may take a few minutes as it compiles.
 ### Step 9: Run Migrations
 
 ```bash
-# From the boticelli project directory
+# From the botticelli project directory
 diesel migration run
 ```
 
@@ -190,15 +190,15 @@ Running migration 2025-01-10-000000_create_narrative_executions
 
 ### Step 10: Test with psql
 
-Verify you can connect with the boticelli user:
+Verify you can connect with the botticelli user:
 
 ```bash
-psql -U boticelli -h localhost -d boticelli
+psql -U botticelli -h localhost -d botticelli
 ```
 
 Enter the password when prompted. If successful, you'll see:
 ```
-boticelli=#
+botticelli=#
 ```
 
 Type `\dt` to see the tables created by migrations:
@@ -211,12 +211,12 @@ You should see tables like:
               List of relations
  Schema |         Name          | Type  |   Owner
 --------+-----------------------+-------+-----------
- public | __diesel_schema_migrations | table | boticelli
- public | act_executions        | table | boticelli
- public | act_inputs            | table | boticelli
- public | media_references      | table | boticelli
- public | model_responses       | table | boticelli
- public | narrative_executions  | table | boticelli
+ public | __diesel_schema_migrations | table | botticelli
+ public | act_executions        | table | botticelli
+ public | act_inputs            | table | botticelli
+ public | media_references      | table | botticelli
+ public | model_responses       | table | botticelli
+ public | narrative_executions  | table | botticelli
 ```
 
 **Note:** The `media_references` table stores metadata for images, audio, and video files. The actual media files are stored externally (filesystem, S3, etc.) to keep the database lightweight and scalable.
@@ -226,7 +226,7 @@ Exit psql:
 \q
 ```
 
-### Step 11: Test with Boticelli
+### Step 11: Test with Botticelli
 
 Try running a narrative with the `--save` flag. Note that you must enable the `database` and `gemini` features:
 
@@ -244,7 +244,7 @@ If everything is set up correctly, you should see:
 
 ## Troubleshooting
 
-### Error: "role 'boticelli' does not exist"
+### Error: "role 'botticelli' does not exist"
 
 **Problem:** The user was not created successfully.
 
@@ -254,13 +254,13 @@ If everything is set up correctly, you should see:
 sudo -u postgres psql
 
 # Create the user
-CREATE USER boticelli WITH PASSWORD 'your_password';
+CREATE USER botticelli WITH PASSWORD 'your_password';
 
 # Exit
 \q
 ```
 
-### Error: "database 'boticelli' does not exist"
+### Error: "database 'botticelli' does not exist"
 
 **Problem:** The database was not created successfully.
 
@@ -270,7 +270,7 @@ CREATE USER boticelli WITH PASSWORD 'your_password';
 sudo -u postgres psql
 
 # Create the database
-CREATE DATABASE boticelli OWNER boticelli;
+CREATE DATABASE botticelli OWNER botticelli;
 
 # Exit
 \q
@@ -301,7 +301,7 @@ Open Services app and start "postgresql" service.
 
 ### Error: "permission denied for database"
 
-**Problem:** The boticelli user doesn't have the right privileges.
+**Problem:** The botticelli user doesn't have the right privileges.
 
 **Solution:**
 ```bash
@@ -309,11 +309,11 @@ Open Services app and start "postgresql" service.
 sudo -u postgres psql
 
 # Grant privileges
-GRANT ALL PRIVILEGES ON DATABASE boticelli TO boticelli;
+GRANT ALL PRIVILEGES ON DATABASE botticelli TO botticelli;
 
 # Also grant schema privileges
-\c boticelli
-GRANT ALL ON SCHEMA public TO boticelli;
+\c botticelli
+GRANT ALL ON SCHEMA public TO botticelli;
 
 # Exit
 \q
@@ -345,7 +345,7 @@ diesel migration run
 diesel setup
 
 # Manually mark the initial setup as complete
-psql -U boticelli -h localhost -d boticelli -c "INSERT INTO __diesel_schema_migrations (version, run_on) VALUES ('00000000000000', NOW()) ON CONFLICT DO NOTHING;"
+psql -U botticelli -h localhost -d botticelli -c "INSERT INTO __diesel_schema_migrations (version, run_on) VALUES ('00000000000000', NOW()) ON CONFLICT DO NOTHING;"
 
 # Now run the actual migrations
 diesel migration run
@@ -406,10 +406,10 @@ brew services restart postgresql@14
 sudo -u postgres psql
 
 # Connect as specific user to specific database
-psql -U boticelli -h localhost -d boticelli
+psql -U botticelli -h localhost -d botticelli
 
 # Connect using connection URL
-psql postgres://boticelli:password@localhost:5432/boticelli
+psql postgres://botticelli:password@localhost:5432/botticelli
 ```
 
 ### Common psql Commands
@@ -479,11 +479,11 @@ diesel migration list
 diesel database reset
 ```
 
-### Checking Boticelli Tables
+### Checking Botticelli Tables
 
 ```sql
--- Connect to boticelli database
-psql -U boticelli -h localhost -d boticelli
+-- Connect to botticelli database
+psql -U botticelli -h localhost -d botticelli
 
 -- List all tables
 \dt
@@ -511,7 +511,7 @@ JOIN media_references mr ON ai.media_ref_id = mr.id;
 
 ## Media Storage
 
-Boticelli stores media files (images, audio, video) separately from the database for better performance and scalability:
+Botticelli stores media files (images, audio, video) separately from the database for better performance and scalability:
 
 - **Metadata**: Stored in the `media_references` table (MIME type, dimensions, file size, storage location)
 - **Binary Content**: Stored externally (filesystem, S3, etc.) based on configuration
@@ -522,7 +522,7 @@ Media storage is configured via environment variables:
 
 ```bash
 # Set storage path (defaults to system temp directory)
-export MEDIA_STORAGE_PATH="/var/boticelli/media"
+export MEDIA_STORAGE_PATH="/var/botticelli/media"
 ```
 
 ### Media Migration Tools
@@ -531,8 +531,8 @@ If you have existing data with binary content in the database, use the migration
 
 ```bash
 # 1. Migrate existing media to external storage
-export DATABASE_URL="postgres://boticelli:password@localhost/boticelli"
-export MEDIA_STORAGE_PATH="/var/boticelli/media"
+export DATABASE_URL="postgres://botticelli:password@localhost/botticelli"
+export MEDIA_STORAGE_PATH="/var/botticelli/media"
 cargo run --bin migrate_media --features database
 
 # 2. Validate migration is complete
@@ -549,12 +549,12 @@ See [MEDIA_STORAGE.md](MEDIA_STORAGE.md) for detailed information on the media s
 Once PostgreSQL is set up and working:
 
 1. ✅ PostgreSQL is installed and running
-2. ✅ `boticelli` user and database are created
+2. ✅ `botticelli` user and database are created
 3. ✅ `.env` file is configured with credentials
 4. ✅ Migrations have been run successfully
 5. ✅ Connection test succeeded
 
-You're ready to use Boticelli with database persistence! Try running:
+You're ready to use Botticelli with database persistence! Try running:
 
 ```bash
 # Run narrative and save to database (must include database feature)
@@ -585,4 +585,4 @@ If you encounter issues not covered in this guide:
    - Linux: `sudo journalctl -u postgresql`
    - macOS: `tail -f /usr/local/var/log/postgres.log`
    - Windows: Check Event Viewer
-3. Open an issue on the [Boticelli GitHub repository](https://github.com/crumplecup/boticelli/issues)
+3. Open an issue on the [Botticelli GitHub repository](https://github.com/crumplecup/botticelli/issues)

@@ -11,7 +11,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use boticelli::GeminiLiveClient;
+//! use botticelli::GeminiLiveClient;
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -64,7 +64,7 @@ impl GeminiLiveClient {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::GeminiLiveClient;
+    /// use botticelli::GeminiLiveClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = GeminiLiveClient::new()?;
@@ -84,7 +84,7 @@ impl GeminiLiveClient {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::GeminiLiveClient;
+    /// use botticelli::GeminiLiveClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // With rate limiting (10 messages per minute)
@@ -119,7 +119,7 @@ impl GeminiLiveClient {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::GeminiLiveClient;
+    /// use botticelli::GeminiLiveClient;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -298,7 +298,7 @@ impl LiveSession {
     /// # Example
     ///
     /// ```no_run
-    /// # use boticelli::GeminiLiveClient;
+    /// # use botticelli::GeminiLiveClient;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let client = GeminiLiveClient::new()?;
@@ -415,7 +415,7 @@ impl LiveSession {
     /// # Example
     ///
     /// ```no_run
-    /// # use boticelli::GeminiLiveClient;
+    /// # use botticelli::GeminiLiveClient;
     /// # use futures_util::StreamExt;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -560,7 +560,7 @@ impl LiveSession {
     /// # Example
     ///
     /// ```no_run
-    /// # use boticelli::GeminiLiveClient;
+    /// # use botticelli::GeminiLiveClient;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let client = GeminiLiveClient::new()?;

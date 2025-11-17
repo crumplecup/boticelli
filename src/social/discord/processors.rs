@@ -4,7 +4,7 @@
 //! and insert them into the database using the DiscordRepository.
 
 use crate::{
-    ActProcessor, BoticelliResult, DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson,
+    ActProcessor, BotticelliResult, DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson,
     DiscordMemberRoleJson, DiscordRepository, DiscordRoleJson, DiscordUserJson, NewChannel,
     NewGuild, NewGuildMember, NewMemberRole, NewRole, NewUser, ProcessorContext, extract_json,
     parse_json,
@@ -29,7 +29,7 @@ impl DiscordGuildProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordGuildProcessor {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let json_str = extract_json(&context.execution.response)?;
 
         // Try parsing as array first, then single object
@@ -96,7 +96,7 @@ impl DiscordUserProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordUserProcessor {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let json_str = extract_json(&context.execution.response)?;
 
         let users: Vec<DiscordUserJson> = if json_str.trim().starts_with('[') {
@@ -162,7 +162,7 @@ impl DiscordChannelProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordChannelProcessor {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let json_str = extract_json(&context.execution.response)?;
 
         let channels: Vec<DiscordChannelJson> = if json_str.trim().starts_with('[') {
@@ -228,7 +228,7 @@ impl DiscordRoleProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordRoleProcessor {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let json_str = extract_json(&context.execution.response)?;
 
         let roles: Vec<DiscordRoleJson> = if json_str.trim().starts_with('[') {
@@ -295,7 +295,7 @@ impl DiscordGuildMemberProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordGuildMemberProcessor {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let json_str = extract_json(&context.execution.response)?;
 
         let members: Vec<DiscordGuildMemberJson> = if json_str.trim().starts_with('[') {
@@ -363,7 +363,7 @@ impl DiscordMemberRoleProcessor {
 
 #[async_trait]
 impl ActProcessor for DiscordMemberRoleProcessor {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let json_str = extract_json(&context.execution.response)?;
 
         let member_roles: Vec<DiscordMemberRoleJson> = if json_str.trim().starts_with('[') {

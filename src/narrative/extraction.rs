@@ -4,7 +4,7 @@
 //! or mixed with explanatory text. This module provides robust extraction
 //! utilities that handle common LLM response patterns.
 
-use crate::BoticelliResult;
+use crate::BotticelliResult;
 
 /// Extract JSON from a response that may contain markdown or extra text.
 ///
@@ -20,7 +20,7 @@ use crate::BoticelliResult;
 /// # Examples
 ///
 /// ```
-/// use boticelli::extract_json;
+/// use botticelli::extract_json;
 ///
 /// let response = "Here's the data you requested:\n\
 ///     \n\
@@ -31,7 +31,7 @@ use crate::BoticelliResult;
 /// let json = extract_json(response).unwrap();
 /// assert!(json.contains("123"));
 /// ```
-pub fn extract_json(response: &str) -> BoticelliResult<String> {
+pub fn extract_json(response: &str) -> BotticelliResult<String> {
     // Strategy 1: Extract from markdown code blocks
     if let Some(json) = extract_from_code_block(response, "json") {
         return Ok(json);
@@ -96,7 +96,7 @@ pub fn extract_json(response: &str) -> BoticelliResult<String> {
 /// # Examples
 ///
 /// ```
-/// use boticelli::extract_toml;
+/// use botticelli::extract_toml;
 ///
 /// let response = "Here's your configuration:\n\
 ///     \n\
@@ -108,7 +108,7 @@ pub fn extract_json(response: &str) -> BoticelliResult<String> {
 /// let toml = extract_toml(response).unwrap();
 /// assert!(toml.contains("[server]"));
 /// ```
-pub fn extract_toml(response: &str) -> BoticelliResult<String> {
+pub fn extract_toml(response: &str) -> BotticelliResult<String> {
     // Strategy 1: Extract from markdown code blocks
     if let Some(toml_str) = extract_from_code_block(response, "toml") {
         return Ok(toml_str);
@@ -206,7 +206,7 @@ fn extract_balanced(response: &str, open: char, close: char) -> Option<String> {
 /// # Examples
 ///
 /// ```
-/// use boticelli::parse_json;
+/// use botticelli::parse_json;
 /// use serde::Deserialize;
 ///
 /// #[derive(Deserialize)]
@@ -219,7 +219,7 @@ fn extract_balanced(response: &str, open: char, close: char) -> Option<String> {
 /// let user: User = parse_json(json).unwrap();
 /// assert_eq!(user.id, 123);
 /// ```
-pub fn parse_json<T>(json_str: &str) -> BoticelliResult<T>
+pub fn parse_json<T>(json_str: &str) -> BotticelliResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -248,7 +248,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use boticelli::parse_toml;
+/// use botticelli::parse_toml;
 /// use serde::Deserialize;
 ///
 /// #[derive(Deserialize)]
@@ -260,7 +260,7 @@ where
 /// let config: Config = parse_toml(toml).unwrap();
 /// assert_eq!(config.server_name, "Test Server");
 /// ```
-pub fn parse_toml<T>(toml_str: &str) -> BoticelliResult<T>
+pub fn parse_toml<T>(toml_str: &str) -> BotticelliResult<T>
 where
     T: serde::de::DeserializeOwned,
 {

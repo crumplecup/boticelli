@@ -6,7 +6,7 @@
 
 #[cfg(feature = "database")]
 use crate::{
-    ActProcessor, BoticelliResult, ContentGenerationRepository, NewContentGenerationRow,
+    ActProcessor, BotticelliResult, ContentGenerationRepository, NewContentGenerationRow,
     PgConnection, PostgresContentGenerationRepository, ProcessorContext,
     UpdateContentGenerationRow, create_content_table, create_inferred_table, extract_json,
     infer_schema, parse_json,
@@ -65,7 +65,7 @@ impl ContentGenerationProcessor {
         narrative_name: &str,
         act_name: &str,
         model: Option<&str>,
-    ) -> BoticelliResult<()> {
+    ) -> BotticelliResult<()> {
         let mut conn = self
             .connection
             .lock()
@@ -127,7 +127,7 @@ impl ContentGenerationProcessor {
 #[cfg(feature = "database")]
 #[async_trait]
 impl ActProcessor for ContentGenerationProcessor {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let table_name = &context.narrative_metadata.name;
 
         // Determine processing mode: Template or Inference
@@ -175,7 +175,7 @@ impl ActProcessor for ContentGenerationProcessor {
         }
 
         // Execute content generation
-        let generation_result: Result<usize, crate::BoticelliError> = (|| {
+        let generation_result: Result<usize, crate::BotticelliError> = (|| {
             // Extract JSON from response first (needed for both modes)
             let json_str = extract_json(&context.execution.response)?;
 

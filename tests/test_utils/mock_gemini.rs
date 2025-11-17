@@ -1,8 +1,8 @@
 //! Mock Gemini client for testing.
 
 use async_trait::async_trait;
-use boticelli::{
-    BoticelliDriver, BoticelliError, BoticelliResult, GenerateRequest, GenerateResponse,
+use botticelli::{
+    BotticelliDriver, BotticelliError, BotticelliResult, GenerateRequest, GenerateResponse,
     GeminiError, GeminiErrorKind, Metadata, ModelMetadata, Output, Streaming, StreamChunk,
     Vision,
 };
@@ -111,7 +111,7 @@ impl MockGeminiClient {
     }
 
     /// Get the next response based on the configured behavior.
-    fn next_response(&self) -> BoticelliResult<GenerateResponse> {
+    fn next_response(&self) -> BotticelliResult<GenerateResponse> {
         let mut count = self.call_count.lock().unwrap();
         let current_count = *count;
         *count += 1;
@@ -121,7 +121,7 @@ impl MockGeminiClient {
                 outputs: vec![Output::Text(text.clone())],
             }),
             MockBehavior::Error(error_kind) => {
-                Err(BoticelliError::from(GeminiError::new(error_kind.clone())))
+                Err(BotticelliError::from(GeminiError::new(error_kind.clone())))
             }
             MockBehavior::FailThenSucceed {
                 fail_count,
@@ -129,7 +129,7 @@ impl MockGeminiClient {
                 success_text,
             } => {
                 if current_count < *fail_count {
-                    Err(BoticelliError::from(GeminiError::new(error.clone())))
+                    Err(BotticelliError::from(GeminiError::new(error.clone())))
                 } else {
                     Ok(GenerateResponse {
                         outputs: vec![Output::Text(success_text.clone())],
@@ -139,7 +139,7 @@ impl MockGeminiClient {
             MockBehavior::Sequence(responses) => {
                 if current_count >= responses.len() {
                     // Past end of sequence, return error
-                    Err(BoticelliError::from(GeminiError::new(
+                    Err(BotticelliError::from(GeminiError::new(
                         GeminiErrorKind::ApiRequest(format!(
                             "Mock sequence exhausted (call {} beyond {} responses)",
                             current_count + 1,
@@ -152,7 +152,7 @@ impl MockGeminiClient {
                             outputs: vec![Output::Text(text.clone())],
                         }),
                         MockResponse::Error(error_kind) => {
-                            Err(BoticelliError::from(GeminiError::new(error_kind.clone())))
+                            Err(BotticelliError::from(GeminiError::new(error_kind.clone())))
                         }
                     }
                 }
@@ -162,8 +162,8 @@ impl MockGeminiClient {
 }
 
 #[async_trait]
-impl BoticelliDriver for MockGeminiClient {
-    async fn generate(&self, _req: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+impl BotticelliDriver for MockGeminiClient {
+    async fn generate(&self, _req: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
         // Small delay to simulate network latency (but keep it minimal for fast tests)
         tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
         self.next_response()
@@ -217,8 +217,8 @@ impl Streaming for MockGeminiClient {
     async fn generate_stream(
         &self,
         _req: &GenerateRequest,
-    ) -> BoticelliResult<
-        std::pin::Pin<Box<dyn futures_util::stream::Stream<Item = BoticelliResult<StreamChunk>> + Send>>,
+    ) -> BotticelliResult<
+        std::pin::Pin<Box<dyn futures_util::stream::Stream<Item = BotticelliResult<StreamChunk>> + Send>>,
     > {
         use futures_util::stream;
 
@@ -230,7 +230,7 @@ impl Streaming for MockGeminiClient {
             Ok(StreamChunk {
                 content: output,
                 is_final: true,
-                finish_reason: Some(boticelli::FinishReason::Stop),
+                finish_reason: Some(botticelli::FinishReason::Stop),
             })
         });
 

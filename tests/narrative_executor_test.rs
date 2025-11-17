@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use boticelli::{
-    ActConfig, BoticelliDriver, BoticelliResult, GenerateRequest, GenerateResponse, Input,
+use botticelli::{
+    ActConfig, BotticelliDriver, BotticelliResult, GenerateRequest, GenerateResponse, Input,
     Narrative, NarrativeExecutor, NarrativeMetadata, NarrativeProvider, Output,
 };
 
@@ -33,14 +33,14 @@ impl MockDriver {
 }
 
 #[async_trait]
-impl BoticelliDriver for MockDriver {
-    async fn generate(&self, req: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+impl BotticelliDriver for MockDriver {
+    async fn generate(&self, req: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
         // Extract the last user message (current prompt)
         let last_message = req
             .messages
             .iter()
             .rev()
-            .find(|m| matches!(m.role, boticelli::Role::User));
+            .find(|m| matches!(m.role, botticelli::Role::User));
 
         let response_text = if let Some(msg) = last_message {
             // Extract text from the message
@@ -48,7 +48,7 @@ impl BoticelliDriver for MockDriver {
                 .content
                 .iter()
                 .filter_map(|input| {
-                    if let boticelli::Input::Text(text) = input {
+                    if let botticelli::Input::Text(text) = input {
                         Some(text.clone())
                     } else {
                         None
@@ -158,8 +158,8 @@ async fn test_context_passing_between_acts() {
     }
 
     #[async_trait]
-    impl BoticelliDriver for ContextTrackingDriver {
-        async fn generate(&self, req: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+    impl BotticelliDriver for ContextTrackingDriver {
+        async fn generate(&self, req: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
             let mut count = self.call_count.lock().unwrap();
             *count += 1;
             let call_num = *count;
@@ -362,7 +362,7 @@ async fn test_multimodal_and_per_act_config() {
             Input::Text("Describe this image in relation to the poem".to_string()),
             Input::Image {
                 mime: Some("image/png".to_string()),
-                source: boticelli::MediaSource::Url("https://example.com/image.png".to_string()),
+                source: botticelli::MediaSource::Url("https://example.com/image.png".to_string()),
             },
         ])
         .with_model("gemini-pro-vision"),

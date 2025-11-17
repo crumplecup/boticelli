@@ -38,7 +38,7 @@ type DirectRateLimiter = GovernorRateLimiter<NotKeyed, InMemoryState, DefaultClo
 /// # Example
 ///
 /// ```rust,ignore
-/// use boticelli::{RateLimiter, GeminiTier};
+/// use botticelli::{RateLimiter, GeminiTier};
 ///
 /// let limiter = RateLimiter::new(GeminiTier::Free);
 ///
@@ -84,7 +84,7 @@ impl<T: Tier> RateLimiter<T> {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use boticelli::{RateLimiter, GeminiTier};
+    /// use botticelli::{RateLimiter, GeminiTier};
     ///
     /// let limiter = RateLimiter::new(GeminiTier::Free);
     /// // Enforces: 10 RPM, 250K TPM, 250 RPD, 1 concurrent
@@ -146,7 +146,7 @@ impl<T: Tier> RateLimiter<T> {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use boticelli::{RateLimiter, GeminiTier};
+    /// use botticelli::{RateLimiter, GeminiTier};
     ///
     /// // Disable retry
     /// let limiter = RateLimiter::new_with_retry(GeminiTier::Free, true, None, None);

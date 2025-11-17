@@ -74,7 +74,7 @@ CREATE INDEX idx_media_storage ON media_references(storage_backend, storage_path
 **Phase 1: Filesystem Storage (Immediate)**
 
 - Content-addressable storage by hash
-- Directory structure: `/var/boticelli/media/{type}/{hash[0:2]}/{hash[2:4]}/{hash}.{ext}`
+- Directory structure: `/var/botticelli/media/{type}/{hash[0:2]}/{hash[2:4]}/{hash}.{ext}`
 - Automatic deduplication via hash
 - Simple backup with rsync
 - Good for single-server deployments
@@ -128,7 +128,7 @@ src/storage/
 
 **Error Handling**:
 - Created `StorageError` and `StorageErrorKind` following project patterns
-- Integrated into crate-level `BoticelliErrorKind` enum
+- Integrated into crate-level `BotticelliErrorKind` enum
 - Added automatic `From` conversion via `derive_more`
 
 **1.3 Add to lib.rs exports** ✅
@@ -450,19 +450,19 @@ pub trait NarrativeRepository: Send + Sync {
         &self,
         data: &[u8],
         metadata: &MediaMetadata,
-    ) -> BoticelliResult<MediaReference>;
+    ) -> BotticelliResult<MediaReference>;
     
     /// Retrieve media by reference
     async fn load_media(
         &self,
         reference: &MediaReference,
-    ) -> BoticelliResult<Vec<u8>>;
+    ) -> BotticelliResult<Vec<u8>>;
     
     /// Get media reference by content hash (deduplication)
     async fn get_media_by_hash(
         &self,
         content_hash: &str,
-    ) -> BoticelliResult<Option<MediaReference>>;
+    ) -> BotticelliResult<Option<MediaReference>>;
 }
 ```
 
@@ -487,7 +487,7 @@ impl NarrativeRepository for DatabaseNarrativeRepository {
         &self,
         data: &[u8],
         metadata: &MediaMetadata,
-    ) -> BoticelliResult<MediaReference> {
+    ) -> BotticelliResult<MediaReference> {
         use sha2::{Sha256, Digest};
         
         // Compute hash for deduplication
@@ -537,7 +537,7 @@ async fn input_to_row(
     input: &Input,
     order: i32,
     repository: &dyn NarrativeRepository,
-) -> BoticelliResult<NewActInputRow> {
+) -> BotticelliResult<NewActInputRow> {
     let mut row = NewActInputRow {
         input_order: order,
         input_type: input_type_string(input),
@@ -574,7 +574,7 @@ async fn store_media_source(
     media_type: MediaType,
     mime_type: &str,
     repository: &dyn NarrativeRepository,
-) -> BoticelliResult<MediaReference> {
+) -> BotticelliResult<MediaReference> {
     let data = match source {
         MediaSource::Binary(bytes) => bytes.clone(),
         MediaSource::Base64(base64) => {
@@ -584,7 +584,7 @@ async fn store_media_source(
         MediaSource::Url(_) => {
             // For URLs, we might want to fetch and store, or just keep the URL
             // For now, return an error - handle in next phase
-            return Err(BoticelliError::new(BoticelliErrorKind::Storage(
+            return Err(BotticelliError::new(BotticelliErrorKind::Storage(
                 StorageError::new("URL media sources not yet supported for storage".to_string())
             )));
         }
@@ -625,8 +625,8 @@ Created `src/bin/migrate_media.rs` - standalone binary for one-time data migrati
 **Usage**:
 ```bash
 # Set environment variables
-export DATABASE_URL="postgres://user:pass@localhost/boticelli"
-export MEDIA_STORAGE_PATH="/var/boticelli/media"  # Optional, defaults to temp dir
+export DATABASE_URL="postgres://user:pass@localhost/botticelli"
+export MEDIA_STORAGE_PATH="/var/botticelli/media"  # Optional, defaults to temp dir
 
 # Run migration
 cargo run --bin migrate_media --features database
@@ -687,7 +687,7 @@ required-features = ["database"]
 
 //! One-time migration tool to move existing binary data to new storage backend
 
-use boticelli::{DatabaseNarrativeRepository, FileSystemStorage, MediaType, MediaMetadata};
+use botticelli::{DatabaseNarrativeRepository, FileSystemStorage, MediaType, MediaMetadata};
 use diesel::prelude::*;
 
 #[tokio::main]
@@ -695,7 +695,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load configuration
     let database_url = std::env::var("DATABASE_URL")?;
     let storage_path = std::env::var("MEDIA_STORAGE_PATH")
-        .unwrap_or_else(|_| "/var/boticelli/media".to_string());
+        .unwrap_or_else(|_| "/var/botticelli/media".to_string());
     
     // Setup
     let pool = create_pool(&database_url)?;
@@ -775,7 +775,7 @@ async fn migrate_input(
     let media_ref = repo.store_media(&data, &metadata).await?;
     
     // Update act_inputs row
-    use boticelli::database::schema::act_inputs;
+    use botticelli::database::schema::act_inputs;
     diesel::update(act_inputs::table.find(input_row.id))
         .set(act_inputs::media_ref_id.eq(media_ref.id))
         .execute(&mut repo.pool.get()?)?;
@@ -791,23 +791,23 @@ async fn migrate_input(
 cargo build --release --bin migrate_media --features database
 
 # Run migration
-DATABASE_URL=postgres://user:pass@localhost/boticelli \
-MEDIA_STORAGE_PATH=/var/boticelli/media \
+DATABASE_URL=postgres://user:pass@localhost/botticelli \
+MEDIA_STORAGE_PATH=/var/botticelli/media \
 ./target/release/migrate_media
 ```
 
 ### Step 6: Update CLI and Configuration (1 day)
 
-**6.1 Add Storage Configuration to boticelli.toml**
+**6.1 Add Storage Configuration to botticelli.toml**
 
 ```toml
 [storage]
 backend = "filesystem"
-base_path = "/var/boticelli/media"
+base_path = "/var/botticelli/media"
 
 # Future: S3 configuration
 # [storage.s3]
-# bucket = "boticelli-media"
+# bucket = "botticelli-media"
 # region = "us-east-1"
 # access_key_id = "${AWS_ACCESS_KEY_ID}"
 # secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
@@ -818,7 +818,7 @@ base_path = "/var/boticelli/media"
 ```rust
 // src/main.rs or wherever CLI setup happens
 
-fn create_repository(config: &Config) -> BoticelliResult<Arc<dyn NarrativeRepository>> {
+fn create_repository(config: &Config) -> BotticelliResult<Arc<dyn NarrativeRepository>> {
     let pool = create_database_pool(&config.database_url)?;
     
     // Create storage backend based on configuration
@@ -830,8 +830,8 @@ fn create_repository(config: &Config) -> BoticelliResult<Arc<dyn NarrativeReposi
             Arc::new(PostgresStorage::new(pool.clone())?)
         }
         other => {
-            return Err(BoticelliError::new(
-                BoticelliErrorKind::Config(ConfigError::new(
+            return Err(BotticelliError::new(
+                BotticelliErrorKind::Config(ConfigError::new(
                     format!("Unknown storage backend: {}", other)
                 ))
             ));
@@ -883,7 +883,7 @@ Created `src/bin/validate_migration.rs` - validates migration completeness befor
 **Usage**:
 ```bash
 # Validate migration is complete
-export DATABASE_URL="postgres://user:pass@localhost/boticelli"
+export DATABASE_URL="postgres://user:pass@localhost/botticelli"
 cargo run --bin validate_migration --features database
 
 # If validation passes, run cleanup
@@ -895,7 +895,7 @@ diesel migration run
 Following project guidelines from CLAUDE.md:
 - Kept `database` and `schema` modules private
 - Exported schema tables (`act_inputs`, `media_references`, `narrative_executions`) at crate root
-- Migration binaries import from `boticelli::{act_inputs, media_references}`
+- Migration binaries import from `botticelli::{act_inputs, media_references}`
 - Maintains single import path pattern
 
 **Safety Features**:
@@ -972,7 +972,7 @@ pub struct S3Storage {
 #[cfg(feature = "storage-s3")]
 impl MediaStorage for S3Storage {
     async fn store(&self, data: &[u8], metadata: &MediaMetadata) 
-        -> BoticelliResult<MediaReference> 
+        -> BotticelliResult<MediaReference> 
     {
         let hash = Self::compute_hash(data);
         let key = self.get_key(&hash, metadata.media_type);
@@ -998,7 +998,7 @@ impl MediaStorage for S3Storage {
     }
     
     async fn get_url(&self, reference: &MediaReference, expires_in: Duration) 
-        -> BoticelliResult<Option<String>> 
+        -> BotticelliResult<Option<String>> 
     {
         // Generate presigned URL
         let expires_in = expires_in.as_secs() as u32;

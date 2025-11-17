@@ -24,7 +24,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input};
+//! use botticelli::{BotticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input};
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {

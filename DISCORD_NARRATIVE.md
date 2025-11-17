@@ -548,7 +548,7 @@ Start your response with { and end with }.
 - More human-readable than JSON
 - Handles multi-record generation naturally
 - Less escaping issues with strings
-- Already used in Boticelli narrative definitions
+- Already used in Botticelli narrative definitions
 
 **Example instruction:**
 ```

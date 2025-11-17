@@ -14,7 +14,7 @@
 
 #![cfg(feature = "gemini")]
 
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role, Streaming};
+use botticelli::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role, Streaming};
 use futures_util::StreamExt;
 
 #[tokio::test]

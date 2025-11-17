@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 
 use crate::core::{GenerateRequest, GenerateResponse, Input, Output};
-use crate::error::BoticelliResult;
+use crate::error::BotticelliResult;
 
 //
 // ─── CORE TRAIT ─────────────────────────────────────────────────────────────────
@@ -15,9 +15,9 @@ use crate::error::BoticelliResult;
 /// This provides the minimal interface for synchronous text generation.
 /// Additional capabilities are exposed through optional traits.
 #[async_trait]
-pub trait BoticelliDriver: Send + Sync {
+pub trait BotticelliDriver: Send + Sync {
     /// Generate model output given a multimodal request.
-    async fn generate(&self, req: &GenerateRequest) -> BoticelliResult<GenerateResponse>;
+    async fn generate(&self, req: &GenerateRequest) -> BotticelliResult<GenerateResponse>;
 
     /// Provider name (e.g., "anthropic", "openai", "gemini").
     fn provider_name(&self) -> &'static str;
@@ -61,14 +61,14 @@ pub enum FinishReason {
 
 /// Trait for models that support streaming responses.
 #[async_trait]
-pub trait Streaming: BoticelliDriver {
+pub trait Streaming: BotticelliDriver {
     /// Generate a streaming response.
     ///
     /// Returns a stream that yields chunks as they arrive from the API.
     async fn generate_stream(
         &self,
         req: &GenerateRequest,
-    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>>;
+    ) -> BotticelliResult<Pin<Box<dyn Stream<Item = BotticelliResult<StreamChunk>> + Send>>>;
 }
 
 //
@@ -77,11 +77,11 @@ pub trait Streaming: BoticelliDriver {
 
 /// Trait for models that can generate embeddings.
 #[async_trait]
-pub trait Embeddings: BoticelliDriver {
+pub trait Embeddings: BotticelliDriver {
     /// Generate embeddings for one or more text inputs.
     ///
     /// Returns a vector of embedding vectors, one per input.
-    async fn embed(&self, inputs: &[String]) -> BoticelliResult<Vec<Vec<f32>>>;
+    async fn embed(&self, inputs: &[String]) -> BotticelliResult<Vec<Vec<f32>>>;
 
     /// Dimensionality of the embedding vectors.
     fn embedding_dimensions(&self) -> usize;
@@ -92,7 +92,7 @@ pub trait Embeddings: BoticelliDriver {
 //
 
 /// Trait for models that support image inputs (multimodal vision).
-pub trait Vision: BoticelliDriver {
+pub trait Vision: BotticelliDriver {
     /// Maximum number of images per request.
     fn max_images_per_request(&self) -> usize {
         1
@@ -120,7 +120,7 @@ pub trait Vision: BoticelliDriver {
 /// - Text-to-speech (text input → audio output)
 /// - Audio understanding (audio input → analysis)
 /// - Audio generation (text/audio input → audio output)
-pub trait Audio: BoticelliDriver {
+pub trait Audio: BotticelliDriver {
     /// Maximum audio duration in seconds for input.
     fn max_audio_duration_seconds(&self) -> usize {
         60 // 1 minute default
@@ -152,7 +152,7 @@ pub trait Audio: BoticelliDriver {
 /// - Video understanding (video input → analysis)
 /// - Video generation (text/image input → video output)
 /// - Video-to-text (video input → description/transcript)
-pub trait Video: BoticelliDriver {
+pub trait Video: BotticelliDriver {
     /// Maximum video duration in seconds for input.
     fn max_video_duration_seconds(&self) -> usize {
         60 // 1 minute default
@@ -190,7 +190,7 @@ pub trait Video: BoticelliDriver {
 /// - Office documents (DOCX, XLSX, PPTX)
 /// - Code files with syntax awareness
 /// - Plain text with structure preservation
-pub trait DocumentProcessing: BoticelliDriver {
+pub trait DocumentProcessing: BotticelliDriver {
     /// Supported document formats (MIME types).
     fn supported_document_formats(&self) -> &[&'static str] {
         &[
@@ -248,7 +248,7 @@ pub struct ToolResult {
 
 /// Trait for models that support function/tool calling.
 #[async_trait]
-pub trait ToolUse: BoticelliDriver {
+pub trait ToolUse: BotticelliDriver {
     /// Generate with available tools/functions.
     ///
     /// The response may contain tool calls (in `Output::ToolCalls`) instead of
@@ -258,7 +258,7 @@ pub trait ToolUse: BoticelliDriver {
         &self,
         req: &GenerateRequest,
         tools: &[ToolDefinition],
-    ) -> BoticelliResult<GenerateResponse>;
+    ) -> BotticelliResult<GenerateResponse>;
 
     /// Maximum number of tools that can be provided.
     fn max_tools(&self) -> usize {
@@ -277,13 +277,13 @@ pub trait ToolUse: BoticelliDriver {
 
 /// Trait for models that support structured JSON output.
 #[async_trait]
-pub trait JsonMode: BoticelliDriver {
+pub trait JsonMode: BotticelliDriver {
     /// Generate output conforming to a JSON schema.
     async fn generate_json(
         &self,
         req: &GenerateRequest,
         schema: &serde_json::Value,
-    ) -> BoticelliResult<serde_json::Value>;
+    ) -> BotticelliResult<serde_json::Value>;
 }
 
 //
@@ -291,12 +291,12 @@ pub trait JsonMode: BoticelliDriver {
 //
 
 /// Trait for models that can count tokens.
-pub trait TokenCounting: BoticelliDriver {
+pub trait TokenCounting: BotticelliDriver {
     /// Count tokens in text using the model's tokenizer.
-    fn count_tokens(&self, text: &str) -> BoticelliResult<usize>;
+    fn count_tokens(&self, text: &str) -> BotticelliResult<usize>;
 
     /// Count tokens in a full request (all messages).
-    fn count_request_tokens(&self, req: &GenerateRequest) -> BoticelliResult<usize> {
+    fn count_request_tokens(&self, req: &GenerateRequest) -> BotticelliResult<usize> {
         let mut total = 0;
         for msg in &req.messages {
             for input in &msg.content {
@@ -315,14 +315,14 @@ pub trait TokenCounting: BoticelliDriver {
 
 /// Trait for models that support efficient batch processing.
 #[async_trait]
-pub trait BatchGeneration: BoticelliDriver {
+pub trait BatchGeneration: BotticelliDriver {
     /// Generate responses for multiple requests in a single batch.
     ///
     /// May be more efficient than individual requests for some providers.
     async fn generate_batch(
         &self,
         requests: &[GenerateRequest],
-    ) -> BoticelliResult<Vec<GenerateResponse>>;
+    ) -> BotticelliResult<Vec<GenerateResponse>>;
 
     /// Maximum batch size supported.
     fn max_batch_size(&self) -> usize {
@@ -366,7 +366,7 @@ pub struct ModelMetadata {
 }
 
 /// Trait for querying model metadata and capabilities.
-pub trait Metadata: BoticelliDriver {
+pub trait Metadata: BotticelliDriver {
     /// Get comprehensive metadata about this model.
     fn metadata(&self) -> ModelMetadata;
 
@@ -395,7 +395,7 @@ pub enum HealthStatus {
 
 /// Trait for backends that support health checks.
 #[async_trait]
-pub trait Health: BoticelliDriver {
+pub trait Health: BotticelliDriver {
     /// Check if the backend is available and functioning.
-    async fn health(&self) -> BoticelliResult<HealthStatus>;
+    async fn health(&self) -> BotticelliResult<HealthStatus>;
 }

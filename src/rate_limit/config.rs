@@ -2,11 +2,11 @@
 //!
 //! This module provides TOML-based configuration for rate limits. The configuration
 //! system supports:
-//! - Bundled defaults (include_str! from boticelli.toml)
-//! - User overrides (./boticelli.toml or ~/.config/boticelli/boticelli.toml)
+//! - Bundled defaults (include_str! from botticelli.toml)
+//! - User overrides (./botticelli.toml or ~/.config/botticelli/botticelli.toml)
 //! - Automatic merging with user values taking precedence
 
-use crate::{BoticelliError, BoticelliResult, ConfigError, Tier};
+use crate::{BotticelliError, BotticelliResult, ConfigError, Tier};
 use config::{Config, File, FileFormat};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -170,10 +170,10 @@ impl TierConfig {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::{BoticelliConfig, Tier};
+    /// use botticelli::{BotticelliConfig, Tier};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = BoticelliConfig::load()?;
+    /// let config = BotticelliConfig::load()?;
     /// let tier = config.get_tier("gemini", Some("free")).unwrap();
     ///
     /// // Get config for gemini-2.5-pro (may have different limits than tier default)
@@ -219,20 +219,20 @@ pub struct ProviderConfig {
     pub tiers: HashMap<String, TierConfig>,
 }
 
-/// Top-level Boticelli configuration.
+/// Top-level Botticelli configuration.
 ///
 /// Loads rate limit configurations from TOML files with a precedence system:
-/// 1. Bundled defaults (include_str! from boticelli.toml)
-/// 2. User override (./boticelli.toml or ~/.config/boticelli/boticelli.toml)
+/// 1. Bundled defaults (include_str! from botticelli.toml)
+/// 2. User override (./botticelli.toml or ~/.config/botticelli/botticelli.toml)
 ///
 /// # Example
 ///
 /// ```no_run
-/// use boticelli::BoticelliConfig;
+/// use botticelli::BotticelliConfig;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Load configuration (bundled defaults + user overrides)
-/// let config = BoticelliConfig::load()?;
+/// let config = BotticelliConfig::load()?;
 ///
 /// // Get tier configuration for Gemini free tier
 /// let tier = config.get_tier("gemini", Some("free")).unwrap();
@@ -241,24 +241,24 @@ pub struct ProviderConfig {
 /// # }
 /// ```
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct BoticelliConfig {
+pub struct BotticelliConfig {
     /// Map of provider name to provider configuration
     #[serde(default)]
     pub providers: HashMap<String, ProviderConfig>,
 }
 
-impl BoticelliConfig {
+impl BotticelliConfig {
     /// Load configuration from a specific file path.
     ///
     /// # Errors
     ///
     /// Returns an error if the file cannot be read or parsed.
-    pub fn from_file(path: impl AsRef<std::path::Path>) -> BoticelliResult<Self> {
+    pub fn from_file(path: impl AsRef<std::path::Path>) -> BotticelliResult<Self> {
         Config::builder()
             .add_source(File::from(path.as_ref()))
             .build()
             .map_err(|e| {
-                BoticelliError::from(ConfigError::new(format!(
+                BotticelliError::from(ConfigError::new(format!(
                     "Failed to read configuration from {}: {}",
                     path.as_ref().display(),
                     e
@@ -266,7 +266,7 @@ impl BoticelliConfig {
             })?
             .try_deserialize()
             .map_err(|e| {
-                BoticelliError::from(ConfigError::new(format!(
+                BotticelliError::from(ConfigError::new(format!(
                     "Failed to parse configuration: {}",
                     e
                 )))
@@ -276,25 +276,25 @@ impl BoticelliConfig {
     /// Load configuration with precedence: user override > bundled default.
     ///
     /// Configuration sources in order of precedence (later sources override earlier):
-    /// 1. Bundled defaults (boticelli.toml shipped with library)
-    /// 2. User config in home directory (~/.config/boticelli/boticelli.toml)
-    /// 3. User config in current directory (./boticelli.toml)
+    /// 1. Bundled defaults (botticelli.toml shipped with library)
+    /// 2. User config in home directory (~/.config/botticelli/botticelli.toml)
+    /// 3. User config in current directory (./botticelli.toml)
     ///
     /// User config files are optional and will be silently skipped if not found.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::BoticelliConfig;
+    /// use botticelli::BotticelliConfig;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = BoticelliConfig::load()?;
+    /// let config = BotticelliConfig::load()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn load() -> BoticelliResult<Self> {
+    pub fn load() -> BotticelliResult<Self> {
         // Bundled default configuration
-        const DEFAULT_CONFIG: &str = include_str!("../../boticelli.toml");
+        const DEFAULT_CONFIG: &str = include_str!("../../botticelli.toml");
 
         let mut builder = Config::builder()
             // Start with bundled defaults
@@ -302,25 +302,25 @@ impl BoticelliConfig {
 
         // Add user config from home directory (optional)
         if let Some(home) = dirs::home_dir() {
-            let home_config = home.join(".config/boticelli/boticelli.toml");
+            let home_config = home.join(".config/botticelli/botticelli.toml");
             builder = builder.add_source(File::from(home_config).required(false));
         }
 
         // Add user config from current directory (optional, highest precedence)
-        builder = builder.add_source(File::with_name("boticelli").required(false));
+        builder = builder.add_source(File::with_name("botticelli").required(false));
 
         // Build and deserialize
         builder
             .build()
             .map_err(|e| {
-                BoticelliError::from(ConfigError::new(format!(
+                BotticelliError::from(ConfigError::new(format!(
                     "Failed to build configuration: {}",
                     e
                 )))
             })?
             .try_deserialize()
             .map_err(|e| {
-                BoticelliError::from(ConfigError::new(format!(
+                BotticelliError::from(ConfigError::new(format!(
                     "Failed to parse configuration: {}",
                     e
                 )))
@@ -341,10 +341,10 @@ impl BoticelliConfig {
     /// # Example
     ///
     /// ```no_run
-    /// use boticelli::BoticelliConfig;
+    /// use botticelli::BotticelliConfig;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = BoticelliConfig::load()?;
+    /// let config = BotticelliConfig::load()?;
     ///
     /// // Get default tier for Gemini
     /// let tier = config.get_tier("gemini", None).unwrap();

@@ -1,6 +1,6 @@
 # Social Media Platform API Integration
 
-This document outlines Boticelli's social media integration strategy. We're implementing **Discord as the canary implementation** to learn from a complex, feature-rich platform before expanding to others.
+This document outlines Botticelli's social media integration strategy. We're implementing **Discord as the canary implementation** to learn from a complex, feature-rich platform before expanding to others.
 
 ## Why Discord as the Canary?
 
@@ -65,7 +65,7 @@ mod social;
 
 #[cfg(feature = "discord")]
 pub use social::discord::{
-    DiscordRepository, BoticelliBot, DiscordError, DiscordErrorKind,
+    DiscordRepository, BotticelliBot, DiscordError, DiscordErrorKind,
     // ... other exports
 };
 ```
@@ -223,7 +223,7 @@ Implemented Discord-specific error handling following CLAUDE.md patterns:
 - Follows CLAUDE.md error handling patterns exactly
 
 **Integration:**
-- Added Discord variant to BoticelliErrorKind with #[cfg(feature = "discord")]
+- Added Discord variant to BotticelliErrorKind with #[cfg(feature = "discord")]
 - Added Display match arm for Discord errors
 - Exported DiscordError, DiscordErrorKind, DiscordErrorResult from discord module
 - Exported at crate level from src/lib.rs
@@ -241,7 +241,7 @@ Implemented comprehensive event handler that captures Discord events and persist
 **File created:**
 - `src/social/discord/handler.rs` - Event handler implementing Serenity's EventHandler trait
 
-**BoticelliHandler implementation:**
+**BotticelliHandler implementation:**
 - **Gateway intents**: GUILDS | GUILD_MEMBERS | GUILD_MESSAGES | MESSAGE_CONTENT
 - **Helper methods**:
   - to_db_id() - Convert Discord snowflake IDs (u64) to database IDs (i64)
@@ -280,7 +280,7 @@ Implemented bot client that manages Serenity connection and lifecycle:
 **File created:**
 - `src/social/discord/client.rs` - Bot client with Serenity integration
 
-**BoticelliBot struct:**
+**BotticelliBot struct:**
 - Wraps Serenity Client with database repository
 - Manages connection lifecycle (new, start)
 - Provides repository access for external queries
@@ -288,7 +288,7 @@ Implemented bot client that manages Serenity connection and lifecycle:
 **Key methods:**
 - new(token, conn) - Initialize bot with token and database connection
   - Creates Arc<DiscordRepository> for shared access
-  - Builds BoticelliHandler with repository
+  - Builds BotticelliHandler with repository
   - Configures gateway intents
   - Builds Serenity Client with handler
   - Returns comprehensive errors via DiscordError
@@ -314,14 +314,14 @@ Implemented bot client that manages Serenity connection and lifecycle:
 
 #### Step 2.3: CLI Integration (Completed)
 
-Added Discord bot commands to the Boticelli CLI:
+Added Discord bot commands to the Botticelli CLI:
 
 **Files modified:**
 - `src/main.rs` - Added Discord subcommand and start_discord_bot function
 
 **CLI structure:**
 ```bash
-boticelli discord start [--token TOKEN]
+botticelli discord start [--token TOKEN]
 ```
 
 **DiscordCommands enum:**
@@ -330,7 +330,7 @@ boticelli discord start [--token TOKEN]
 **start_discord_bot function:**
 - Token resolution: CLI --token > DISCORD_TOKEN env var
 - Establishes database connection via establish_connection()
-- Creates BoticelliBot with token and connection
+- Creates BotticelliBot with token and connection
 - User-friendly output with emojis:
   - 🤖 Starting message
   - ✓ Initialization success
@@ -576,7 +576,7 @@ Create Rust models matching the schema in `src/social/discord/models/`:
 - `member.rs` - `Member`, `NewMember`, `MemberRow`
 - `role.rs` - `Role`, `NewRole`, `RoleRow`
 
-Follow Boticelli patterns: separate `Row` types for database, `New` types for inserts, main types for business logic.
+Follow Botticelli patterns: separate `Row` types for database, `New` types for inserts, main types for business logic.
 
 #### Step 1.4: Repository Layer
 
@@ -617,7 +617,7 @@ pub struct DiscordError {
 }
 ```
 
-Add `Discord(DiscordError)` variant to `BoticelliErrorKind`.
+Add `Discord(DiscordError)` variant to `BotticelliErrorKind`.
 
 ### Phase 2: Basic Bot Functionality
 
@@ -633,12 +633,12 @@ use serenity::client::{Context, EventHandler};
 use serenity::model::gateway::Ready;
 use serenity::model::channel::Message;
 
-pub struct BoticelliHandler {
+pub struct BotticelliHandler {
     repository: Arc<DiscordRepository>,
 }
 
 #[async_trait]
-impl EventHandler for BoticelliHandler {
+impl EventHandler for BotticelliHandler {
     async fn ready(&self, _ctx: Context, ready: Ready) {
         info!("Bot connected as {}", ready.user.name);
         // Store guilds in database
@@ -662,15 +662,15 @@ impl EventHandler for BoticelliHandler {
 Create `src/social/discord/client.rs`:
 
 ```rust
-pub struct BoticelliBot {
+pub struct BotticelliBot {
     client: serenity::Client,
     repository: Arc<DiscordRepository>,
 }
 
-impl BoticelliBot {
+impl BotticelliBot {
     pub async fn new(token: String, database_url: String) -> Result<Self> {
         let repository = Arc::new(DiscordRepository::new(&database_url)?);
-        let handler = BoticelliHandler::new(repository.clone());
+        let handler = BotticelliHandler::new(repository.clone());
 
         let intents = GatewayIntents::GUILDS
             | GatewayIntents::GUILD_MESSAGES
@@ -692,7 +692,7 @@ impl BoticelliBot {
 
 #### Step 2.3: CLI Integration
 
-Update `src/bin/boticelli.rs` to include Discord bot command:
+Update `src/bin/botticelli.rs` to include Discord bot command:
 
 ```rust
 #[derive(Subcommand)]
@@ -746,7 +746,7 @@ impl DiscordRepository {
 
 #### Step 3.3: Event Handler Updates
 
-Update `BoticelliHandler` to store messages:
+Update `BotticelliHandler` to store messages:
 
 ```rust
 async fn message(&self, ctx: Context, msg: Message) {

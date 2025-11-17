@@ -1,6 +1,6 @@
 //! Tests for filesystem storage backend.
 
-use boticelli::{FileSystemStorage, MediaMetadata, MediaReference, MediaStorage, MediaType};
+use botticelli::{FileSystemStorage, MediaMetadata, MediaReference, MediaStorage, MediaType};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -87,7 +87,7 @@ async fn test_hash_verification() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err().kind(),
-        boticelli::BoticelliErrorKind::Storage(_)
+        botticelli::BotticelliErrorKind::Storage(_)
     ));
 }
 

@@ -7,7 +7,7 @@
 use chrono::NaiveDateTime;
 
 use crate::{
-    BackendError, BoticelliResult, ChannelType, DiscordChannelJson, DiscordGuildJson,
+    BackendError, BotticelliResult, ChannelType, DiscordChannelJson, DiscordGuildJson,
     DiscordGuildMemberJson, DiscordMemberRoleJson, DiscordRoleJson, DiscordUserJson, NewChannel,
     NewGuild, NewGuildMember, NewRole, NewUser,
 };
@@ -23,7 +23,7 @@ use crate::{
 ///
 /// Returns an error if the timestamp string cannot be parsed.
 #[track_caller]
-pub fn parse_iso_timestamp(s: &str) -> BoticelliResult<NaiveDateTime> {
+pub fn parse_iso_timestamp(s: &str) -> BotticelliResult<NaiveDateTime> {
     // Try parsing with timezone first (strip the Z and parse as naive)
     if let Some(without_z) = s.strip_suffix('Z') {
         // Try with fractional seconds
@@ -55,7 +55,7 @@ pub fn parse_iso_timestamp(s: &str) -> BoticelliResult<NaiveDateTime> {
 ///
 /// Returns an error if the channel type string is not recognized.
 #[track_caller]
-pub fn parse_channel_type(s: &str) -> BoticelliResult<ChannelType> {
+pub fn parse_channel_type(s: &str) -> BotticelliResult<ChannelType> {
     match s {
         "guild_text" => Ok(ChannelType::GuildText),
         "dm" => Ok(ChannelType::Dm),
@@ -87,9 +87,9 @@ fn convert_features(features: Vec<String>) -> Vec<Option<String>> {
 // ============================================================================
 
 impl TryFrom<DiscordGuildJson> for NewGuild {
-    type Error = crate::BoticelliError;
+    type Error = crate::BotticelliError;
 
-    fn try_from(json: DiscordGuildJson) -> BoticelliResult<Self> {
+    fn try_from(json: DiscordGuildJson) -> BotticelliResult<Self> {
         Ok(NewGuild {
             id: json.id,
             name: json.name,
@@ -145,9 +145,9 @@ impl TryFrom<DiscordGuildJson> for NewGuild {
 }
 
 impl TryFrom<DiscordUserJson> for NewUser {
-    type Error = crate::BoticelliError;
+    type Error = crate::BotticelliError;
 
-    fn try_from(json: DiscordUserJson) -> BoticelliResult<Self> {
+    fn try_from(json: DiscordUserJson) -> BotticelliResult<Self> {
         Ok(NewUser {
             id: json.id,
             username: json.username,
@@ -174,9 +174,9 @@ impl TryFrom<DiscordUserJson> for NewUser {
 }
 
 impl TryFrom<DiscordChannelJson> for NewChannel {
-    type Error = crate::BoticelliError;
+    type Error = crate::BotticelliError;
 
-    fn try_from(json: DiscordChannelJson) -> BoticelliResult<Self> {
+    fn try_from(json: DiscordChannelJson) -> BotticelliResult<Self> {
         let channel_type = parse_channel_type(&json.channel_type)?;
 
         Ok(NewChannel {
@@ -224,9 +224,9 @@ impl TryFrom<DiscordChannelJson> for NewChannel {
 }
 
 impl TryFrom<DiscordRoleJson> for NewRole {
-    type Error = crate::BoticelliError;
+    type Error = crate::BotticelliError;
 
-    fn try_from(json: DiscordRoleJson) -> BoticelliResult<Self> {
+    fn try_from(json: DiscordRoleJson) -> BotticelliResult<Self> {
         Ok(NewRole {
             id: json.id,
             guild_id: json.guild_id,
@@ -247,9 +247,9 @@ impl TryFrom<DiscordRoleJson> for NewRole {
 }
 
 impl TryFrom<DiscordGuildMemberJson> for NewGuildMember {
-    type Error = crate::BoticelliError;
+    type Error = crate::BotticelliError;
 
-    fn try_from(json: DiscordGuildMemberJson) -> BoticelliResult<Self> {
+    fn try_from(json: DiscordGuildMemberJson) -> BotticelliResult<Self> {
         let joined_at = parse_iso_timestamp(&json.joined_at)?;
         let premium_since = json
             .premium_since
@@ -296,9 +296,9 @@ pub struct NewMemberRole {
 }
 
 impl TryFrom<DiscordMemberRoleJson> for NewMemberRole {
-    type Error = crate::BoticelliError;
+    type Error = crate::BotticelliError;
 
-    fn try_from(json: DiscordMemberRoleJson) -> BoticelliResult<Self> {
+    fn try_from(json: DiscordMemberRoleJson) -> BotticelliResult<Self> {
         let assigned_at = parse_iso_timestamp(&json.assigned_at)?;
 
         Ok(NewMemberRole {

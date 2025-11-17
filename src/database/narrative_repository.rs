@@ -6,7 +6,7 @@ use crate::database::narrative_conversions::{
 };
 use crate::database::schema::{act_executions, act_inputs, narrative_executions};
 use crate::{
-    ActExecutionRow, ActInputRow, BackendError, BoticelliError, BoticelliResult, ExecutionFilter,
+    ActExecutionRow, ActInputRow, BackendError, BotticelliError, BotticelliResult, ExecutionFilter,
     ExecutionStatus, ExecutionSummary, NarrativeExecution, NarrativeExecutionRow,
     NarrativeRepository,
 };
@@ -24,13 +24,13 @@ use tokio::sync::Mutex;
 ///
 /// # Example
 /// ```no_run
-/// use boticelli::{PostgresNarrativeRepository, FileSystemStorage, establish_connection, NarrativeRepository};
+/// use botticelli::{PostgresNarrativeRepository, FileSystemStorage, establish_connection, NarrativeRepository};
 /// use std::sync::Arc;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut conn = establish_connection()?;
-///     let storage = Arc::new(FileSystemStorage::new("/var/boticelli/media")?);
+///     let storage = Arc::new(FileSystemStorage::new("/var/botticelli/media")?);
 ///     let repo = PostgresNarrativeRepository::new(conn, storage);
 ///     // Use repo.save_execution(), load_execution(), etc.
 ///     Ok(())
@@ -71,7 +71,7 @@ impl PostgresNarrativeRepository {
 
 #[async_trait]
 impl NarrativeRepository for PostgresNarrativeRepository {
-    async fn save_execution(&self, execution: &NarrativeExecution) -> BoticelliResult<i32> {
+    async fn save_execution(&self, execution: &NarrativeExecution) -> BotticelliResult<i32> {
         let mut conn = self.conn.lock().await;
 
         // Use a transaction for atomicity
@@ -83,7 +83,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                     .values(&new_execution)
                     .get_result(conn)
                     .map_err(|e| {
-                        BoticelliError::from(BackendError::new(format!(
+                        BotticelliError::from(BackendError::new(format!(
                             "Failed to insert narrative execution: {}",
                             e
                         )))
@@ -98,7 +98,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                     .values(&new_act)
                     .get_result(conn)
                     .map_err(|e| {
-                        BoticelliError::from(BackendError::new(format!(
+                        BotticelliError::from(BackendError::new(format!(
                             "Failed to insert act execution: {}",
                             e
                         )))
@@ -111,7 +111,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                         .values(&new_input)
                         .execute(conn)
                         .map_err(|e| {
-                            BoticelliError::from(BackendError::new(format!(
+                            BotticelliError::from(BackendError::new(format!(
                                 "Failed to insert act input: {}",
                                 e
                             )))
@@ -123,7 +123,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         })
     }
 
-    async fn load_execution(&self, id: i32) -> BoticelliResult<NarrativeExecution> {
+    async fn load_execution(&self, id: i32) -> BotticelliResult<NarrativeExecution> {
         let mut conn = self.conn.lock().await;
 
         // Load the narrative execution
@@ -131,7 +131,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             .find(id)
             .first(&mut *conn)
             .map_err(|e| {
-                BoticelliError::from(BackendError::new(format!(
+                BotticelliError::from(BackendError::new(format!(
                     "Failed to load narrative execution {}: {}",
                     id, e
                 )))
@@ -142,7 +142,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             .order(act_executions::sequence_number.asc())
             .load(&mut *conn)
             .map_err(|e| {
-                BoticelliError::from(BackendError::new(format!(
+                BotticelliError::from(BackendError::new(format!(
                     "Failed to load act executions: {}",
                     e
                 )))
@@ -152,7 +152,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         let input_rows: Vec<ActInputRow> = ActInputRow::belonging_to(&act_rows)
             .load(&mut *conn)
             .map_err(|e| {
-                BoticelliError::from(BackendError::new(format!(
+                BotticelliError::from(BackendError::new(format!(
                     "Failed to load act inputs: {}",
                     e
                 )))
@@ -187,7 +187,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
     async fn list_executions(
         &self,
         filter: &ExecutionFilter,
-    ) -> BoticelliResult<Vec<ExecutionSummary>> {
+    ) -> BotticelliResult<Vec<ExecutionSummary>> {
         let mut conn = self.conn.lock().await;
 
         let mut query = narrative_executions::table.into_boxed();
@@ -222,7 +222,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         }
 
         let execution_rows: Vec<NarrativeExecutionRow> = query.load(&mut *conn).map_err(|e| {
-            BoticelliError::from(BackendError::new(format!(
+            BotticelliError::from(BackendError::new(format!(
                 "Failed to list executions: {}",
                 e
             )))
@@ -236,7 +236,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                 .count()
                 .get_result(&mut *conn)
                 .map_err(|e| {
-                    BoticelliError::from(BackendError::new(format!("Failed to count acts: {}", e)))
+                    BotticelliError::from(BackendError::new(format!("Failed to count acts: {}", e)))
                 })?;
 
             summaries.push(ExecutionSummary {
@@ -254,7 +254,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         Ok(summaries)
     }
 
-    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BoticelliResult<()> {
+    async fn update_status(&self, id: i32, status: ExecutionStatus) -> BotticelliResult<()> {
         let mut conn = self.conn.lock().await;
 
         let status_str = status_to_string(status);
@@ -270,7 +270,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             ))
             .execute(&mut *conn)
             .map_err(|e| {
-                BoticelliError::from(BackendError::new(format!(
+                BotticelliError::from(BackendError::new(format!(
                     "Failed to update execution status: {}",
                     e
                 )))
@@ -279,13 +279,13 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         Ok(())
     }
 
-    async fn delete_execution(&self, id: i32) -> BoticelliResult<()> {
+    async fn delete_execution(&self, id: i32) -> BotticelliResult<()> {
         let mut conn = self.conn.lock().await;
 
         diesel::delete(narrative_executions::table.find(id))
             .execute(&mut *conn)
             .map_err(|e| {
-                BoticelliError::from(BackendError::new(format!(
+                BotticelliError::from(BackendError::new(format!(
                     "Failed to delete execution: {}",
                     e
                 )))
@@ -299,7 +299,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         &self,
         data: &[u8],
         metadata: &crate::MediaMetadata,
-    ) -> BoticelliResult<crate::MediaReference> {
+    ) -> BotticelliResult<crate::MediaReference> {
         use crate::database::schema::media_references;
         use sha2::{Digest, Sha256};
 
@@ -356,7 +356,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
             .values(&new_row)
             .execute(&mut *conn)
             .map_err(|e| {
-                BoticelliError::from(BackendError::new(format!(
+                BotticelliError::from(BackendError::new(format!(
                     "Failed to save media reference: {}",
                     e
                 )))
@@ -373,14 +373,14 @@ impl NarrativeRepository for PostgresNarrativeRepository {
         Ok(reference)
     }
 
-    async fn load_media(&self, reference: &crate::MediaReference) -> BoticelliResult<Vec<u8>> {
+    async fn load_media(&self, reference: &crate::MediaReference) -> BotticelliResult<Vec<u8>> {
         self.storage.retrieve(reference).await
     }
 
     async fn get_media_by_hash(
         &self,
         content_hash: &str,
-    ) -> BoticelliResult<Option<crate::MediaReference>> {
+    ) -> BotticelliResult<Option<crate::MediaReference>> {
         use crate::database::schema::media_references;
 
         let mut conn = self.conn.lock().await;
@@ -400,7 +400,7 @@ impl NarrativeRepository for PostgresNarrativeRepository {
                 .first(&mut *conn)
                 .optional()
                 .map_err(|e| {
-                    BoticelliError::from(BackendError::new(format!(
+                    BotticelliError::from(BackendError::new(format!(
                         "Failed to query media by hash: {}",
                         e
                     )))

@@ -1,4 +1,4 @@
-//! boticelli: unified interface for bot-driver interaction with multiple LLM APIs.
+//! botticelli: unified interface for bot-driver interaction with multiple LLM APIs.
 
 #![forbid(unsafe_code)]
 //!
@@ -12,7 +12,7 @@
 //!
 //! # Core Traits
 //!
-//! - [`BoticelliDriver`] - Core trait all backends must implement (basic generation)
+//! - [`BotticelliDriver`] - Core trait all backends must implement (basic generation)
 //!
 //! # Capability Traits
 //!
@@ -33,11 +33,11 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use boticelli::{BoticelliDriver, Streaming, GenerateRequest};
+//! use botticelli::{BotticelliDriver, Streaming, GenerateRequest};
 //!
 //! async fn process<T>(client: &T, req: &GenerateRequest)
 //! where
-//!     T: BoticelliDriver + Streaming,
+//!     T: BotticelliDriver + Streaming,
 //! {
 //!     // Can use both core and streaming capabilities
 //!     let stream = client.generate_stream(req).await.unwrap();
@@ -143,7 +143,7 @@ pub use diesel::pg::PgConnection;
 
 // Re-export error types
 pub use error::{
-    BackendError, BoticelliError, BoticelliErrorKind, BoticelliResult, ConfigError, HttpError,
+    BackendError, BotticelliError, BotticelliErrorKind, BotticelliResult, ConfigError, HttpError,
     JsonError, NotImplementedError,
 };
 
@@ -166,7 +166,7 @@ pub use models::{
 };
 
 // Re-export core trait
-pub use interface::BoticelliDriver;
+pub use interface::BotticelliDriver;
 
 // Re-export capability traits
 pub use interface::{
@@ -213,7 +213,7 @@ pub use narrative::ContentGenerationProcessor;
 
 // Re-export rate limiting types
 pub use rate_limit::{
-    BoticelliConfig, HeaderRateLimitDetector, ProviderConfig, RateLimiter, RateLimiterGuard,
+    BotticelliConfig, HeaderRateLimitDetector, ProviderConfig, RateLimiter, RateLimiterGuard,
     RetryableError, Tier, TierConfig,
 };
 
@@ -228,8 +228,8 @@ pub use rate_limit::OpenAITier;
 #[cfg(feature = "discord")]
 pub use social::discord::{
     // Client and handler
-    BoticelliBot,
-    BoticelliHandler,
+    BotticelliBot,
+    BotticelliHandler,
     // Diesel models
     ChannelRow,
     ChannelType,

@@ -14,8 +14,8 @@
 
 #![cfg(feature = "gemini")]
 
-use boticelli::{
-    BoticelliDriver, GeminiClient, GeminiLiveClient, GenerateRequest, GenerationConfig, Input,
+use botticelli::{
+    BotticelliDriver, GeminiClient, GeminiLiveClient, GenerateRequest, GenerationConfig, Input,
     LiveRateLimiter, Message, Role, Streaming,
 };
 use futures_util::StreamExt;

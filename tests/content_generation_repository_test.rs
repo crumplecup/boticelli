@@ -2,7 +2,7 @@
 
 #![cfg(feature = "database")]
 
-use boticelli::{
+use botticelli::{
     ContentGenerationRepository, NewContentGenerationRow, PgConnection,
     PostgresContentGenerationRepository, UpdateContentGenerationRow, establish_connection,
 };
@@ -11,7 +11,7 @@ use chrono::Utc;
 /// Create a test database connection.
 ///
 /// Note: These tests require a running PostgreSQL database with the
-/// boticelli schema and migrations applied.
+/// botticelli schema and migrations applied.
 fn create_test_connection() -> PgConnection {
     establish_connection().expect("Failed to establish test database connection")
 }

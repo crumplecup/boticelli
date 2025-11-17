@@ -4,7 +4,7 @@
 //! The abstraction separates metadata (stored in PostgreSQL) from content (stored in
 //! filesystem, S3, or other backends).
 
-use crate::BoticelliResult;
+use crate::BotticelliResult;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -36,7 +36,7 @@ pub trait MediaStorage: Send + Sync {
     ///
     /// A `MediaReference` containing the storage location and metadata
     async fn store(&self, data: &[u8], metadata: &MediaMetadata)
-    -> BoticelliResult<MediaReference>;
+    -> BotticelliResult<MediaReference>;
 
     /// Retrieve media by reference.
     ///
@@ -47,7 +47,7 @@ pub trait MediaStorage: Send + Sync {
     /// # Returns
     ///
     /// The raw binary media data
-    async fn retrieve(&self, reference: &MediaReference) -> BoticelliResult<Vec<u8>>;
+    async fn retrieve(&self, reference: &MediaReference) -> BotticelliResult<Vec<u8>>;
 
     /// Get a temporary URL for direct access (if supported).
     ///
@@ -66,14 +66,14 @@ pub trait MediaStorage: Send + Sync {
         &self,
         reference: &MediaReference,
         expires_in: Duration,
-    ) -> BoticelliResult<Option<String>>;
+    ) -> BotticelliResult<Option<String>>;
 
     /// Delete media by reference.
     ///
     /// # Arguments
     ///
     /// * `reference` - The media reference to delete
-    async fn delete(&self, reference: &MediaReference) -> BoticelliResult<()>;
+    async fn delete(&self, reference: &MediaReference) -> BotticelliResult<()>;
 
     /// Check if media exists.
     ///
@@ -84,7 +84,7 @@ pub trait MediaStorage: Send + Sync {
     /// # Returns
     ///
     /// `true` if the media exists, `false` otherwise
-    async fn exists(&self, reference: &MediaReference) -> BoticelliResult<bool>;
+    async fn exists(&self, reference: &MediaReference) -> BotticelliResult<bool>;
 }
 
 /// Metadata about media being stored.

@@ -1,4 +1,4 @@
-//! Test utilities for Boticelli tests.
+//! Test utilities for Botticelli tests.
 //!
 //! This module provides mock implementations and test helpers.
 

@@ -1,6 +1,6 @@
-//! Command-line interface for Boticelli.
+//! Command-line interface for Botticelli.
 //!
-//! This module provides the CLI structure and commands for the Boticelli
+//! This module provides the CLI structure and commands for the Botticelli
 //! narrative execution system. The CLI is built with clap and supports:
 //!
 //! - Narrative execution with various backends
@@ -118,7 +118,7 @@ impl RateLimitOptions {
         }
 
         // Load config file
-        let config = crate::BoticelliConfig::load().ok();
+        let config = crate::BotticelliConfig::load().ok();
 
         // Get tier name from: CLI > Env > Config default
         let tier_name = self
@@ -167,9 +167,9 @@ impl RateLimitOptions {
     }
 }
 
-/// Boticelli CLI - Multi-act LLM narrative execution system.
+/// Botticelli CLI - Multi-act LLM narrative execution system.
 #[derive(Parser)]
-#[command(name = "boticelli")]
+#[command(name = "botticelli")]
 #[command(about = "CLI for executing multi-act LLM narratives", long_about = None)]
 #[command(version)]
 pub struct Cli {

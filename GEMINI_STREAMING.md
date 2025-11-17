@@ -296,7 +296,7 @@ impl GeminiClient {
     pub async fn generate_stream(
         &self,
         request: &GenerateRequest
-    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>> {
+    ) -> BotticelliResult<Pin<Box<dyn Stream<Item = BotticelliResult<StreamChunk>> + Send>>> {
         let model_name = self.resolve_model_name(request);
 
         if Self::is_live_model(&model_name) {
@@ -304,7 +304,7 @@ impl GeminiClient {
             self.generate_stream_live(request).await
         } else {
             // Use existing REST API (if we implement SSE streaming later)
-            Err(BoticelliError::from(GeminiError::new(
+            Err(BotticelliError::from(GeminiError::new(
                 GeminiErrorKind::StreamingNotSupported(model_name)
             )))
         }
@@ -313,7 +313,7 @@ impl GeminiClient {
     async fn generate_stream_live(
         &self,
         request: &GenerateRequest
-    ) -> BoticelliResult<Pin<Box<dyn Stream<Item = BoticelliResult<StreamChunk>> + Send>>> {
+    ) -> BotticelliResult<Pin<Box<dyn Stream<Item = BotticelliResult<StreamChunk>> + Send>>> {
         // 1. Connect to Live API
         // 2. Send message
         // 3. Stream responses
@@ -455,11 +455,11 @@ futures-util = "0.3"
 **Files to Modify**:
 - `src/gemini/client.rs` (GeminiClient)
 - `src/gemini/mod.rs` (exports)
-- `src/driver.rs` (BoticelliDriver trait)
+- `src/driver.rs` (BotticelliDriver trait)
 
 **Tasks**:
 - [ ] Add `StreamChunk` type to `src/driver.rs` (if not exists from earlier work)
-- [ ] Add `generate_stream()` method to `BoticelliDriver` trait
+- [ ] Add `generate_stream()` method to `BotticelliDriver` trait
 - [ ] Add `GeminiLiveClient` field to `GeminiClient`
 - [ ] Implement `is_live_model()` detection
 - [ ] Route streaming requests to Live API vs REST API
@@ -584,7 +584,7 @@ mod tests {
 // tests/gemini_live_basic_test.rs
 #![cfg(feature = "gemini")]
 
-use boticelli::{GeminiClient, BoticelliDriver, GenerateRequest, Message, Role, Input};
+use botticelli::{GeminiClient, BotticelliDriver, GenerateRequest, Message, Role, Input};
 use futures::StreamExt;
 
 #[tokio::test]

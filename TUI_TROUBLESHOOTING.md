@@ -21,7 +21,7 @@ The `just tui-demo` recipe is failing because of a mismatch between expected and
 
 The fundamental issue is a **lack of discoverability** of generated content tables:
 
-1. **No standard output format** - `boticelli run` doesn't reliably output the table name in a machine-parseable way
+1. **No standard output format** - `botticelli run` doesn't reliably output the table name in a machine-parseable way
 2. **No query interface** - No CLI command to list or query what tables were created
 3. **Fragile justfile patterns** - Relying on PostgreSQL pattern matching (`guilds_gen%`) is brittle and assumes naming conventions
 4. **Workflow disconnect** - The generation step (`just example-guilds`) and consumption step (`just tui-demo`) are decoupled with no data handoff
@@ -353,7 +353,7 @@ pub fn handle_content_command(
 }
 ```
 
-Update `src/bin/boticelli.rs` to wire in the new command:
+Update `src/bin/botticelli.rs` to wire in the new command:
 
 ```rust
 #[derive(Subcommand)]
@@ -374,17 +374,17 @@ Commands::Content(content_cmd) => {
 **Usage examples:**
 ```bash
 # Get last table for scripting
-TABLE=$(boticelli content last --format=table-name-only)
-boticelli tui "$TABLE"
+TABLE=$(botticelli content last --format=table-name-only)
+botticelli tui "$TABLE"
 
 # List all generations
-boticelli content list
+botticelli content list
 
 # List only successful ones
-boticelli content list --status=success
+botticelli content list --status=success
 
 # Get JSON for external tools
-boticelli content list --format=json | jq '.[] | .table_name'
+botticelli content list --format=json | jq '.[] | .table_name'
 ```
 
 ### Phase 3: Update Justfile (Simple Now)
@@ -427,7 +427,7 @@ list-content:
 
 ### Phase 4: Enhanced Run Output (Optional Polish)
 
-**Goal:** Make `boticelli run` output more user-friendly and informative.
+**Goal:** Make `botticelli run` output more user-friendly and informative.
 
 Add friendly output at the end of generation:
 
@@ -436,8 +436,8 @@ Add friendly output at the end of generation:
 println!("✓ Generated {} rows in table '{}'", row_count, table_name);
 println!("  Duration: {}ms", duration_ms);
 println!();
-println!("View with: boticelli tui {}", table_name);
-println!("Or list all: boticelli content list");
+println!("View with: botticelli tui {}", table_name);
+println!("Or list all: botticelli content list");
 ```
 
 **Optional:** Add `--quiet` flag for scripting:
@@ -580,12 +580,12 @@ fn test_failed_generation_records_error() {
 
 **After Sprint 1 (Database):**
 - [ ] Migration runs successfully: `diesel migration run`
-- [ ] Schema is correct: `psql -d boticelli -c "\d content_generations"`
+- [ ] Schema is correct: `psql -d botticelli -c "\d content_generations"`
 - [ ] Can insert test record manually via psql
 
 **After Sprint 2 (Executor):**
 - [ ] Generate content: `cargo run -- run narratives/generate_guilds.toml`
-- [ ] Check tracking table: `psql -d boticelli -c "SELECT * FROM content_generations;"`
+- [ ] Check tracking table: `psql -d botticelli -c "SELECT * FROM content_generations;"`
 - [ ] Verify record has correct table_name, status='success', row_count
 - [ ] Test failure case: run invalid narrative, verify status='failed' recorded
 
@@ -613,22 +613,22 @@ fn test_failed_generation_records_error() {
 ✅ **Must have (for minimum viable fix):**
 - [ ] `content_generations` table exists and is tracked in migrations
 - [ ] Narrative executor records start/success/failure to tracking table
-- [ ] `boticelli content last --format=table-name-only` returns most recent table name
+- [ ] `botticelli content last --format=table-name-only` returns most recent table name
 - [ ] `just tui-demo` works end-to-end without psql dependencies
 - [ ] All tests pass (unit + integration)
 - [ ] Zero clippy warnings
 
 ✅ **Should have (for production readiness):**
-- [ ] `boticelli content list` shows all generations with metadata
-- [ ] `boticelli content info <table>` shows detailed information
+- [ ] `botticelli content list` shows all generations with metadata
+- [ ] `botticelli content info <table>` shows detailed information
 - [ ] JSON output format for all content commands
 - [ ] Documentation updated (TUI_GUIDE.md, README.md)
 - [ ] Error messages are clear and actionable
 - [ ] Repository pattern allows easy testing and mocking
 
 ✅ **Nice to have (future enhancements):**
-- [ ] `boticelli content clean` removes old tables automatically
-- [ ] `boticelli run --quiet` for scripting (minimal output)
+- [ ] `botticelli content clean` removes old tables automatically
+- [ ] `botticelli run --quiet` for scripting (minimal output)
 - [ ] Bash completion for content commands
 - [ ] Rich table information (size, indexes, etc.)
 - [ ] Analytics: average generation time, success rate
@@ -744,7 +744,7 @@ The TUI hardcoded table name issue is now fixed! The workflow is:
 **Files To Modify:**
 - `src/database/mod.rs` - Export new models and repository
 - `src/lib.rs` - Export new types at crate level
-- `src/bin/boticelli.rs` - Add Content command and handler
+- `src/bin/botticelli.rs` - Add Content command and handler
 - `src/narrative/executor.rs` (or wherever execution happens) - Integrate tracking
 - `justfile` - Update recipes to use `content last`
 - `TUI_GUIDE.md` - Document new workflow
@@ -766,7 +766,7 @@ diesel migration run
 
 # Verify
 diesel migration list
-psql -d boticelli -c "\d content_generations"
+psql -d botticelli -c "\d content_generations"
 ```
 
 After migration is verified, commit before moving to models.

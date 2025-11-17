@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes Boticelli's content generation strategy for creating Discord-ready content that can be reviewed and refined before publication. Instead of directly inserting into Discord tables, users generate content into local review tables, then selectively promote approved content to Discord.
+This document describes Botticelli's content generation strategy for creating Discord-ready content that can be reviewed and refined before publication. Instead of directly inserting into Discord tables, users generate content into local review tables, then selectively promote approved content to Discord.
 
 ## Motivation
 
@@ -195,7 +195,7 @@ pub struct ProcessorContext<'a> {
 #[async_trait]
 pub trait ActProcessor: Send + Sync {
     /// Process an act execution with narrative context.
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()>;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()>;
     
     /// Check if this processor should handle the given act.
     /// Now receives full context including narrative metadata.
@@ -224,7 +224,7 @@ impl ActProcessor for ContentGenerationProcessor {
         context.narrative_metadata.template.is_some()
     }
     
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let template = context.narrative_metadata.template
             .as_ref()
             .expect("should_process ensures template exists");
@@ -277,7 +277,7 @@ fn should_process(&self, act_name: &str, response: &str) -> bool {
     act_name.to_lowercase().contains("guild")
 }
 
-async fn process(&self, execution: &ActExecution) -> BoticelliResult<()> {
+async fn process(&self, execution: &ActExecution) -> BotticelliResult<()> {
     let json_str = extract_json(&execution.response)?;
     // ...
 }
@@ -287,7 +287,7 @@ fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
     context.execution.act_name.to_lowercase().contains("guild")
 }
 
-async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
     let json_str = extract_json(&context.execution.response)?;
     // ...
 }
@@ -316,7 +316,7 @@ if cli.process_content_generation {
 **CLI Flag:**
 
 ```bash
-boticelli run --narrative potential_posts.toml --process-content-generation
+botticelli run --narrative potential_posts.toml --process-content-generation
 ```
 
 ### Content Review Workflow
@@ -325,7 +325,7 @@ boticelli run --narrative potential_posts.toml --process-content-generation
 
 ```bash
 # Generate content into review table
-boticelli run \
+botticelli run \
     --narrative narratives/potential_posts.toml \
     --process-content-generation
 ```
@@ -336,20 +336,20 @@ boticelli run \
 
 ```bash
 # List generated content
-boticelli content list --table potential_posts
+botticelli content list --table potential_posts
 
 # Show specific content
-boticelli content show --table potential_posts --id 5
+botticelli content show --table potential_posts --id 5
 
 # Rate or tag content
-boticelli content tag --table potential_posts --id 5 --tags "approved,funny"
+botticelli content tag --table potential_posts --id 5 --tags "approved,funny"
 ```
 
 #### Phase 3: Promotion
 
 ```bash
 # Promote approved content to Discord
-boticelli content promote \
+botticelli content promote \
     --from potential_posts \
     --to discord_messages \
     --filter "approved" \
@@ -454,7 +454,7 @@ pub struct ProcessorContext<'a> {
 
 #[async_trait]
 pub trait ActProcessor: Send + Sync {
-    async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()>;
+    async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()>;
     fn should_process(&self, context: &ProcessorContext<'_>) -> bool;
     fn name(&self) -> &str;
 }
@@ -596,7 +596,7 @@ Return as JSON array with same structure.
 **Step 2: Register the Processor**
 
 ```rust
-use boticelli::{
+use botticelli::{
     ContentGenerationProcessor, ProcessorRegistry, NarrativeExecutor,
     establish_connection,
 };
@@ -750,7 +750,7 @@ fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
 }
 
 // Access execution data via context
-async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
     let response = &context.execution.response;
     let act_name = &context.execution.act_name;
     let narrative_name = context.narrative_name;
@@ -765,11 +765,11 @@ async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
 
 **Goals:** ✅ All Achieved
 
-- ✅ `boticelli content list` - List generated content
-- ✅ `boticelli content show` - Display specific content
-- ✅ `boticelli content tag` - Tag/rate content
-- ✅ `boticelli content review` - Update review status
-- ✅ `boticelli content delete` - Remove content
+- ✅ `botticelli content list` - List generated content
+- ✅ `botticelli content show` - Display specific content
+- ✅ `botticelli content tag` - Tag/rate content
+- ✅ `botticelli content review` - Update review status
+- ✅ `botticelli content delete` - Remove content
 
 **Deliverables:** ✅ All Delivered
 
@@ -793,7 +793,7 @@ All commands implemented in main.rs with proper formatting and user interaction.
 
 **Goals:** ✅ All Achieved
 
-- ✅ `boticelli content promote` - Copy to Discord tables
+- ✅ `botticelli content promote` - Copy to Discord tables
 - ✅ Schema-aware column matching
 - ✅ Metadata stripping (generation columns removed)
 - ✅ NULL handling for missing columns
@@ -816,19 +816,19 @@ The `promote_content()` function:
 Complete workflow now available:
 ```bash
 # 1. Generate content with narrative
-boticelli run --narrative potential_posts.toml
+botticelli run --narrative potential_posts.toml
 
 # 2. Review generated content  
-boticelli content list potential_posts --status pending
+botticelli content list potential_posts --status pending
 
 # 3. Tag and rate
-boticelli content tag potential_posts 123 --tags "viral,humor" --rating 5
+botticelli content tag potential_posts 123 --tags "viral,humor" --rating 5
 
 # 4. Approve
-boticelli content review potential_posts 123 approved
+botticelli content review potential_posts 123 approved
 
 # 5. Promote to production
-boticelli content promote potential_posts 123 --target discord_channels
+botticelli content promote potential_posts 123 --target discord_channels
 ```
 
 ### Phase 5: Template-Based Prompt Injection ✅ **COMPLETE**
@@ -910,7 +910,7 @@ gaming_squad = "Create an energetic gaming community. Make it fun, competitive, 
 
 1. **Schema Documentation Generator** (`src/database/schema_docs.rs`)
    ```rust
-   pub fn generate_schema_prompt(template: &str) -> BoticelliResult<String> {
+   pub fn generate_schema_prompt(template: &str) -> BotticelliResult<String> {
        // Query information_schema for template table
        let columns = get_table_schema(template)?;
        
@@ -965,7 +965,7 @@ gaming_squad = "Create an energetic gaming community. Make it fun, competitive, 
 
 4. **Prompt Assembly in ContentGenerationProcessor**
    ```rust
-   async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+   async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
        let template = context.narrative_metadata.template.as_ref().unwrap();
        
        // Get user's content focus from act
@@ -1207,7 +1207,7 @@ The existing processor trait was designed for act-scoped operations. Content gen
 **Option 2: New narrative-scoped processor trait**
 ```rust
 trait NarrativeProcessor {
-    fn process(&self, execution: &NarrativeExecution) -> BoticelliResult<()>;
+    fn process(&self, execution: &NarrativeExecution) -> BotticelliResult<()>;
 }
 ```
 - ❌ Can't react to individual acts (loses granularity)
@@ -1249,7 +1249,7 @@ impl ContentGenerationProcessor {
 4. **Phase 2d**: Update tests
 
 The breaking change is justified because:
-- Processors are internal to boticelli (not a public API concern)
+- Processors are internal to botticelli (not a public API concern)
 - Only 6 existing processors to update (Discord guild/user/channel/member/role/emoji)
 - Migration is mechanical (wrap existing access in `context.execution.*`)
 - Enables critical new functionality
@@ -1323,13 +1323,13 @@ rating INTEGER,                  -- Optional 1-5 rating
 
 ```bash
 # Monday: Generate content
-boticelli run --narrative weekly_posts.toml --process-content-generation
+botticelli run --narrative weekly_posts.toml --process-content-generation
 
 # Tuesday-Friday: Review via TUI
-boticelli content review --table weekly_posts
+botticelli content review --table weekly_posts
 
 # Friday: Promote approved content
-boticelli content promote \
+botticelli content promote \
     --from weekly_posts \
     --to discord_messages \
     --filter "approved" \
@@ -1345,13 +1345,13 @@ boticelli content promote \
 
 ```bash
 # Generate variants
-boticelli run --narrative announcement_variants.toml --process-content-generation
+botticelli run --narrative announcement_variants.toml --process-content-generation
 
 # Export for focus group
-boticelli content export --table announcement_variants --format pdf
+botticelli content export --table announcement_variants --format pdf
 
 # Promote winner
-boticelli content promote \
+botticelli content promote \
     --from announcement_variants \
     --to discord_messages \
     --id 3
@@ -1365,14 +1365,14 @@ boticelli content promote \
 
 ```bash
 # Generate channel ideas
-boticelli run --narrative channel_brainstorm.toml --process-content-generation
+botticelli run --narrative channel_brainstorm.toml --process-content-generation
 
 # Review and tag
-boticelli content list --table channel_brainstorm
-boticelli content tag --table channel_brainstorm --id 7 --tags "approved,priority"
+botticelli content list --table channel_brainstorm
+botticelli content tag --table channel_brainstorm --id 7 --tags "approved,priority"
 
 # Promote to Discord
-boticelli content promote \
+botticelli content promote \
     --from channel_brainstorm \
     --to discord_channels \
     --filter "approved"

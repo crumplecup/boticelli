@@ -10,12 +10,12 @@ The `GeminiClient` implementation enables per-request model selection for Google
 
 ### The Problem We Solved
 
-**Original Issue**: The `gemini-rust` crate requires model selection at client creation time via `Gemini::with_model(api_key, model_name)`, but Boticelli's API design expects per-request model selection via `GenerateRequest.model`. This architectural mismatch meant all requests used the same model regardless of what was specified in the request.
+**Original Issue**: The `gemini-rust` crate requires model selection at client creation time via `Gemini::with_model(api_key, model_name)`, but Botticelli's API design expects per-request model selection via `GenerateRequest.model`. This architectural mismatch meant all requests used the same model regardless of what was specified in the request.
 
 **Impact**:
 - Multi-model narratives broken
 - Cost unpredictability (may use expensive models when cheap ones requested)
-- Violated `BoticelliDriver` trait contract
+- Violated `BotticelliDriver` trait contract
 
 ### The Solution: Three-Layer Architecture
 
@@ -158,7 +158,7 @@ When `generate_internal()` is called:
 ### Basic Usage
 
 ```rust
-use boticelli::{GeminiClient, GenerateRequest, Input, Message, Role};
+use botticelli::{GeminiClient, GenerateRequest, Input, Message, Role};
 
 // Create client (uses Free tier by default)
 let client = GeminiClient::new()?;
@@ -216,7 +216,7 @@ content = "Create final polished version"
 ```
 
 ```rust
-use boticelli::{GeminiClient, Narrative, NarrativeExecutor};
+use botticelli::{GeminiClient, Narrative, NarrativeExecutor};
 
 let client = GeminiClient::new()?;
 let executor = NarrativeExecutor::new(client);
@@ -364,7 +364,7 @@ cargo test --features gemini --test gemini_2_0_models_test -- --ignored
 
 **Current**: All models in a tier share the same rate limits
 
-**Future**: Allow per-model rate limits in `boticelli.toml`:
+**Future**: Allow per-model rate limits in `botticelli.toml`:
 
 ```toml
 [providers.gemini.tiers.free.models."gemini-2.0-flash"]
@@ -377,7 +377,7 @@ tpm = 250_000
 ```
 
 **Implementation**:
-1. Extend `BoticelliConfig` to parse nested model configuration
+1. Extend `BotticelliConfig` to parse nested model configuration
 2. Modify client creation to look up model-specific tier
 3. Fall back to tier-level defaults if model config not found
 
@@ -394,7 +394,7 @@ tpm = 250_000
 
 **Current**: Hard-coded `"gemini-2.0-flash"`
 
-**Future**: Allow configuration in `boticelli.toml`:
+**Future**: Allow configuration in `botticelli.toml`:
 
 ```toml
 [providers.gemini]
@@ -505,7 +505,7 @@ fn is_live_model(model_name: &str) -> bool {
 The simplest approach - just specify a live model and `GeminiClient` handles routing:
 
 ```rust
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input};
+use botticelli::{BotticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input};
 
 let client = GeminiClient::new()?;
 
@@ -529,7 +529,7 @@ let response = client.generate(&request).await?;
 Streaming also works automatically:
 
 ```rust
-use boticelli::{BoticelliDriver, GeminiClient, Streaming};
+use botticelli::{BotticelliDriver, GeminiClient, Streaming};
 use futures_util::StreamExt;
 
 let client = GeminiClient::new()?;
@@ -560,7 +560,7 @@ while let Some(chunk) = stream.next().await {
 For more control, use `GeminiLiveClient` directly:
 
 ```rust
-use boticelli::{GeminiLiveClient, GenerationConfig};
+use botticelli::{GeminiLiveClient, GenerationConfig};
 
 // Create Live API client with rate limiting
 let client = GeminiLiveClient::new_with_rate_limit(Some(10))?; // 10 RPM

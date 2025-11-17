@@ -1,6 +1,6 @@
 //! Discord bot client setup and lifecycle management.
 //!
-//! This module provides the BoticelliBot struct which manages the Discord client
+//! This module provides the BotticelliBot struct which manages the Discord client
 //! connection, event handling, and database integration.
 
 use crate::{DiscordError, DiscordErrorKind, DiscordRepository};
@@ -9,28 +9,28 @@ use serenity::Client;
 use std::sync::Arc;
 use tracing::info;
 
-use super::handler::BoticelliHandler;
+use super::handler::BotticelliHandler;
 
-/// Main Discord bot client for Boticelli.
+/// Main Discord bot client for Botticelli.
 ///
 /// Manages the Serenity client connection and integrates with the database
 /// via DiscordRepository.
 ///
 /// # Example
 /// ```no_run
-/// use boticelli::{BoticelliBot, establish_connection};
+/// use botticelli::{BotticelliBot, establish_connection};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let token = std::env::var("DISCORD_TOKEN")?;
 ///     let conn = establish_connection()?;
 ///
-///     let mut bot = BoticelliBot::new(token, conn).await?;
+///     let mut bot = BotticelliBot::new(token, conn).await?;
 ///     bot.start().await?;
 ///     Ok(())
 /// }
 /// ```
-pub struct BoticelliBot {
+pub struct BotticelliBot {
     /// Serenity client instance
     client: Client,
     /// Database repository (kept for potential direct access)
@@ -38,8 +38,8 @@ pub struct BoticelliBot {
     repository: Arc<DiscordRepository>,
 }
 
-impl BoticelliBot {
-    /// Create a new BoticelliBot instance.
+impl BotticelliBot {
+    /// Create a new BotticelliBot instance.
     ///
     /// # Arguments
     /// * `token` - Discord bot token from the Discord Developer Portal
@@ -51,16 +51,16 @@ impl BoticelliBot {
     /// - The Serenity client fails to initialize
     /// - Database connection fails
     pub async fn new(token: String, conn: PgConnection) -> Result<Self, DiscordError> {
-        info!("Initializing Boticelli Discord bot");
+        info!("Initializing Botticelli Discord bot");
 
         // Wrap connection in Arc<Mutex> for async access
         let repository = Arc::new(DiscordRepository::new(conn));
 
         // Create event handler
-        let handler = BoticelliHandler::new(repository.clone());
+        let handler = BotticelliHandler::new(repository.clone());
 
         // Get required gateway intents
-        let intents = BoticelliHandler::intents();
+        let intents = BotticelliHandler::intents();
 
         info!("Building Serenity client with intents: {:?}", intents);
 

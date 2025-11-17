@@ -165,11 +165,11 @@ For arrays of objects, merge schemas from all items:
 
 ```rust
 /// Infer schema from JSON (single object or array)
-pub fn infer_schema(json: &JsonValue) -> BoticelliResult<InferredSchema> {
+pub fn infer_schema(json: &JsonValue) -> BotticelliResult<InferredSchema> {
     let items = match json {
         JsonValue::Object(_) => vec![json],
         JsonValue::Array(arr) => arr.iter().collect(),
-        _ => return Err(BoticelliError::new(
+        _ => return Err(BotticelliError::new(
             "Schema inference requires JSON object or array"
         )),
     };
@@ -178,7 +178,7 @@ pub fn infer_schema(json: &JsonValue) -> BoticelliResult<InferredSchema> {
 
     for item in items {
         let obj = item.as_object()
-            .ok_or_else(|| BoticelliError::new("Array must contain objects"))?;
+            .ok_or_else(|| BotticelliError::new("Array must contain objects"))?;
 
         for (key, value) in obj {
             schema.add_field(key, value)?;
@@ -199,7 +199,7 @@ struct ColumnDefinition {
 }
 
 impl InferredSchema {
-    fn add_field(&mut self, name: &str, value: &JsonValue) -> BoticelliResult<()> {
+    fn add_field(&mut self, name: &str, value: &JsonValue) -> BotticelliResult<()> {
         let (pg_type, is_null) = infer_column_type(value);
 
         if let Some(existing) = self.fields.get_mut(name) {
@@ -227,7 +227,7 @@ impl InferredSchema {
 }
 
 /// Resolve conflicts when same field has different types across rows
-fn resolve_type_conflict(type1: &str, type2: &str) -> BoticelliResult<String> {
+fn resolve_type_conflict(type1: &str, type2: &str) -> BotticelliResult<String> {
     match (type1, type2) {
         // BIGINT vs DOUBLE PRECISION → DOUBLE PRECISION (wider type)
         ("BIGINT", "DOUBLE PRECISION") | ("DOUBLE PRECISION", "BIGINT") => {
@@ -307,7 +307,7 @@ pub fn create_inferred_table(
 **Updated Processing Logic:**
 
 ```rust
-async fn process(&self, context: &ProcessorContext<'_>) -> BoticelliResult<()> {
+async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
     let table_name = &context.narrative_metadata.name;
     let mut conn = self.connection.lock()
         .map_err(|e| BackendError::new(format!("Lock failed: {}", e)))?;
@@ -431,7 +431,7 @@ Created a complete schema inference system that analyzes JSON structures and map
 The schema inference API is now available for direct use:
 
 ```rust
-use boticelli::{infer_schema, infer_column_type, resolve_type_conflict};
+use botticelli::{infer_schema, infer_column_type, resolve_type_conflict};
 use serde_json::json;
 
 // Infer schema from a JSON object
@@ -484,7 +484,7 @@ assert_eq!(schema.fields["value"].pg_type, "DOUBLE PRECISION"); // Widened to DO
 Schema inference returns `DatabaseResult` with specific error types:
 
 ```rust
-use boticelli::infer_schema;
+use botticelli::infer_schema;
 use serde_json::json;
 
 // Empty array error
@@ -951,13 +951,13 @@ To see detailed schema inference logging:
 
 ```bash
 # Set RUST_LOG environment variable
-export RUST_LOG=boticelli=debug
+export RUST_LOG=botticelli=debug
 
 # Or for trace-level (very detailed)
-export RUST_LOG=boticelli=trace
+export RUST_LOG=botticelli=trace
 
 # Run your narrative
-boticelli run narratives/inferred_achievements.toml
+botticelli run narratives/inferred_achievements.toml
 ```
 
 **Trace-level output shows:**
@@ -1306,7 +1306,7 @@ Generate 10 more feedback entries, but add a 'category' field
 **Mitigation:**
 - Type widening (BIGINT → TEXT)
 - Log warnings for type conflicts
-- Provide schema review command: `boticelli content schema --table user_feedback`
+- Provide schema review command: `botticelli content schema --table user_feedback`
 
 ### Risk 2: Missing Fields in Later Acts
 

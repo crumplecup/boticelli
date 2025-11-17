@@ -28,7 +28,7 @@ This document serves as both design specification and implementation guide. Sect
 | Step | Component | Status | Location |
 |------|-----------|--------|----------|
 | 1 | Core Tier trait | ✅ Implemented | `src/rate_limit/tier.rs` |
-| 2 | TierConfig & BoticelliConfig | ✅ Implemented | `src/rate_limit/config.rs` |
+| 2 | TierConfig & BotticelliConfig | ✅ Implemented | `src/rate_limit/config.rs` |
 | 3 | Provider tier enums | ✅ Implemented | `src/rate_limit/tiers.rs` |
 | 4 | RateLimiter (governor/GCRA) | ✅ Implemented | `src/rate_limit/limiter.rs` |
 | 5 | HeaderRateLimitDetector | ✅ Implemented | `src/rate_limit/detector.rs` |
@@ -416,7 +416,7 @@ pub struct RateLimiterGuard {
 4. **Composable** - Each quota type has its own independent limiter
 5. **Accurate** - GCRA provides mathematically precise rate limiting
 
-## Integration with BoticelliDriver (✅ Implemented - Step 6)
+## Integration with BotticelliDriver (✅ Implemented - Step 6)
 
 ### GeminiClient Integration
 
@@ -431,12 +431,12 @@ pub struct GeminiClient {
 
 impl GeminiClient {
     /// Create client without rate limiting (backward compatible)
-    pub fn new() -> BoticelliResult<Self> {
+    pub fn new() -> BotticelliResult<Self> {
         Self::new_with_tier(None)
     }
 
     /// Create client with explicit tier
-    pub fn new_with_tier(tier: Option<Box<dyn Tier>>) -> BoticelliResult<Self> {
+    pub fn new_with_tier(tier: Option<Box<dyn Tier>>) -> BotticelliResult<Self> {
         // Create rate limiter if tier provided
         let rate_limiter = tier.map(RateLimiter::new);
 
@@ -448,8 +448,8 @@ impl GeminiClient {
     }
 
     /// Create client with tier from config
-    pub fn new_with_config(tier_name: Option<&str>) -> BoticelliResult<Self> {
-        let tier = BoticelliConfig::load()
+    pub fn new_with_config(tier_name: Option<&str>) -> BotticelliResult<Self> {
+        let tier = BotticelliConfig::load()
             .ok()
             .and_then(|config| config.get_tier("gemini", tier_name))
             .map(|tier_config| Box::new(tier_config) as Box<dyn Tier>);
@@ -508,7 +508,7 @@ let client = GeminiClient::new()?;
 // With explicit tier enum
 let client = GeminiClient::new_with_tier(Some(Box::new(GeminiTier::Free)))?;
 
-// With config (uses boticelli.toml)
+// With config (uses botticelli.toml)
 let client = GeminiClient::new_with_config(None)?;  // Default tier
 let client = GeminiClient::new_with_config(Some("payasyougo"))?;  // Specific tier
 
@@ -520,7 +520,7 @@ let response = client.generate(&request).await?;
 
 **Note**: The `gemini-rust` wrapper doesn't expose HTTP response headers, so header-based rate limit detection isn't available for GeminiClient. Users must:
 - Configure tier via `GeminiTier` enum
-- Load from `boticelli.toml` configuration
+- Load from `botticelli.toml` configuration
 - Use CLI flags (Step 7) to override limits
 
 Future work could use a lower-level HTTP client (e.g., `reqwest` directly) to access headers, but this would require reimplementing the Gemini API protocol.
@@ -531,8 +531,8 @@ Future work could use a lower-level HTTP client (e.g., `reqwest` directly) to ac
 
 ```rust
 #[async_trait]
-pub trait BoticelliDriver: Send + Sync {
-    async fn generate(&self, request: &GenerateRequest) -> BoticelliResult<GenerateResponse>;
+pub trait BotticelliDriver: Send + Sync {
+    async fn generate(&self, request: &GenerateRequest) -> BotticelliResult<GenerateResponse>;
 
     /// Get the current tier for this driver.
     fn tier(&self) -> &dyn Tier;
@@ -545,12 +545,12 @@ pub trait BoticelliDriver: Send + Sync {
 ### Option 2: Wrap Driver with Rate Limiting
 
 ```rust
-pub struct RateLimitedDriver<D: BoticelliDriver> {
+pub struct RateLimitedDriver<D: BotticelliDriver> {
     inner: D,
     rate_limiter: RateLimiter,
 }
 
-impl<D: BoticelliDriver> RateLimitedDriver<D> {
+impl<D: BotticelliDriver> RateLimitedDriver<D> {
     pub fn new(driver: D, tier: Box<dyn Tier>) -> Self {
         Self {
             inner: driver,
@@ -560,8 +560,8 @@ impl<D: BoticelliDriver> RateLimitedDriver<D> {
 }
 
 #[async_trait]
-impl<D: BoticelliDriver> BoticelliDriver for RateLimitedDriver<D> {
-    async fn generate(&self, request: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+impl<D: BotticelliDriver> BotticelliDriver for RateLimitedDriver<D> {
+    async fn generate(&self, request: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
         // Estimate tokens (rough heuristic)
         let estimated_tokens = estimate_tokens(request);
 
@@ -621,9 +621,9 @@ pub fn calculate_cost(tier: &dyn Tier, input_tokens: u64, output_tokens: u64) ->
 
 ## Configuration (✅ Implemented - Step 2)
 
-### Configuration File: boticelli.toml
+### Configuration File: botticelli.toml
 
-Rate limits change over time as providers adjust pricing and quotas. To avoid hardcoding these values, users can define custom rate limits in `boticelli.toml`:
+Rate limits change over time as providers adjust pricing and quotas. To avoid hardcoding these values, users can define custom rate limits in `botticelli.toml`:
 
 ```toml
 # Default provider tiers
@@ -717,7 +717,7 @@ use std::collections::HashMap;
 
 /// Top-level configuration structure
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct BoticelliConfig {
+pub struct BotticelliConfig {
     #[serde(default)]
     pub providers: HashMap<String, ProviderConfig>,
 }
@@ -764,14 +764,14 @@ impl Tier for TierConfig {
     fn name(&self) -> &str { &self.name }
 }
 
-impl BoticelliConfig {
+impl BotticelliConfig {
     /// Load configuration from a specific file path
-    pub fn from_file(path: impl AsRef<std::path::Path>) -> BoticelliResult<Self> {
+    pub fn from_file(path: impl AsRef<std::path::Path>) -> BotticelliResult<Self> {
         Config::builder()
             .add_source(File::from(path.as_ref()))
             .build()?
             .try_deserialize()
-            .map_err(|e| BoticelliError::new(BoticelliErrorKind::Config(
+            .map_err(|e| BotticelliError::new(BotticelliErrorKind::Config(
                 format!("Failed to parse configuration: {}", e)
             )))
     }
@@ -779,13 +779,13 @@ impl BoticelliConfig {
     /// Load configuration with automatic precedence handling
     ///
     /// Sources in order of precedence (later sources override earlier):
-    /// 1. Bundled defaults (include_str! from repo boticelli.toml)
-    /// 2. User config in home directory (~/.config/boticelli/boticelli.toml)
-    /// 3. User config in current directory (./boticelli.toml)
+    /// 1. Bundled defaults (include_str! from repo botticelli.toml)
+    /// 2. User config in home directory (~/.config/botticelli/botticelli.toml)
+    /// 3. User config in current directory (./botticelli.toml)
     ///
     /// User config files are optional and silently skipped if not found.
-    pub fn load() -> BoticelliResult<Self> {
-        const DEFAULT_CONFIG: &str = include_str!("../../boticelli.toml");
+    pub fn load() -> BotticelliResult<Self> {
+        const DEFAULT_CONFIG: &str = include_str!("../../botticelli.toml");
 
         let mut builder = Config::builder()
             // Start with bundled defaults
@@ -793,20 +793,20 @@ impl BoticelliConfig {
 
         // Add user config from home directory (optional)
         if let Some(home) = dirs::home_dir() {
-            let home_config = home.join(".config/boticelli/boticelli.toml");
+            let home_config = home.join(".config/botticelli/botticelli.toml");
             builder = builder.add_source(File::from(home_config).required(false));
         }
 
         // Add user config from current directory (optional, highest precedence)
-        builder = builder.add_source(File::with_name("boticelli").required(false));
+        builder = builder.add_source(File::with_name("botticelli").required(false));
 
         builder
             .build()
-            .map_err(|e| BoticelliError::new(BoticelliErrorKind::Config(
+            .map_err(|e| BotticelliError::new(BotticelliErrorKind::Config(
                 format!("Failed to build configuration: {}", e)
             )))?
             .try_deserialize()
-            .map_err(|e| BoticelliError::new(BoticelliErrorKind::Config(
+            .map_err(|e| BotticelliError::new(BotticelliErrorKind::Config(
                 format!("Failed to parse configuration: {}", e)
             )))
     }
@@ -835,8 +835,8 @@ Configuration is loaded in the following order (highest priority first):
 1. **CLI flags** - Runtime overrides via command-line arguments
 2. **Auto-detected from API headers** - Provider response headers (most accurate)
 3. **Environment variables** - `GEMINI_TIER`, `ANTHROPIC_TIER`, etc.
-4. **User config file** - `./boticelli.toml` or `~/.config/boticelli/boticelli.toml`
-5. **Bundled defaults** - The `boticelli.toml` shipped with Boticelli
+4. **User config file** - `./botticelli.toml` or `~/.config/botticelli/botticelli.toml`
+5. **Bundled defaults** - The `botticelli.toml` shipped with Botticelli
 
 Header detection is preferred because it reflects the actual current limits from the provider,
 automatically updates when you upgrade tiers, and never goes stale.
@@ -847,17 +847,17 @@ Override rate limits at runtime for quick testing or one-off adjustments:
 
 ```bash
 # Override tier selection
-boticelli run -n narrative.toml --backend gemini --tier payasyougo
+botticelli run -n narrative.toml --backend gemini --tier payasyougo
 
 # Override specific rate limits
-boticelli run -n narrative.toml --backend gemini --rpm 20 --tpm 500000
+botticelli run -n narrative.toml --backend gemini --rpm 20 --tpm 500000
 
 # Override cost tracking
-boticelli run -n narrative.toml --backend anthropic \
+botticelli run -n narrative.toml --backend anthropic \
   --cost-input 2.5 --cost-output 12.0
 
 # Disable rate limiting entirely (use with caution!)
-boticelli run -n narrative.toml --backend gemini --no-rate-limit
+botticelli run -n narrative.toml --backend gemini --no-rate-limit
 ```
 
 CLI flag implementation in `src/main.rs`:
@@ -930,7 +930,7 @@ impl RateLimitOptions {
             });
 
         // Load base tier config from file
-        let config = BoticelliConfig::load().ok();
+        let config = BotticelliConfig::load().ok();
         let mut tier_config = config
             .and_then(|cfg| cfg.get_tier(provider, tier_name.as_deref()))
             .ok_or_else(|| format!("Tier not found for provider '{}'", provider))?;
@@ -950,34 +950,34 @@ Configuration is loaded in the following order (highest priority first):
 1. **CLI flags** - `--rpm`, `--tpm`, `--rpd`, `--max-concurrent`, `--cost-input`, `--cost-output`, `--no-rate-limit`
 2. **CLI tier selection** - `--tier payasyougo`
 3. **Environment variables** - `GEMINI_TIER`, `ANTHROPIC_TIER`, etc.
-4. **User config file** - `./boticelli.toml` or `~/.config/boticelli/boticelli.toml`
-5. **Bundled defaults** - The `boticelli.toml` shipped with Boticelli
+4. **User config file** - `./botticelli.toml` or `~/.config/botticelli/botticelli.toml`
+5. **Bundled defaults** - The `botticelli.toml` shipped with Botticelli
 
 ### Usage Examples
 
 ```bash
 # Use default tier from config (free tier for Gemini)
-boticelli run -n mint.toml --backend gemini
+botticelli run -n mint.toml --backend gemini
 
 # Select specific tier
-boticelli run -n mint.toml --backend gemini --tier payasyougo
+botticelli run -n mint.toml --backend gemini --tier payasyougo
 
 # Override RPM for testing (keeps other limits from config)
-boticelli run -n mint.toml --backend gemini --rpm 5
+botticelli run -n mint.toml --backend gemini --rpm 5
 
 # Override multiple limits
-boticelli run -n mint.toml --backend gemini --rpm 20 --tpm 500000 --max-concurrent 3
+botticelli run -n mint.toml --backend gemini --rpm 20 --tpm 500000 --max-concurrent 3
 
 # Disable rate limiting for quick test
-boticelli run -n mint.toml --backend gemini --no-rate-limit
+botticelli run -n mint.toml --backend gemini --no-rate-limit
 
 # Set environment variable for tier
 export GEMINI_TIER=payasyougo
-boticelli run -n mint.toml --backend gemini
+botticelli run -n mint.toml --backend gemini
 
 # Combine config, env, and CLI (CLI has highest priority)
 export GEMINI_TIER=free
-boticelli run -n mint.toml --backend gemini --rpm 20  # Uses free tier with RPM=20
+botticelli run -n mint.toml --backend gemini --rpm 20  # Uses free tier with RPM=20
 ```
 
 The CLI displays the active rate limiting configuration on startup:
@@ -1009,26 +1009,26 @@ OPENAI_TIER=tier1  # free, tier1, tier2, tier3, tier4, tier5
 
 ### User Configuration Override
 
-Create your own `boticelli.toml` to override defaults:
+Create your own `botticelli.toml` to override defaults:
 
 **Option 1: Project-specific** (recommended for per-project limits)
 ```bash
 # In your project directory
-cp /path/to/boticelli/boticelli.toml ./boticelli.toml
-# Edit ./boticelli.toml with your custom values
+cp /path/to/botticelli/botticelli.toml ./botticelli.toml
+# Edit ./botticelli.toml with your custom values
 ```
 
 **Option 2: Global user config** (applies to all projects)
 ```bash
-mkdir -p ~/.config/boticelli
-cp /path/to/boticelli/boticelli.toml ~/.config/boticelli/boticelli.toml
-# Edit ~/.config/boticelli/boticelli.toml with your custom values
+mkdir -p ~/.config/botticelli
+cp /path/to/botticelli/botticelli.toml ~/.config/botticelli/botticelli.toml
+# Edit ~/.config/botticelli/botticelli.toml with your custom values
 ```
 
 You only need to specify values you want to override:
 
 ```toml
-# Custom boticelli.toml - only override Gemini free tier RPM
+# Custom botticelli.toml - only override Gemini free tier RPM
 [providers.gemini.tiers.free]
 rpm = 20  # Increased from default 10
 
@@ -1039,16 +1039,16 @@ rpm = 20  # Increased from default 10
 
 ```rust
 impl GeminiClient {
-    pub fn new() -> BoticelliResult<Self> {
+    pub fn new() -> BotticelliResult<Self> {
         Self::new_with_overrides(None, None)
     }
 
     pub fn new_with_overrides(
         tier_override: Option<String>,
         cli_overrides: Option<&RunCommand>,
-    ) -> BoticelliResult<Self> {
+    ) -> BotticelliResult<Self> {
         // 1. Load configuration (bundled default + user overrides merged)
-        let config = BoticelliConfig::load()?;
+        let config = BotticelliConfig::load()?;
 
         // 2. Get tier name from: CLI > Env > Config default
         let tier_name = tier_override
@@ -1064,7 +1064,7 @@ impl GeminiClient {
         let mut tier_config = config
             .get_tier("gemini", tier_name.as_deref())
             .ok_or_else(|| {
-                BoticelliError::new(BoticelliErrorKind::Config(format!(
+                BotticelliError::new(BotticelliErrorKind::Config(format!(
                     "Tier '{}' not found for provider 'gemini'",
                     tier_name.unwrap_or_else(|| "default".to_string())
                 )))
@@ -1077,7 +1077,7 @@ impl GeminiClient {
 
         // 5. Create client with final tier configuration
         let api_key = std::env::var("GEMINI_API_KEY")
-            .map_err(|_| BoticelliError::new(BoticelliErrorKind::Config(
+            .map_err(|_| BotticelliError::new(BotticelliErrorKind::Config(
                 "GEMINI_API_KEY not provided".to_string()
             )))?;
 
@@ -1095,7 +1095,7 @@ impl GeminiClient {
 Full flow in CLI:
 
 ```rust
-async fn run_narrative(cmd: RunCommand) -> BoticelliResult<()> {
+async fn run_narrative(cmd: RunCommand) -> BotticelliResult<()> {
     // Load narrative
     let content = std::fs::read_to_string(&cmd.narrative)?;
     let narrative: Narrative = content.parse()?;
@@ -1107,14 +1107,14 @@ async fn run_narrative(cmd: RunCommand) -> BoticelliResult<()> {
                 cmd.tier.clone(),  // CLI tier override
                 Some(&cmd),         // CLI flag overrides
             )?;
-            Box::new(client) as Box<dyn BoticelliDriver>
+            Box::new(client) as Box<dyn BotticelliDriver>
         }
         "anthropic" => {
             let client = AnthropicClient::new_with_overrides(
                 cmd.tier.clone(),
                 Some(&cmd),
             )?;
-            Box::new(client) as Box<dyn BoticelliDriver>
+            Box::new(client) as Box<dyn BotticelliDriver>
         }
         _ => return Err(/* unsupported backend */),
     };
@@ -1131,7 +1131,7 @@ async fn run_narrative(cmd: RunCommand) -> BoticelliResult<()> {
 
 ### Economical Testing Strategy
 
-To conserve API quota while still validating rate limiting functionality, Boticelli uses a multi-tier testing approach:
+To conserve API quota while still validating rate limiting functionality, Botticelli uses a multi-tier testing approach:
 
 1. **Unit tests (no API calls)** - Test rate limiting logic with mock drivers
 2. **Integration tests (gated)** - Minimal API tests behind `BOTICELLI_RUN_API_TESTS` environment variable
@@ -1499,15 +1499,15 @@ impl GeminiClient {
     pub fn new_with_overrides(
         tier_override: Option<String>,
         cli_overrides: Option<&RunCommand>,
-    ) -> BoticelliResult<Self> {
+    ) -> BotticelliResult<Self> {
         // Load initial config (CLI > Env > User Config > Defaults)
-        let config = BoticelliConfig::load()?;
+        let config = BotticelliConfig::load()?;
         let tier_name = tier_override
             .or_else(|| std::env::var("GEMINI_TIER").ok());
 
         let mut tier_config = config
             .get_tier("gemini", tier_name.as_deref())
-            .ok_or_else(|| BoticelliError::new(BoticelliErrorKind::Config(
+            .ok_or_else(|| BotticelliError::new(BotticelliErrorKind::Config(
                 "No tier configuration found for Gemini".to_string()
             )))?;
 
@@ -1517,7 +1517,7 @@ impl GeminiClient {
         }
 
         let api_key = std::env::var("GEMINI_API_KEY")
-            .map_err(|_| BoticelliError::new(BoticelliErrorKind::Config(
+            .map_err(|_| BotticelliError::new(BotticelliErrorKind::Config(
                 "GEMINI_API_KEY not provided".to_string()
             )))?;
 
@@ -1551,8 +1551,8 @@ impl GeminiClient {
 }
 
 #[async_trait]
-impl BoticelliDriver for GeminiClient {
-    async fn generate(&self, request: &GenerateRequest) -> BoticelliResult<GenerateResponse> {
+impl BotticelliDriver for GeminiClient {
+    async fn generate(&self, request: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
         // Make API request
         let response = self.client.generate(request).await?;
 
@@ -1583,7 +1583,7 @@ struct DetectedLimitsCache {
 
 impl HeaderRateLimitDetector {
     /// Save detected limits to cache file
-    async fn save_cache(&self, provider: &str) -> BoticelliResult<()> {
+    async fn save_cache(&self, provider: &str) -> BotticelliResult<()> {
         if let Some(config) = self.detected_limits.read().await.as_ref() {
             let cache = DetectedLimitsCache {
                 provider: provider.to_string(),
@@ -1592,10 +1592,10 @@ impl HeaderRateLimitDetector {
             };
 
             let cache_path = dirs::cache_dir()
-                .ok_or_else(|| BoticelliError::new(BoticelliErrorKind::Config(
+                .ok_or_else(|| BotticelliError::new(BotticelliErrorKind::Config(
                     "Cannot determine cache directory".to_string()
                 )))?
-                .join("boticelli")
+                .join("botticelli")
                 .join(format!("{}_limits.json", provider));
 
             if let Some(parent) = cache_path.parent() {
@@ -1612,7 +1612,7 @@ impl HeaderRateLimitDetector {
     /// Load detected limits from cache file
     fn load_cache(provider: &str) -> Option<TierConfig> {
         let cache_path = dirs::cache_dir()?
-            .join("boticelli")
+            .join("botticelli")
             .join(format!("{}_limits.json", provider));
 
         let content = std::fs::read_to_string(cache_path).ok()?;
@@ -1665,8 +1665,8 @@ pub enum RateLimitError {
     QuotaExhausted { daily_quota_usd: f64 },
 }
 
-// Add to BoticelliErrorKind
-pub enum BoticelliErrorKind {
+// Add to BotticelliErrorKind
+pub enum BotticelliErrorKind {
     // ... existing variants
     RateLimit(RateLimitError),
 }
@@ -1675,11 +1675,11 @@ pub enum BoticelliErrorKind {
 ### Retry with exponential backoff
 
 ```rust
-pub async fn generate_with_retry<D: BoticelliDriver>(
+pub async fn generate_with_retry<D: BotticelliDriver>(
     driver: &D,
     request: &GenerateRequest,
     max_retries: u32,
-) -> BoticelliResult<GenerateResponse> {
+) -> BotticelliResult<GenerateResponse> {
     let mut retries = 0;
     let mut backoff = Duration::from_secs(1);
 
@@ -1687,7 +1687,7 @@ pub async fn generate_with_retry<D: BoticelliDriver>(
         match driver.generate(request).await {
             Ok(response) => return Ok(response),
             Err(e) if retries < max_retries => {
-                if let BoticelliErrorKind::RateLimit(_) = e.kind {
+                if let BotticelliErrorKind::RateLimit(_) = e.kind {
                     tracing::warn!("Rate limit hit, retrying in {:?}", backoff);
                     tokio::time::sleep(backoff).await;
                     retries += 1;

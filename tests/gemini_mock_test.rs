@@ -7,7 +7,7 @@
 
 mod test_utils;
 
-use boticelli::{BoticelliDriver, GenerateRequest, GeminiErrorKind, Input, Message, Role};
+use botticelli::{BotticelliDriver, GenerateRequest, GeminiErrorKind, Input, Message, Role};
 use test_utils::{MockGeminiClient, MockResponse};
 
 #[tokio::test]

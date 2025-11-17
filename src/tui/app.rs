@@ -1,7 +1,7 @@
 //! Application state and main TUI entry point.
 
 use crate::tui::{events::EventHandler, ui};
-use crate::{BoticelliError, BoticelliResult, TuiError, TuiErrorKind};
+use crate::{BotticelliError, BotticelliResult, TuiError, TuiErrorKind};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
@@ -95,7 +95,7 @@ pub struct App {
 
 impl App {
     /// Create a new App instance.
-    pub fn new(table_name: String, conn: PgConnection) -> BoticelliResult<Self> {
+    pub fn new(table_name: String, conn: PgConnection) -> BotticelliResult<Self> {
         let mut app = Self {
             mode: AppMode::List,
             table_name,
@@ -115,7 +115,7 @@ impl App {
     }
 
     /// Reload content from database.
-    pub fn reload_content(&mut self) -> BoticelliResult<()> {
+    pub fn reload_content(&mut self) -> BotticelliResult<()> {
         use crate::list_content;
 
         let items = list_content(&mut self.conn, &self.table_name, None, 1000)?;
@@ -208,7 +208,7 @@ impl App {
     }
 
     /// Enter edit mode for selected item.
-    pub fn enter_edit(&mut self) -> BoticelliResult<()> {
+    pub fn enter_edit(&mut self) -> BotticelliResult<()> {
         if let Some(item) = self.content_items.get(self.selected_index) {
             self.edit_buffer = Some(EditBuffer {
                 tags: item.tags.join(", "),
@@ -222,7 +222,7 @@ impl App {
     }
 
     /// Save edits to database.
-    pub fn save_edit(&mut self) -> BoticelliResult<()> {
+    pub fn save_edit(&mut self) -> BotticelliResult<()> {
         if let Some(buffer) = &self.edit_buffer {
             let item_id = self.content_items[self.selected_index].id;
             let tags: Vec<String> = buffer
@@ -269,7 +269,7 @@ impl App {
     }
 
     /// Delete selected item.
-    pub fn delete_selected(&mut self) -> BoticelliResult<()> {
+    pub fn delete_selected(&mut self) -> BotticelliResult<()> {
         if let Some(item) = self.content_items.get(self.selected_index) {
             use crate::delete_content;
 
@@ -282,7 +282,7 @@ impl App {
     }
 
     /// Promote selected item to target table.
-    pub fn promote_selected(&mut self, target: &str) -> BoticelliResult<()> {
+    pub fn promote_selected(&mut self, target: &str) -> BotticelliResult<()> {
         if let Some(item) = self.content_items.get(self.selected_index) {
             use crate::promote_content;
 
@@ -299,10 +299,10 @@ impl App {
 }
 
 /// Run the TUI application.
-pub fn run_tui(table_name: String, conn: PgConnection) -> BoticelliResult<()> {
+pub fn run_tui(table_name: String, conn: PgConnection) -> BotticelliResult<()> {
     // Setup terminal
     enable_raw_mode().map_err(|e| {
-        BoticelliError::from(TuiError::new(TuiErrorKind::TerminalSetup(format!(
+        BotticelliError::from(TuiError::new(TuiErrorKind::TerminalSetup(format!(
             "enable raw mode: {}",
             e
         ))))
@@ -310,7 +310,7 @@ pub fn run_tui(table_name: String, conn: PgConnection) -> BoticelliResult<()> {
 
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(|e| {
-        BoticelliError::from(TuiError::new(TuiErrorKind::TerminalSetup(format!(
+        BotticelliError::from(TuiError::new(TuiErrorKind::TerminalSetup(format!(
             "alternate screen/mouse capture: {}",
             e
         ))))
@@ -318,7 +318,7 @@ pub fn run_tui(table_name: String, conn: PgConnection) -> BoticelliResult<()> {
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).map_err(|e| {
-        BoticelliError::from(TuiError::new(TuiErrorKind::TerminalSetup(format!(
+        BotticelliError::from(TuiError::new(TuiErrorKind::TerminalSetup(format!(
             "create terminal: {}",
             e
         ))))
@@ -333,7 +333,7 @@ pub fn run_tui(table_name: String, conn: PgConnection) -> BoticelliResult<()> {
 
     // Restore terminal
     disable_raw_mode().map_err(|e| {
-        BoticelliError::from(TuiError::new(TuiErrorKind::TerminalRestore(format!(
+        BotticelliError::from(TuiError::new(TuiErrorKind::TerminalRestore(format!(
             "disable raw mode: {}",
             e
         ))))
@@ -345,14 +345,14 @@ pub fn run_tui(table_name: String, conn: PgConnection) -> BoticelliResult<()> {
         DisableMouseCapture
     )
     .map_err(|e| {
-        BoticelliError::from(TuiError::new(TuiErrorKind::TerminalRestore(format!(
+        BotticelliError::from(TuiError::new(TuiErrorKind::TerminalRestore(format!(
             "leave alternate screen: {}",
             e
         ))))
     })?;
 
     terminal.show_cursor().map_err(|e| {
-        BoticelliError::from(TuiError::new(TuiErrorKind::TerminalRestore(format!(
+        BotticelliError::from(TuiError::new(TuiErrorKind::TerminalRestore(format!(
             "show cursor: {}",
             e
         ))))
@@ -366,10 +366,10 @@ fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
     events: &mut EventHandler,
-) -> BoticelliResult<()> {
+) -> BotticelliResult<()> {
     while !app.should_quit {
         terminal.draw(|f| ui::draw(f, app)).map_err(|e| {
-            BoticelliError::from(TuiError::new(TuiErrorKind::Rendering(e.to_string())))
+            BotticelliError::from(TuiError::new(TuiErrorKind::Rendering(e.to_string())))
         })?;
 
         if let Some(event) = events.next()? {
@@ -385,7 +385,7 @@ fn run_app<B: ratatui::backend::Backend>(
 }
 
 /// Handle keyboard input.
-fn handle_key_event(app: &mut App, key: crossterm::event::KeyEvent) -> BoticelliResult<()> {
+fn handle_key_event(app: &mut App, key: crossterm::event::KeyEvent) -> BotticelliResult<()> {
     use crossterm::event::{KeyCode, KeyModifiers};
 
     match app.mode {

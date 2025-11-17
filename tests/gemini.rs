@@ -2,8 +2,8 @@
 
 #![cfg(feature = "gemini")]
 
-use boticelli::{
-    BoticelliDriver, GeminiClient, GeminiError, GeminiErrorKind, GenerateRequest, Input, Message,
+use botticelli::{
+    BotticelliDriver, GeminiClient, GeminiError, GeminiErrorKind, GenerateRequest, Input, Message,
     Metadata, Role, Vision,
 };
 
@@ -114,12 +114,12 @@ fn test_multi_message_request_structure() {
 //
 
 #[test]
-fn test_gemini_error_to_boticelli_error_conversion() {
+fn test_gemini_error_to_botticelli_error_conversion() {
     let gemini_error = GeminiError::new(GeminiErrorKind::MissingApiKey);
-    let boticelli_error: boticelli::BoticelliError = gemini_error.into();
+    let botticelli_error: botticelli::BotticelliError = gemini_error.into();
 
-    let display = format!("{}", boticelli_error);
-    assert!(display.contains("Boticelli Error:"));
+    let display = format!("{}", botticelli_error);
+    assert!(display.contains("Botticelli Error:"));
     assert!(display.contains("Gemini Error:"));
 }
 

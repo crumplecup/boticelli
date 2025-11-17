@@ -29,8 +29,8 @@ If you just want to get started quickly:
 
 ```bash
 # Clone the repository
-git clone https://github.com/crumplecup/boticelli.git
-cd boticelli
+git clone https://github.com/crumplecup/botticelli.git
+cd botticelli
 
 # Set your database URL
 export DATABASE_URL="postgres://user:password@localhost/discord_bot"
@@ -85,7 +85,7 @@ This database schema is designed for:
 2. **State Management** - Remember guild configurations, member data, preferences
 3. **Analytics** - Monitor usage, popular channels, command statistics
 4. **Audit Trails** - Maintain history for moderation and compliance
-5. **Narrative Integration** - Support LLM-generated content (via Boticelli)
+5. **Narrative Integration** - Support LLM-generated content (via Botticelli)
 
 ### What This Schema Does NOT Capture
 
@@ -752,9 +752,9 @@ CREATE TRIGGER update_guild_timestamp
 
 ---
 
-## Part 5: Integration with Boticelli
+## Part 5: Integration with Botticelli
 
-This schema is designed to work seamlessly with the Boticelli narrative system. See [NARRATIVE_PROCESSORS.md](NARRATIVE_PROCESSORS.md) for details on generating Discord content via LLM narratives.
+This schema is designed to work seamlessly with the Botticelli narrative system. See [NARRATIVE_PROCESSORS.md](NARRATIVE_PROCESSORS.md) for details on generating Discord content via LLM narratives.
 
 **Example workflow:**
 
@@ -762,7 +762,7 @@ This schema is designed to work seamlessly with the Boticelli narrative system. 
 2. Execute narrative with Gemini/Claude
 3. Processors automatically extract JSON and insert into these tables
 4. Query stored data for verification
-5. Use BoticelliBot to post to real Discord servers
+5. Use BotticelliBot to post to real Discord servers
 
 ---
 

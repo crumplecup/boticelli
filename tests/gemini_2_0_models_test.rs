@@ -5,7 +5,7 @@
 
 #![cfg(feature = "gemini")]
 
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
+use botticelli::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
 
 /// Test that Gemini 2.0 Flash works via Model::Custom with "models/" prefix.
 #[tokio::test]

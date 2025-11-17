@@ -29,7 +29,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use boticelli::{SetupMessage, SetupConfig, GenerationConfig, ClientContentMessage,
+//! use botticelli::{SetupMessage, SetupConfig, GenerationConfig, ClientContentMessage,
 //!                  ClientContent, Turn, Part, TextPart};
 //!
 //! // Setup message (first message after WebSocket connection)

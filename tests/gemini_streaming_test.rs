@@ -6,7 +6,7 @@
 
 #![cfg(feature = "gemini")]
 
-use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Message, Role, Input, Streaming};
+use boticelli::{BoticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role, Streaming};
 use futures_util::StreamExt;
 
 /// Helper to create a simple test request.
@@ -68,10 +68,7 @@ async fn test_streaming_basic() {
     println!("Streaming result: {}", full_text);
 
     // Should have generated some text
-    assert!(
-        !full_text.is_empty(),
-        "Response should contain text"
-    );
+    assert!(!full_text.is_empty(), "Response should contain text");
 }
 
 #[tokio::test]
@@ -82,10 +79,7 @@ async fn test_streaming_with_standard_model() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Explicitly use standard flash model
-    let request = create_test_request(
-        "Say 'ok'",
-        Some("gemini-2.0-flash".to_string()),
-    );
+    let request = create_test_request("Say 'ok'", Some("gemini-2.0-flash".to_string()));
 
     let mut stream = client
         .generate_stream(&request)
@@ -118,17 +112,14 @@ async fn test_streaming_with_standard_model() {
 }
 
 #[tokio::test]
-#[cfg_attr(not(feature = "api"), ignore)] // Requires GEMINI_API_KEY - model may not exist yet
+#[ignore] // Model doesn't exist - confirmed via API ListModels query (see GEMINI_STREAMING.md)
 async fn test_streaming_with_live_model() {
     let _ = dotenvy::dotenv();
 
     let client = GeminiClient::new().expect("Failed to create client");
 
     // CRITICAL TEST: Use live model for better rate limits
-    let request = create_test_request(
-        "Say 'ok'",
-        Some("gemini-2.0-flash-live".to_string()),
-    );
+    let request = create_test_request("Say 'ok'", Some("gemini-2.5-flash-live".to_string()));
 
     let mut stream = client
         .generate_stream(&request)
@@ -248,11 +239,16 @@ async fn test_streaming_vs_non_streaming_consistency() {
 }
 
 #[tokio::test]
-#[cfg_attr(not(feature = "api"), ignore)] // Expensive - uses significant quota
+#[ignore] // OBSOLETE: 'Live' models don't exist - original premise was incorrect (see GEMINI_STREAMING.md)
 async fn test_rate_limit_comparison() {
-    // This test verifies that live models have better rate limits.
-    // Uses minimal requests (3 each) to conserve quota.
-    // Run with: cargo test test_rate_limit_comparison --features gemini -- --ignored
+    // DEPRECATED: This test compared rate limits between standard and "live" models.
+    // Investigation on 2025-01-17 confirmed that no "live" models exist in the Gemini API.
+    // The model "gemini-2.0-flash-live" returns 404 NOT_FOUND from Google's servers.
+    //
+    // Original hypothesis: Live models have better free tier rate limits
+    // Reality: Model doesn't exist, hypothesis cannot be tested
+    //
+    // See GEMINI_STREAMING.md for complete investigation findings.
 
     let _ = dotenvy::dotenv();
 
@@ -263,10 +259,7 @@ async fn test_rate_limit_comparison() {
     // Try 3 requests to standard model
     let mut standard_success = 0;
     for i in 0..3 {
-        let request = create_test_request(
-            "ok",
-            Some("gemini-2.0-flash".to_string()),
-        );
+        let request = create_test_request("ok", Some("gemini-2.0-flash".to_string()));
 
         match client.generate_stream(&request).await {
             Ok(mut stream) => {
@@ -281,10 +274,7 @@ async fn test_rate_limit_comparison() {
         }
     }
 
-    println!(
-        "Standard model: {} successful requests",
-        standard_success
-    );
+    println!("Standard model: {} successful requests", standard_success);
 
     // Brief pause
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -294,10 +284,7 @@ async fn test_rate_limit_comparison() {
     // Try 3 requests to live model
     let mut live_success = 0;
     for i in 0..3 {
-        let request = create_test_request(
-            "ok",
-            Some("gemini-2.0-flash-live".to_string()),
-        );
+        let request = create_test_request("ok", Some("gemini-2.0-flash-live".to_string()));
 
         match client.generate_stream(&request).await {
             Ok(mut stream) => {

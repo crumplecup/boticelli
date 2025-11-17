@@ -7,8 +7,9 @@
   - After generating new code and correcting any cargo check errors and warnings:
     1. Run cargo test and clear **all** errors, including any pre-existing failures.
     2. Run cargo clippy and clear **all** warnings, including any pre-existing warnings.
-    3. Commit the changes to git using best practices for code auditing.
-    4. Push the changes to their respective github branch.
+    3. Run cargo test --doc and ensure all doctests pass.
+    4. Commit the changes to git using best practices for code auditing.
+    5. Push the changes to their respective github branch.
 - After each step is complete, update the planning document, so it can serve as a user guide when all the tracked tasks are complete.
 - Avoid running cargo clean often, to take advantage of incremental compilation during development.
 
@@ -17,11 +18,60 @@
 - **NEVER ignore test failures, clippy warnings, or errors because they seem unrelated to your current work.**
 - **ALWAYS fix ALL issues before committing**, even if they appear unrelated.
 - Pre-existing failures must be fixed before your changes are committed.
-- The codebase must always be in a clean state: all tests passing, zero clippy warnings, zero errors.
+- The codebase must always be in a clean state: all tests passing, zero clippy warnings, zero errors, all doctests compiling.
 - If you discover an unrelated issue:
   1. Fix it immediately as part of your current work, OR
   2. Create a separate commit to fix it before your main changes
 - Rationale: "Unrelated" issues may actually be dependencies, side effects, or test environment problems that affect your work. Leaving them unfixed creates technical debt and obscures real issues.
+
+### Why This Matters: Common Pitfalls
+
+**Example 1: Export changes causing doctest failures**
+- You add a new type to crate-level exports
+- Existing doctests use old module-path imports (`use crate::module::Type`)
+- These appear "unrelated" but are actually incomplete work from your change
+- **Fix:** Update all doctests to use crate-level imports when you change exports
+
+**Example 2: Name conflicts from new exports**
+- You export all types from a module at crate root
+- A type name conflicts with an existing export (e.g., `ToolCall` from two modules)
+- Tests or doctests that depend on the old import break
+- **Fix:** Rename types to be unique before exporting (e.g., `LiveToolCall`)
+
+**Example 3: Missing feature gates**
+- You enable a feature for your work
+- Existing tests depend on that feature but lack `#![cfg(feature = "...")]`
+- Without the feature, compilation fails for other users
+- **Fix:** Add appropriate feature gates to all affected tests
+
+**Example 4: Incomplete examples in doctests**
+- You add a required field to a struct
+- Doctest examples don't include the new field
+- Doctests fail to compile even though "your code works"
+- **Fix:** Update all doctests that construct the modified struct
+
+### Verification Checklist Before Committing
+
+Run these commands and ensure ALL pass with zero errors/warnings:
+
+```bash
+# 1. Check compilation
+cargo check --all-features
+
+# 2. Run unit and integration tests
+cargo test --all-features --lib --tests
+
+# 3. Run doctests
+cargo test --all-features --doc
+
+# 4. Run clippy
+cargo clippy --all-features --all-targets
+
+# 5. For markdown changes
+markdownlint-cli2 "**/*.md" "#target" "#node_modules"
+```
+
+If any command fails, **fix it before committing**. No exceptions.
 
 ## Linting
 

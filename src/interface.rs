@@ -31,18 +31,19 @@ pub trait BoticelliDriver: Send + Sync {
 //
 
 /// A single chunk from a streaming response.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StreamChunk {
     /// Incremental content (usually partial text).
     pub content: Output,
     /// Whether this is the final chunk.
     pub is_final: bool,
     /// Optional finish reason if final.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<FinishReason>,
 }
 
 /// Why generation stopped.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum FinishReason {
     /// Model completed naturally.
     Stop,

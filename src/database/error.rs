@@ -15,6 +15,8 @@ pub enum DatabaseErrorKind {
     NotFound,
     /// Table not found
     TableNotFound(String),
+    /// Schema inference error
+    SchemaInference(String),
 }
 
 impl std::fmt::Display for DatabaseErrorKind {
@@ -27,6 +29,9 @@ impl std::fmt::Display for DatabaseErrorKind {
             DatabaseErrorKind::NotFound => write!(f, "Record not found"),
             DatabaseErrorKind::TableNotFound(table) => {
                 write!(f, "Table '{}' not found in database", table)
+            }
+            DatabaseErrorKind::SchemaInference(msg) => {
+                write!(f, "Schema inference error: {}", msg)
             }
         }
     }

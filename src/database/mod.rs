@@ -10,6 +10,7 @@ mod narrative_models;
 mod narrative_repository;
 pub(crate) mod schema;
 mod schema_docs;
+mod schema_inference;
 mod schema_reflection; // Make schema accessible within the crate for Discord models
 
 // Re-export schema tables for internal use by migration tools and tests
@@ -59,6 +60,11 @@ pub use content_management::{
 pub use schema_docs::{
     assemble_prompt, generate_schema_prompt, is_content_focus, JSON_FORMAT_REQUIREMENTS,
     DISCORD_PLATFORM_CONTEXT,
+};
+
+// Schema inference exports for automatic table creation from JSON
+pub use schema_inference::{
+    infer_column_type, infer_schema, resolve_type_conflict, ColumnDefinition, InferredSchema,
 };
 
 use crate::{GenerateRequest, GenerateResponse};

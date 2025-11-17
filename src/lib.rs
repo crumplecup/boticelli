@@ -98,6 +98,12 @@ pub use database::{
     assemble_prompt,
     is_content_focus,
     reflect_table_schema,
+    // Schema inference functions (automatic table creation from JSON)
+    infer_column_type,
+    infer_schema,
+    resolve_type_conflict,
+    ColumnDefinition,
+    InferredSchema,
     // Content generation functions
     create_content_table,
     // Content management functions

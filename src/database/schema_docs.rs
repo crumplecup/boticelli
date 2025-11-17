@@ -3,7 +3,8 @@
 //! This module automatically generates LLM-friendly schema documentation
 //! from database table structures, eliminating boilerplate in narrative files.
 
-use crate::database::{reflect_table_schema, ColumnInfo, DatabaseResult, TableSchema};
+use crate::{reflect_table_schema, DatabaseResult};
+use crate::database::{ColumnInfo, TableSchema};
 use diesel::pg::PgConnection;
 
 /// Type hints and documentation for common Discord field patterns

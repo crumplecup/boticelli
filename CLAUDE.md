@@ -27,24 +27,28 @@
 ### Why This Matters: Common Pitfalls
 
 **Example 1: Export changes causing doctest failures**
+
 - You add a new type to crate-level exports
 - Existing doctests use old module-path imports (`use crate::module::Type`)
 - These appear "unrelated" but are actually incomplete work from your change
 - **Fix:** Update all doctests to use crate-level imports when you change exports
 
 **Example 2: Name conflicts from new exports**
+
 - You export all types from a module at crate root
 - A type name conflicts with an existing export (e.g., `ToolCall` from two modules)
 - Tests or doctests that depend on the old import break
 - **Fix:** Rename types to be unique before exporting (e.g., `LiveToolCall`)
 
 **Example 3: Missing feature gates**
+
 - You enable a feature for your work
 - Existing tests depend on that feature but lack `#![cfg(feature = "...")]`
 - Without the feature, compilation fails for other users
 - **Fix:** Add appropriate feature gates to all affected tests
 
 **Example 4: Incomplete examples in doctests**
+
 - You add a required field to a struct
 - Doctest examples don't include the new field
 - Doctests fail to compile even though "your code works"
@@ -114,6 +118,15 @@ If any command fails, **fix it before committing**. No exceptions.
 - When adding new feature-gated code, ensure the crate still compiles with only default features.
 - Use `cargo check --no-default-features` to verify the crate works without optional features.
 - Use `cargo check --all-features` to verify all features compile together.
+
+## Dependency Versions
+
+In Cargo.toml:
+
+- If the crate is >=1.0, use just the major version number "x".
+- If >=0.1.0, use the major and minor "x.y".
+- If <0.1.0, use the full "x.y.z".
+- Before committing, run `cargo update` to update Cargo.lock with the latest compatible versions.
 
 ## Documentation
 

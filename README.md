@@ -22,6 +22,56 @@ Botticelli enables you to define complex, multi-step LLM workflows in TOML files
 - 🖥️ **CLI Interface**: Easy command-line execution
 - 🦀 **Type-Safe**: Full Rust type safety throughout
 
+## Workspace Architecture
+
+Botticelli is organized as a Cargo workspace with focused, independent crates:
+
+### Foundation Crates
+
+- **botticelli-error** - Error types with location tracking
+- **botticelli-core** - Core data structures (Input, Output, Message)
+- **botticelli-interface** - Trait definitions (BotticelliDriver, NarrativeRepository)
+
+### Core Feature Crates
+
+- **botticelli-rate-limit** - Rate limiting and automatic retry logic
+- **botticelli-storage** - Content-addressable file storage
+- **botticelli-narrative** - Narrative execution engine
+
+### Optional Feature Crates
+
+- **botticelli-models** - LLM provider implementations (feature-gated)
+  - `gemini` - Google Gemini models
+  - More providers coming soon
+- **botticelli-database** - PostgreSQL persistence layer
+- **botticelli-social** - Social platform integrations (Discord)
+- **botticelli-tui** - Terminal UI for content review
+
+### Facade Crate
+
+- **botticelli** - Main crate that re-exports everything for convenience
+
+### Using the Workspace
+
+**Simple approach** - Use the main facade crate:
+
+```toml
+[dependencies]
+botticelli = { version = "0.2", features = ["gemini", "database"] }
+```
+
+**Advanced approach** - Use individual crates:
+
+```toml
+[dependencies]
+botticelli-interface = "0.2"
+botticelli-models = { version = "0.2", features = ["gemini"] }
+botticelli-narrative = "0.2"
+# Smaller dependency tree, faster compile times
+```
+
+See individual crate READMEs in `crates/*/README.md` for detailed documentation.
+
 ## Quick Start
 
 ### Prerequisites

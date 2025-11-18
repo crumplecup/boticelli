@@ -26,7 +26,7 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = GeminiClient::new()?;
 //!
-//! // Use default model (gemini-2.0-flash)
+//! // Use default model (gemini-2.0-flash-lite)
 //! let request1 = GenerateRequest {
 //!     messages: vec![Message {
 //!         role: Role::User,
@@ -212,7 +212,7 @@ impl GeminiClient {
     /// Create a new Gemini client without rate limiting.
     ///
     /// Reads the API key from the `GEMINI_API_KEY` environment variable.
-    /// Defaults to using Gemini 2.5 Flash model.
+    /// Defaults to using Gemini 2.0 Flash Lite model for development.
     ///
     /// # Example
     ///
@@ -323,7 +323,7 @@ impl GeminiClient {
             .map_err(|_| BotticelliError::from(GeminiError::new(GeminiErrorKind::MissingApiKey)))?;
 
         let base_tier = tier_config.unwrap_or_else(|| {
-            // Default tier configuration (Free tier, gemini-2.5-flash defaults)
+            // Default tier configuration (Free tier, gemini-2.0-flash-lite for development)
             TierConfig {
                 name: "Free".to_string(),
                 rpm: Some(10),
@@ -347,7 +347,7 @@ impl GeminiClient {
             clients: Arc::new(Mutex::new(HashMap::new())),
             live_client,
             api_key,
-            model_name: "gemini-2.5-flash".to_string(),
+            model_name: "gemini-2.0-flash-lite".to_string(),
             base_tier,
             no_retry: false,
             max_retries: None,
@@ -380,7 +380,7 @@ impl GeminiClient {
                 models: HashMap::new(), // Will be empty for non-TierConfig tiers
             }
         } else {
-            // Default tier configuration (Free tier, gemini-2.5-flash defaults)
+            // Default tier configuration (Free tier, gemini-2.0-flash-lite for development)
             TierConfig {
                 name: "Free".to_string(),
                 rpm: Some(10),
@@ -404,7 +404,7 @@ impl GeminiClient {
             clients: Arc::new(Mutex::new(HashMap::new())),
             live_client,
             api_key,
-            model_name: "gemini-2.5-flash".to_string(),
+            model_name: "gemini-2.0-flash-lite".to_string(),
             base_tier,
             no_retry: false,
             max_retries: None,

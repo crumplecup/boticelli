@@ -68,8 +68,8 @@ fn test_mock_provider_name() {
 async fn test_default_model_usage() {
     let client = GeminiClient::new().expect("Failed to create client");
 
-    // The default model should be gemini-2.5-flash
-    assert_eq!(client.model_name(), "gemini-2.5-flash");
+    // The default model should be gemini-2.0-flash-lite (for development)
+    assert_eq!(client.model_name(), "gemini-2.0-flash-lite");
 
     let request = GenerateRequest {
         messages: vec![Message {

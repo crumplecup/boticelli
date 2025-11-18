@@ -77,13 +77,37 @@ This document outlines a two-phase strategy:
   - Zero clippy warnings, all workspace tests pass (49 total)
   - 6 files changed, 35 insertions (+3 From impls, +8 Cargo.toml changes)
 
+- ✅ **Phase 6: Integration Layers (Social & TUI)** (Commits: `b0a2f47`, `b085390` on workspace branch)
+  - **Part 1 - botticelli-social** (Commit: `b0a2f47`):
+    - Created `botticelli-social` crate with Discord integration
+    - Migrated Discord bot, models, repository, conversions from src/social/
+    - 15 source files, 3,258 lines of code
+    - 23 unit tests passing, zero clippy warnings
+    - Processors module temporarily disabled (depends on narrative database feature)
+    - 17 files changed (17 new), 3,258 insertions
+  - **Part 2 - botticelli-tui** (Commit: `b085390`):
+    - Created `botticelli-tui` crate with Terminal UI
+    - Migrated TUI from src/tui/ (6 files, 894 LOC)
+    - Added `TuiError` and `TuiErrorKind` to `botticelli-error` foundation
+    - Added explicit #[from()] attributes to all BotticelliErrorKind variants
+    - Exported content management functions from botticelli-database
+    - Zero clippy warnings, all feature combinations compile
+    - 10 files changed (7 new, 3 modified), 894 insertions
+
+- ✅ **Phase 7: Unified Facade** (Commit: `a231905` on workspace branch)
+  - Created main `botticelli` facade crate
+  - Re-exports all workspace crates for backward compatibility
+  - Feature flags: gemini, database, discord, tui, all
+  - Comprehensive documentation with quick start guide
+  - All feature combinations tested and compile successfully
+  - Zero clippy warnings on facade crate
+  - 3 files changed (2 new, 1 modified), 131 insertions
+
 ### In Progress
 
 - None currently
 
 ### Remaining Phases
-- ⏳ Phase 6: Integration Layers (Social & TUI)
-- ⏳ Phase 7: Unified Facade
 - ⏳ Phase 8: Validation & Testing
 - ⏳ Phase 9: Documentation & Examples
 - ⏳ Phase 10: Merge & Publish
@@ -91,9 +115,9 @@ This document outlines a two-phase strategy:
 ### How to Resume
 
 1. **Checkout workspace branch:** `git checkout workspace`
-2. **Review completed phases:** See commits `c0c0981`, `367c8f4`, `963eac1`, `736ee3b`
-3. **Continue with Phase 6:** Create social and TUI integration crates
-4. **Follow this document:** Phase 6 details for integration layers
+2. **Review completed phases:** See commits `c0c0981`, `367c8f4`, `963eac1`, `736ee3b`, `b0a2f47`, `b085390`, `a231905`
+3. **Continue with Phase 8:** Validation & Testing (comprehensive testing across all crates)
+4. **Follow this document:** Phase 8 details for validation and testing strategy
 
 ### Reference Files
 

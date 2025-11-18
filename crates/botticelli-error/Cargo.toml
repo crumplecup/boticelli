@@ -12,3 +12,11 @@ categories.workspace = true
 [dependencies]
 derive_more = { workspace = true }
 derive-new = { workspace = true }
+
+# Optional database error conversions
+diesel = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[features]
+default = []
+database = ["dep:diesel", "dep:serde_json"]

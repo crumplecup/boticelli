@@ -254,7 +254,6 @@ pub fn infer_schema(json: &JsonValue) -> DatabaseResult<InferredSchema> {
 /// # Returns
 ///
 /// Returns `Ok(())` if the table was created successfully, or an error if creation failed.
-#[cfg(feature = "database")]
 pub fn create_inferred_table(
     conn: &mut diesel::pg::PgConnection,
     table_name: &str,

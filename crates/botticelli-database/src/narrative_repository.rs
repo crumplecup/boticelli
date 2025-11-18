@@ -11,7 +11,6 @@ use botticelli_interface::{
     ExecutionFilter, ExecutionStatus, ExecutionSummary, 
     NarrativeExecution, NarrativeRepository,
 };
-use botticelli_storage::{MediaMetadata, MediaReference};
 use botticelli_error::{BackendError, BotticelliError, BotticelliResult};
 
 use async_trait::async_trait;

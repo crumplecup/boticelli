@@ -67,15 +67,22 @@ This document outlines a two-phase strategy:
   - Doctests deferred (need main facade crate for imports)
   - 11 files changed: 7 new in models, 4 updated in error/rate-limit
 
+- ✅ **Phase 5: Narrative & Database System** (Commit: `736ee3b` on workspace branch)
+  - Both `botticelli-narrative` and `botticelli-database` crates already migrated
+  - Added diesel error conversions to `botticelli-error` with 'database' feature
+  - Implemented From<diesel::result::Error>, From<diesel::ConnectionError>, From<serde_json::Error>
+  - Fixed unused imports and removed unnecessary feature gates
+  - botticelli-narrative: 6 tests passing, 2,241 LOC
+  - botticelli-database: 43 tests passing, 2,977 LOC
+  - Zero clippy warnings, all workspace tests pass (49 total)
+  - 6 files changed, 35 insertions (+3 From impls, +8 Cargo.toml changes)
+
 ### In Progress
 
-- ⏳ **Phase 5: Narrative System** 
-  - Not yet started
-  - Note: Depends on Phase 3.5 (database crate) which wasn't in original plan
+- None currently
 
 ### Remaining Phases
-- ⏳ Phase 5: Narrative System
-- ⏳ Phase 6: Integration Layers
+- ⏳ Phase 6: Integration Layers (Social & TUI)
 - ⏳ Phase 7: Unified Facade
 - ⏳ Phase 8: Validation & Testing
 - ⏳ Phase 9: Documentation & Examples
@@ -84,9 +91,9 @@ This document outlines a two-phase strategy:
 ### How to Resume
 
 1. **Checkout workspace branch:** `git checkout workspace`
-2. **Review completed phases:** See commits `c0c0981` and `367c8f4`
-3. **Continue with Phase 4:** Create `botticelli-models` crate
-4. **Follow this document:** Phase 4 details for provider implementations
+2. **Review completed phases:** See commits `c0c0981`, `367c8f4`, `963eac1`, `736ee3b`
+3. **Continue with Phase 6:** Create social and TUI integration crates
+4. **Follow this document:** Phase 6 details for integration layers
 
 ### Reference Files
 
@@ -96,7 +103,9 @@ If you need to reference the original monorepo structure:
 - **Workspace Cargo.toml** (current): `Cargo.toml` on workspace branch
 - **Phase 1 commit** (foundation crates): `git show c0c0981`
 - **Phase 2 commit** (rate limiting): `git show 367c8f4`
-- **Phase 3 commit** (storage): On workspace branch (current work)
+- **Phase 3 commit** (storage): Part of workspace branch
+- **Phase 4 commit** (models): `git show 963eac1`
+- **Phase 5 commit** (narrative & database): `git show 736ee3b`
 
 All workspace dependencies are defined in the root `Cargo.toml` under `[workspace.dependencies]`.
 
@@ -104,40 +113,72 @@ All workspace dependencies are defined in the root `Cargo.toml` under `[workspac
 
 ```
 crates/
-├── botticelli-error/          # Phase 1: Foundation error types
+├── botticelli-error/          # Phase 1: Foundation error types ✅
 │   ├── Cargo.toml
 │   └── src/lib.rs
-├── botticelli-core/           # Phase 1: Core data structures
+├── botticelli-core/           # Phase 1: Core data structures ✅
 │   ├── Cargo.toml
 │   └── src/lib.rs
-├── botticelli-interface/      # Phase 1: Trait definitions
+├── botticelli-interface/      # Phase 1: Trait definitions ✅
 │   ├── Cargo.toml
 │   └── src/lib.rs
-└── botticelli-rate-limit/     # Phase 2: Rate limiting & retry
+├── botticelli-rate-limit/     # Phase 2: Rate limiting & retry ✅
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── tier.rs           # Tier trait
+│       ├── tiers.rs          # Provider-specific tiers
+│       ├── limiter.rs        # RateLimiter implementation
+│       ├── config.rs         # TOML configuration
+│       └── detector.rs       # Header-based detection
+├── botticelli-storage/        # Phase 3: Content-addressable storage ✅
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       └── filesystem.rs
+├── botticelli-models/         # Phase 4: LLM provider integrations ✅
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       └── gemini/           # Gemini client (REST + Live API)
+├── botticelli-database/       # Phase 5: PostgreSQL integration ✅
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── schema.rs
+│       ├── models.rs
+│       ├── narrative_*.rs
+│       ├── content_*.rs
+│       └── schema_*.rs       # Schema reflection & inference
+└── botticelli-narrative/      # Phase 5: Narrative execution ✅
     ├── Cargo.toml
     └── src/
         ├── lib.rs
-        ├── tier.rs           # Tier trait
-        ├── tiers.rs          # Provider-specific tiers
-        ├── limiter.rs        # RateLimiter implementation
-        ├── config.rs         # TOML configuration
-        └── detector.rs       # Header-based detection
+        ├── core.rs
+        ├── executor.rs
+        ├── processor.rs
+        ├── provider.rs
+        ├── toml_parser.rs
+        ├── content_generation.rs
+        ├── extraction.rs
+        └── in_memory_repository.rs
 
-src/                           # Original monorepo (to be migrated in Phases 3-7)
-├── core.rs                    # → Will stay as facade re-exports
+src/                           # Original monorepo (to be migrated in Phases 6-7)
+├── core.rs                    # → Migrated to botticelli-core ✅
 ├── error.rs                   # → Migrated to botticelli-error ✅
 ├── interface.rs               # → Migrated to botticelli-interface ✅
 ├── rate_limit/                # → Migrated to botticelli-rate-limit ✅
 ├── storage/                   # → Migrated to botticelli-storage ✅
-├── models/                    # → Phase 4: botticelli-models (per-provider)
-├── narrative/                 # → Phase 5: botticelli-narrative
-├── database/                  # → Phase 3: botticelli-storage
-├── social/                    # → Phase 6: botticelli-social
-├── tui/                       # → Phase 6: botticelli-tui
+├── models/                    # → Migrated to botticelli-models ✅
+├── narrative/                 # → Migrated to botticelli-narrative ✅
+├── database/                  # → Migrated to botticelli-database ✅
+├── social/                    # → Phase 6: botticelli-social (TODO)
+├── tui/                       # → Phase 6: botticelli-tui (TODO)
+└── cli.rs                     # → Phase 7: botticelli-cli (TODO)
 └── cli.rs                     # → Phase 7: botticelli-cli
 ```
 
-**Next to migrate:** `src/models/` → `botticelli-models` (Phase 4)
+**Next to migrate:** `src/social/` & `src/tui/` → `botticelli-social` & `botticelli-tui` (Phase 6)
 
 ---
 

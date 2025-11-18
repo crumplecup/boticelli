@@ -1,0 +1,46 @@
+[package]
+name = "botticelli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Unified interface for multiple LLM APIs with multimodal support, narrative execution, and content management"
+
+[dependencies]
+# Core crates (always included)
+botticelli-error = { workspace = true }
+botticelli-core = { workspace = true }
+botticelli-interface = { workspace = true }
+botticelli-rate-limit = { workspace = true }
+botticelli-storage = { workspace = true }
+botticelli-narrative = { workspace = true }
+
+# Optional crates
+botticelli-models = { workspace = true, optional = true }
+botticelli-database = { workspace = true, optional = true }
+botticelli-social = { workspace = true, optional = true }
+botticelli-tui = { workspace = true, optional = true }
+
+[features]
+default = []
+
+# LLM provider features
+gemini = ["botticelli-models", "botticelli-models/gemini"]
+
+# Database feature
+database = ["botticelli-database"]
+
+# Social platform features
+discord = ["botticelli-social", "botticelli-social/discord"]
+
+# TUI feature
+tui = ["botticelli-tui"]
+
+# Convenience feature for all providers
+all-providers = ["gemini"]
+
+# Convenience feature for all optional features
+all = ["gemini", "database", "discord", "tui"]

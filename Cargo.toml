@@ -10,6 +10,7 @@ members = [
     "crates/botticelli-narrative",
     "crates/botticelli-social",
     "crates/botticelli-tui",
+    "crates/botticelli",
 ]
 resolver = "2"
 
@@ -48,6 +49,9 @@ botticelli-social = { path = "crates/botticelli-social", version = "0.2.0" }
 
 # Internal crates (Phase 6 tui)
 botticelli-tui = { path = "crates/botticelli-tui", version = "0.2.0" }
+
+# Internal crates (Phase 7 facade)
+botticelli = { path = "crates/botticelli", version = "0.2.0" }
 
 # Common external dependencies (shared versions)
 tokio = { version = "1", features = ["full"] }

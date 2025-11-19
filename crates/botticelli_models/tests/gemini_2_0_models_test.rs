@@ -1,13 +1,13 @@
-use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, MessageRole as Role, FinishReason};
-use botticelli_interface::{BotticelliDriver, Streaming};
-//! Tests for Gemini 2.0 model compatibility.
-//!
-//! These tests validate that older Gemini 2.0 models work correctly
-//! via the Model::Custom() variant with proper "models/" prefix.
-
 #![cfg(feature = "gemini")]
 
-use botticelli_models::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
+// Tests for Gemini 2.0 model compatibility.
+//
+// These tests validate that older Gemini 2.0 models work correctly
+// via the Model::Custom() variant with proper "models/" prefix.
+
+use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_interface::BotticelliDriver;
+use botticelli_models::GeminiClient;
 
 /// Test that Gemini 2.0 Flash works via Model::Custom with "models/" prefix.
 #[tokio::test]

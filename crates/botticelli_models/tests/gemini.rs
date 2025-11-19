@@ -1,13 +1,11 @@
-use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, MessageRole as Role, FinishReason};
-use botticelli_interface::{BotticelliDriver, Streaming};
-//! Tests for the Gemini client implementation.
-
 #![cfg(feature = "gemini")]
 
-use botticelli_models::{
-    BotticelliDriver, GeminiClient, GeminiError, GeminiErrorKind, GenerateRequest, Input, Message,
-    Metadata, Role, Vision,
-};
+// Tests for the Gemini client implementation.
+
+use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_error::BotticelliError;
+use botticelli_interface::{BotticelliDriver, Metadata, Vision};
+use botticelli_models::{GeminiClient, GeminiError, GeminiErrorKind};
 
 //
 // ─── ERROR HANDLING TESTS ───────────────────────────────────────────────────────
@@ -118,7 +116,7 @@ fn test_multi_message_request_structure() {
 #[test]
 fn test_gemini_error_to_botticelli_error_conversion() {
     let gemini_error = GeminiError::new(GeminiErrorKind::MissingApiKey);
-    let botticelli_error: botticelli::BotticelliError = gemini_error.into();
+    let botticelli_error: BotticelliError = gemini_error.into();
 
     let display = format!("{}", botticelli_error);
     assert!(display.contains("Botticelli Error:"));
@@ -199,7 +197,7 @@ fn test_client_creation() {
     match result {
         Ok(client) => {
             assert_eq!(client.provider_name(), "gemini");
-            assert_eq!(client.model_name(), "gemini-2.5-flash");
+            assert_eq!(client.model_name(), "gemini-2.0-flash-lite");
 
             // Test metadata
             let metadata = client.metadata();

@@ -47,6 +47,8 @@ anthropic = []
 huggingface = []
 groq = []
 perplexity = []
+api = []  # Marker feature for tests that make real API calls
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+dotenvy = { workspace = true }

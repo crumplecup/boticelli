@@ -1,27 +1,26 @@
-use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, MessageRole as Role, FinishReason};
-use botticelli_interface::{BotticelliDriver, Streaming};
-//! Integration tests for unified GeminiClient with Live API routing.
-//!
-//! These tests verify that GeminiClient correctly routes live models to the Live API
-//! and standard models to the REST API.
-//!
-//! Run with:
-//! ```bash
-//! cargo test --features gemini,api
-//! ```
-//!
-//! TODO: Fix WebSocket handshake failure - connection closes before setup complete.
-//! This appears to be a timing or protocol issue with the Live API handshake.
-//! Tests are currently ignored until the handshake issue is resolved.
-
 #![cfg(feature = "gemini")]
 
-use botticelli_models::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role, Streaming};
+// Integration tests for unified GeminiClient with Live API routing.
+//
+// These tests verify that GeminiClient correctly routes live models to the Live API
+// and standard models to the REST API.
+//
+// Run with:
+// ```bash
+// cargo test --features gemini,api
+// ```
+//
+// TODO: Fix WebSocket handshake failure - connection closes before setup complete.
+// This appears to be a timing or protocol issue with the Live API handshake.
+// Tests are currently ignored until the handshake issue is resolved.
+
+use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_interface::{BotticelliDriver, Streaming};
+use botticelli_models::GeminiClient;
 use futures_util::StreamExt;
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_gemini_client_routes_to_live_api() {
     // Load environment variables
     let _ = dotenvy::dotenv();
@@ -53,7 +52,6 @@ async fn test_gemini_client_routes_to_live_api() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_gemini_client_streaming_routes_to_live_api() {
     let _ = dotenvy::dotenv();
 
@@ -101,7 +99,6 @@ async fn test_gemini_client_streaming_routes_to_live_api() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_gemini_client_detects_live_models() {
     let _ = dotenvy::dotenv();
 

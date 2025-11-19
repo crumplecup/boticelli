@@ -1,15 +1,15 @@
-use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, MessageRole as Role, FinishReason};
-use botticelli_interface::{BotticelliDriver, Streaming};
-//! Tests using MockGeminiClient.
-//!
-//! These tests validate GeminiClient behavior without making real API calls,
-//! using a mock implementation for fast, deterministic testing.
-
 #![cfg(feature = "gemini")]
+
+// Tests using MockGeminiClient.
+//
+// These tests validate GeminiClient behavior without making real API calls,
+// using a mock implementation for fast, deterministic testing.
 
 mod test_utils;
 
-use botticelli_models::{BotticelliDriver, GenerateRequest, GeminiErrorKind, Input, Message, Role};
+use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_interface::BotticelliDriver;
+use botticelli_models::GeminiErrorKind;
 use test_utils::{MockGeminiClient, MockResponse};
 
 #[tokio::test]

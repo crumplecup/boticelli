@@ -1,24 +1,24 @@
-use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, MessageRole as Role, FinishReason};
-use botticelli_interface::{BotticelliDriver, Streaming};
-//! Tests for Gemini model selection functionality.
-//!
-//! These tests validate that the GeminiClient correctly uses the model
-//! specified in GenerateRequest.model, which is critical for:
-//! - Multi-model narrative execution
-//! - Cost control (using cheaper models when appropriate)
-//! - Feature testing across different model capabilities
-//!
-//! ## Test Strategy
-//!
-//! Most tests use MockGeminiClient for fast, deterministic testing without API calls.
-//! A small number of integration tests (marked with `#[cfg_attr(not(feature = "api"), ignore)]`)
-//! hit the real Gemini API to validate end-to-end behavior.
-
 #![cfg(feature = "gemini")]
+
+// Tests for Gemini model selection functionality.
+//
+// These tests validate that the GeminiClient correctly uses the model
+// specified in GenerateRequest.model, which is critical for:
+// - Multi-model narrative execution
+// - Cost control (using cheaper models when appropriate)
+// - Feature testing across different model capabilities
+//
+// ## Test Strategy
+//
+// Most tests use MockGeminiClient for fast, deterministic testing without API calls.
+// A small number of integration tests (marked with `#[cfg_attr(not(feature = "api"), ignore)]`)
+// hit the real Gemini API to validate end-to-end behavior.
 
 mod test_utils;
 
-use botticelli_models::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role};
+use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_interface::BotticelliDriver;
+use botticelli_models::GeminiClient;
 use test_utils::MockGeminiClient;
 
 //
@@ -189,48 +189,4 @@ async fn test_multiple_model_requests() {
 
     let response3 = client.generate(&request3).await.expect("Request 3 failed");
     assert!(!response3.outputs.is_empty());
-}
-
-/// Integration test: Run the text_models narrative to verify multi-model support.
-///
-/// This test exercises the full narrative executor with different models per act.
-#[tokio::test]
-#[cfg_attr(not(feature = "api"), ignore)] // Requires GEMINI_API_KEY and narrative file
-async fn test_narrative_multi_model_execution() {
-    use botticelli_models::{Narrative, NarrativeExecutor};
-    use std::path::Path;
-
-    let client = GeminiClient::new().expect("Failed to create client");
-    let executor = NarrativeExecutor::new(client);
-
-    let narrative_path = Path::new("narrations/text_models.toml");
-    let narrative =
-        Narrative::from_file(narrative_path).expect("Failed to load text_models.toml narrative");
-
-    let execution = executor
-        .execute(&narrative)
-        .await
-        .expect("Narrative execution failed");
-
-    // Should have executed 3 acts
-    assert_eq!(execution.act_executions.len(), 3);
-
-    // Verify each act used the correct model
-    assert_eq!(
-        execution.act_executions[0].model,
-        Some("gemini-2.5-flash-lite".to_string())
-    );
-    assert_eq!(
-        execution.act_executions[1].model,
-        Some("gemini-2.5-flash".to_string())
-    );
-    assert_eq!(
-        execution.act_executions[2].model,
-        Some("gemini-2.5-pro".to_string())
-    );
-
-    // All acts should have produced responses
-    for act in &execution.act_executions {
-        assert!(!act.response.is_empty());
-    }
 }

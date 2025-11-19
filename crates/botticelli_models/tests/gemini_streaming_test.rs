@@ -1,14 +1,14 @@
-use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, MessageRole as Role, FinishReason};
-use botticelli_interface::{BotticelliDriver, Streaming};
-//! Tests for Gemini streaming support.
-//!
-//! These tests verify that streaming works with both standard and live models.
-//! Live models (e.g., gemini-2.0-flash-live) offer better rate limits on the free tier,
-//! which is the primary motivation for implementing streaming.
-
 #![cfg(feature = "gemini")]
 
-use botticelli_models::{BotticelliDriver, GeminiClient, GenerateRequest, Input, Message, Role, Streaming};
+// Tests for Gemini streaming support.
+//
+// These tests verify that streaming works with both standard and live models.
+// Live models (e.g., gemini-2.0-flash-live) offer better rate limits on the free tier,
+// which is the primary motivation for implementing streaming.
+
+use botticelli_core::{GenerateRequest, Input, Message, Output, Role};
+use botticelli_interface::{BotticelliDriver, Streaming};
+use botticelli_models::GeminiClient;
 use futures_util::StreamExt;
 
 /// Helper to create a simple test request.
@@ -62,7 +62,7 @@ async fn test_streaming_basic() {
     let full_text: String = chunks
         .iter()
         .filter_map(|c| match &c.content {
-            botticelli::Output::Text(t) => Some(t.as_str()),
+            Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
         .collect();
@@ -104,7 +104,7 @@ async fn test_streaming_with_standard_model() {
     let full_text: String = chunks
         .iter()
         .filter_map(|c| match &c.content {
-            botticelli::Output::Text(t) => Some(t.as_str()),
+            Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
         .collect();
@@ -144,7 +144,7 @@ async fn test_streaming_with_live_model() {
     let full_text: String = chunks
         .iter()
         .filter_map(|c| match &c.content {
-            botticelli::Output::Text(t) => Some(t.as_str()),
+            Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
         .collect();
@@ -207,7 +207,7 @@ async fn test_streaming_vs_non_streaming_consistency() {
     let mut streaming_text = String::new();
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.expect("Chunk error");
-        if let botticelli::Output::Text(t) = &chunk.content {
+        if let Output::Text(t) = &chunk.content {
             streaming_text.push_str(t);
         }
         if chunk.is_final {
@@ -221,7 +221,7 @@ async fn test_streaming_vs_non_streaming_consistency() {
         .outputs
         .iter()
         .filter_map(|o| match o {
-            botticelli::Output::Text(t) => Some(t.clone()),
+            Output::Text(t) => Some(t.clone()),
             _ => None,
         })
         .collect::<String>();

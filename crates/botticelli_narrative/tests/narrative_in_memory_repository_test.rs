@@ -1,7 +1,7 @@
 //! Tests for in-memory narrative repository.
 
 use botticelli_narrative::InMemoryNarrativeRepository;
-use botticelli_interface::{ExecutionFilter, ExecutionStatus, NarrativeExecution, NarrativeRepository};
+use botticelli_interface::{ExecutionFilter, NarrativeExecution, NarrativeRepository};
 
 #[tokio::test]
 async fn test_save_and_list() {

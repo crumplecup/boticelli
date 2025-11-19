@@ -16,7 +16,6 @@ use futures_util::StreamExt;
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_connection() {
     // Load environment variables
     let _ = dotenvy::dotenv();
@@ -37,7 +36,6 @@ async fn test_live_api_connection() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_basic_generation() {
     let _ = dotenvy::dotenv();
 
@@ -71,7 +69,6 @@ async fn test_live_api_basic_generation() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_streaming() {
     let _ = dotenvy::dotenv();
 
@@ -129,7 +126,6 @@ async fn test_live_api_streaming() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_multiple_turns() {
     let _ = dotenvy::dotenv();
 

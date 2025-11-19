@@ -1,31 +1,27 @@
-use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, MessageRole as Role, FinishReason};
-use botticelli_interface::{BotticelliDriver, Streaming};
-//! Error handling tests for Gemini Live API.
-//!
-//! Tests various error conditions including invalid models, connection issues,
-//! and rate limiting.
-//!
-//! Run with:
-//! ```bash
-//! cargo test --features gemini,api
-//! ```
-//!
-//! TODO: Fix WebSocket handshake failure - connection closes before setup complete.
-//! This appears to be a timing or protocol issue with the Live API handshake.
-//! Tests that connect to Live API are currently ignored until the handshake issue is resolved.
-
 #![cfg(feature = "gemini")]
 
-use botticelli_models::{
-    BotticelliDriver, GeminiClient, GeminiLiveClient, GenerateRequest, GenerationConfig, Input,
-    LiveRateLimiter, Message, Role, Streaming,
-};
+// Error handling tests for Gemini Live API.
+//
+// Tests various error conditions including invalid models, connection issues,
+// and rate limiting.
+//
+// Run with:
+// ```bash
+// cargo test --features gemini,api
+// ```
+//
+// TODO: Fix WebSocket handshake failure - connection closes before setup complete.
+// This appears to be a timing or protocol issue with the Live API handshake.
+// Tests that connect to Live API are currently ignored until the handshake issue is resolved.
+
+use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_interface::{BotticelliDriver, Streaming};
+use botticelli_models::{GeminiClient, GeminiLiveClient, GenerationConfig, LiveRateLimiter};
 use futures_util::StreamExt;
 use std::time::Instant;
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_invalid_model() {
     let _ = dotenvy::dotenv();
 
@@ -56,7 +52,6 @@ async fn test_live_api_invalid_model() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_rate_limiting() {
     let _ = dotenvy::dotenv();
 
@@ -120,7 +115,6 @@ async fn test_live_api_rate_limiting() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_empty_message() {
     let _ = dotenvy::dotenv();
 
@@ -154,7 +148,6 @@ async fn test_live_api_empty_message() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_live_api_very_long_message() {
     let _ = dotenvy::dotenv();
 
@@ -254,7 +247,6 @@ async fn test_live_rate_limiter_concurrent_sessions() {
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-#[cfg_attr(not(feature = "api"), ignore)]
 async fn test_streaming_error_recovery() {
     let _ = dotenvy::dotenv();
 

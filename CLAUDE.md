@@ -658,15 +658,77 @@ use super::Type1;            // ❌ Never use super paths
 
 ### Cross-Crate Dependencies
 
-When one workspace crate depends on another:
+**CRITICAL RULE: NO RE-EXPORTS ACROSS WORKSPACE CRATES**
+
+In a workspace, **DO NOT re-export types from one crate into another crate's public API**. This creates multiple import paths for the same type, violating the "single import path" principle.
+
+#### ❌ WRONG: Re-exporting dependency types
 
 ```rust
-// In crates/crate_b/src/some_module.rs
-use crate_a::{TypeFromA, AnotherType};  // Import from dependency's crate root
+// crates/botticelli_database/src/lib.rs
+pub use botticelli_error::{DatabaseError, DatabaseErrorKind};  // ❌ DON'T DO THIS
 
-// The dependency's lib.rs exports everything:
-// crates/crate_a/src/lib.rs
-pub use internal_module::{TypeFromA, AnotherType};
+// Now users can import the same type two ways:
+use botticelli_error::DatabaseError;     // Original source
+use botticelli_database::DatabaseError;  // Re-exported (ambiguous!)
+```
+
+#### ✅ CORRECT: Import dependency types directly
+
+```rust
+// crates/botticelli_database/src/lib.rs
+// NO re-exports of dependency types
+
+// Users of botticelli_database import what they need:
+// In their code:
+use botticelli_database::NarrativeRepository;  // Database's own types
+use botticelli_error::DatabaseError;           // Error types from error crate
+```
+
+#### Rationale
+
+**Problem with re-exports:**
+- Creates ambiguity: `use crate_a::Type` vs `use crate_b::Type` (same type!)
+- Breaks "single import path" principle
+- Makes refactoring difficult (breaking changes when removing re-exports)
+- IDE confusion (multiple auto-import options)
+- Unclear ownership (which crate "owns" the type?)
+
+**Solution:**
+- Each type has exactly ONE canonical import path
+- Users import from the type's home crate
+- Transitive dependencies are explicit in user code
+
+#### Type Aliases for Convenience
+
+If you need a crate-specific Result type, use a type alias (not re-export):
+
+```rust
+// crates/botticelli_database/src/lib.rs
+use botticelli_error::DatabaseError;
+
+/// Result type for database operations.
+pub type DatabaseResult<T> = Result<T, DatabaseError>;  // ✅ Type alias OK
+```
+
+Users get the convenience:
+```rust
+use botticelli_database::DatabaseResult;  // Convenience alias
+use botticelli_error::DatabaseError;      // Actual error type
+```
+
+#### Exception: Foundation Crates
+
+Only the top-level binary/library crate (e.g., `botticelli`) may re-export types from workspace dependencies for user convenience:
+
+```rust
+// crates/botticelli/src/lib.rs (top-level public API)
+pub use botticelli_core::{Role, Input, Output};
+pub use botticelli_error::{BotticelliError, BotticelliResult};
+pub use botticelli_interface::{GenerationBackend, NarrativeRepository};
+
+// This is the ONLY crate that re-exports.
+// Internal workspace crates NEVER re-export from each other.
 ```
 
 ### Refactoring Checklist for Existing Crates

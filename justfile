@@ -79,55 +79,67 @@ rebuild: clean build
 # Testing
 # =======
 
-# Run all tests
+# Run LOCAL tests only (fast, no API keys required)
 test:
-    #!/usr/bin/env bash
-    set +u
-    if [ -z "${DATABASE_URL}" ]; then \
-        echo "⚠️  Skipping database integration tests (DATABASE_URL not set)"; \
-        cargo test --workspace --all-features --lib; \
-    else \
-        cargo test --workspace --all-features; \
-    fi
+    cargo test --workspace --lib --tests
 
-# Run all tests including database integration (requires DATABASE_URL)
-test-all:
+# Run LOCAL tests with verbose output
+test-verbose:
+    cargo test --workspace --lib --tests -- --nocapture
+
+# Run doctests (usually fast)
+test-doc:
+    cargo test --workspace --doc
+
+# Run a specific test by name (local only)
+test-one name:
+    cargo test --workspace --lib --tests {{name}} -- --nocapture
+
+# Run API tests for Gemini (requires GEMINI_API_KEY)
+test-api-gemini:
     #!/usr/bin/env bash
     set +u
-    test -n "${DATABASE_URL}" || (echo "❌ DATABASE_URL not set. These tests require a PostgreSQL database." && exit 1)
+    test -n "${GEMINI_API_KEY}" || (echo "❌ GEMINI_API_KEY not set. API tests require this environment variable." && exit 1)
+    cargo test --workspace --features gemini,api
+
+# Run ALL API tests (requires all API keys, expensive!)
+test-api-all:
+    #!/usr/bin/env bash
+    set +u
+    test -n "${GEMINI_API_KEY}" || (echo "⚠️  Warning: GEMINI_API_KEY not set" && exit 0)
+    echo "🚀 Running all API tests (this will consume API quotas)..."
     cargo test --workspace --all-features
 
-# Run tests with output
-test-verbose:
-    cargo test --workspace --all-features -- --nocapture
-
-# Run tests for specific feature
-test-feature feature:
-    cargo test --features {{feature}}
-
-# Run database tests only
+# Run database tests (requires DATABASE_URL)
 test-db:
-    cargo test --features database
+    #!/usr/bin/env bash
+    set +u
+    test -n "${DATABASE_URL}" || (echo "❌ DATABASE_URL not set. Database tests require a PostgreSQL database." && exit 1)
+    cargo test --workspace --features database
 
-# Run a specific test by name
-test-one name:
-    cargo test --workspace --all-features {{name}} -- --nocapture
+# Run the full test suite: local + doc tests
+test-all: test test-doc
+    @echo "✅ All local tests passed!"
 
 # Run tests and show coverage (requires cargo-tarpaulin)
 test-coverage:
     @command -v cargo-tarpaulin >/dev/null 2>&1 || (echo "Installing cargo-tarpaulin..." && cargo install cargo-tarpaulin)
-    cargo tarpaulin --workspace --all-features --out Html --output-dir coverage
+    cargo tarpaulin --workspace --lib --tests --out Html --output-dir coverage
+
+# Run complete test suite including API tests (for pre-merge)
+test-pre-merge: test test-doc test-api-gemini
+    @echo "✅ All pre-merge tests passed!"
 
 # Code Quality
 # ============
 
 # Run clippy linter (no warnings allowed)
 lint:
-    cargo clippy --workspace --all-features --all-targets
+    cargo clippy --workspace --all-targets
 
 # Run clippy and fix issues automatically
 lint-fix:
-    cargo clippy --workspace --all-features --all-targets --fix --allow-dirty --allow-staged
+    cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged
 
 # Check code formatting
 fmt-check:
@@ -200,10 +212,10 @@ db-setup:
 # Development
 # ===========
 
-# Watch for changes and run tests
+# Watch for changes and run local tests
 watch:
     @command -v cargo-watch >/dev/null 2>&1 || (echo "Installing cargo-watch..." && cargo install cargo-watch)
-    cargo watch -x 'test --workspace --all-features'
+    cargo watch -x 'test --workspace --lib --tests'
 
 # Watch and run specific command on changes
 watch-cmd cmd:
@@ -385,13 +397,17 @@ tui-demo:
 # Full Workflow (CI/CD)
 # ====================
 
-# Run the complete CI pipeline locally
-ci: fmt-check lint test-all audit
+# Run the complete CI pipeline locally (includes API tests)
+ci: fmt-check lint test-pre-merge audit
     @echo "✅ CI pipeline completed successfully!"
 
-# Prepare for commit (format, lint, test)
-pre-commit: fix-all test
+# Prepare for commit (format, lint, local tests only)
+pre-commit: fix-all test-all
     @echo "✅ Ready to commit!"
+
+# Prepare for merge (all checks including API tests)
+pre-merge: pre-commit test-api-gemini
+    @echo "✅ Ready to merge!"
 
 # Prepare for release (all checks + release build)
 pre-release: ci build-release-all

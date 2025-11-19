@@ -35,7 +35,7 @@ use std::env;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use botticelli_core::Output;
 use botticelli_error::{GeminiError, GeminiErrorKind};
@@ -71,6 +71,7 @@ impl GeminiLiveClient {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "gemini_live_client_new")]
     pub fn new() -> GeminiResult<Self> {
         Self::new_with_rate_limit(None)
     }
@@ -92,6 +93,7 @@ impl GeminiLiveClient {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "gemini_live_client_new_with_rate_limit")]
     pub fn new_with_rate_limit(max_messages_per_minute: Option<u32>) -> GeminiResult<Self> {
         let api_key = env::var("GEMINI_API_KEY")
             .map_err(|_| GeminiError::new(GeminiErrorKind::MissingApiKey))?;
@@ -125,6 +127,7 @@ impl GeminiLiveClient {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "gemini_live_client_connect", skip(self))]
     pub async fn connect(&self, model: &str) -> GeminiResult<LiveSession> {
         LiveSession::new(&self.api_key, model, None, self.rate_limiter.clone()).await
     }
@@ -135,6 +138,7 @@ impl GeminiLiveClient {
     ///
     /// * `model` - Model name
     /// * `generation_config` - Generation parameters (temperature, max_tokens, etc.)
+    #[instrument(name = "gemini_live_client_connect_with_config", skip(self, generation_config))]
     pub async fn connect_with_config(
         &self,
         model: &str,
@@ -305,6 +309,7 @@ impl LiveSession {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "live_session_send_text", skip(self))]
     pub async fn send_text(&mut self, text: &str) -> GeminiResult<String> {
         debug!("Sending text message: {}", text);
 
@@ -430,6 +435,7 @@ impl LiveSession {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "live_session_send_text_stream", skip(self))]
     pub async fn send_text_stream(
         mut self,
         text: &str,
@@ -566,6 +572,7 @@ impl LiveSession {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "live_session_close", skip(self))]
     pub async fn close(mut self) -> GeminiResult<()> {
         debug!("Closing WebSocket session");
 

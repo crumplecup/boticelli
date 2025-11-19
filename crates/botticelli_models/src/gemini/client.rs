@@ -57,6 +57,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::env;
 use std::sync::{Arc, Mutex};
+use tracing::instrument;
 
 use gemini_rust::{Gemini, client::Model};
 
@@ -221,13 +222,14 @@ impl GeminiClient {
     /// # Example
     ///
     /// ```no_run
-    /// use botticelli_models::gemini::GeminiClient;
+    /// use botticelli_models::GeminiClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = GeminiClient::new()?;
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "gemini_client_new")]
     pub fn new() -> BotticelliResult<Self> {
         Self::new_with_tier(None)
     }
@@ -251,6 +253,7 @@ impl GeminiClient {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "gemini_client_new_with_tier", skip(tier))]
     pub fn new_with_tier(tier: Option<Box<dyn Tier>>) -> BotticelliResult<Self> {
         Self::new_internal(tier).map_err(Into::into)
     }
@@ -267,7 +270,7 @@ impl GeminiClient {
     /// # Example
     ///
     /// ```no_run
-    /// use botticelli_models::gemini::GeminiClient;
+    /// use botticelli_models::GeminiClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // Create client with retry disabled
@@ -278,6 +281,7 @@ impl GeminiClient {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "gemini_client_new_with_retry", skip(tier))]
     pub fn new_with_retry(
         tier: Option<Box<dyn Tier>>,
         no_retry: bool,
@@ -300,7 +304,7 @@ impl GeminiClient {
     /// # Example
     ///
     /// ```no_run
-    /// use botticelli_models::gemini::GeminiClient;
+    /// use botticelli_models::GeminiClient;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // Use default tier from config (includes model-specific limits)
@@ -311,6 +315,7 @@ impl GeminiClient {
     /// # Ok(())
     /// # }
     /// ```
+    #[instrument(name = "gemini_client_new_with_config")]
     pub fn new_with_config(tier_name: Option<&str>) -> BotticelliResult<Self> {
         let tier_config = BotticelliConfig::load()
             .ok()

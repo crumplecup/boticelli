@@ -61,9 +61,17 @@ build:
 build-release:
     cargo build --release
 
+# Build with local features (all except api)
+build-local:
+    cargo build --features local
+
 # Build with all features enabled
 build-all:
     cargo build --all-features
+
+# Build release with local features
+build-release-local:
+    cargo build --release --features local
 
 # Build release with all features
 build-release-all:
@@ -80,20 +88,21 @@ rebuild: clean build
 # =======
 
 # Run LOCAL tests only (fast, no API keys required)
+# Uses local features (gemini, database, discord) but NOT api
 test:
-    cargo test --workspace --lib --tests
+    cargo test --workspace --features local --lib --tests
 
 # Run LOCAL tests with verbose output
 test-verbose:
-    cargo test --workspace --lib --tests -- --nocapture
+    cargo test --workspace --features local --lib --tests -- --nocapture
 
 # Run doctests (usually fast)
 test-doc:
-    cargo test --workspace --doc
+    cargo test --workspace --features local --doc
 
 # Run a specific test by name (local only)
 test-one name:
-    cargo test --workspace --lib --tests {{name}} -- --nocapture
+    cargo test --workspace --features local --lib --tests {{name}} -- --nocapture
 
 # Run API tests for Gemini (requires GEMINI_API_KEY)
 test-api-gemini:
@@ -134,12 +143,13 @@ test-pre-merge: test test-doc test-api-gemini
 # ============
 
 # Run clippy linter (no warnings allowed)
+# Uses local features to match test environment
 lint:
-    cargo clippy --workspace --all-targets
+    cargo clippy --workspace --features local --all-targets
 
 # Run clippy and fix issues automatically
 lint-fix:
-    cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged
+    cargo clippy --workspace --features local --all-targets --fix --allow-dirty --allow-staged
 
 # Check code formatting
 fmt-check:
@@ -215,7 +225,7 @@ db-setup:
 # Watch for changes and run local tests
 watch:
     @command -v cargo-watch >/dev/null 2>&1 || (echo "Installing cargo-watch..." && cargo install cargo-watch)
-    cargo watch -x 'test --workspace --lib --tests'
+    cargo watch -x 'test --workspace --features local --lib --tests'
 
 # Watch and run specific command on changes
 watch-cmd cmd:
@@ -410,7 +420,7 @@ pre-merge: pre-commit test-api-gemini
     @echo "✅ Ready to merge!"
 
 # Prepare for release (all checks + release build)
-pre-release: ci build-release-all
+pre-release: ci build-release-local
     @echo "✅ Ready for release!"
 
 # Git helpers
@@ -435,11 +445,11 @@ push msg:
 
 # Generate and open Rust documentation
 docs:
-    cargo doc --workspace --all-features --no-deps --open
+    cargo doc --workspace --features local --no-deps --open
 
 # Check documentation for issues
 docs-check:
-    cargo doc --workspace --all-features --no-deps
+    cargo doc --workspace --features local --no-deps
 
 # Build and view documentation for a specific crate
 docs-crate crate:
@@ -524,7 +534,7 @@ update-deps:
 
 # Run benchmarks (requires bench tests)
 bench:
-    cargo bench --all-features
+    cargo bench --features local
 
 # Aliases for common tasks
 # ========================

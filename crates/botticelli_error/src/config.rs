@@ -1,7 +1,8 @@
 //! Configuration error types.
 
 /// Configuration error with source location.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Configuration Error: {} at line {} in {}", message, line, file)]
 pub struct ConfigError {
     /// Error message
     pub message: String,
@@ -32,15 +33,3 @@ impl ConfigError {
         }
     }
 }
-
-impl std::fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Configuration Error: {} at line {} in {}",
-            self.message, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for ConfigError {}

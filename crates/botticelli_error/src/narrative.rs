@@ -1,55 +1,34 @@
 //! Narrative error types.
 
 /// Specific error conditions for narrative operations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
 pub enum NarrativeErrorKind {
     /// Failed to read narrative file
+    #[display("Failed to read narrative file: {}", _0)]
     FileRead(String),
     /// Failed to parse TOML content
+    #[display("Failed to parse TOML: {}", _0)]
     TomlParse(String),
     /// Table of contents is empty
+    #[display("Table of contents (toc.order) cannot be empty")]
     EmptyToc,
     /// Act referenced in table of contents does not exist in acts map
+    #[display("Act '{}' referenced in toc.order does not exist in acts map", _0)]
     MissingAct(String),
     /// Act prompt is empty or contains only whitespace
+    #[display("Act '{}' has an empty prompt", _0)]
     EmptyPrompt(String),
     /// Template field required but not set
+    #[display("Template field is required for prompt assembly")]
     MissingTemplate,
     /// Failed to assemble prompt with schema injection
+    #[display("Failed to assemble prompt for act '{}': {}", act, message)]
     PromptAssembly {
         /// Act name
         act: String,
         /// Error message
         message: String,
     },
-}
-
-impl std::fmt::Display for NarrativeErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NarrativeErrorKind::FileRead(msg) => {
-                write!(f, "Failed to read narrative file: {}", msg)
-            }
-            NarrativeErrorKind::TomlParse(msg) => write!(f, "Failed to parse TOML: {}", msg),
-            NarrativeErrorKind::EmptyToc => {
-                write!(f, "Table of contents (toc.order) cannot be empty")
-            }
-            NarrativeErrorKind::MissingAct(act) => write!(
-                f,
-                "Act '{}' referenced in toc.order does not exist in acts map",
-                act
-            ),
-            NarrativeErrorKind::EmptyPrompt(act) => write!(f, "Act '{}' has an empty prompt", act),
-            NarrativeErrorKind::MissingTemplate => {
-                write!(f, "Template field is required for prompt assembly")
-            }
-            NarrativeErrorKind::PromptAssembly { act, message } => write!(
-                f,
-                "Failed to assemble prompt for act '{}': {}",
-                act, message
-            ),
-        }
-    }
 }
 
 /// Error type for narrative operations.
@@ -62,7 +41,8 @@ impl std::fmt::Display for NarrativeErrorKind {
 /// let err = NarrativeError::new(NarrativeErrorKind::EmptyToc);
 /// assert!(format!("{}", err).contains("empty"));
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Narrative Error: {} at line {} in {}", kind, line, file)]
 pub struct NarrativeError {
     /// The specific error condition
     pub kind: NarrativeErrorKind,
@@ -84,15 +64,3 @@ impl NarrativeError {
         }
     }
 }
-
-impl std::fmt::Display for NarrativeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Narrative Error: {} at line {} in {}",
-            self.kind, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for NarrativeError {}

@@ -1,7 +1,8 @@
 //! Not implemented error types.
 
 /// Not implemented error with source location.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Not Implemented: {} at line {} in {}", message, line, file)]
 pub struct NotImplementedError {
     /// Description of what is not implemented
     pub message: String,
@@ -32,15 +33,3 @@ impl NotImplementedError {
         }
     }
 }
-
-impl std::fmt::Display for NotImplementedError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Not Implemented: {} at line {} in {}",
-            self.message, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for NotImplementedError {}

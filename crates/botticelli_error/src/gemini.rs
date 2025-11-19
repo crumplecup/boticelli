@@ -1,15 +1,19 @@
 //! Gemini-specific error types and retry logic.
 
 /// Gemini-specific error conditions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
 pub enum GeminiErrorKind {
     /// API key not found in environment
+    #[display("GEMINI_API_KEY environment variable not set")]
     MissingApiKey,
     /// Failed to create Gemini client
+    #[display("Failed to create Gemini client: {}", _0)]
     ClientCreation(String),
     /// API request failed
+    #[display("Gemini API request failed: {}", _0)]
     ApiRequest(String),
     /// HTTP error with status code and message
+    #[display("HTTP {} error: {}", status_code, message)]
     HttpError {
         /// HTTP status code
         status_code: u16,
@@ -17,62 +21,29 @@ pub enum GeminiErrorKind {
         message: String,
     },
     /// Multimodal inputs not yet supported
+    #[display("Multimodal inputs not yet supported in simple Gemini wrapper")]
     MultimodalNotSupported,
     /// URL media sources not yet supported
+    #[display("URL media sources not yet supported for Gemini")]
     UrlMediaNotSupported,
     /// Base64 decoding failed
+    #[display("Base64 decode error: {}", _0)]
     Base64Decode(String),
     /// WebSocket connection failed
+    #[display("WebSocket connection failed: {}", _0)]
     WebSocketConnection(String),
     /// WebSocket handshake failed (setup phase)
+    #[display("WebSocket handshake failed: {}", _0)]
     WebSocketHandshake(String),
     /// Invalid message received from server
+    #[display("Invalid server message: {}", _0)]
     InvalidServerMessage(String),
     /// Server sent goAway message
+    #[display("Server disconnected: {}", _0)]
     ServerDisconnect(String),
     /// Stream was interrupted
+    #[display("Stream interrupted: {}", _0)]
     StreamInterrupted(String),
-}
-
-impl std::fmt::Display for GeminiErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GeminiErrorKind::MissingApiKey => {
-                write!(f, "GEMINI_API_KEY environment variable not set")
-            }
-            GeminiErrorKind::ClientCreation(msg) => {
-                write!(f, "Failed to create Gemini client: {}", msg)
-            }
-            GeminiErrorKind::ApiRequest(msg) => write!(f, "Gemini API request failed: {}", msg),
-            GeminiErrorKind::HttpError {
-                status_code,
-                message,
-            } => write!(f, "HTTP {} error: {}", status_code, message),
-            GeminiErrorKind::MultimodalNotSupported => write!(
-                f,
-                "Multimodal inputs not yet supported in simple Gemini wrapper"
-            ),
-            GeminiErrorKind::UrlMediaNotSupported => {
-                write!(f, "URL media sources not yet supported for Gemini")
-            }
-            GeminiErrorKind::Base64Decode(msg) => write!(f, "Base64 decode error: {}", msg),
-            GeminiErrorKind::WebSocketConnection(msg) => {
-                write!(f, "WebSocket connection failed: {}", msg)
-            }
-            GeminiErrorKind::WebSocketHandshake(msg) => {
-                write!(f, "WebSocket handshake failed: {}", msg)
-            }
-            GeminiErrorKind::InvalidServerMessage(msg) => {
-                write!(f, "Invalid server message: {}", msg)
-            }
-            GeminiErrorKind::ServerDisconnect(msg) => {
-                write!(f, "Server disconnected: {}", msg)
-            }
-            GeminiErrorKind::StreamInterrupted(msg) => {
-                write!(f, "Stream interrupted: {}", msg)
-            }
-        }
-    }
 }
 
 impl GeminiErrorKind {
@@ -119,7 +90,8 @@ impl GeminiErrorKind {
 /// let err = GeminiError::new(GeminiErrorKind::MissingApiKey);
 /// assert!(format!("{}", err).contains("GEMINI_API_KEY"));
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Gemini Error: {} at line {} in {}", kind, line, file)]
 pub struct GeminiError {
     /// The kind of error that occurred
     pub kind: GeminiErrorKind,
@@ -141,18 +113,6 @@ impl GeminiError {
         }
     }
 }
-
-impl std::fmt::Display for GeminiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Gemini Error: {} at line {} in {}",
-            self.kind, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for GeminiError {}
 
 /// Trait for errors that support retry logic.
 ///

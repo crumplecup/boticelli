@@ -1,7 +1,8 @@
 //! JSON error types.
 
 /// JSON serialization/deserialization error with source location.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("JSON Error: {} at line {} in {}", message, line, file)]
 pub struct JsonError {
     /// The underlying error message
     pub message: String,
@@ -32,15 +33,3 @@ impl JsonError {
         }
     }
 }
-
-impl std::fmt::Display for JsonError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "JSON Error: {} at line {} in {}",
-            self.message, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for JsonError {}

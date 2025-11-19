@@ -1,40 +1,29 @@
 //! Database error types.
 
 /// Database error conditions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
 pub enum DatabaseErrorKind {
     /// Connection failed
+    #[display("Database connection error: {}", _0)]
     Connection(String),
     /// Query execution failed
+    #[display("Database query error: {}", _0)]
     Query(String),
     /// Serialization/deserialization error
+    #[display("Serialization error: {}", _0)]
     Serialization(String),
     /// Migration error
+    #[display("Migration error: {}", _0)]
     Migration(String),
     /// Record not found
+    #[display("Record not found")]
     NotFound,
     /// Table not found
+    #[display("Table '{}' not found in database", _0)]
     TableNotFound(String),
     /// Schema inference error
+    #[display("Schema inference error: {}", _0)]
     SchemaInference(String),
-}
-
-impl std::fmt::Display for DatabaseErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DatabaseErrorKind::Connection(msg) => write!(f, "Database connection error: {}", msg),
-            DatabaseErrorKind::Query(msg) => write!(f, "Database query error: {}", msg),
-            DatabaseErrorKind::Serialization(msg) => write!(f, "Serialization error: {}", msg),
-            DatabaseErrorKind::Migration(msg) => write!(f, "Migration error: {}", msg),
-            DatabaseErrorKind::NotFound => write!(f, "Record not found"),
-            DatabaseErrorKind::TableNotFound(table) => {
-                write!(f, "Table '{}' not found in database", table)
-            }
-            DatabaseErrorKind::SchemaInference(msg) => {
-                write!(f, "Schema inference error: {}", msg)
-            }
-        }
-    }
 }
 
 /// Database error with source location tracking.
@@ -47,7 +36,8 @@ impl std::fmt::Display for DatabaseErrorKind {
 /// let err = DatabaseError::new(DatabaseErrorKind::NotFound);
 /// assert!(format!("{}", err).contains("not found"));
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Database Error: {} at line {} in {}", kind, line, file)]
 pub struct DatabaseError {
     /// The kind of error that occurred
     pub kind: DatabaseErrorKind,
@@ -69,18 +59,6 @@ impl DatabaseError {
         }
     }
 }
-
-impl std::fmt::Display for DatabaseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Database Error: {} at line {} in {}",
-            self.kind, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for DatabaseError {}
 
 // Diesel error conversions (only available with database feature)
 #[cfg(feature = "database")]

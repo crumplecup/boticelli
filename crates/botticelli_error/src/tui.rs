@@ -1,30 +1,23 @@
 //! TUI (Terminal User Interface) error types.
 
 /// TUI error kind variants.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
 pub enum TuiErrorKind {
     /// Failed to set up terminal (enable raw mode, alternate screen, etc.)
+    #[display("Failed to set up terminal: {}", _0)]
     TerminalSetup(String),
     /// Failed to restore terminal to original state
+    #[display("Failed to restore terminal: {}", _0)]
     TerminalRestore(String),
     /// Failed to poll for terminal events
+    #[display("Failed to poll for events: {}", _0)]
     EventPoll(String),
     /// Failed to read terminal event
+    #[display("Failed to read event: {}", _0)]
     EventRead(String),
     /// Failed to render TUI frame
+    #[display("Failed to render: {}", _0)]
     Rendering(String),
-}
-
-impl std::fmt::Display for TuiErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TuiErrorKind::TerminalSetup(msg) => write!(f, "Failed to set up terminal: {}", msg),
-            TuiErrorKind::TerminalRestore(msg) => write!(f, "Failed to restore terminal: {}", msg),
-            TuiErrorKind::EventPoll(msg) => write!(f, "Failed to poll for events: {}", msg),
-            TuiErrorKind::EventRead(msg) => write!(f, "Failed to read event: {}", msg),
-            TuiErrorKind::Rendering(msg) => write!(f, "Failed to render: {}", msg),
-        }
-    }
 }
 
 /// TUI error with source location tracking.
@@ -37,7 +30,8 @@ impl std::fmt::Display for TuiErrorKind {
 /// let err = TuiError::new(TuiErrorKind::TerminalSetup("Raw mode failed".to_string()));
 /// assert!(format!("{}", err).contains("terminal"));
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("TUI Error: {} at line {} in {}", kind, line, file)]
 pub struct TuiError {
     /// Error kind
     pub kind: TuiErrorKind,
@@ -59,15 +53,3 @@ impl TuiError {
         }
     }
 }
-
-impl std::fmt::Display for TuiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "TUI Error: {} at line {} in {}",
-            self.kind, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for TuiError {}

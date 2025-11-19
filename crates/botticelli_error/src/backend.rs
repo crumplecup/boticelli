@@ -1,7 +1,8 @@
 //! Backend error types.
 
 /// Backend error with source location.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Backend Error: {} at line {} in {}", message, line, file)]
 pub struct BackendError {
     /// Error message
     pub message: String,
@@ -32,15 +33,3 @@ impl BackendError {
         }
     }
 }
-
-impl std::fmt::Display for BackendError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Backend Error: {} at line {} in {}",
-            self.message, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for BackendError {}

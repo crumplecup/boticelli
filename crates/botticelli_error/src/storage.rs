@@ -1,19 +1,25 @@
 //! Storage error types.
 
 /// Kinds of storage errors.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
 pub enum StorageErrorKind {
     /// Media not found at the specified location
+    #[display("Media not found: {}", _0)]
     NotFound(String),
     /// Permission denied when accessing storage
+    #[display("Permission denied: {}", _0)]
     PermissionDenied(String),
     /// I/O error during storage operation
+    #[display("I/O error: {}", _0)]
     Io(String),
     /// Invalid storage configuration
+    #[display("Invalid configuration: {}", _0)]
     InvalidConfig(String),
     /// Storage backend is unavailable
+    #[display("Storage unavailable: {}", _0)]
     Unavailable(String),
     /// Content hash mismatch (corruption detected)
+    #[display("Content hash mismatch: expected {}, got {}", expected, actual)]
     HashMismatch {
         /// Expected hash value
         expected: String,
@@ -21,29 +27,8 @@ pub enum StorageErrorKind {
         actual: String,
     },
     /// Generic storage error with message
+    #[display("{}", _0)]
     Other(String),
-}
-
-impl std::fmt::Display for StorageErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            StorageErrorKind::NotFound(path) => write!(f, "Media not found: {}", path),
-            StorageErrorKind::PermissionDenied(msg) => {
-                write!(f, "Permission denied: {}", msg)
-            }
-            StorageErrorKind::Io(msg) => write!(f, "I/O error: {}", msg),
-            StorageErrorKind::InvalidConfig(msg) => write!(f, "Invalid configuration: {}", msg),
-            StorageErrorKind::Unavailable(msg) => write!(f, "Storage unavailable: {}", msg),
-            StorageErrorKind::HashMismatch { expected, actual } => {
-                write!(
-                    f,
-                    "Content hash mismatch: expected {}, got {}",
-                    expected, actual
-                )
-            }
-            StorageErrorKind::Other(msg) => write!(f, "{}", msg),
-        }
-    }
 }
 
 /// Storage error with location tracking.
@@ -56,7 +41,8 @@ impl std::fmt::Display for StorageErrorKind {
 /// let err = StorageError::new(StorageErrorKind::NotFound("/path/to/file".to_string()));
 /// assert!(format!("{}", err).contains("not found"));
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Storage Error: {} at line {} in {}", kind, line, file)]
 pub struct StorageError {
     /// The kind of error that occurred
     pub kind: StorageErrorKind,
@@ -78,15 +64,3 @@ impl StorageError {
         }
     }
 }
-
-impl std::fmt::Display for StorageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Storage Error: {} at line {} in {}",
-            self.kind, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for StorageError {}

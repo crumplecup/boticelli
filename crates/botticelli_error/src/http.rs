@@ -1,7 +1,8 @@
 //! HTTP error types.
 
 /// HTTP error wrapping reqwest errors with source location.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("HTTP Error: {} at line {} in {}", message, line, file)]
 pub struct HttpError {
     /// The underlying error message
     pub message: String,
@@ -32,15 +33,3 @@ impl HttpError {
         }
     }
 }
-
-impl std::fmt::Display for HttpError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "HTTP Error: {} at line {} in {}",
-            self.message, self.line, self.file
-        )
-    }
-}
-
-impl std::error::Error for HttpError {}

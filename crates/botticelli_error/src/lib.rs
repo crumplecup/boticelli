@@ -37,7 +37,7 @@ mod gemini;
 mod database;
 mod narrative;
 mod tui;
-mod wrapper;
+mod error;
 
 pub use http::HttpError;
 pub use json::JsonError;
@@ -49,4 +49,4 @@ pub use gemini::{GeminiError, GeminiErrorKind, RetryableError};
 pub use database::{DatabaseError, DatabaseErrorKind};
 pub use narrative::{NarrativeError, NarrativeErrorKind};
 pub use tui::{TuiError, TuiErrorKind};
-pub use wrapper::{BotticelliError, BotticelliErrorKind, BotticelliResult};
+pub use error::{BotticelliError, BotticelliErrorKind, BotticelliResult};

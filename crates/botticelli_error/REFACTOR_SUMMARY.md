@@ -31,7 +31,7 @@ src/
 ├── database.rs (119 lines - with feature gating)
 ├── narrative.rs (105 lines)
 ├── tui.rs (82 lines)
-└── wrapper.rs (132 lines)
+└── error.rs (132 lines)
 ```
 
 ### Metrics
@@ -61,7 +61,7 @@ Created 11 focused error modules:
 - `database.rs` - Database errors with feature gating
 - `narrative.rs` - Narrative errors
 - `tui.rs` - TUI errors
-- `wrapper.rs` - Top-level BotticelliError wrapper
+- `error.rs` - Top-level BotticelliError wrapper
 
 ### 2. ✅ Added Safety Lints
 
@@ -122,7 +122,7 @@ pub use gemini::{GeminiError, GeminiErrorKind, RetryableError};
 pub use database::{DatabaseError, DatabaseErrorKind};
 pub use narrative::{NarrativeError, NarrativeErrorKind};
 pub use tui::{TuiError, TuiErrorKind};
-pub use wrapper::{BotticelliError, BotticelliErrorKind, BotticelliResult};
+pub use error::{BotticelliError, BotticelliErrorKind, BotticelliResult};
 ```
 
 ## Verification Results
@@ -176,7 +176,7 @@ All existing functionality maintained:
 - `src/database.rs`
 - `src/narrative.rs`
 - `src/tui.rs`
-- `src/wrapper.rs`
+- `src/error.rs`
 
 **Backed up:**
 - `src/lib.rs.backup` - Original 771-line file preserved

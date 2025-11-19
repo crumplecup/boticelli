@@ -1,7 +1,6 @@
 //! Core data structures for narratives.
 
-use crate::toml_parser as toml_parsing;
-use crate::{ActConfig, NarrativeProvider};
+use crate::{toml_parser, ActConfig, NarrativeProvider};
 use botticelli_error::{NarrativeError, NarrativeErrorKind};
 use std::collections::HashMap;
 use std::path::Path;
@@ -90,6 +89,7 @@ impl Narrative {
     /// - The file cannot be read
     /// - The TOML is invalid
     /// - Validation fails (missing acts, empty order, etc.)
+    #[tracing::instrument(skip_all, fields(path = %path.as_ref().display()))]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, NarrativeError> {
         let content = std::fs::read_to_string(path.as_ref())
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::FileRead(e.to_string())))?;
@@ -118,6 +118,7 @@ impl Narrative {
     /// - Database schema reflection fails (if template specified)
     /// - Prompt assembly fails
     #[cfg(feature = "database")]
+    #[tracing::instrument(skip_all, fields(path = %path.as_ref().display(), has_template = ?narrative.metadata.template.is_some()))]
     pub fn from_file_with_db<P: AsRef<Path>>(
         path: P,
         conn: &mut PgConnection,
@@ -147,6 +148,7 @@ impl Narrative {
     /// - Database schema reflection fails
     /// - Prompt assembly fails
     #[cfg(feature = "database")]
+    #[tracing::instrument(skip(self, conn), fields(template = ?self.metadata.template, act_count = self.acts.len()))]
     fn assemble_act_prompts(&mut self, conn: &mut PgConnection) -> Result<(), NarrativeError> {
         let template = self
             .metadata
@@ -197,6 +199,7 @@ impl Narrative {
     /// # Errors
     ///
     /// Returns an error if validation fails.
+    #[tracing::instrument(skip(self), fields(name = %self.metadata.name, act_count = self.toc.order.len()))]
     pub fn validate(&self) -> Result<(), NarrativeError> {
         // Check that toc.order is not empty
         if self.toc.order.is_empty() {
@@ -241,7 +244,7 @@ impl FromStr for Narrative {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Parse TOML into intermediate structure
-        let toml_narrative: toml_parsing::TomlNarrative = toml::from_str(s)
+        let toml_narrative: toml_parser::TomlNarrative = toml::from_str(s)
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::TomlParse(e.to_string())))?;
 
         // Convert to domain types

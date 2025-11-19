@@ -148,6 +148,7 @@ impl ProcessorRegistry {
     ///
     /// Returns an error if any processor fails. The error message includes
     /// all processor errors concatenated together.
+    #[tracing::instrument(skip(self, context), fields(act = %context.execution.act_name, processor_count = self.processors.len()))]
     pub async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         let mut errors = Vec::new();
 

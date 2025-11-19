@@ -62,6 +62,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// Returns an error if:
     /// - Any LLM API call fails
     /// - The response format is unexpected
+    #[tracing::instrument(skip(self, narrative), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]
     pub async fn execute<N: NarrativeProvider>(
         &self,
         narrative: &N,

@@ -143,6 +143,18 @@ pub struct StorageError {
 }
 ```
 
+**CRITICAL AUDIT REQUIREMENT:**
+When auditing error types, you MUST check:
+1. ✅ ErrorKind enums use `derive_more::Display` (NOT manual `impl Display`)
+2. ✅ Wrapper structs use `derive_more::Display` and `derive_more::Error` (NOT manual impls)
+3. ✅ No `impl std::fmt::Display for ErrorKind` blocks exist
+4. ✅ No `impl std::error::Error for WrapperError` blocks exist
+
+**If you find manual implementations:**
+- Replace them with derive_more macros immediately
+- This is NOT optional - it's a codebase standard violation
+- Update CLAUDE.md if the guidance was insufficient
+
 ## Serialization
 
 - Derive `Serialize` and `Deserialize` for types that need to be persisted or transmitted (project state, configuration, etc.).

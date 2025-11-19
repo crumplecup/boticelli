@@ -1,0 +1,131 @@
+//! Top-level error wrapper types.
+
+use crate::{
+    BackendError, ConfigError, DatabaseError, GeminiError, HttpError, JsonError, NarrativeError,
+    NotImplementedError, StorageError, TuiError,
+};
+
+/// This is the foundation error enum. Additional variants will be added
+/// by other botticelli crates during the workspace migration.
+///
+/// # Examples
+///
+/// ```
+/// use botticelli_error::{BotticelliError, HttpError};
+///
+/// let http_err = HttpError::new("Connection failed");
+/// let err: BotticelliError = http_err.into();
+/// assert!(format!("{}", err).contains("HTTP Error"));
+/// ```
+#[derive(Debug, derive_more::From)]
+pub enum BotticelliErrorKind {
+    /// HTTP error
+    #[from(HttpError)]
+    Http(HttpError),
+    /// JSON serialization/deserialization error
+    #[from(JsonError)]
+    Json(JsonError),
+    /// Generic backend error
+    #[from(BackendError)]
+    Backend(BackendError),
+    /// Configuration error
+    #[from(ConfigError)]
+    Config(ConfigError),
+    /// Feature not yet implemented
+    #[from(NotImplementedError)]
+    NotImplemented(NotImplementedError),
+    /// Storage error (Phase 3)
+    #[from(StorageError)]
+    Storage(StorageError),
+    /// Gemini error (Phase 4)
+    #[from(GeminiError)]
+    Gemini(GeminiError),
+    /// Database error (Phase 3.5)
+    #[from(DatabaseError)]
+    Database(DatabaseError),
+    /// Narrative error (Phase 3.5)
+    #[from(NarrativeError)]
+    Narrative(NarrativeError),
+    /// TUI error (Phase 6)
+    #[from(TuiError)]
+    Tui(TuiError),
+}
+
+impl std::fmt::Display for BotticelliErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BotticelliErrorKind::Http(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Json(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Backend(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Config(e) => write!(f, "{}", e),
+            BotticelliErrorKind::NotImplemented(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Storage(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Gemini(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Database(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Narrative(e) => write!(f, "{}", e),
+            BotticelliErrorKind::Tui(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+/// Botticelli error with kind discrimination.
+///
+/// # Examples
+///
+/// ```
+/// use botticelli_error::{BotticelliError, BotticelliResult, ConfigError};
+///
+/// fn might_fail() -> BotticelliResult<()> {
+///     Err(ConfigError::new("Missing field"))?
+/// }
+///
+/// match might_fail() {
+///     Ok(_) => println!("Success"),
+///     Err(e) => println!("Error: {}", e),
+/// }
+/// ```
+#[derive(Debug)]
+pub struct BotticelliError(Box<BotticelliErrorKind>);
+
+impl BotticelliError {
+    /// Create a new error from a kind.
+    pub fn new(kind: BotticelliErrorKind) -> Self {
+        Self(Box::new(kind))
+    }
+
+    /// Get the error kind.
+    pub fn kind(&self) -> &BotticelliErrorKind {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for BotticelliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Botticelli Error: {}", self.0)
+    }
+}
+
+impl std::error::Error for BotticelliError {}
+
+// Generic From implementation for any type that converts to BotticelliErrorKind
+impl<T> From<T> for BotticelliError
+where
+    T: Into<BotticelliErrorKind>,
+{
+    fn from(err: T) -> Self {
+        Self::new(err.into())
+    }
+}
+
+/// Result type for Botticelli operations.
+///
+/// # Examples
+///
+/// ```
+/// use botticelli_error::{BotticelliResult, HttpError};
+///
+/// fn fetch_data() -> BotticelliResult<String> {
+///     Err(HttpError::new("404 Not Found"))?
+/// }
+/// ```
+pub type BotticelliResult<T> = std::result::Result<T, BotticelliError>;

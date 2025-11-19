@@ -8,7 +8,7 @@ use std::fmt;
 /// Discord error variants.
 ///
 /// Represents different error conditions that can occur during Discord operations.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DiscordErrorKind {
     /// Serenity API error (e.g., HTTP error, gateway error, rate limit).
     SerenityError(String),
@@ -53,25 +53,19 @@ pub enum DiscordErrorKind {
 impl fmt::Display for DiscordErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DiscordErrorKind::SerenityError(msg) => write!(f, "Serenity API error: {}", msg),
-            DiscordErrorKind::DatabaseError(msg) => write!(f, "Database error: {}", msg),
-            DiscordErrorKind::GuildNotFound(id) => write!(f, "Guild not found: {}", id),
-            DiscordErrorKind::ChannelNotFound(id) => write!(f, "Channel not found: {}", id),
-            DiscordErrorKind::UserNotFound(id) => write!(f, "User not found: {}", id),
-            DiscordErrorKind::RoleNotFound(id) => write!(f, "Role not found: {}", id),
-            DiscordErrorKind::InsufficientPermissions(msg) => {
-                write!(f, "Insufficient permissions: {}", msg)
-            }
-            DiscordErrorKind::InvalidId(msg) => write!(f, "Invalid ID: {}", msg),
-            DiscordErrorKind::ConnectionFailed(msg) => write!(f, "Connection failed: {}", msg),
-            DiscordErrorKind::InvalidToken => write!(f, "Invalid or expired bot token"),
-            DiscordErrorKind::MessageSendFailed(msg) => write!(f, "Message send failed: {}", msg),
-            DiscordErrorKind::InteractionFailed(msg) => {
-                write!(f, "Interaction failed: {}", msg)
-            }
-            DiscordErrorKind::ConfigurationError(msg) => {
-                write!(f, "Configuration error: {}", msg)
-            }
+            Self::SerenityError(msg) => write!(f, "Serenity API error: {msg}"),
+            Self::DatabaseError(msg) => write!(f, "Database error: {msg}"),
+            Self::GuildNotFound(id) => write!(f, "Guild not found: {id}"),
+            Self::ChannelNotFound(id) => write!(f, "Channel not found: {id}"),
+            Self::UserNotFound(id) => write!(f, "User not found: {id}"),
+            Self::RoleNotFound(id) => write!(f, "Role not found: {id}"),
+            Self::InsufficientPermissions(msg) => write!(f, "Insufficient permissions: {msg}"),
+            Self::InvalidId(msg) => write!(f, "Invalid ID: {msg}"),
+            Self::ConnectionFailed(msg) => write!(f, "Connection failed: {msg}"),
+            Self::InvalidToken => write!(f, "Invalid or expired bot token"),
+            Self::MessageSendFailed(msg) => write!(f, "Message send failed: {msg}"),
+            Self::InteractionFailed(msg) => write!(f, "Interaction failed: {msg}"),
+            Self::ConfigurationError(msg) => write!(f, "Configuration error: {msg}"),
         }
     }
 }
@@ -108,15 +102,15 @@ impl DiscordError {
 
 impl fmt::Display for DiscordError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Discord Error: {} at line {} in {}",
-            self.kind, self.line, self.file
-        )
+        write!(f, "Discord Error: {} at line {} in {}", self.kind, self.line, self.file)
     }
 }
 
-impl std::error::Error for DiscordError {}
+impl std::error::Error for DiscordError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
 
 /// Result type for Discord operations.
 pub type DiscordResult<T> = Result<T, DiscordError>;

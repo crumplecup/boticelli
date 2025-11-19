@@ -1,7 +1,7 @@
 //! Gemini-specific error types and retry logic.
 
 /// Gemini-specific error conditions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display)]
 pub enum GeminiErrorKind {
     /// API key not found in environment
     #[display("GEMINI_API_KEY environment variable not set")]

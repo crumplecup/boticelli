@@ -1,7 +1,7 @@
 //! TUI (Terminal User Interface) error types.
 
 /// TUI error kind variants.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display)]
 pub enum TuiErrorKind {
     /// Failed to set up terminal (enable raw mode, alternate screen, etc.)
     #[display("Failed to set up terminal: {}", _0)]

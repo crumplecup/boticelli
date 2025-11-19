@@ -1,7 +1,7 @@
 //! Database error types.
 
 /// Database error conditions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display)]
 pub enum DatabaseErrorKind {
     /// Connection failed
     #[display("Database connection error: {}", _0)]

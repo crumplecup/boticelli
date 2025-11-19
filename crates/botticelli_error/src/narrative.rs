@@ -1,7 +1,7 @@
 //! Narrative error types.
 
 /// Specific error conditions for narrative operations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display)]
 pub enum NarrativeErrorKind {
     /// Failed to read narrative file
     #[display("Failed to read narrative file: {}", _0)]

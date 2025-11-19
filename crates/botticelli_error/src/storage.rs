@@ -1,7 +1,7 @@
 //! Storage error types.
 
 /// Kinds of storage errors.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display)]
 pub enum StorageErrorKind {
     /// Media not found at the specified location
     #[display("Media not found: {}", _0)]

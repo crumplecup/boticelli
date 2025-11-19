@@ -110,6 +110,39 @@ cargo test --all-features
 - Use derive_more to derive Display, FromStr, From, Deref, DerefMut, AsRef, and AsMut when appropriate.
 - For enums with no fields, use strum to derive EnumIter.
 
+### Exception: Error Types
+
+Error types follow different derive policies due to their unique semantics:
+
+**ErrorKind enums** (specific error conditions):
+- MUST derive: `Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display`
+- Rationale: Full derives enable comparison, sorting, and collection operations for error handling
+
+**Wrapper error structs** (error + location tracking):
+- MUST derive: `Debug, Clone, derive_more::Display, derive_more::Error`
+- DO NOT derive: `PartialEq, Eq, Hash, PartialOrd, Ord`
+- Rationale: Location tracking makes comparison confusing (same error at different lines would be unequal)
+- Follows `std::io::Error` precedent (also not PartialEq/Hash)
+
+**Examples:**
+```rust
+// ErrorKind enum - full derives for comparison/sorting
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display)]
+pub enum StorageErrorKind {
+    #[display("Media not found: {}", _0)]
+    NotFound(String),
+}
+
+// Wrapper struct - minimal derives, location tracking
+#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
+#[display("Storage Error: {} at line {} in {}", kind, line, file)]
+pub struct StorageError {
+    pub kind: StorageErrorKind,
+    pub line: u32,
+    pub file: &'static str,
+}
+```
+
 ## Serialization
 
 - Derive `Serialize` and `Deserialize` for types that need to be persisted or transmitted (project state, configuration, etc.).

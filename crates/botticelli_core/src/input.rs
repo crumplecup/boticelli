@@ -4,6 +4,28 @@ use crate::MediaSource;
 use serde::{Deserialize, Serialize};
 
 /// Supported input types to LLMs.
+///
+/// # Examples
+///
+/// ```
+/// use botticelli_core::{Input, MediaSource};
+///
+/// // Text input
+/// let text = Input::Text("Hello, world!".to_string());
+///
+/// // Image input with URL
+/// let image = Input::Image {
+///     mime: Some("image/png".to_string()),
+///     source: MediaSource::Url("https://example.com/image.png".to_string()),
+/// };
+///
+/// // Document input with base64
+/// let doc = Input::Document {
+///     mime: Some("application/pdf".to_string()),
+///     source: MediaSource::Base64("JVBERi0xLj...".to_string()),
+///     filename: Some("report.pdf".to_string()),
+/// };
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum Input {

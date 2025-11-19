@@ -2,16 +2,19 @@
 //!
 //! This crate provides the foundation data types used across all Botticelli interfaces.
 
-mod role;
-mod media;
-mod input;
-mod output;
-mod message;
-mod request;
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
 
-pub use role::Role;
-pub use media::MediaSource;
+mod input;
+mod media;
+mod message;
+mod output;
+mod request;
+mod role;
+
 pub use input::Input;
-pub use output::{Output, ToolCall};
+pub use media::MediaSource;
 pub use message::Message;
+pub use output::{Output, ToolCall};
 pub use request::{GenerateRequest, GenerateResponse};
+pub use role::Role;

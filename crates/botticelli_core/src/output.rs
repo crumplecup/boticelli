@@ -3,6 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 /// Supported output types from LLMs.
+///
+/// Note: Cannot derive `Eq`, `Hash`, `PartialOrd`, or `Ord` because the
+/// `Embedding` variant contains `Vec<f32>`, and `f32` does not implement
+/// these traits (floating point is not totally ordered).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum Output {
@@ -50,7 +54,22 @@ pub enum Output {
 ///
 /// This is returned in Output when the model decides to use a tool
 /// rather than (or in addition to) generating text.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// # Examples
+///
+/// ```
+/// use botticelli_core::ToolCall;
+/// use serde_json::json;
+///
+/// let call = ToolCall {
+///     id: "call_123".to_string(),
+///     name: "get_weather".to_string(),
+///     arguments: json!({"location": "San Francisco"}),
+/// };
+///
+/// assert_eq!(call.name, "get_weather");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ToolCall {
     /// Unique identifier for this tool call
     pub id: String,

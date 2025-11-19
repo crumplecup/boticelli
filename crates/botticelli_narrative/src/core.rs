@@ -13,7 +13,7 @@ use botticelli_database::schema_docs::{assemble_prompt, is_content_focus};
 #[cfg(feature = "database")]
 use diesel::pg::PgConnection;
 
-/// Narrative metadata from the `[narration]` section.
+/// Narrative metadata from the `[narrative]` section.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub struct NarrativeMetadata {
     /// Unique identifier for this narrative
@@ -40,7 +40,7 @@ pub struct NarrativeToc {
 ///
 /// Simple text acts:
 /// ```toml
-/// [narration]
+/// [narrative]
 /// name = "example"
 /// description = "An example narrative"
 ///
@@ -118,12 +118,13 @@ impl Narrative {
     /// - Database schema reflection fails (if template specified)
     /// - Prompt assembly fails
     #[cfg(feature = "database")]
-    #[tracing::instrument(skip_all, fields(path = %path.as_ref().display(), has_template = ?narrative.metadata.template.is_some()))]
+    #[tracing::instrument(skip_all, fields(path = %path.as_ref().display()))]
     pub fn from_file_with_db<P: AsRef<Path>>(
         path: P,
         conn: &mut PgConnection,
     ) -> Result<Self, NarrativeError> {
         let mut narrative = Self::from_file(path)?;
+        tracing::debug!(has_template = ?narrative.metadata.template.is_some());
 
         // If template specified, assemble prompts with schema injection
         if narrative.metadata.template.is_some() {
@@ -244,15 +245,15 @@ impl FromStr for Narrative {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Parse TOML into intermediate structure
-        let toml_narrative: toml_parser::TomlNarrative = toml::from_str(s)
+        let toml_narrative: toml_parser::TomlNarrativeFile = toml::from_str(s)
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::TomlParse(e.to_string())))?;
 
         // Convert to domain types
         let metadata = NarrativeMetadata {
-            name: toml_narrative.narration.name,
-            description: toml_narrative.narration.description,
-            template: toml_narrative.narration.template,
-            skip_content_generation: toml_narrative.narration.skip_content_generation,
+            name: toml_narrative.narrative.name,
+            description: toml_narrative.narrative.description,
+            template: toml_narrative.narrative.template,
+            skip_content_generation: toml_narrative.narrative.skip_content_generation,
         };
 
         let toc = NarrativeToc {

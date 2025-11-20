@@ -9,10 +9,10 @@ This document outlines planned enhancements to the narrative TOML specification 
 
 These features enable narratives to interact with external systems and reference previously generated content, creating more powerful and composable workflows.
 
-**Current Status** (as of commit `181bfb4`):
+**Current Status** (as of commit `d8cf4cb`):
 - ✅ **Phase 1 Complete**: Friendly syntax foundation with resource definitions
-- ⏸️ **Phase 2 In Progress**: `Input::BotCommand` type exists, executor integration needed
-- ⏸️ **Phase 3 In Progress**: `Input::Table` type exists, executor integration needed
+- ✅ **Phase 2 Complete**: Bot commands fully implemented with security framework
+- ✅ **Phase 3 Complete**: Table references fully implemented with tests and examples
 
 See `IMPLEMENTATION_STATUS.md` for detailed progress tracking.
 
@@ -84,13 +84,17 @@ All infrastructure for resource definitions is implemented:
 - ✅ Table existence validation before queries
 - ✅ Configurable row limits (default: 10, max varies by implementation)
 
-**What's Remaining**:
-1. ✅ Integration tests with real database tables (`tests/table_references_test.rs`)
-2. ✅ Example narratives demonstrating table references (`examples/table_references.toml`, `examples/content_workflow.toml`)
-3. ⏸️ Alias interpolation (`{{alias}}`) for table results in prompts (future enhancement)
-4. ✅ Update `NARRATIVE_TOML_SPEC.md` with table reference documentation
+**Cleanup & Fixes** (commit `d8cf4cb`):
+- ✅ Eliminated ambiguous re-export warnings by removing TableQueryView re-exports from botticelli_database
+- ✅ Fixed integration tests to use correct types (DatabaseTableQueryRegistry vs PostgresContentRepository)
+- ✅ Updated NarrativeMetadata usage in tests (name/description vs title/author)
+- ✅ Removed obsolete table_reference_test.rs (duplicate test with wrong approach)
+- ✅ Follows CLAUDE.md rule: no re-exports across workspace crates
 
-**Current Status**: ✅ **COMPLETE** - Table references fully implemented with tests, examples, and documentation.
+**What's Remaining**:
+1. ⏸️ Alias interpolation (`{{alias}}`) for table results in prompts (future enhancement)
+
+**Current Status**: ✅ **COMPLETE** - Table references fully implemented with tests, examples, documentation, and zero warnings.
 
 ---
 

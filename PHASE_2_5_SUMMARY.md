@@ -1,8 +1,8 @@
 # Phase 2.5 Completion Summary
 
-**Status**: ✅ **COMPLETE**
+**Status**: ✅ **COMPLETE** (Updated with 6 additional commands)
 
-Phase 2.5 focused on bringing the Discord bot command interface to production readiness by implementing high-priority missing commands and integrating them with the security framework.
+Phase 2.5 focused on bringing the Discord bot command interface to production readiness by implementing high-priority missing commands and integrating them with the security framework. This update adds 6 more commands bringing total from 35 to 41.
 
 ## Goals Achieved
 
@@ -26,8 +26,10 @@ Implemented comprehensive moderation toolkit:
 - `members.kick` - Kick member (WRITE - secured)
 - `members.timeout` - Timeout member (WRITE - secured, modern Discord feature)
 - `members.unban` - Unban member (WRITE - secured)
+- `members.edit` - Edit member properties (nickname, roles, mute/deafen) (WRITE - secured) **NEW**
+- `members.remove_timeout` - Remove timeout from member (WRITE - secured) **NEW**
 
-**Impact**: Complete moderation workflow from warning (timeout) to permanent ban, with ability to reverse decisions.
+**Impact**: Complete moderation workflow from warning (timeout) to permanent ban, with ability to reverse decisions. Full member management including roles and voice settings.
 
 ### 3. Complete Channel Management ✅
 Implemented full channel lifecycle:
@@ -36,8 +38,10 @@ Implemented full channel lifecycle:
 - `channels.create` - Create channel (WRITE - secured)
 - `channels.edit` - Edit channel properties (name, topic, nsfw, bitrate) (WRITE - secured)
 - `channels.delete` - Delete channel (WRITE - secured)
+- `channels.create_invite` - Create invite links with expiration/usage limits (WRITE - secured) **NEW**
+- `channels.typing` - Trigger typing indicator (WRITE - secured, low-risk) **NEW**
 
-**Impact**: Bots can dynamically manage server structure.
+**Impact**: Bots can dynamically manage server structure and create invites programmatically. Typing indicators improve UX.
 
 ### 4. Complete Message Operations ✅
 Implemented full message interaction:
@@ -46,8 +50,10 @@ Implemented full message interaction:
 - `messages.send` - Send message (WRITE - secured)
 - `messages.edit` - Edit message (WRITE - secured)
 - `messages.delete` - Delete message (WRITE - secured)
+- `messages.pin` - Pin message (WRITE - secured) **NEW**
+- `messages.unpin` - Unpin message (WRITE - secured) **NEW**
 
-**Impact**: Bots can fully interact with message content.
+**Impact**: Bots can fully interact with message content including pinning important messages.
 
 ### 5. Reaction Support ✅
 Implemented message reactions:
@@ -60,23 +66,24 @@ Implemented message reactions:
 
 ### Command Growth
 - **Start of Phase 2.5**: 26 commands
-- **End of Phase 2.5**: 35 commands
-- **New commands added**: 9 high-priority commands
-- **Serenity API coverage**: 29% (up from 22%)
-- **Essential bot operations coverage**: ~85%
+- **After initial Phase 2.5**: 35 commands
+- **After Phase 2.5 update**: 41 commands
+- **New commands added (total)**: 15 high-priority commands
+- **Serenity API coverage**: ~34% (up from 22%)
+- **Essential bot operations coverage**: ~90%
 
-### Commands by Category
+### Commands by Category (Updated)
 | Category | Read | Write | Total |
 |----------|------|-------|-------|
 | Server | 1 | 0 | 1 |
-| Channels | 2 | 3 | 5 |
+| Channels | 2 | 5 | 7 |
 | Roles | 2 | 5 | 7 |
-| Members | 2 | 4 | 6 |
-| Messages | 2 | 3 | 5 |
+| Members | 2 | 6 | 8 |
+| Messages | 2 | 5 | 7 |
 | Reactions | 0 | 2 | 2 |
 | Moderation | 1 | 0 | 1 |
 | Server Features | 8 | 0 | 8 |
-| **Total** | **18** | **17** | **35** |
+| **Total** | **18** | **23** | **41** |
 
 ### Security Integration
 All 17 write commands integrate with the security framework:

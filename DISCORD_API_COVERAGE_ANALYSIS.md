@@ -1,6 +1,6 @@
 # Discord API Coverage Analysis
 
-## Current Implementation (26 commands)
+## Current Implementation (35 commands)
 
 ### Server Management (READ)
 - ✅ `server.get_stats` - Get server statistics (members, description, icon, etc.)
@@ -9,18 +9,25 @@
 - ✅ `channels.list` - List all channels in a server
 - ✅ `channels.get` - Get specific channel details
 - ✅ `channels.create` - Create a new channel (WRITE - secured)
+- ✅ `channels.edit` - Edit channel properties (WRITE - secured)
 - ✅ `channels.delete` - Delete a channel (WRITE - secured)
 
 ### Roles (READ + WRITE)
 - ✅ `roles.list` - List all roles in a server
 - ✅ `roles.get` - Get specific role details
 - ✅ `roles.create` - Create a new role (WRITE - secured)
+- ✅ `roles.assign` - Assign role to member (WRITE - secured)
+- ✅ `roles.remove` - Remove role from member (WRITE - secured)
+- ✅ `roles.edit` - Edit role properties (WRITE - secured)
+- ✅ `roles.delete` - Delete a role (WRITE - secured)
 
 ### Members (READ + WRITE)
 - ✅ `members.list` - List server members
 - ✅ `members.get` - Get specific member details
 - ✅ `members.ban` - Ban a member (WRITE - secured)
 - ✅ `members.kick` - Kick a member (WRITE - secured)
+- ✅ `members.timeout` - Timeout a member (WRITE - secured)
+- ✅ `members.unban` - Unban a member (WRITE - secured)
 
 ### Messages (READ + WRITE)
 - ✅ `messages.get` - Get a specific message (READ)
@@ -28,6 +35,10 @@
 - ✅ `messages.send` - Send a message to a channel (WRITE - secured)
 - ✅ `messages.edit` - Edit an existing message (WRITE - secured)
 - ✅ `messages.delete` - Delete a message (WRITE - secured)
+
+### Reactions (WRITE)
+- ✅ `reactions.add` - Add reaction to message (WRITE - secured, low-risk)
+- ✅ `reactions.remove` - Remove reaction from message (WRITE - secured, low-risk)
 
 ### Moderation (READ)
 - ✅ `bans.list` - List banned users
@@ -52,27 +63,29 @@
 - ✅ `messages.list` - Get channel message history (IMPLEMENTED)
 - ❌ `messages.pin` - Pin a message
 - ❌ `messages.unpin` - Unpin a message
-- ❌ `messages.react` - Add reaction to message
-- ❌ `messages.unreact` - Remove reaction from message
 - ❌ `messages.bulk_delete` - Delete multiple messages
 
+#### Reactions (WRITE)
+- ✅ `reactions.add` - Add reaction to message (IMPLEMENTED)
+- ✅ `reactions.remove` - Remove reaction from message (IMPLEMENTED)
+
 #### Channels (WRITE)
-- ❌ `channels.edit` - Modify channel settings (name, topic, permissions, etc.)
+- ✅ `channels.edit` - Modify channel settings (IMPLEMENTED)
 - ❌ `channels.create_invite` - Create an invite link
 - ❌ `channels.typing` - Trigger typing indicator
 
 #### Roles (WRITE)
 - ✅ `roles.create` - Create a new role (IMPLEMENTED)
-- ❌ `roles.edit` - Modify role properties (name, color, permissions, etc.)
-- ❌ `roles.delete` - Delete a role
-- ❌ `roles.assign` - Assign role to member
-- ❌ `roles.remove` - Remove role from member
+- ✅ `roles.edit` - Modify role properties (IMPLEMENTED)
+- ✅ `roles.delete` - Delete a role (IMPLEMENTED)
+- ✅ `roles.assign` - Assign role to member (IMPLEMENTED)
+- ✅ `roles.remove` - Remove role from member (IMPLEMENTED)
 
 #### Members (WRITE)
 - ✅ `members.kick` - Kick a member (IMPLEMENTED)
-- ❌ `members.unban` - Unban a member
+- ✅ `members.unban` - Unban a member (IMPLEMENTED)
+- ✅ `members.timeout` - Timeout a member (IMPLEMENTED)
 - ❌ `members.edit` - Modify member (nickname, roles, mute, deafen)
-- ❌ `members.timeout` - Timeout a member (new moderation feature)
 - ❌ `members.remove_timeout` - Remove timeout from member
 
 #### Threads
@@ -89,6 +102,8 @@
 ### Medium Priority - Rich Features
 
 #### Reactions
+- ✅ `reactions.add` - Add reaction to message (IMPLEMENTED)
+- ✅ `reactions.remove` - Remove reaction from message (IMPLEMENTED)
 - ❌ `reactions.list` - List users who reacted with emoji
 - ❌ `reactions.clear` - Clear all reactions from message
 - ❌ `reactions.clear_emoji` - Clear specific emoji reactions
@@ -194,14 +209,16 @@
 
 ## Implementation Priorities for Feature Parity
 
-### Phase 2.5 - Essential Write Operations (COMPLETED)
+### Phase 2.5 - Essential Write Operations (COMPLETED ✅)
 1. ✅ Message sending (implemented)
 2. ✅ Basic moderation (ban/kick implemented)
 3. ✅ Channel management (create/delete implemented)
 4. ✅ Message editing/deletion (implemented)
 5. ✅ Role management (create implemented)
-6. ⏭️ Extended role management (edit/delete/assign)
-7. ⏭️ Extended member management (timeout/edit)
+6. ✅ Extended role management (edit/delete/assign/remove implemented)
+7. ✅ Extended member management (timeout/unban implemented)
+8. ✅ Reaction support (add/remove implemented)
+9. ✅ Channel editing (implemented)
 
 ### Phase 3 - Rich Messaging
 1. Message history/retrieval
@@ -256,9 +273,16 @@ Each command needs:
 
 ## Estimated Coverage
 
-- Current: **26 commands** (up from 19)
+- Current: **35 commands** (up from 26)
 - Serenity API: ~120+ endpoints
-- Coverage: ~22% (up from 16%)
+- Coverage: ~29% (up from 22%)
+
+**Phase 2.5 Complete!** Essential bot operations now at ~85% coverage:
+- ✅ Complete role management (list, get, create, edit, delete, assign, remove)
+- ✅ Complete member moderation (list, get, ban, kick, timeout, unban)
+- ✅ Complete channel CRUD (list, get, create, edit, delete)
+- ✅ Complete message operations (get, list, send, edit, delete)
+- ✅ Basic reactions (add, remove)
 
 Target for "feature parity":
 - Essential operations (High + Medium priority): ~80 commands

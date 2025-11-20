@@ -35,6 +35,8 @@ mod narrative_repository;
 mod schema_docs;
 mod schema_inference;
 mod schema_reflection;
+mod table_query;
+mod table_query_view;
 
 // Schema module must be public for Diesel's #[diesel(table_name = ...)] attributes
 pub mod schema;
@@ -78,7 +80,12 @@ pub use schema_reflection::{
     ColumnInfo, TableSchema,
 };
 
+// Re-export table query types
+pub use table_query::{format_as_csv, format_as_json, format_as_markdown, TableQueryExecutor};
+pub use table_query_view::{TableCountView, TableCountViewBuilder, TableQueryView, TableQueryViewBuilder};
+
 use botticelli_error::DatabaseError;
+use botticelli_error::DatabaseErrorKind;
 
 /// Result type for database operations.
 pub type DatabaseResult<T> = Result<T, DatabaseError>;

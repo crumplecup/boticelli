@@ -26,6 +26,26 @@ pub trait BotCommandRegistry: Send + Sync {
     ) -> Result<JsonValue, Box<dyn std::error::Error + Send + Sync>>;
 }
 
+/// Trait for querying database tables (platform-agnostic).
+///
+/// This is defined here to avoid circular dependencies between
+/// botticelli_narrative and botticelli_database. Implementations
+/// live in botticelli_database.
+#[async_trait::async_trait]
+pub trait TableQueryRegistry: Send + Sync {
+    /// Query a database table and return results in the specified format.
+    async fn query_table(
+        &self,
+        table_name: &str,
+        columns: Option<&[String]>,
+        where_clause: Option<&str>,
+        limit: Option<u32>,
+        offset: Option<u32>,
+        order_by: Option<&str>,
+        format: &str,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>;
+}
+
 /// Executes narratives by calling LLM APIs in sequence.
 ///
 /// The executor processes each act in the narrative's table of contents order,
@@ -36,10 +56,14 @@ pub trait BotCommandRegistry: Send + Sync {
 ///
 /// Bot commands can be registered to enable narratives to query social media
 /// platforms (Discord, Slack, etc.) for real-time data.
+///
+/// Table queries can be registered to enable narratives to reference data
+/// from database tables in prompts.
 pub struct NarrativeExecutor<D: BotticelliDriver> {
     driver: D,
     processor_registry: Option<ProcessorRegistry>,
     bot_registry: Option<Box<dyn BotCommandRegistry>>,
+    table_registry: Option<Box<dyn TableQueryRegistry>>,
 }
 
 impl<D: BotticelliDriver> NarrativeExecutor<D> {
@@ -49,6 +73,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             driver,
             processor_registry: None,
             bot_registry: None,
+            table_registry: None,
         }
     }
 
@@ -72,6 +97,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             driver,
             processor_registry: Some(registry),
             bot_registry: None,
+            table_registry: None,
         }
     }
 
@@ -93,6 +119,26 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// ```
     pub fn with_bot_registry(mut self, registry: Box<dyn BotCommandRegistry>) -> Self {
         self.bot_registry = Some(registry);
+        self
+    }
+
+    /// Add a table query registry for querying database tables.
+    ///
+    /// Enables narratives to reference data from database tables in prompts.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use botticelli_narrative::NarrativeExecutor;
+    /// use botticelli_database::TableQueryExecutor;
+    ///
+    /// let table_registry = TableQueryExecutor::new(connection);
+    ///
+    /// let executor = NarrativeExecutor::new(driver)
+    ///     .with_table_registry(Box::new(table_registry));
+    /// ```
+    pub fn with_table_registry(mut self, registry: Box<dyn TableQueryRegistry>) -> Self {
+        self.table_registry = Some(registry);
         self
     }
 
@@ -298,14 +344,78 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     }
                 }
 
-                Input::Table { table_name, .. } => {
+                Input::Table {
+                    table_name,
+                    columns,
+                    where_clause,
+                    limit,
+                    offset,
+                    order_by,
+                    alias: _,
+                    format,
+                    sample: _,
+                } => {
                     table_count += 1;
-                    tracing::warn!(
+                    
+                    let format_str = match format {
+                        botticelli_core::TableFormat::Json => "json",
+                        botticelli_core::TableFormat::Markdown => "markdown",
+                        botticelli_core::TableFormat::Csv => "csv",
+                    };
+                    
+                    tracing::debug!(
                         table_name = %table_name,
-                        "Table references not yet implemented, using placeholder"
+                        format = %format_str,
+                        "Processing table reference input"
                     );
-                    let placeholder = format!("[Table reference '{}' not yet implemented]", table_name);
-                    processed.push(Input::Text(placeholder));
+
+                    let registry = self.table_registry.as_ref().ok_or_else(|| {
+                        let msg = format!(
+                            "Table reference '{}' requires table_registry to be configured",
+                            table_name
+                        );
+                        tracing::error!(table_name = %table_name, msg);
+                        botticelli_error::NarrativeError::new(
+                            botticelli_error::NarrativeErrorKind::TableQueryNotConfigured(msg),
+                        )
+                    })?;
+
+                    match registry
+                        .query_table(
+                            table_name,
+                            columns.as_deref(),
+                            where_clause.as_deref(),
+                            *limit,
+                            *offset,
+                            order_by.as_deref(),
+                            format_str,
+                        )
+                        .await
+                    {
+                        Ok(result) => {
+                            tracing::info!(
+                                table_name = %table_name,
+                                result_length = result.len(),
+                                "Table query executed successfully"
+                            );
+
+                            processed.push(Input::Text(result));
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                table_name = %table_name,
+                                error = %e,
+                                "Table query failed"
+                            );
+                            return Err(botticelli_error::NarrativeError::new(
+                                botticelli_error::NarrativeErrorKind::TableQueryFailed(format!(
+                                    "Table query '{}' failed: {}",
+                                    table_name, e
+                                )),
+                            )
+                            .into());
+                        }
+                    }
                 }
 
                 // Pass through all other input types unchanged

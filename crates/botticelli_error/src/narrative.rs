@@ -35,6 +35,12 @@ pub enum NarrativeErrorKind {
     /// Bot command execution failed
     #[display("Bot command failed: {}", _0)]
     BotCommandFailed(String),
+    /// Table query registry not configured
+    #[display("Table query not configured: {}", _0)]
+    TableQueryNotConfigured(String),
+    /// Table query execution failed
+    #[display("Table query failed: {}", _0)]
+    TableQueryFailed(String),
     /// Serialization error
     #[display("Serialization error: {}", _0)]
     SerializationError(String),

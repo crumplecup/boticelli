@@ -12,7 +12,7 @@ mod output;
 mod request;
 mod role;
 
-pub use input::Input;
+pub use input::{Input, TableFormat};
 pub use media::MediaSource;
 pub use message::Message;
 pub use output::{Output, ToolCall};

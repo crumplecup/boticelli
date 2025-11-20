@@ -1,0 +1,17 @@
+# Test narrative for friendly syntax
+[narrative]
+name = "friendly_syntax_test"
+description = "Test friendly syntax features"
+
+[toc]
+order = ["simple_text", "simple_ref", "array_inputs"]
+
+# Define media resources
+[media.test_image]
+file = "./test.png"
+
+# Simple acts
+[acts]
+simple_text = "This is a simple text prompt"
+simple_ref = "media.test_image"
+array_inputs = ["media.test_image", "Analyze this image"]

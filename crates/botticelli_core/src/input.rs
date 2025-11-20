@@ -65,4 +65,53 @@ pub enum Input {
         /// Optional filename for context
         filename: Option<String>,
     },
+
+    /// Bot command execution (Discord, Slack, etc.).
+    BotCommand {
+        /// Platform name (e.g., "discord", "slack")
+        platform: String,
+        /// Command to execute (e.g., "server.get_stats")
+        command: String,
+        /// Command arguments as JSON values
+        args: std::collections::HashMap<String, serde_json::Value>,
+        /// Halt execution if command fails (default: false)
+        #[serde(default)]
+        required: bool,
+        /// Cache duration in seconds
+        cache_duration: Option<u64>,
+    },
+
+    /// Table reference for querying database tables.
+    Table {
+        /// Name of the table to query
+        table_name: String,
+        /// Specific columns to select (default: all)
+        columns: Option<Vec<String>>,
+        /// WHERE clause for filtering
+        where_clause: Option<String>,
+        /// Maximum number of rows
+        limit: Option<u32>,
+        /// Offset for pagination
+        offset: Option<u32>,
+        /// ORDER BY clause
+        order_by: Option<String>,
+        /// Alias for {{alias}} interpolation
+        alias: Option<String>,
+        /// Output format (JSON, Markdown, CSV)
+        format: TableFormat,
+        /// Random sample N rows
+        sample: Option<u32>,
+    },
+}
+
+/// Output format for table data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TableFormat {
+    /// JSON array of objects
+    Json,
+    /// Markdown table
+    Markdown,
+    /// CSV format
+    Csv,
 }

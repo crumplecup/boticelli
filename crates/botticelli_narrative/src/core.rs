@@ -250,19 +250,19 @@ impl FromStr for Narrative {
 
         // Convert to domain types
         let metadata = NarrativeMetadata {
-            name: toml_narrative.narrative.name,
-            description: toml_narrative.narrative.description,
-            template: toml_narrative.narrative.template,
+            name: toml_narrative.narrative.name.clone(),
+            description: toml_narrative.narrative.description.clone(),
+            template: toml_narrative.narrative.template.clone(),
             skip_content_generation: toml_narrative.narrative.skip_content_generation,
         };
 
         let toc = NarrativeToc {
-            order: toml_narrative.toc.order,
+            order: toml_narrative.toc.order.clone(),
         };
 
         let mut acts = HashMap::new();
-        for (act_name, toml_act) in toml_narrative.acts {
-            let act_config = toml_act.to_act_config().map_err(|e| {
+        for (act_name, toml_act) in &toml_narrative.acts {
+            let act_config = toml_act.to_act_config(&toml_narrative).map_err(|e| {
                 // Check if this is an empty prompt error
                 if e.contains("empty") || e.contains("whitespace") {
                     NarrativeError::new(NarrativeErrorKind::EmptyPrompt(act_name.clone()))
@@ -273,7 +273,7 @@ impl FromStr for Narrative {
                     )))
                 }
             })?;
-            acts.insert(act_name, act_config);
+            acts.insert(act_name.clone(), act_config);
         }
 
         let narrative = Narrative {

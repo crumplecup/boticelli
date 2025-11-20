@@ -783,6 +783,368 @@ impl DiscordCommandExecutor {
 
         Ok(serde_json::json!(events_json))
     }
+
+    /// Execute: stickers.list
+    ///
+    /// List custom stickers in a server.
+    ///
+    /// Required args: guild_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "stickers.list",
+            guild_id,
+            sticker_count
+        )
+    )]
+    async fn stickers_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("stickers.list", args)?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        info!(guild_id = %guild_id, "Fetching stickers from Discord API");
+
+        // Fetch stickers
+        let stickers = self
+            .http
+            .get_guild_stickers(guild_id)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch stickers");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "stickers.list".to_string(),
+                    reason: format!("Failed to fetch stickers: {}", e),
+                })
+            })?;
+
+        let sticker_count = stickers.len();
+        tracing::Span::current().record("sticker_count", sticker_count);
+
+        let stickers_json: Vec<JsonValue> = stickers
+            .into_iter()
+            .map(|sticker| {
+                serde_json::json!({
+                    "id": sticker.id.to_string(),
+                    "name": sticker.name,
+                    "description": sticker.description,
+                    "tags": sticker.tags,
+                    "format_type": format!("{:?}", sticker.format_type),
+                    "available": sticker.available,
+                })
+            })
+            .collect();
+
+        info!(sticker_count, "Successfully retrieved stickers");
+
+        Ok(serde_json::json!(stickers_json))
+    }
+
+    /// Execute: invites.list
+    ///
+    /// List active invites in a server.
+    ///
+    /// Required args: guild_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "invites.list",
+            guild_id,
+            invite_count
+        )
+    )]
+    async fn invites_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("invites.list", args)?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        info!(guild_id = %guild_id, "Fetching invites from Discord API");
+
+        // Fetch invites
+        let invites = self
+            .http
+            .get_guild_invites(guild_id)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch invites");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "invites.list".to_string(),
+                    reason: format!("Failed to fetch invites: {}", e),
+                })
+            })?;
+
+        let invite_count = invites.len();
+        tracing::Span::current().record("invite_count", invite_count);
+
+        let invites_json: Vec<JsonValue> = invites
+            .into_iter()
+            .map(|invite| {
+                serde_json::json!({
+                    "code": invite.code,
+                    "channel_id": invite.channel.id.to_string(),
+                    "inviter": invite.inviter.as_ref().map(|u| serde_json::json!({
+                        "id": u.id.to_string(),
+                        "name": u.name.clone(),
+                    })),
+                    "uses": invite.uses,
+                    "max_uses": invite.max_uses,
+                    "max_age": invite.max_age,
+                    "temporary": invite.temporary,
+                    "created_at": invite.created_at.to_string(),
+                })
+            })
+            .collect();
+
+        info!(invite_count, "Successfully retrieved invites");
+
+        Ok(serde_json::json!(invites_json))
+    }
+
+    /// Execute: webhooks.list
+    ///
+    /// List webhooks in a server.
+    ///
+    /// Required args: guild_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "webhooks.list",
+            guild_id,
+            webhook_count
+        )
+    )]
+    async fn webhooks_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("webhooks.list", args)?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        info!(guild_id = %guild_id, "Fetching webhooks from Discord API");
+
+        // Fetch webhooks
+        let webhooks = self
+            .http
+            .get_guild_webhooks(guild_id)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch webhooks");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "webhooks.list".to_string(),
+                    reason: format!("Failed to fetch webhooks: {}", e),
+                })
+            })?;
+
+        let webhook_count = webhooks.len();
+        tracing::Span::current().record("webhook_count", webhook_count);
+
+        let webhooks_json: Vec<JsonValue> = webhooks
+            .into_iter()
+            .map(|webhook| {
+                serde_json::json!({
+                    "id": webhook.id.to_string(),
+                    "name": webhook.name,
+                    "channel_id": webhook.channel_id.map(|id| id.to_string()),
+                    "avatar": webhook.avatar,
+                    "guild_id": webhook.guild_id.map(|id| id.to_string()),
+                })
+            })
+            .collect();
+
+        info!(webhook_count, "Successfully retrieved webhooks");
+
+        Ok(serde_json::json!(webhooks_json))
+    }
+
+    /// Execute: bans.list
+    ///
+    /// List banned users in a server.
+    ///
+    /// Required args: guild_id
+    /// Optional args: limit (default 100, max 1000)
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "bans.list",
+            guild_id,
+            limit,
+            ban_count
+        )
+    )]
+    async fn bans_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("bans.list", args)?;
+
+        // Parse optional limit parameter
+        let limit = args
+            .get("limit")
+            .and_then(|v| v.as_u64())
+            .map(|l| l.min(1000) as u8);
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        if let Some(limit) = limit {
+            tracing::Span::current().record("limit", limit);
+        }
+        info!(guild_id = %guild_id, ?limit, "Fetching bans from Discord API");
+
+        // Fetch bans
+        let bans = self
+            .http
+            .get_bans(guild_id, None, limit)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch bans");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "bans.list".to_string(),
+                    reason: format!("Failed to fetch bans: {}", e),
+                })
+            })?;
+
+        let ban_count = bans.len();
+        tracing::Span::current().record("ban_count", ban_count);
+
+        let bans_json: Vec<JsonValue> = bans
+            .into_iter()
+            .map(|ban| {
+                serde_json::json!({
+                    "user_id": ban.user.id.to_string(),
+                    "username": ban.user.name,
+                    "reason": ban.reason,
+                })
+            })
+            .collect();
+
+        info!(ban_count, "Successfully retrieved bans");
+
+        Ok(serde_json::json!(bans_json))
+    }
+
+    /// Execute: integrations.list
+    ///
+    /// List integrations in a server.
+    ///
+    /// Required args: guild_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "integrations.list",
+            guild_id,
+            integration_count
+        )
+    )]
+    async fn integrations_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("integrations.list", args)?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        info!(guild_id = %guild_id, "Fetching integrations from Discord API");
+
+        // Fetch integrations
+        let integrations = self
+            .http
+            .get_guild_integrations(guild_id)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch integrations");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "integrations.list".to_string(),
+                    reason: format!("Failed to fetch integrations: {}", e),
+                })
+            })?;
+
+        let integration_count = integrations.len();
+        tracing::Span::current().record("integration_count", integration_count);
+
+        let integrations_json: Vec<JsonValue> = integrations
+            .into_iter()
+            .map(|integration| {
+                serde_json::json!({
+                    "id": integration.id.to_string(),
+                    "name": integration.name,
+                    "type": integration.kind,
+                    "enabled": integration.enabled,
+                    "syncing": integration.syncing,
+                    "account": serde_json::json!({
+                        "id": integration.account.id,
+                        "name": integration.account.name,
+                    }),
+                })
+            })
+            .collect();
+
+        info!(integration_count, "Successfully retrieved integrations");
+
+        Ok(serde_json::json!(integrations_json))
+    }
+
+    /// Execute: voice_regions.list
+    ///
+    /// List available voice regions for a server.
+    ///
+    /// Required args: guild_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "voice_regions.list",
+            guild_id,
+            region_count
+        )
+    )]
+    async fn voice_regions_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("voice_regions.list", args)?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        info!(guild_id = %guild_id, "Fetching voice regions from Discord API");
+
+        // Fetch voice regions
+        let regions = self
+            .http
+            .get_guild_regions(guild_id)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch voice regions");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "voice_regions.list".to_string(),
+                    reason: format!("Failed to fetch voice regions: {}", e),
+                })
+            })?;
+
+        let region_count = regions.len();
+        tracing::Span::current().record("region_count", region_count);
+
+        let regions_json: Vec<JsonValue> = regions
+            .into_iter()
+            .map(|region| {
+                serde_json::json!({
+                    "id": region.id,
+                    "name": region.name,
+                    "optimal": region.optimal,
+                    "deprecated": region.deprecated,
+                    "custom": region.custom,
+                })
+            })
+            .collect();
+
+        info!(region_count, "Successfully retrieved voice regions");
+
+        Ok(serde_json::json!(regions_json))
+    }
 }
 
 #[async_trait]
@@ -820,6 +1182,12 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "members.get" => self.members_get(args).await?,
             "emojis.list" => self.emojis_list(args).await?,
             "events.list" => self.events_list(args).await?,
+            "stickers.list" => self.stickers_list(args).await?,
+            "invites.list" => self.invites_list(args).await?,
+            "webhooks.list" => self.webhooks_list(args).await?,
+            "bans.list" => self.bans_list(args).await?,
+            "integrations.list" => self.integrations_list(args).await?,
+            "voice_regions.list" => self.voice_regions_list(args).await?,
             _ => {
                 error!(
                     command,
@@ -860,6 +1228,12 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                 | "members.get"
                 | "emojis.list"
                 | "events.list"
+                | "stickers.list"
+                | "invites.list"
+                | "webhooks.list"
+                | "bans.list"
+                | "integrations.list"
+                | "voice_regions.list"
         )
     }
 
@@ -874,6 +1248,12 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "members.get".to_string(),
             "emojis.list".to_string(),
             "events.list".to_string(),
+            "stickers.list".to_string(),
+            "invites.list".to_string(),
+            "webhooks.list".to_string(),
+            "bans.list".to_string(),
+            "integrations.list".to_string(),
+            "voice_regions.list".to_string(),
         ]
     }
 
@@ -925,6 +1305,37 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                  Required arguments: guild_id"
                     .to_string(),
             ),
+            "stickers.list" => Some(
+                "List custom stickers in a server\n\
+                 Required arguments: guild_id"
+                    .to_string(),
+            ),
+            "invites.list" => Some(
+                "List active invites in a server\n\
+                 Required arguments: guild_id"
+                    .to_string(),
+            ),
+            "webhooks.list" => Some(
+                "List webhooks in a server\n\
+                 Required arguments: guild_id"
+                    .to_string(),
+            ),
+            "bans.list" => Some(
+                "List banned users in a server\n\
+                 Required arguments: guild_id\n\
+                 Optional arguments: limit (default 100, max 1000)"
+                    .to_string(),
+            ),
+            "integrations.list" => Some(
+                "List integrations in a server\n\
+                 Required arguments: guild_id"
+                    .to_string(),
+            ),
+            "voice_regions.list" => Some(
+                "List available voice regions for a server\n\
+                 Required arguments: guild_id"
+                    .to_string(),
+            ),
             _ => None,
         }
     }
@@ -948,6 +1359,12 @@ mod tests {
         assert!(executor.supports_command("members.get"));
         assert!(executor.supports_command("emojis.list"));
         assert!(executor.supports_command("events.list"));
+        assert!(executor.supports_command("stickers.list"));
+        assert!(executor.supports_command("invites.list"));
+        assert!(executor.supports_command("webhooks.list"));
+        assert!(executor.supports_command("bans.list"));
+        assert!(executor.supports_command("integrations.list"));
+        assert!(executor.supports_command("voice_regions.list"));
         assert!(!executor.supports_command("unknown.command"));
     }
 
@@ -957,7 +1374,7 @@ mod tests {
         let executor = DiscordCommandExecutor::new(token);
 
         let commands = executor.supported_commands();
-        assert_eq!(commands.len(), 9);
+        assert_eq!(commands.len(), 15);
         assert!(commands.contains(&"server.get_stats".to_string()));
         assert!(commands.contains(&"channels.list".to_string()));
         assert!(commands.contains(&"channels.get".to_string()));
@@ -967,6 +1384,12 @@ mod tests {
         assert!(commands.contains(&"members.get".to_string()));
         assert!(commands.contains(&"emojis.list".to_string()));
         assert!(commands.contains(&"events.list".to_string()));
+        assert!(commands.contains(&"stickers.list".to_string()));
+        assert!(commands.contains(&"invites.list".to_string()));
+        assert!(commands.contains(&"webhooks.list".to_string()));
+        assert!(commands.contains(&"bans.list".to_string()));
+        assert!(commands.contains(&"integrations.list".to_string()));
+        assert!(commands.contains(&"voice_regions.list".to_string()));
     }
 
     #[test]
@@ -983,6 +1406,12 @@ mod tests {
         assert!(executor.command_help("members.get").is_some());
         assert!(executor.command_help("emojis.list").is_some());
         assert!(executor.command_help("events.list").is_some());
+        assert!(executor.command_help("stickers.list").is_some());
+        assert!(executor.command_help("invites.list").is_some());
+        assert!(executor.command_help("webhooks.list").is_some());
+        assert!(executor.command_help("bans.list").is_some());
+        assert!(executor.command_help("integrations.list").is_some());
+        assert!(executor.command_help("voice_regions.list").is_some());
         assert!(executor.command_help("unknown.command").is_none());
     }
 

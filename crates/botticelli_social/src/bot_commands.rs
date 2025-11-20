@@ -27,10 +27,11 @@
 //! ```
 
 use async_trait::async_trait;
+use botticelli_cache::CommandCache;
 use derive_more::{Display, Error};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Result type for bot command operations.
 pub type BotCommandResult<T> = Result<T, BotCommandError>;
@@ -235,7 +236,7 @@ pub trait BotCommandExecutor: Send + Sync {
 /// Registry of bot command executors for multiple platforms.
 ///
 /// Manages platform-specific executors and routes commands to the appropriate
-/// platform handler.
+/// platform handler. Includes result caching with TTL support.
 ///
 /// # Example
 ///
@@ -248,14 +249,25 @@ pub trait BotCommandExecutor: Send + Sync {
 /// ```
 pub struct BotCommandRegistry {
     executors: HashMap<String, Arc<dyn BotCommandExecutor>>,
+    cache: Arc<Mutex<CommandCache>>,
 }
 
 impl BotCommandRegistry {
-    /// Create a new empty registry.
+    /// Create a new empty registry with default cache.
     pub fn new() -> Self {
         tracing::debug!("Creating new BotCommandRegistry");
         Self {
             executors: HashMap::new(),
+            cache: Arc::new(Mutex::new(CommandCache::default())),
+        }
+    }
+
+    /// Create a new registry with custom cache.
+    pub fn with_cache(cache: CommandCache) -> Self {
+        tracing::debug!("Creating new BotCommandRegistry with custom cache");
+        Self {
+            executors: HashMap::new(),
+            cache: Arc::new(Mutex::new(cache)),
         }
     }
 
@@ -284,7 +296,7 @@ impl BotCommandRegistry {
         self.executors.get(platform)
     }
 
-    /// Execute a command on a platform.
+    /// Execute a command on a platform with caching support.
     ///
     /// # Arguments
     ///
@@ -297,12 +309,18 @@ impl BotCommandRegistry {
     /// Returns error if:
     /// - Platform not found in registry
     /// - Command execution fails
+    ///
+    /// # Caching
+    ///
+    /// Results are cached with TTL based on `cache_duration` argument.
+    /// If `cache_duration` is present in args, it overrides the default TTL.
     #[tracing::instrument(
         skip(self, args),
         fields(
             platform,
             command,
-            arg_count = args.len()
+            arg_count = args.len(),
+            cache_hit = false
         )
     )]
     pub async fn execute(
@@ -312,6 +330,21 @@ impl BotCommandRegistry {
         args: &HashMap<String, JsonValue>,
     ) -> BotCommandResult<JsonValue> {
         tracing::info!("Executing bot command via registry");
+
+        // Check cache first
+        {
+            let mut cache = self.cache.lock().unwrap();
+            if let Some(entry) = cache.get(platform, command, args) {
+                tracing::Span::current().record("cache_hit", true);
+                tracing::info!(
+                    time_remaining = ?entry.time_remaining(),
+                    "Cache hit, returning cached result"
+                );
+                return Ok(entry.value().clone());
+            }
+        }
+
+        tracing::Span::current().record("cache_hit", false);
 
         let executor = self.get(platform).ok_or_else(|| {
             tracing::error!(
@@ -324,7 +357,19 @@ impl BotCommandRegistry {
             ))
         })?;
 
-        executor.execute(command, args).await
+        let result = executor.execute(command, args).await?;
+
+        // Cache the result
+        let cache_duration = args
+            .get("cache_duration")
+            .and_then(|v| v.as_u64());
+
+        {
+            let mut cache = self.cache.lock().unwrap();
+            cache.insert(platform, command, args, result.clone(), cache_duration);
+        }
+
+        Ok(result)
     }
 
     /// List all registered platforms.

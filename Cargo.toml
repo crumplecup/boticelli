@@ -10,7 +10,7 @@ members = [
     "crates/botticelli_narrative",
     "crates/botticelli_social",
     "crates/botticelli_tui",
-    "crates/botticelli", "crates/botticelli_server", "crates/botticelli_security",
+    "crates/botticelli", "crates/botticelli_server", "crates/botticelli_security", "crates/botticelli_cache",
 ]
 resolver = "2"
 
@@ -56,6 +56,12 @@ botticelli_tui = { path = "crates/botticelli_tui", version = "0.2.0" }
 
 # Internal crates (local model server)
 botticelli_server = { path = "crates/botticelli_server", version = "0.2.0" }
+
+# Internal crates (Phase 6 security)
+botticelli_security = { path = "crates/botticelli_security", version = "0.2.0" }
+
+# Internal crates (Phase 6 cache)
+botticelli_cache = { path = "crates/botticelli_cache", version = "0.2.0" }
 
 # Internal crates (Phase 7 facade)
 botticelli = { path = "crates/botticelli", version = "0.2.0" }

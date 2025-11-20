@@ -69,6 +69,7 @@ all = ["gemini", "database", "discord", "tui", "server"]
 dotenvy = { workspace = true }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
+botticelli_cache = { workspace = true }
 
 [[bin]]
 name = "botticelli"

@@ -569,6 +569,220 @@ impl DiscordCommandExecutor {
 
         Ok(serde_json::json!(roles_json))
     }
+
+    /// Execute: roles.get
+    ///
+    /// Get specific role details.
+    ///
+    /// Required args: guild_id, role_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "roles.get",
+            guild_id,
+            role_id
+        )
+    )]
+    async fn roles_get(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing arguments");
+        let guild_id = Self::parse_guild_id("roles.get", args)?;
+
+        // Parse role_id
+        let role_id_value = args.get("role_id").ok_or_else(|| {
+            error!(command = "roles.get", "Missing required argument: role_id");
+            BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                command: "roles.get".to_string(),
+                arg_name: "role_id".to_string(),
+            })
+        })?;
+
+        let role_id_str = role_id_value.as_str().ok_or_else(|| {
+            error!(command = "roles.get", ?role_id_value, "role_id must be a string");
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.get".to_string(),
+                arg_name: "role_id".to_string(),
+                reason: "Must be a string".to_string(),
+            })
+        })?;
+
+        let role_id_u64: u64 = role_id_str.parse().map_err(|_| {
+            error!(command = "roles.get", role_id_str, "Invalid role_id format");
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.get".to_string(),
+                arg_name: "role_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        let role_id = serenity::model::id::RoleId::new(role_id_u64);
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        tracing::Span::current().record("role_id", role_id.get());
+        info!(guild_id = %guild_id, role_id = %role_id, "Fetching role from Discord API");
+
+        // Fetch all roles and find the specific one
+        let roles = self
+            .http
+            .get_guild_roles(guild_id)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch roles");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "roles.get".to_string(),
+                    reason: format!("Failed to fetch roles: {}", e),
+                })
+            })?;
+
+        // Find the specific role
+        let role = roles
+            .into_iter()
+            .find(|r| r.id == role_id)
+            .ok_or_else(|| {
+                error!(guild_id = %guild_id, role_id = %role_id, "Role not found in guild");
+                BotCommandError::new(BotCommandErrorKind::ResourceNotFound {
+                    command: "roles.get".to_string(),
+                    resource_type: "role".to_string(),
+                })
+            })?;
+
+        let role_json = serde_json::json!({
+            "id": role.id.to_string(),
+            "name": role.name,
+            "color": role.colour.0,
+            "hoist": role.hoist,
+            "position": role.position,
+            "permissions": role.permissions.bits(),
+            "managed": role.managed,
+            "mentionable": role.mentionable,
+            "icon": role.icon,
+            "unicode_emoji": role.unicode_emoji,
+        });
+
+        info!(role_id = %role_id, "Successfully retrieved role details");
+
+        Ok(role_json)
+    }
+
+    /// Execute: emojis.list
+    ///
+    /// List custom emojis in a server.
+    ///
+    /// Required args: guild_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "emojis.list",
+            guild_id,
+            emoji_count
+        )
+    )]
+    async fn emojis_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("emojis.list", args)?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        info!(guild_id = %guild_id, "Fetching emojis from Discord API");
+
+        // Fetch emojis
+        let emojis = self
+            .http
+            .get_emojis(guild_id)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch emojis");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "emojis.list".to_string(),
+                    reason: format!("Failed to fetch emojis: {}", e),
+                })
+            })?;
+
+        let emoji_count = emojis.len();
+        tracing::Span::current().record("emoji_count", emoji_count);
+
+        let emojis_json: Vec<JsonValue> = emojis
+            .into_iter()
+            .map(|emoji| {
+                serde_json::json!({
+                    "id": emoji.id.to_string(),
+                    "name": emoji.name,
+                    "animated": emoji.animated,
+                    "managed": emoji.managed,
+                    "require_colons": emoji.require_colons,
+                    "available": emoji.available,
+                })
+            })
+            .collect();
+
+        info!(emoji_count, "Successfully retrieved emojis");
+
+        Ok(serde_json::json!(emojis_json))
+    }
+
+    /// Execute: events.list
+    ///
+    /// List scheduled events in a server.
+    ///
+    /// Required args: guild_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "events.list",
+            guild_id,
+            event_count
+        )
+    )]
+    async fn events_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        debug!("Parsing guild_id argument");
+        let guild_id = Self::parse_guild_id("events.list", args)?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        info!(guild_id = %guild_id, "Fetching scheduled events from Discord API");
+
+        // Fetch scheduled events
+        let events = self
+            .http
+            .get_scheduled_events(guild_id, false)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, error = %e, "Failed to fetch events");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "events.list".to_string(),
+                    reason: format!("Failed to fetch events: {}", e),
+                })
+            })?;
+
+        let event_count = events.len();
+        tracing::Span::current().record("event_count", event_count);
+
+        let events_json: Vec<JsonValue> = events
+            .into_iter()
+            .map(|event| {
+                serde_json::json!({
+                    "id": event.id.to_string(),
+                    "name": event.name,
+                    "description": event.description,
+                    "start_time": event.start_time.to_string(),
+                    "end_time": event.end_time.map(|t| t.to_string()),
+                    "status": format!("{:?}", event.status),
+                    "kind": format!("{:?}", event.kind),
+                    "user_count": event.user_count,
+                })
+            })
+            .collect();
+
+        info!(event_count, "Successfully retrieved events");
+
+        Ok(serde_json::json!(events_json))
+    }
 }
 
 #[async_trait]
@@ -601,8 +815,11 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "channels.list" => self.channels_list(args).await?,
             "channels.get" => self.channels_get(args).await?,
             "roles.list" => self.roles_list(args).await?,
+            "roles.get" => self.roles_get(args).await?,
             "members.list" => self.members_list(args).await?,
             "members.get" => self.members_get(args).await?,
+            "emojis.list" => self.emojis_list(args).await?,
+            "events.list" => self.events_list(args).await?,
             _ => {
                 error!(
                     command,
@@ -638,8 +855,11 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                 | "channels.list"
                 | "channels.get"
                 | "roles.list"
+                | "roles.get"
                 | "members.list"
                 | "members.get"
+                | "emojis.list"
+                | "events.list"
         )
     }
 
@@ -649,8 +869,11 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "channels.list".to_string(),
             "channels.get".to_string(),
             "roles.list".to_string(),
+            "roles.get".to_string(),
             "members.list".to_string(),
             "members.get".to_string(),
+            "emojis.list".to_string(),
+            "events.list".to_string(),
         ]
     }
 
@@ -676,6 +899,11 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                  Required arguments: guild_id"
                     .to_string(),
             ),
+            "roles.get" => Some(
+                "Get specific role details\n\
+                 Required arguments: guild_id, role_id"
+                    .to_string(),
+            ),
             "members.list" => Some(
                 "List guild members (paginated)\n\
                  Required arguments: guild_id\n\
@@ -685,6 +913,16 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "members.get" => Some(
                 "Get specific member details\n\
                  Required arguments: guild_id, user_id"
+                    .to_string(),
+            ),
+            "emojis.list" => Some(
+                "List custom emojis in a server\n\
+                 Required arguments: guild_id"
+                    .to_string(),
+            ),
+            "events.list" => Some(
+                "List scheduled events in a server\n\
+                 Required arguments: guild_id"
                     .to_string(),
             ),
             _ => None,
@@ -705,8 +943,11 @@ mod tests {
         assert!(executor.supports_command("channels.list"));
         assert!(executor.supports_command("channels.get"));
         assert!(executor.supports_command("roles.list"));
+        assert!(executor.supports_command("roles.get"));
         assert!(executor.supports_command("members.list"));
         assert!(executor.supports_command("members.get"));
+        assert!(executor.supports_command("emojis.list"));
+        assert!(executor.supports_command("events.list"));
         assert!(!executor.supports_command("unknown.command"));
     }
 
@@ -716,13 +957,16 @@ mod tests {
         let executor = DiscordCommandExecutor::new(token);
 
         let commands = executor.supported_commands();
-        assert_eq!(commands.len(), 6);
+        assert_eq!(commands.len(), 9);
         assert!(commands.contains(&"server.get_stats".to_string()));
         assert!(commands.contains(&"channels.list".to_string()));
         assert!(commands.contains(&"channels.get".to_string()));
         assert!(commands.contains(&"roles.list".to_string()));
+        assert!(commands.contains(&"roles.get".to_string()));
         assert!(commands.contains(&"members.list".to_string()));
         assert!(commands.contains(&"members.get".to_string()));
+        assert!(commands.contains(&"emojis.list".to_string()));
+        assert!(commands.contains(&"events.list".to_string()));
     }
 
     #[test]
@@ -734,8 +978,11 @@ mod tests {
         assert!(executor.command_help("channels.list").is_some());
         assert!(executor.command_help("channels.get").is_some());
         assert!(executor.command_help("roles.list").is_some());
+        assert!(executor.command_help("roles.get").is_some());
         assert!(executor.command_help("members.list").is_some());
         assert!(executor.command_help("members.get").is_some());
+        assert!(executor.command_help("emojis.list").is_some());
+        assert!(executor.command_help("events.list").is_some());
         assert!(executor.command_help("unknown.command").is_none());
     }
 

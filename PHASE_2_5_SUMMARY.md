@@ -6,7 +6,8 @@ Phase 2.5 bridges Phase 2 (bot command foundation) with Phase 3 (production secu
 
 **Status**: ✅ **Complete**  
 **Started**: 2025-11-20  
-**Completed**: 2025-11-20
+**Completed**: 2025-11-20  
+**Updated**: 2025-11-20 (Discord command expansion)
 
 ## What Was Accomplished
 
@@ -534,13 +535,26 @@ Phase 2.5 provides the foundation for safe bot operations. Phase 3 will build on
 
 3. **Write Command Implementation** ✅ (Completed)
    - ✅ `messages.send` with permission checking and approval
+   - ✅ `messages.edit` - Edit existing messages
+   - ✅ `messages.delete` - Delete messages
    - ✅ `channels.create` with permission checking and approval
    - ✅ `channels.delete` with permission checking and approval
    - ✅ `members.ban` with permission checking and approval
+   - ✅ `members.kick` - Kick members from server
+   - ✅ `roles.create` - Create roles with permissions
    - ✅ `SecureBotExecutor` wrapper for platform executors
    - ✅ All write commands tested and working
 
-4. **Advanced Security Features** (Future)
+4. **Discord Command Expansion** ✅ (Completed)
+   - **Expanded from 19 to 26 commands** (+37% increase)
+   - New read commands: `messages.get`, `messages.list`
+   - New write commands: `messages.edit`, `messages.delete`, `members.kick`, `roles.create`
+   - API coverage increased from 16% to 22%
+   - All commands have comprehensive documentation and error handling
+   - All write commands integrated with security framework
+   - See `DISCORD_API_COVERAGE_ANALYSIS.md` for detailed gap analysis
+
+5. **Advanced Security Features** (Future)
    - ML-based toxicity detection
    - Dynamic rate limiting based on behavior
    - Per-user rate limits

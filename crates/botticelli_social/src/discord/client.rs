@@ -107,4 +107,21 @@ impl BotticelliBot {
     pub fn repository(&self) -> &Arc<DiscordRepository> {
         &self.repository
     }
+
+    /// Get a reference to the HTTP client for making Discord API requests.
+    ///
+    /// This allows bot commands to share the bot's authentication and HTTP client,
+    /// coordinating rate limits and reducing connections.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use botticelli_social::{BotticelliBot, DiscordCommandExecutor};
+    ///
+    /// let bot = BotticelliBot::new(token, conn).await?;
+    /// let executor = DiscordCommandExecutor::with_http_client(bot.http_client());
+    /// ```
+    pub fn http_client(&self) -> Arc<serenity::http::Http> {
+        self.client.http.clone()
+    }
 }

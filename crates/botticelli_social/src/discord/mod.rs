@@ -45,6 +45,7 @@
 //! ```
 
 mod client;
+mod commands;
 mod conversions;
 mod error;
 mod handler;
@@ -54,6 +55,7 @@ mod repository;
 
 // Public re-exports
 pub use client::BotticelliBot;
+pub use commands::DiscordCommandExecutor;
 pub use conversions::{NewMemberRole, parse_channel_type, parse_iso_timestamp};
 pub use error::{DiscordError, DiscordErrorKind, DiscordResult as DiscordErrorResult};
 pub use handler::BotticelliHandler;

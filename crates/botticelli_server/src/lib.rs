@@ -53,6 +53,7 @@ mod models;
 mod request;
 mod response;
 mod server;
+mod traits;
 
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
@@ -63,3 +64,4 @@ pub use response::{
     ChatCompletionChunk, ChatCompletionResponse, Choice, ChoiceMessage, ChunkChoice, Delta, Usage,
 };
 pub use server::ServerHandle;
+pub use traits::{InferenceServer, ModelManager as ModelManagerTrait, ServerLauncher};

@@ -2,7 +2,7 @@
 
 use crate::{
     format_as_csv, format_as_json, format_as_markdown, TableQueryExecutor,
-    TableQueryViewBuilder,
+    table_query_view::TableQueryViewBuilder,
 };
 use async_trait::async_trait;
 use botticelli_interface::TableQueryRegistry;

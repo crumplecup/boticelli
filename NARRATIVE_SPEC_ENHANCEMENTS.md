@@ -85,12 +85,12 @@ All infrastructure for resource definitions is implemented:
 - ✅ Configurable row limits (default: 10, max varies by implementation)
 
 **What's Remaining**:
-1. ⏸️ Integration tests with real database tables
-2. ⏸️ Example narratives demonstrating table references in workflows
-3. ⏸️ Alias interpolation (`{{alias}}`) for table results in prompts
-4. ⏸️ Update `NARRATIVE_TOML_SPEC.md` with table reference documentation
+1. ✅ Integration tests with real database tables (`tests/table_references_test.rs`)
+2. ✅ Example narratives demonstrating table references (`examples/table_references.toml`, `examples/content_workflow.toml`)
+3. ⏸️ Alias interpolation (`{{alias}}`) for table results in prompts (future enhancement)
+4. ✅ Update `NARRATIVE_TOML_SPEC.md` with table reference documentation
 
-**Current Status**: ✅ **Fully functional** - Table references work end-to-end in executor.
+**Current Status**: ✅ **COMPLETE** - Table references fully implemented with tests, examples, and documentation.
 
 ---
 

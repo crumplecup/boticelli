@@ -1,6 +1,6 @@
 //! Table query execution for narrative table references.
 
-use crate::{DatabaseError, DatabaseErrorKind, DatabaseResult, TableCountView, TableQueryView};
+use crate::{DatabaseError, DatabaseErrorKind, DatabaseResult, table_query_view::{TableCountView, TableQueryView}};
 use async_trait::async_trait;
 use botticelli_interface::TableQueryRegistry;
 use diesel::prelude::*;
@@ -349,7 +349,7 @@ impl TableQueryRegistry for TableQueryExecutor {
         debug!("TableQueryRegistry::query_table called");
 
         // Build view using the builder pattern
-        let mut builder = crate::TableQueryViewBuilder::default();
+        let mut builder = crate::table_query_view::TableQueryViewBuilder::default();
         builder.table_name(table_name);
 
         if let Some(cols) = columns {

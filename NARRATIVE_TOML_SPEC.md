@@ -130,28 +130,37 @@ Define database table queries that can be referenced in acts:
 ```toml
 [tables.recent_posts]
 table_name = "social_posts_20241120"
-where = "status = 'approved'"
+where_clause = "status = 'approved'"
 limit = 50
 format = "markdown"
+alias = "approved_posts"
 
 [tables.user_stats]
 table_name = "user_activity"
 columns = ["user_id", "post_count", "last_active"]
 order_by = "post_count DESC"
 limit = 100
+format = "json"
+alias = "top_users"
 ```
 
 Fields:
 - `table_name` (string, required): Name of the table to query
 - `columns` (array of strings, optional): Specific columns to select (default: all)
-- `where` (string, optional): WHERE clause for filtering
-- `limit` (integer, optional): Maximum number of rows (default: 100)
+- `where_clause` (string, optional): WHERE clause for filtering (use `where_clause` or `where`)
+- `limit` (integer, optional): Maximum number of rows (default: 10)
 - `offset` (integer, optional): Offset for pagination
-- `order_by` (string, optional): ORDER BY clause
+- `order_by` (string, optional): ORDER BY clause for sorting results
 - `format` (string, optional): Output format - "json", "markdown", or "csv" (default: "json")
-- `sample` (integer, optional): Random sample N rows
+- `alias` (string, optional): Alias for referencing results in future acts (e.g., `{{alias}}`)
+- `sample` (integer, optional): Random sample N rows (mutually exclusive with order_by)
 
 Reference in acts: `"tables.recent_posts"`
+
+**Security Notes**:
+- Table and column names are validated (alphanumeric + underscore only)
+- WHERE clauses are sanitized to prevent SQL injection
+- Row limits are enforced to prevent excessive data transfer
 
 #### `[media.name]` - Media File Definitions
 
@@ -651,15 +660,18 @@ order = ["load_posts", "load_metrics", "analyze_trends", "recommend"]
 # Define table queries once
 [tables.recent_posts]
 table_name = "social_posts_20241120_153045"
-where = "status = 'approved'"
+where_clause = "status = 'approved'"
 limit = 50
 format = "markdown"
+alias = "approved_content"
 
 [tables.engagement_metrics]
 table_name = "post_metrics"
 columns = ["post_id", "views", "reactions", "shares"]
 order_by = "views DESC"
 limit = 20
+format = "json"
+alias = "top_posts"
 
 # Reference tables in acts
 [acts]

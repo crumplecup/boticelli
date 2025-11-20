@@ -1,0 +1,79 @@
+# Multi-narrative workflow example
+#
+# This is Narrative 2 in a two-part workflow:
+# 1. First narrative generates social media posts (stored in a table)
+# 2. This narrative analyzes those posts and generates a strategy report
+#
+# Prerequisites:
+# - Run a content generation narrative first that creates a table
+# - Update the table_name below to match the generated table
+
+[narrative]
+name = "content_strategy_analysis"
+title = "Social Media Content Strategy Analysis"
+description = "Analyze previously generated content and create strategic recommendations"
+author = "Botticelli Team"
+version = "1.0.0"
+tags = ["content", "strategy", "analysis", "social-media"]
+
+# Reference the table created by the previous narrative
+# The table name follows the pattern: {narrative_name}_{timestamp}
+[tables.generated_posts]
+table_name = "social_posts_20241120"  # Update this to match your generated table
+columns = ["sequence_number", "response", "created_at"]
+order_by = "sequence_number ASC"
+limit = 50
+format = "markdown"
+alias = "generated_content"
+
+# Reference performance metrics if available
+[tables.engagement_metrics]
+table_name = "post_engagement"
+columns = ["post_id", "likes", "shares", "comments", "reach"]
+where_clause = "created_at > NOW() - INTERVAL '7 days'"
+order_by = "reach DESC"
+limit = 20
+format = "json"
+alias = "top_performing_posts"
+
+# Act 1: Analyze content themes
+[[acts]]
+name = "identify_themes"
+inputs = [
+    "tables.generated_posts",
+    { text = "Analyze the social media posts above. Identify:\n1. Common themes and topics\n2. Tone and voice patterns\n3. Content structure patterns\n4. Keywords and hashtags used\n\nProvide a detailed breakdown of the content themes." }
+]
+model = "gemini-1.5-flash"
+temperature = 0.6
+max_tokens = 600
+
+# Act 2: Evaluate performance patterns
+[[acts]]
+name = "performance_analysis"
+inputs = [
+    "tables.engagement_metrics",
+    { text = "Based on the engagement metrics above, identify:\n1. What types of content perform best\n2. Optimal posting patterns\n3. Audience engagement trends\n4. Content gaps or opportunities\n\nProvide data-driven insights." }
+]
+model = "gemini-1.5-flash"
+temperature = 0.5
+max_tokens = 500
+
+# Act 3: Generate strategic recommendations
+[[acts]]
+name = "strategy_recommendations"
+inputs = [
+    { text = "Synthesize the theme analysis and performance data into actionable strategic recommendations:\n1. Content focus areas\n2. Topics to expand or reduce\n3. Posting schedule optimization\n4. Audience engagement tactics\n5. Next quarter content goals\n\nFormat as a concise strategy document." }
+]
+model = "gemini-1.5-flash"
+temperature = 0.7
+max_tokens = 700
+
+# Act 4: Create content calendar outline
+[[acts]]
+name = "content_calendar"
+inputs = [
+    { text = "Based on the strategic recommendations, create a 30-day content calendar outline with:\n- Daily content themes\n- Post types (image, video, text, poll)\n- Priority topics\n- Campaign initiatives\n\nFormat as a structured calendar." }
+]
+model = "gemini-1.5-flash"
+temperature = 0.6
+max_tokens = 800

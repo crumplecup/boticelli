@@ -1,0 +1,78 @@
+# Example narrative demonstrating table references
+#
+# This narrative shows how to query database tables and use the results
+# in prompts for content generation.
+#
+# Prerequisites:
+# - PostgreSQL database with content tables
+# - DATABASE_URL environment variable set
+# - At least one content table with data
+
+[narrative]
+name = "product_analysis"
+title = "Product Analysis Report"
+description = "Analyze product data from database and generate insights"
+author = "Botticelli Team"
+version = "1.0.0"
+tags = ["database", "analysis", "products"]
+
+# Define table references
+# These will be queried and formatted before being passed to the LLM
+[tables.recent_products]
+table_name = "products"
+columns = ["name", "category", "price", "rating"]
+where_clause = "created_at > NOW() - INTERVAL '30 days'"
+order_by = "rating DESC"
+limit = 20
+format = "markdown"
+alias = "recent_products"
+
+[tables.top_sellers]
+table_name = "products"
+columns = ["name", "category", "sales_count", "revenue"]
+order_by = "sales_count DESC"
+limit = 10
+format = "json"
+alias = "top_sellers"
+
+[tables.low_stock]
+table_name = "inventory"
+columns = ["product_name", "stock_level", "reorder_point"]
+where_clause = "stock_level < reorder_point"
+order_by = "stock_level ASC"
+limit = 15
+format = "csv"
+alias = "low_stock_items"
+
+# Act 1: Analyze recent product performance
+[[acts]]
+name = "analyze_recent_products"
+inputs = [
+    "tables.recent_products",
+    { text = "Analyze the recent product data above. Identify trends in ratings, pricing, and categories. Provide insights on which product categories are performing well." }
+]
+model = "gemini-1.5-flash"
+temperature = 0.7
+max_tokens = 500
+
+# Act 2: Generate restocking recommendations
+[[acts]]
+name = "restocking_recommendations"
+inputs = [
+    "tables.low_stock",
+    "tables.top_sellers",
+    { text = "Based on the low stock items and top sellers data above, generate a prioritized restocking plan. Consider sales velocity and current stock levels." }
+]
+model = "gemini-1.5-flash"
+temperature = 0.5
+max_tokens = 400
+
+# Act 3: Create executive summary
+[[acts]]
+name = "executive_summary"
+inputs = [
+    { text = "Based on the previous analysis, create a concise executive summary highlighting key findings and actionable recommendations for the product team." }
+]
+model = "gemini-1.5-flash"
+temperature = 0.6
+max_tokens = 300

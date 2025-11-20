@@ -6,71 +6,96 @@ use std::collections::{HashMap, HashSet};
 use tracing::{debug, instrument};
 
 /// Permission configuration for a narrative.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    Default,
+    derive_getters::Getters,
+    derive_setters::Setters,
+    derive_new::new,
+)]
+#[setters(prefix = "with_")]
 pub struct PermissionConfig {
     /// Commands explicitly allowed
     #[serde(default)]
-    pub allowed_commands: HashSet<String>,
+    #[new(default)]
+    allowed_commands: HashSet<String>,
 
     /// Commands explicitly denied (takes precedence)
     #[serde(default)]
-    pub denied_commands: HashSet<String>,
+    #[new(default)]
+    denied_commands: HashSet<String>,
 
     /// Resource-level permissions
     #[serde(default)]
-    pub resources: HashMap<String, ResourcePermission>,
+    #[new(default)]
+    resources: HashMap<String, ResourcePermission>,
 
     /// Protected users that cannot be targeted
     #[serde(default)]
-    pub protected_users: HashSet<String>,
+    #[new(default)]
+    protected_users: HashSet<String>,
 
     /// Protected roles that cannot be modified
     #[serde(default)]
-    pub protected_roles: HashSet<String>,
+    #[new(default)]
+    protected_roles: HashSet<String>,
 
     /// Whether to allow all commands by default
     #[serde(default)]
-    pub allow_all_by_default: bool,
+    #[new(default)]
+    allow_all_by_default: bool,
 }
 
 /// Resource-level permission configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    Default,
+    derive_getters::Getters,
+    derive_setters::Setters,
+    derive_new::new,
+)]
+#[setters(prefix = "with_")]
 pub struct ResourcePermission {
     /// Specific resource IDs allowed (e.g., channel IDs)
     #[serde(default)]
-    pub allowed_ids: HashSet<String>,
+    #[new(default)]
+    allowed_ids: HashSet<String>,
 
     /// Specific resource IDs denied (takes precedence)
     #[serde(default)]
-    pub denied_ids: HashSet<String>,
+    #[new(default)]
+    denied_ids: HashSet<String>,
 
     /// Whether to allow all resources by default
     #[serde(default)]
-    pub allow_all_by_default: bool,
+    #[new(default)]
+    allow_all_by_default: bool,
 }
 
 /// Command permission information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_getters::Getters, derive_new::new)]
 pub struct CommandPermission {
     /// Command name
-    pub command: String,
+    command: String,
     /// Whether command is allowed
-    pub allowed: bool,
+    allowed: bool,
     /// Reason if denied
-    pub reason: Option<String>,
+    reason: Option<String>,
 }
 
 /// Permission checker for validating command execution.
+#[derive(Debug, Clone, derive_getters::Getters, derive_new::new)]
 pub struct PermissionChecker {
     config: PermissionConfig,
 }
 
 impl PermissionChecker {
-    /// Create a new permission checker with the given configuration.
-    pub fn new(config: PermissionConfig) -> Self {
-        Self { config }
-    }
-
     /// Check if a command is allowed.
     #[instrument(skip(self), fields(command))]
     pub fn check_command(&self, command: &str) -> SecurityResult<()> {
@@ -177,11 +202,6 @@ impl PermissionChecker {
         debug!("Role is not protected");
         Ok(())
     }
-
-    /// Get the permission configuration.
-    pub fn config(&self) -> &PermissionConfig {
-        &self.config
-    }
 }
 
 #[cfg(test)]
@@ -189,11 +209,10 @@ mod tests {
     use super::*;
 
     fn create_test_config() -> PermissionConfig {
-        let mut config = PermissionConfig::default();
-        config.allowed_commands.insert("test.command".to_string());
-        config.denied_commands.insert("test.denied".to_string());
-        config.protected_users.insert("12345".to_string());
-        config
+        PermissionConfig::new()
+            .with_allowed_commands(["test.command".to_string()].into_iter().collect())
+            .with_denied_commands(["test.denied".to_string()].into_iter().collect())
+            .with_protected_users(["12345".to_string()].into_iter().collect())
     }
 
     #[test]

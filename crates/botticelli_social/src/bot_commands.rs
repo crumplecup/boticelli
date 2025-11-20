@@ -49,56 +49,92 @@ pub enum BotCommandErrorKind {
     /// Missing required argument.
     #[display("Missing required argument '{}' for command '{}'", arg_name, command)]
     MissingArgument {
+        /// Command that was missing an argument
         command: String,
+        /// Name of the missing argument
         arg_name: String,
     },
 
     /// Invalid argument type or value.
     #[display("Invalid argument '{}' for command '{}': {}", arg_name, command, reason)]
     InvalidArgument {
+        /// Command that received invalid argument
         command: String,
+        /// Name of the invalid argument
         arg_name: String,
+        /// Reason why the argument is invalid
         reason: String,
     },
 
     /// API call failed.
     #[display("API call failed for '{}': {}", command, reason)]
-    ApiError { command: String, reason: String },
+    ApiError {
+        /// Command that failed
+        command: String,
+        /// Reason for failure
+        reason: String,
+    },
 
     /// Authentication failed.
     #[display("Authentication failed for platform '{}': {}", platform, reason)]
-    AuthenticationError { platform: String, reason: String },
+    AuthenticationError {
+        /// Platform that failed authentication
+        platform: String,
+        /// Reason for authentication failure
+        reason: String,
+    },
 
     /// Rate limit exceeded.
     #[display("Rate limit exceeded for '{}': retry after {} seconds", command, retry_after)]
-    RateLimitExceeded { command: String, retry_after: u64 },
+    RateLimitExceeded {
+        /// Command that was rate limited
+        command: String,
+        /// Seconds to wait before retrying
+        retry_after: u64,
+    },
 
     /// Permission denied.
     #[display("Permission denied for '{}': {}", command, reason)]
-    PermissionDenied { command: String, reason: String },
+    PermissionDenied {
+        /// Command that was denied
+        command: String,
+        /// Reason for denial
+        reason: String,
+    },
 
     /// Resource not found (guild, channel, user, etc.).
     #[display("Resource not found for '{}': {}", command, resource_type)]
     ResourceNotFound {
+        /// Command that couldn't find resource
         command: String,
+        /// Type of resource that wasn't found
         resource_type: String,
     },
 
     /// Serialization/deserialization error.
     #[display("Serialization error for '{}': {}", command, reason)]
-    SerializationError { command: String, reason: String },
+    SerializationError {
+        /// Command that had serialization error
+        command: String,
+        /// Reason for serialization failure
+        reason: String,
+    },
 }
 
 /// Bot command error with location tracking.
 #[derive(Debug, Clone, Display, Error)]
 #[display("Bot Command Error: {} at line {} in {}", kind, line, file)]
 pub struct BotCommandError {
+    /// The specific error kind
     pub kind: BotCommandErrorKind,
+    /// Line number where error occurred
     pub line: u32,
+    /// File where error occurred
     pub file: &'static str,
 }
 
 impl BotCommandError {
+    /// Create a new bot command error with location tracking.
     #[track_caller]
     pub fn new(kind: BotCommandErrorKind) -> Self {
         let location = std::panic::Location::caller();

@@ -7,35 +7,51 @@ use std::collections::HashSet;
 use tracing::{debug, instrument};
 
 /// Content filter configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    derive_getters::Getters,
+    derive_setters::Setters,
+    derive_new::new,
+)]
+#[setters(prefix = "with_")]
 pub struct ContentFilterConfig {
     /// Maximum content length
     #[serde(default = "default_max_length")]
-    pub max_length: usize,
+    #[new(value = "default_max_length()")]
+    max_length: usize,
 
     /// Maximum number of mentions allowed
     #[serde(default = "default_max_mentions")]
-    pub max_mentions: u32,
+    #[new(value = "default_max_mentions()")]
+    max_mentions: u32,
 
     /// Maximum number of URLs allowed
     #[serde(default = "default_max_urls")]
-    pub max_urls: u32,
+    #[new(value = "default_max_urls()")]
+    max_urls: u32,
 
     /// Prohibited regex patterns
     #[serde(default)]
-    pub prohibited_patterns: Vec<String>,
+    #[new(default)]
+    prohibited_patterns: Vec<String>,
 
     /// Allowed URL domains (empty = all allowed)
     #[serde(default)]
-    pub allowed_domains: HashSet<String>,
+    #[new(default)]
+    allowed_domains: HashSet<String>,
 
     /// Denied URL domains (takes precedence)
     #[serde(default)]
-    pub denied_domains: HashSet<String>,
+    #[new(default)]
+    denied_domains: HashSet<String>,
 
     /// Block @everyone and @here mentions
     #[serde(default = "default_true")]
-    pub block_mass_mentions: bool,
+    #[new(value = "true")]
+    block_mass_mentions: bool,
 }
 
 fn default_max_length() -> usize {
@@ -69,15 +85,16 @@ impl Default for ContentFilterConfig {
 }
 
 /// Content violation details.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_getters::Getters, derive_new::new)]
 pub struct ContentViolation {
     /// Type of violation
-    pub violation_type: String,
+    violation_type: String,
     /// Reason for violation
-    pub reason: String,
+    reason: String,
 }
 
 /// Content filter for validating AI-generated content.
+#[derive(Debug, Clone, derive_getters::Getters)]
 pub struct ContentFilter {
     config: ContentFilterConfig,
     prohibited_regex: Vec<Regex>,
@@ -221,11 +238,6 @@ impl ContentFilter {
         
         Some(domain)
     }
-
-    /// Get the configuration.
-    pub fn config(&self) -> &ContentFilterConfig {
-        &self.config
-    }
 }
 
 #[cfg(test)]
@@ -234,10 +246,7 @@ mod tests {
 
     #[test]
     fn test_length_limit() {
-        let config = ContentFilterConfig {
-            max_length: 100,
-            ..Default::default()
-        };
+        let config = ContentFilterConfig::new().with_max_length(100);
         let filter = ContentFilter::new(config).unwrap();
 
         assert!(filter.filter("Short message").is_ok());
@@ -256,10 +265,7 @@ mod tests {
 
     #[test]
     fn test_mention_count() {
-        let config = ContentFilterConfig {
-            max_mentions: 2,
-            ..Default::default()
-        };
+        let config = ContentFilterConfig::new().with_max_mentions(2);
         let filter = ContentFilter::new(config).unwrap();
 
         assert!(filter.filter("Hi <@123456789012345678>").is_ok());
@@ -273,10 +279,7 @@ mod tests {
 
     #[test]
     fn test_url_count() {
-        let config = ContentFilterConfig {
-            max_urls: 1,
-            ..Default::default()
-        };
+        let config = ContentFilterConfig::new().with_max_urls(1);
         let filter = ContentFilter::new(config).unwrap();
 
         assert!(filter.filter("Check out https://example.com").is_ok());
@@ -287,8 +290,9 @@ mod tests {
 
     #[test]
     fn test_domain_allowlist() {
-        let mut config = ContentFilterConfig::default();
-        config.allowed_domains.insert("example.com".to_string());
+        let mut allowed_domains = HashSet::new();
+        allowed_domains.insert("example.com".to_string());
+        let config = ContentFilterConfig::new().with_allowed_domains(allowed_domains);
         let filter = ContentFilter::new(config).unwrap();
 
         assert!(filter.filter("https://example.com/page").is_ok());
@@ -297,8 +301,9 @@ mod tests {
 
     #[test]
     fn test_domain_denylist() {
-        let mut config = ContentFilterConfig::default();
-        config.denied_domains.insert("evil.com".to_string());
+        let mut denied_domains = HashSet::new();
+        denied_domains.insert("evil.com".to_string());
+        let config = ContentFilterConfig::new().with_denied_domains(denied_domains);
         let filter = ContentFilter::new(config).unwrap();
 
         assert!(filter.filter("https://example.com/page").is_ok());
@@ -307,8 +312,8 @@ mod tests {
 
     #[test]
     fn test_prohibited_patterns() {
-        let mut config = ContentFilterConfig::default();
-        config.prohibited_patterns.push(r"(?i)password".to_string());
+        let config = ContentFilterConfig::new()
+            .with_prohibited_patterns(vec![r"(?i)password".to_string()]);
         let filter = ContentFilter::new(config).unwrap();
 
         assert!(filter.filter("Hello world").is_ok());

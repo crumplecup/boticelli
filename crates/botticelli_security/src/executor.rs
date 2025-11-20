@@ -146,18 +146,15 @@ mod tests {
     };
 
     fn create_test_executor() -> SecureExecutor<DiscordValidator> {
-        let mut perm_config = PermissionConfig::default();
-        perm_config
-            .allowed_commands
-            .insert("messages.send".to_string());
-
-        let mut resource_perm = ResourcePermission::default();
-        resource_perm
-            .allowed_ids
-            .insert("123456789012345678".to_string());
-        perm_config
-            .resources
-            .insert("channel".to_string(), resource_perm);
+        let resource_perm = ResourcePermission::new()
+            .with_allowed_ids(["123456789012345678".to_string()].into_iter().collect());
+        
+        let mut resources = std::collections::HashMap::new();
+        resources.insert("channel".to_string(), resource_perm);
+        
+        let perm_config = PermissionConfig::new()
+            .with_allowed_commands(["messages.send".to_string()].into_iter().collect())
+            .with_resources(resources);
 
         let permission_checker = PermissionChecker::new(perm_config);
         let validator = DiscordValidator::new();

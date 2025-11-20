@@ -18,28 +18,28 @@ pub enum ApprovalDecision {
 }
 
 /// Pending action awaiting approval.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, derive_getters::Getters)]
 pub struct PendingAction {
     /// Unique action ID
-    pub id: String,
+    id: String,
     /// Narrative ID that requested the action
-    pub narrative_id: String,
+    narrative_id: String,
     /// Command to execute
-    pub command: String,
+    command: String,
     /// Command parameters
-    pub params: HashMap<String, String>,
+    params: HashMap<String, String>,
     /// Reason for the action (from AI)
-    pub reason: Option<String>,
+    reason: Option<String>,
     /// Timestamp when action was created
-    pub created_at: u64,
+    created_at: u64,
     /// Timestamp when action expires (24 hours default)
-    pub expires_at: u64,
+    expires_at: u64,
     /// Current decision
-    pub decision: ApprovalDecision,
+    decision: ApprovalDecision,
     /// Reason for approval/denial
-    pub decision_reason: Option<String>,
+    decision_reason: Option<String>,
     /// User who made the decision
-    pub decided_by: Option<String>,
+    decided_by: Option<String>,
 }
 
 impl PendingAction {
@@ -295,9 +295,9 @@ mod tests {
             .unwrap();
 
         let action = workflow.get_pending_action(&action_id).unwrap();
-        assert_eq!(action.narrative_id, "narrative1");
-        assert_eq!(action.command, "test.command");
-        assert_eq!(action.decision, ApprovalDecision::Pending);
+        assert_eq!(action.narrative_id(), "narrative1");
+        assert_eq!(action.command(), "test.command");
+        assert_eq!(action.decision(), &ApprovalDecision::Pending);
     }
 
     #[test]
@@ -314,8 +314,8 @@ mod tests {
             .unwrap();
 
         let action = workflow.get_pending_action(&action_id).unwrap();
-        assert_eq!(action.decision, ApprovalDecision::Approved);
-        assert_eq!(action.decided_by, Some("admin".to_string()));
+        assert_eq!(action.decision(), &ApprovalDecision::Approved);
+        assert_eq!(action.decided_by(), &Some("admin".to_string()));
     }
 
     #[test]
@@ -332,7 +332,7 @@ mod tests {
             .unwrap();
 
         let action = workflow.get_pending_action(&action_id).unwrap();
-        assert_eq!(action.decision, ApprovalDecision::Denied);
+        assert_eq!(action.decision(), &ApprovalDecision::Denied);
     }
 
     #[test]
@@ -387,7 +387,7 @@ mod tests {
 
         let pending = workflow.list_pending_actions("narrative1");
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].command, "cmd2");
+        assert_eq!(pending[0].command(), "cmd2");
     }
 
     #[test]

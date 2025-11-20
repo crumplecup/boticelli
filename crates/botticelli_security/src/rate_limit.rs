@@ -7,14 +7,14 @@ use std::time::{Duration, Instant};
 use tracing::{debug, instrument};
 
 /// Rate limit configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, derive_getters::Getters)]
 pub struct RateLimit {
     /// Maximum tokens (requests) allowed
-    pub max_tokens: u32,
+    max_tokens: u32,
     /// Time window in seconds
-    pub window_secs: u64,
+    window_secs: u64,
     /// Burst allowance (extra tokens for spikes)
-    pub burst: u32,
+    burst: u32,
 }
 
 impl RateLimit {
@@ -34,14 +34,14 @@ impl RateLimit {
 }
 
 /// Rate limit exceeded error details.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_getters::Getters)]
 pub struct RateLimitExceeded {
     /// Operation that exceeded limit
-    pub operation: String,
+    operation: String,
     /// Current rate limit
-    pub limit: RateLimit,
+    limit: RateLimit,
     /// Time until tokens are available
-    pub retry_after: Duration,
+    retry_after: Duration,
 }
 
 /// Token bucket for a specific operation.

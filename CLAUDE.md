@@ -109,6 +109,55 @@ cargo test --all-features
 - Data structures should derive Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, and Hash if possible.
 - Use derive_more to derive Display, FromStr, From, Deref, DerefMut, AsRef, and AsMut when appropriate.
 - For enums with no fields, use strum to derive EnumIter.
+- Use derive_getters to derive field getters for structs with private fields.
+- Use derive_setters to derive field setters for mutable structs with private fields.
+- Use typed_builder for complex construction patterns - prefer this over manual constructors or new() methods.
+
+### Field Visibility and Access Patterns
+
+**Struct Design:**
+- Types should be public (`pub struct MyType`)
+- Fields should be private (no `pub` on fields)
+- Use derives to provide controlled access
+
+**Example:**
+```rust
+use derive_getters::Getters;
+use derive_setters::Setters;
+use typed_builder::TypedBuilder;
+
+#[derive(Debug, Clone, Getters, Setters, TypedBuilder)]
+pub struct SecurityContext {
+    #[builder(default)]
+    user_id: Option<UserId>,
+    
+    #[builder(default)]
+    permissions: Vec<Permission>,
+    
+    #[setters(skip)]  // No setter for this field
+    created_at: DateTime<Utc>,
+}
+
+// Usage:
+let ctx = SecurityContext::builder()
+    .user_id(Some(user_id))
+    .permissions(vec![Permission::Read])
+    .created_at(Utc::now())
+    .build();
+
+// Getters are automatic
+let user = ctx.user_id();
+let perms = ctx.permissions();
+
+// Setters (mutable)
+ctx.set_permissions(new_permissions);
+```
+
+**When to use each:**
+- **derive_getters**: Always use for structs with private fields
+- **derive_setters**: Use for mutable configuration/state objects
+- **typed_builder**: Use when construction requires multiple optional parameters or validation
+- **Manual constructors**: Only when complex initialization logic is required (e.g., establishing connections, validating invariants)
 
 ### Exception: Error Types
 

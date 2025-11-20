@@ -69,6 +69,9 @@ async-trait = "0.1"
 futures-util = "0.3"
 derive_more = { version = "2", features = ["display", "from"] }
 derive-new = "0.7"
+derive-getters = "0.5"
+derive_setters = "0.1"
+derive_builder = "0.20"
 strum = { version = "0.26", features = ["derive"] }
 
 # Rate limiting and retry

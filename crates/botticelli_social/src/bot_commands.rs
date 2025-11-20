@@ -19,7 +19,7 @@
 //! let discord = DiscordCommandExecutor::new("DISCORD_TOKEN");
 //!
 //! // Register with registry
-//! let mut registry = BotCommandRegistry::new();
+//! let mut registry = BotCommandRegistryImpl::new();
 //! registry.register(discord);
 //!
 //! // Execute command
@@ -241,21 +241,21 @@ pub trait BotCommandExecutor: Send + Sync {
 /// # Example
 ///
 /// ```rust,ignore
-/// let mut registry = BotCommandRegistry::new();
+/// let mut registry = BotCommandRegistryImpl::new();
 /// registry.register(DiscordCommandExecutor::new("TOKEN"));
 /// registry.register(SlackCommandExecutor::new("TOKEN"));
 ///
 /// let result = registry.execute("discord", "server.get_stats", &args).await?;
 /// ```
-pub struct BotCommandRegistry {
+pub struct BotCommandRegistryImpl {
     executors: HashMap<String, Arc<dyn BotCommandExecutor>>,
     cache: Arc<Mutex<CommandCache>>,
 }
 
-impl BotCommandRegistry {
+impl BotCommandRegistryImpl {
     /// Create a new empty registry with default cache.
     pub fn new() -> Self {
-        tracing::debug!("Creating new BotCommandRegistry");
+        tracing::debug!("Creating new BotCommandRegistryImpl");
         Self {
             executors: HashMap::new(),
             cache: Arc::new(Mutex::new(CommandCache::default())),
@@ -276,7 +276,7 @@ impl BotCommandRegistry {
     /// # Example
     ///
     /// ```rust,ignore
-    /// let mut registry = BotCommandRegistry::new();
+    /// let mut registry = BotCommandRegistryImpl::new();
     /// registry.register(DiscordCommandExecutor::new("TOKEN"));
     /// ```
     pub fn register<E: BotCommandExecutor + 'static>(&mut self, executor: E) -> &mut Self {
@@ -383,7 +383,7 @@ impl BotCommandRegistry {
     }
 }
 
-impl Default for BotCommandRegistry {
+impl Default for BotCommandRegistryImpl {
     fn default() -> Self {
         Self::new()
     }
@@ -391,7 +391,7 @@ impl Default for BotCommandRegistry {
 
 // Implement the narrative trait to avoid circular dependencies
 #[async_trait]
-impl botticelli_narrative::BotCommandRegistry for BotCommandRegistry {
+impl botticelli_narrative::BotCommandRegistry for BotCommandRegistryImpl {
     async fn execute(
         &self,
         platform: &str,
@@ -484,7 +484,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bot_command_registry() {
-        let mut registry = BotCommandRegistry::new();
+        let mut registry = BotCommandRegistryImpl::new();
         registry.register(MockBotCommandExecutor::new("mock"));
 
         let mut args = HashMap::new();
@@ -500,7 +500,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unknown_platform() {
-        let registry = BotCommandRegistry::new();
+        let registry = BotCommandRegistryImpl::new();
         let args = HashMap::new();
 
         let result = registry.execute("unknown", "test", &args).await;
@@ -528,7 +528,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_registry_platforms() {
-        let mut registry = BotCommandRegistry::new();
+        let mut registry = BotCommandRegistryImpl::new();
         registry.register(MockBotCommandExecutor::new("discord"));
         registry.register(MockBotCommandExecutor::new("slack"));
 
@@ -540,7 +540,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_registry_has_platform() {
-        let mut registry = BotCommandRegistry::new();
+        let mut registry = BotCommandRegistryImpl::new();
         registry.register(MockBotCommandExecutor::new("discord"));
 
         assert!(registry.has_platform("discord"));

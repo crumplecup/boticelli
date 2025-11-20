@@ -6,8 +6,10 @@
 //!
 //! Run with: cargo test -p botticelli --test discord_bot_commands_test --features discord
 
+#![cfg(feature = "discord")]
+
 use botticelli_narrative::NarrativeExecutor;
-use botticelli_social::{BotCommandExecutor, BotCommandRegistry, DiscordCommandExecutor};
+use botticelli_social::{BotCommandExecutor, BotCommandRegistryImpl, DiscordCommandExecutor};
 use std::collections::HashMap;
 
 /// Helper to get test guild ID from environment
@@ -568,7 +570,7 @@ async fn test_bot_command_registry_with_discord() {
 
     // Create executor and registry
     let executor = DiscordCommandExecutor::new(&token);
-    let mut registry = BotCommandRegistry::new();
+    let mut registry = BotCommandRegistryImpl::new();
     registry.register(executor);
 
     // Execute via registry
@@ -594,11 +596,11 @@ async fn test_narrative_with_bot_commands() {
 
     // Create Discord executor and registry
     let executor = DiscordCommandExecutor::new(&token);
-    let mut bot_registry = BotCommandRegistry::new();
+    let mut bot_registry = BotCommandRegistryImpl::new();
     bot_registry.register(executor);
 
     // Create a simple mock LLM driver for testing
-    use botticelli_core::{GenerateRequest, GenerateResponse, Input, Output};
+    use botticelli_core::{GenerateRequest, GenerateResponse, Output};
     use botticelli_interface::BotticelliDriver;
     use async_trait::async_trait;
 

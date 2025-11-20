@@ -34,7 +34,7 @@ mod discord;
 
 // Export bot command infrastructure (always available)
 pub use bot_commands::{
-    BotCommandError, BotCommandErrorKind, BotCommandExecutor, BotCommandRegistry,
+    BotCommandError, BotCommandErrorKind, BotCommandExecutor, BotCommandRegistryImpl,
     BotCommandResult,
 };
 

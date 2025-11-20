@@ -141,6 +141,133 @@ async fn test_discord_command_executor_roles_list() {
 
 #[tokio::test]
 #[ignore]
+async fn test_discord_command_executor_channels_get() {
+    dotenvy::dotenv().ok();
+    
+    let token = get_discord_token();
+    let guild_id = get_test_guild_id();
+
+    let executor = DiscordCommandExecutor::new(&token);
+
+    // First get list of channels to get a valid channel_id
+    let mut args = HashMap::new();
+    args.insert("guild_id".to_string(), serde_json::json!(guild_id));
+
+    let channels = executor
+        .execute("channels.list", &args)
+        .await
+        .expect("Failed to list channels");
+
+    let channels_array = channels.as_array().unwrap();
+    assert!(!channels_array.is_empty(), "Should have at least one channel");
+
+    // Get the first channel's ID
+    let first_channel = &channels_array[0];
+    let channel_id = first_channel["id"].as_str().unwrap();
+
+    // Now test channels.get with that channel_id
+    args.insert("channel_id".to_string(), serde_json::json!(channel_id));
+
+    let result = executor
+        .execute("channels.get", &args)
+        .await
+        .expect("Failed to execute channels.get command");
+
+    // Verify result structure
+    assert!(result.is_object(), "Result should be a JSON object");
+    let obj = result.as_object().unwrap();
+    assert!(obj.contains_key("id"), "Result should have id");
+    assert!(obj.contains_key("name"), "Result should have name");
+    assert!(obj.contains_key("type"), "Result should have type");
+
+    println!("Channel details: {}", serde_json::to_string_pretty(&result).unwrap());
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_discord_command_executor_members_list() {
+    dotenvy::dotenv().ok();
+    
+    let token = get_discord_token();
+    let guild_id = get_test_guild_id();
+
+    let executor = DiscordCommandExecutor::new(&token);
+
+    let mut args = HashMap::new();
+    args.insert("guild_id".to_string(), serde_json::json!(guild_id));
+    args.insert("limit".to_string(), serde_json::json!(10)); // Small limit for testing
+
+    let result = executor
+        .execute("members.list", &args)
+        .await
+        .expect("Failed to execute members.list command");
+
+    // Verify result is an array
+    assert!(result.is_array(), "Result should be a JSON array");
+    let members = result.as_array().unwrap();
+
+    println!("Found {} members", members.len());
+    
+    // Verify member structure if any members exist
+    if let Some(member) = members.first() {
+        assert!(member.is_object(), "Member should be a JSON object");
+        let member_obj = member.as_object().unwrap();
+        assert!(member_obj.contains_key("user_id"), "Member should have user_id");
+        assert!(member_obj.contains_key("username"), "Member should have username");
+        assert!(member_obj.contains_key("roles"), "Member should have roles");
+    }
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_discord_command_executor_members_get() {
+    dotenvy::dotenv().ok();
+    
+    let token = get_discord_token();
+    let guild_id = get_test_guild_id();
+
+    let executor = DiscordCommandExecutor::new(&token);
+
+    // First list members to get a valid user_id
+    let mut args = HashMap::new();
+    args.insert("guild_id".to_string(), serde_json::json!(guild_id));
+    args.insert("limit".to_string(), serde_json::json!(1));
+
+    let members = executor
+        .execute("members.list", &args)
+        .await
+        .expect("Failed to list members");
+
+    let members_array = members.as_array().unwrap();
+    if members_array.is_empty() {
+        println!("No members in guild, skipping test");
+        return;
+    }
+
+    // Get the first member's user_id
+    let first_member = &members_array[0];
+    let user_id = first_member["user_id"].as_str().unwrap();
+
+    // Now test members.get with that user_id
+    args.insert("user_id".to_string(), serde_json::json!(user_id));
+
+    let result = executor
+        .execute("members.get", &args)
+        .await
+        .expect("Failed to execute members.get command");
+
+    // Verify result structure
+    assert!(result.is_object(), "Result should be a JSON object");
+    let obj = result.as_object().unwrap();
+    assert!(obj.contains_key("user_id"), "Result should have user_id");
+    assert!(obj.contains_key("username"), "Result should have username");
+    assert!(obj.contains_key("roles"), "Result should have roles");
+
+    println!("Member details: {}", serde_json::to_string_pretty(&result).unwrap());
+}
+
+#[tokio::test]
+#[ignore]
 async fn test_bot_command_registry_with_discord() {
     dotenvy::dotenv().ok();
     

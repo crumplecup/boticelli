@@ -65,6 +65,7 @@ Create a vibrant Discord community that:
 [narrative]
 name = "discord_server_rules"
 description = "Generate community guidelines for Botticelli Discord server"
+skip_content_generation = true
 
 [toc]
 order = ["generate_rules"]
@@ -106,6 +107,7 @@ Format as Discord-friendly markdown with emojis.
 [narrative]
 name = "discord_welcome"
 description = "Generate welcome message for new Discord members"
+skip_content_generation = true
 
 [toc]
 order = ["generate_welcome"]
@@ -140,6 +142,7 @@ Keep it concise and welcoming.
 [narrative]
 name = "discord_faq"
 description = "Generate FAQ for Botticelli Discord server"
+skip_content_generation = true
 
 [toc]
 order = ["research_common_questions", "generate_faq"]
@@ -192,6 +195,7 @@ Format for Discord with collapsible sections using spoiler tags.
 [narrative]
 name = "discord_tutorial_series"
 description = "Generate tutorial series for Botticelli Discord"
+skip_content_generation = true
 
 [toc]
 order = ["plan_tutorial_series", "write_tutorial_1"]
@@ -252,6 +256,7 @@ Format for Discord with code blocks and clear sections.
 [narrative]
 name = "discord_use_case_examples"
 description = "Generate use case examples for Discord"
+skip_content_generation = true
 
 [toc]
 order = ["identify_use_cases", "write_example_narratives"]
@@ -309,6 +314,7 @@ Make the examples copy-paste ready.
 [narrative]
 name = "discord_weekly_topics"
 description = "Generate weekly discussion topics for community engagement"
+skip_content_generation = true
 
 [toc]
 order = ["generate_weekly_topics"]
@@ -345,6 +351,7 @@ Format as Discord posts with engaging emojis and formatting.
 [narrative]
 name = "discord_community_highlights"
 description = "Generate weekly community highlight posts"
+skip_content_generation = true
 
 [toc]
 order = ["create_highlight_template"]
@@ -429,6 +436,7 @@ async fn handle_slash_command(
 [narrative]
 name = "discord_content_review"
 description = "Review and approve Discord content"
+skip_content_generation = true
 
 [toc]
 order = ["generate_content", "review_checklist"]

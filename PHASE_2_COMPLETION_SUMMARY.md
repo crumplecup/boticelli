@@ -230,11 +230,12 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
    - Handle `required` flag for error vs warning behavior
    - Template substitution of command results into prompts
 
-2. **Command Result Caching** ⏸️
+2. **Command Result Caching** ✅
    - Cache command results with TTL
    - Cache key: `(platform, command, args_hash)`
    - Respect `cache_duration` parameter from TOML
-   - Invalidation strategy for dynamic data
+   - LRU eviction when at max capacity
+   - Automatic expiration cleanup
 
 3. **Write Command Implementation** ⏸️
    - `channels.send_message` (approval workflow integration)

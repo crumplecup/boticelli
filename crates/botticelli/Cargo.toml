@@ -23,6 +23,7 @@ botticelli_models = { workspace = true, optional = true }
 botticelli_database = { workspace = true, optional = true }
 botticelli_social = { workspace = true, optional = true }
 botticelli_tui = { workspace = true, optional = true }
+botticelli_server = { workspace = true, optional = true }
 
 # Binary dependencies
 clap = { version = "4", features = ["derive"] }
@@ -47,15 +48,18 @@ discord = ["botticelli_social", "botticelli_social/discord"]
 # TUI feature
 tui = ["botticelli_tui"]
 
+# Local model server feature
+server = ["botticelli_server"]
+
 # Convenience feature for all providers
 all-providers = ["gemini"]
 
 # Testing feature flags
 api = []  # Empty marker feature to gate API-consuming tests
-local = ["gemini", "database", "discord", "tui"]  # All features except api
+local = ["gemini", "database", "discord", "tui", "server"]  # All features except api
 
 # Convenience feature for all optional features
-all = ["gemini", "database", "discord", "tui"]
+all = ["gemini", "database", "discord", "tui", "server"]
 
 [[bin]]
 name = "botticelli"

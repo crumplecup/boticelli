@@ -52,6 +52,7 @@ mod convert;
 mod models;
 mod request;
 mod response;
+mod server;
 
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
@@ -61,3 +62,4 @@ pub use request::{ChatCompletionRequest, Message};
 pub use response::{
     ChatCompletionChunk, ChatCompletionResponse, Choice, ChoiceMessage, ChunkChoice, Delta, Usage,
 };
+pub use server::ServerHandle;

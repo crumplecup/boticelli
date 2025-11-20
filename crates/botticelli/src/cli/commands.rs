@@ -45,6 +45,11 @@ pub enum Commands {
     /// Content management commands
     #[command(subcommand)]
     Content(ContentCommands),
+
+    /// Model server management commands
+    #[cfg(feature = "server")]
+    #[command(subcommand)]
+    Server(ServerCommands),
 }
 
 /// Content management subcommands
@@ -105,4 +110,53 @@ pub enum OutputFormat {
     Json,
     /// Table name only (for scripting)
     TableNameOnly,
+}
+
+/// Model server management subcommands
+#[derive(Subcommand, Debug)]
+pub enum ServerCommands {
+    /// Download and set up a model
+    Download {
+        /// Model identifier (e.g., mistral-7b-instruct, llama3-8b)
+        model: String,
+
+        /// Directory to download model to
+        #[arg(long, default_value = "~/.botticelli/models")]
+        model_dir: PathBuf,
+
+        /// Quantization level (q4, q5, q8)
+        #[arg(long, default_value = "q4")]
+        quantization: String,
+    },
+
+    /// Start the local inference server
+    Start {
+        /// Model identifier or path to use
+        model: String,
+
+        /// Directory where models are stored
+        #[arg(long, default_value = "~/.botticelli/models")]
+        model_dir: PathBuf,
+
+        /// Port to run server on
+        #[arg(long, default_value = "8080")]
+        port: u16,
+
+        /// Run server in background
+        #[arg(long)]
+        daemon: bool,
+    },
+
+    /// Stop the running server
+    Stop,
+
+    /// Check server status
+    Status,
+
+    /// List available/downloaded models
+    List {
+        /// Directory where models are stored
+        #[arg(long, default_value = "~/.botticelli/models")]
+        model_dir: PathBuf,
+    },
 }

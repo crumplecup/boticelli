@@ -25,6 +25,8 @@ pub enum AppMode {
     Compare,
     /// Export view - export options
     Export,
+    /// Server management view - manage local inference server
+    Server,
 }
 
 /// Content row representation for TUI display.
@@ -86,6 +88,8 @@ pub struct App {
     pub compare_selection: Vec<usize>,
     /// Edit buffer (when in Edit mode)
     pub edit_buffer: Option<EditBuffer>,
+    /// Server view state (when in Server mode)
+    pub server_view: Option<crate::server_view::ServerView>,
     /// Status message to display
     pub status_message: String,
     /// Whether to quit the application
@@ -105,6 +109,7 @@ impl App {
             selected_index: 0,
             compare_selection: Vec::new(),
             edit_buffer: None,
+            server_view: None,
             status_message: String::from("Press ? for help"),
             should_quit: false,
             conn,
@@ -303,6 +308,43 @@ impl App {
     pub fn quit(&mut self) {
         self.should_quit = true;
     }
+
+    /// Enter server management mode.
+    #[tracing::instrument(skip(self))]
+    pub fn enter_server(&mut self) -> BotticelliResult<()> {
+        use std::env;
+        
+        // Initialize server view if not already present
+        if self.server_view.is_none() {
+            let download_dir = env::var("BOTTICELLI_MODEL_DIR")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .map(|h| h.join("repos/inference_models"))
+                        .unwrap_or_else(|| std::path::PathBuf::from("./models"))
+                });
+            
+            self.server_view = Some(crate::server_view::ServerView::new(download_dir));
+        }
+        
+        self.mode = AppMode::Server;
+        self.status_message = "Server Management - Up/Down: navigate, d: download, s: start, x: stop, q: quit".to_string();
+        Ok(())
+    }
+
+    /// Select previous model in server view.
+    pub fn server_select_previous(&mut self) {
+        if let Some(server_view) = &mut self.server_view {
+            server_view.select_previous();
+        }
+    }
+
+    /// Select next model in server view.
+    pub fn server_select_next(&mut self) {
+        if let Some(server_view) = &mut self.server_view {
+            server_view.select_next();
+        }
+    }
 }
 
 /// Run the TUI application.
@@ -405,6 +447,7 @@ fn handle_key_event(app: &mut App, key: crossterm::event::KeyEvent) -> Botticell
             KeyCode::Enter => app.enter_detail(),
             KeyCode::Char('e') => app.enter_edit()?,
             KeyCode::Char('c') => app.toggle_compare(),
+            KeyCode::Char('s') => app.enter_server()?,
             KeyCode::Char('d') => {
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
                     app.delete_selected()?;
@@ -433,6 +476,24 @@ fn handle_key_event(app: &mut App, key: crossterm::event::KeyEvent) -> Botticell
         },
         AppMode::Export => match key.code {
             KeyCode::Esc | KeyCode::Char('q') => app.return_to_list(),
+            _ => {}
+        },
+        AppMode::Server => match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => app.return_to_list(),
+            KeyCode::Up | KeyCode::Char('k') => app.server_select_previous(),
+            KeyCode::Down | KeyCode::Char('j') => app.server_select_next(),
+            KeyCode::Char('d') => {
+                // Download selected model (async operation)
+                app.status_message = "Download feature requires async runtime integration".to_string();
+            }
+            KeyCode::Char('s') => {
+                // Start server (async operation)  
+                app.status_message = "Server start feature requires async runtime integration".to_string();
+            }
+            KeyCode::Char('x') => {
+                // Stop server (async operation)
+                app.status_message = "Server stop feature requires async runtime integration".to_string();
+            }
             _ => {}
         },
     }

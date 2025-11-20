@@ -14,6 +14,7 @@ description = "Terminal UI for reviewing and managing Botticelli-generated conte
 botticelli_error = { workspace = true }
 botticelli_database = { workspace = true }
 botticelli_narrative = { workspace = true }
+botticelli_server = { workspace = true }
 
 # Database
 diesel = { workspace = true }
@@ -31,6 +32,9 @@ tracing = { workspace = true }
 # TUI libraries
 ratatui = { workspace = true }
 crossterm = { workspace = true }
+
+# System utilities
+dirs = { workspace = true }
 
 [features]
 default = []

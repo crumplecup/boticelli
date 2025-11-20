@@ -2,7 +2,8 @@
 
 ## Quick Start
 
-The Botticelli server provides automatic model download and management for local LLM inference.
+The Botticelli server provides automatic model download and management for local LLM inference,
+with built-in server lifecycle management.
 
 ### 1. List Available Models
 
@@ -116,8 +117,81 @@ Once downloaded, models are reused across runs.
 - Delete the model file and re-download
 - Verify you're using a GGUF format model (not safetensors or other formats)
 
+## Programmatic Usage
+
+### Managed Server Lifecycle
+
+The `ServerHandle` API allows you to start and stop the inference server from your application:
+
+```rust
+use botticelli_server::{ServerHandle, ServerClient, ServerConfig, ChatCompletionRequest, Message};
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Start the server
+    let server = ServerHandle::start(
+        8080,
+        "/home/user/inference_models".to_string(),
+        "mistralai/Mistral-7B-Instruct-v0.3".to_string(),
+    )?;
+    
+    // Wait for it to be ready
+    server.wait_until_ready(Duration::from_secs(60)).await?;
+    
+    // Create a client
+    let config = ServerConfig::new("http://localhost:8080", "default");
+    let client = ServerClient::new(config);
+    
+    // Make requests
+    let request = ChatCompletionRequest {
+        model: "default".into(),
+        messages: vec![Message::user("Hello!")],
+        max_tokens: Some(100),
+        temperature: Some(0.7),
+        top_p: None,
+        stream: None,
+    };
+    
+    let response = client.chat_completion(request).await?;
+    println!("{}", response.choices[0].message.content);
+    
+    // Stop the server when done
+    server.stop()?;
+    
+    Ok(())
+}
+```
+
+### Using an External Server
+
+If you prefer to manage the server separately:
+
+```rust
+use botticelli_server::{ServerClient, ServerConfig, ChatCompletionRequest, Message};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ServerConfig::new("http://localhost:8080", "default");
+    let client = ServerClient::new(config);
+    
+    let request = ChatCompletionRequest {
+        model: "default".into(),
+        messages: vec![Message::user("Explain Rust")],
+        max_tokens: Some(100),
+        temperature: Some(0.7),
+        top_p: None,
+        stream: None,
+    };
+    
+    let response = client.chat_completion(request).await?;
+    println!("{}", response.choices[0].message.content);
+    
+    Ok(())
+}
+```
+
 ## Next Steps
 
 - Integration with Botticelli's text generation pipeline (coming soon)
-- Direct library usage without separate server process (coming soon)
 - GPU acceleration support (coming soon)

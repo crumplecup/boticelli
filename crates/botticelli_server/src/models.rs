@@ -82,6 +82,11 @@ impl ModelSpec {
         }
     }
 
+    /// Create a ModelSpec from a model name (CLI-friendly)
+    pub fn from_name(name: &str) -> Result<Self, String> {
+        Self::parse(name).ok_or_else(|| format!("Unknown model: {}", name))
+    }
+
     /// List all available models
     pub fn all() -> &'static [ModelSpec] {
         &[
@@ -120,9 +125,22 @@ impl ModelManager {
         self.download_dir.join(spec.filename())
     }
 
-    /// Download a model from Hugging Face
+    /// Get the model path for a specific quantization level (CLI-friendly)
+    pub fn get_model_path(&self, spec: &ModelSpec, _quantization: &str) -> PathBuf {
+        // For now, ignore quantization parameter since ModelSpec already includes it
+        self.model_path(*spec)
+    }
+
+    /// Download a model from Hugging Face (CLI-friendly with quantization parameter)
     #[instrument(skip(self))]
-    pub async fn download(&self, spec: ModelSpec) -> anyhow::Result<PathBuf> {
+    pub async fn download(&self, spec: &ModelSpec, _quantization: &str) -> anyhow::Result<PathBuf> {
+        // For now, ignore quantization parameter since ModelSpec already includes it
+        self.download_internal(*spec).await
+    }
+
+    /// Download a model from Hugging Face (internal)
+    #[instrument(skip(self))]
+    async fn download_internal(&self, spec: ModelSpec) -> anyhow::Result<PathBuf> {
         info!(
             model = ?spec,
             size_gb = spec.size_gb(),
@@ -160,7 +178,7 @@ impl ModelManager {
             Ok(self.model_path(spec))
         } else {
             info!(model = ?spec, "Model not found locally, downloading");
-            self.download(spec).await
+            self.download_internal(spec).await
         }
     }
 }

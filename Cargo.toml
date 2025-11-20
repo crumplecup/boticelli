@@ -54,6 +54,9 @@ botticelli_social = { path = "crates/botticelli_social", version = "0.2.0" }
 # Internal crates (Phase 6 tui)
 botticelli_tui = { path = "crates/botticelli_tui", version = "0.2.0" }
 
+# Internal crates (local model server)
+botticelli_server = { path = "crates/botticelli_server", version = "0.2.0" }
+
 # Internal crates (Phase 7 facade)
 botticelli = { path = "crates/botticelli", version = "0.2.0" }
 

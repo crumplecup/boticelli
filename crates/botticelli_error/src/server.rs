@@ -22,6 +22,18 @@ pub enum ServerErrorKind {
     /// Configuration error: {0}
     #[display("Configuration error: {}", _0)]
     Configuration(String),
+    
+    /// Failed to start server: {0}
+    #[display("Failed to start server: {}", _0)]
+    ServerStartFailed(String),
+    
+    /// Failed to stop server: {0}
+    #[display("Failed to stop server: {}", _0)]
+    ServerStopFailed(String),
+    
+    /// Model download failed: {0}
+    #[display("Model download failed: {}", _0)]
+    ModelDownloadFailed(String),
 }
 
 /// Error wrapper with location tracking.

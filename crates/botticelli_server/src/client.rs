@@ -35,6 +35,30 @@ impl ServerClient {
         &self.config
     }
 
+    /// Check if the server is running and responding
+    #[instrument(skip(self))]
+    pub async fn health_check(&self) -> Result<(), ServerError> {
+        let url = format!("{}/health", self.config.base_url);
+        tracing::debug!("Checking server health at {}", url);
+
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            tracing::error!("Health check failed: {}", e);
+            ServerError::new(ServerErrorKind::Http(format!("Health check failed: {}", e)))
+        })?;
+
+        if response.status().is_success() {
+            tracing::debug!("Server is healthy");
+            Ok(())
+        } else {
+            let status = response.status();
+            tracing::error!("Server health check returned error: {}", status);
+            Err(ServerError::new(ServerErrorKind::Api(format!(
+                "Server returned: {}",
+                status
+            ))))
+        }
+    }
+
     /// Send a chat completion request
     #[instrument(skip(self, request), fields(model = %request.model))]
     pub async fn chat_completion(

@@ -295,29 +295,39 @@ Implemented both core traits in `client.rs`:
 
 The `ServerClient` now integrates seamlessly with the Botticelli ecosystem.
 
-### Phase 4: Server Management
+### Phase 4: Server Management ✅
 
-#### 4.1 Optional: Embedded Server Control
+**Status**: Complete
 
-For advanced use cases, consider adding server lifecycle management:
+#### 4.1 Server Lifecycle Control (`server.rs`)
+
+Added `ServerHandle` for managing inference server processes:
 
 ```rust
-/// Manages an inference server process
-pub struct InferenceServer {
-    process: Option<Child>,
-    config: ServerConfig,
+/// Handle for managing a running inference server process
+pub struct ServerHandle {
+    process: Child,
+    port: u16,
+    model_path: String,
 }
 
-impl InferenceServer {
+impl ServerHandle {
     /// Start a new inference server process
-    pub async fn start(config: ServerConfig) -> Result<Self, ServerError> {
-        // Spawn mistralrs server binary
-        // Wait for health check endpoint
-        // Return server handle
+    #[instrument(skip_all, fields(port = %port, model_path = %model_path))]
+    pub fn start(port: u16, model_path: String, tokenizer_id: String) -> Result<Self, ServerError> {
+        // Spawns mistralrs-server binary
+        // Returns handle for lifecycle management
+    }
+
+    /// Wait for the server to be ready to accept requests
+    #[instrument(skip(self))]
+    pub async fn wait_until_ready(&self, timeout: Duration) -> Result<(), ServerError> {
+        // Polls health endpoint until server is ready
     }
 
     /// Stop the server gracefully
-    pub async fn stop(&mut self) -> Result<(), ServerError> {
+    #[instrument(skip(self))]
+    pub fn stop(mut self) -> Result<(), ServerError> {
         // Send shutdown signal
         // Wait for process exit
     }

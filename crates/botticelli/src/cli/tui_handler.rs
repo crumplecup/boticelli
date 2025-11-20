@@ -26,7 +26,7 @@ pub async fn launch_tui(_table: &str) -> BotticelliResult<()> {
 #[cfg(all(feature = "tui", feature = "server"))]
 pub async fn launch_server_tui() -> BotticelliResult<()> {
     use botticelli_database::establish_connection;
-    use botticelli_tui::{App, AppMode, EventHandler, run_app, ServerView};
+    use botticelli_tui::{App, EventHandler, run_app, ServerView};
     use botticelli_error::BotticelliError;
     use botticelli_tui::{TuiError, TuiErrorKind};
     use crossterm::{
@@ -63,10 +63,9 @@ pub async fn launch_server_tui() -> BotticelliResult<()> {
         ))))
     })?;
 
-    // Create app state
+    // Create app state for server mode (no table needed)
     let conn = establish_connection()?;
-    let mut app = App::new(String::new(), conn)?;
-    app.mode = AppMode::Server;
+    let mut app = App::new_server_mode(conn)?;
     
     // Use default model directory
     let model_dir = dirs::home_dir()

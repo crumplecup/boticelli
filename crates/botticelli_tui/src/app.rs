@@ -121,6 +121,23 @@ impl App {
         Ok(app)
     }
 
+    /// Create a new App instance in server mode (no table data needed).
+    #[tracing::instrument(skip(conn))]
+    pub fn new_server_mode(conn: PgConnection) -> BotticelliResult<Self> {
+        Ok(Self {
+            mode: AppMode::Server,
+            table_name: String::new(),
+            content_items: Vec::new(),
+            selected_index: 0,
+            compare_selection: Vec::new(),
+            edit_buffer: None,
+            server_view: None,
+            status_message: String::from("Press ? for help"),
+            should_quit: false,
+            conn,
+        })
+    }
+
     /// Reload content from database.
     #[tracing::instrument(skip(self))]
     pub fn reload_content(&mut self) -> BotticelliResult<()> {

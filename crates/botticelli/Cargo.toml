@@ -50,7 +50,7 @@ database = ["botticelli_database", "botticelli_narrative/database"]
 discord = ["botticelli_social", "botticelli_social/discord"]
 
 # TUI feature
-tui = ["botticelli_tui", "dep:ratatui", "dep:crossterm"]
+tui = ["botticelli_tui", "botticelli_database", "dep:ratatui", "dep:crossterm"]
 
 # Local model server feature
 server = ["botticelli_server"]

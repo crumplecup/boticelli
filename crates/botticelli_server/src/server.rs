@@ -1,4 +1,12 @@
 //! Server lifecycle management for local inference servers
+//!
+//! # Deprecation Notice
+//!
+//! This module contains MistralRS-specific implementation and will be moved to
+//! an external crate (`botticelli_mistral`). Use the trait interface in
+//! [`crate::traits`] for new code.
+
+#![allow(deprecated)]
 
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
@@ -8,6 +16,15 @@ use tracing::{debug, info, instrument, warn};
 use botticelli_error::{ServerError, ServerErrorKind};
 
 /// Handle for managing a running inference server process
+///
+/// # Deprecation Notice
+///
+/// This type will be moved to `botticelli_mistral` crate. Use the
+/// [`InferenceServer`](crate::InferenceServer) trait for generic server interaction.
+#[deprecated(
+    since = "0.3.0",
+    note = "Use InferenceServer trait and external implementation crates like botticelli_mistral"
+)]
 pub struct ServerHandle {
     process: Child,
     port: u16,

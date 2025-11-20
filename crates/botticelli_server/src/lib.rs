@@ -58,10 +58,17 @@ mod traits;
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
 pub use config::ServerConfig;
+
+// Deprecated exports - will be removed in Phase 5
+#[allow(deprecated)]
 pub use models::{ModelManager, ModelSpec};
+#[allow(deprecated)]
+pub use server::ServerHandle;
+
+// New trait-based exports
+pub use traits::{InferenceServer, ModelManager as ModelManagerTrait, ServerLauncher};
+
 pub use request::{ChatCompletionRequest, Message};
 pub use response::{
     ChatCompletionChunk, ChatCompletionResponse, Choice, ChoiceMessage, ChunkChoice, Delta, Usage,
 };
-pub use server::ServerHandle;
-pub use traits::{InferenceServer, ModelManager as ModelManagerTrait, ServerLauncher};

@@ -1,9 +1,26 @@
 //! Model catalog and automatic downloading
+//!
+//! # Deprecation Notice
+//!
+//! This module contains MistralRS-specific GGUF model catalog and will be moved to
+//! an external crate (`botticelli_mistral`). Use the trait interface in
+//! [`crate::traits`] for new code.
+
+#![allow(deprecated)]
 
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, instrument};
 
 /// Supported model configurations
+///
+/// # Deprecation Notice
+///
+/// This type will be moved to `botticelli_mistral` crate. Use the
+/// [`ModelManagerTrait::ModelSpec`](crate::ModelManagerTrait::ModelSpec) associated type instead.
+#[deprecated(
+    since = "0.3.0",
+    note = "Use ModelManager trait and external implementation crates like botticelli_mistral"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModelSpec {
     /// Mistral 7B Instruct v0.3 - Q4_K_M quantization (4GB)
@@ -98,6 +115,15 @@ impl ModelSpec {
 }
 
 /// Model downloader and manager
+///
+/// # Deprecation Notice
+///
+/// This type will be moved to `botticelli_mistral` crate. Use the
+/// [`ModelManagerTrait`](crate::ModelManagerTrait) trait for generic model management.
+#[deprecated(
+    since = "0.3.0",
+    note = "Use ModelManager trait and external implementation crates like botticelli_mistral"
+)]
 pub struct ModelManager {
     download_dir: PathBuf,
 }

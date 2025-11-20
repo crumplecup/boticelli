@@ -35,6 +35,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod carousel;
 mod core;
 mod executor;
 mod in_memory_repository;
@@ -49,6 +50,7 @@ mod content_generation;
 #[cfg(feature = "database")]
 mod extraction;
 
+pub use carousel::{CarouselConfig, CarouselResult, CarouselState};
 pub use core::{Narrative, NarrativeMetadata, NarrativeToc};
 pub use executor::{BotCommandRegistry, NarrativeExecutor};
 pub use in_memory_repository::InMemoryNarrativeRepository;

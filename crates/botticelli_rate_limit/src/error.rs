@@ -12,6 +12,20 @@ pub enum RateLimitErrorKind {
     /// Invalid tier specification.
     #[display("Invalid tier: {_0}")]
     InvalidTier(String),
+    /// Budget exceeded.
+    #[display("Budget exceeded: requested {requested_tokens} tokens, available: {available_tokens_minute} TPM, {available_tokens_day} TPD, {available_requests_minute} RPM, {available_requests_day} RPD")]
+    BudgetExceeded {
+        /// Requested token count
+        requested_tokens: u64,
+        /// Available tokens per minute
+        available_tokens_minute: u64,
+        /// Available tokens per day
+        available_tokens_day: u64,
+        /// Available requests per minute
+        available_requests_minute: u64,
+        /// Available requests per day
+        available_requests_day: u64,
+    },
 }
 
 /// Rate limiting error with location tracking.

@@ -1,6 +1,6 @@
 //! Core data structures for narratives.
 
-use crate::{toml_parser, ActConfig, NarrativeProvider};
+use crate::{toml_parser, ActConfig, CarouselConfig, NarrativeProvider};
 use botticelli_error::{NarrativeError, NarrativeErrorKind};
 use std::collections::HashMap;
 use std::path::Path;
@@ -25,6 +25,9 @@ pub struct NarrativeMetadata {
     /// Skip content generation (both template and inference modes)
     #[serde(default)]
     pub skip_content_generation: bool,
+    /// Optional carousel configuration for narrative-level looping
+    #[serde(default)]
+    pub carousel: Option<CarouselConfig>,
 }
 
 /// Table of contents from the `[toc]` section.
@@ -254,6 +257,7 @@ impl FromStr for Narrative {
             description: toml_narrative.narrative.description.clone(),
             template: toml_narrative.narrative.template.clone(),
             skip_content_generation: toml_narrative.narrative.skip_content_generation,
+            carousel: toml_narrative.narrative.carousel.clone(),
         };
 
         let toc = NarrativeToc {

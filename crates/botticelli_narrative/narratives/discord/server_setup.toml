@@ -1,0 +1,54 @@
+# Discord Server Setup Narrative
+# Sets up the initial Botticelli community server structure
+
+[metadata]
+title = "Botticelli Community Server Setup"
+description = "Initialize channels, roles, and welcome messages for the Botticelli Discord server"
+version = "1.0.0"
+author = "Botticelli Team"
+
+[config.gemini]
+model = "gemini-2.0-flash-exp"
+max_tokens = 2000
+temperature = 0.7
+
+[[steps]]
+[steps.context]
+role = "system"
+content = """
+You are setting up a Discord community server for Botticelli, an AI narrative automation framework.
+Your goal is to create a welcoming, organized space for developers and users.
+"""
+
+[[steps]]
+[steps.context]
+role = "user"
+content = """
+Create a welcome channel with an engaging introduction to Botticelli that explains:
+- What Botticelli is (AI narrative framework with TOML-based workflows)
+- Key features (multi-step narratives, content generation, Discord bot integration)
+- How to get started (links to docs, examples)
+- Community guidelines
+
+Use Discord markdown formatting for visual appeal.
+"""
+
+[[steps]]
+[steps.bot_commands]
+platform = "discord"
+command = "channel.create"
+
+[steps.bot_commands.args]
+guild_id = "${DISCORD_GUILD_ID}"
+name = "welcome"
+channel_type = "text"
+topic = "Welcome to the Botticelli community!"
+
+[[steps]]
+[steps.bot_commands]
+platform = "discord"
+command = "message.send"
+
+[steps.bot_commands.args]
+channel_id = "${steps[1].result.id}"
+content = "${steps[0].result.text}"

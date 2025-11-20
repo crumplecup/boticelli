@@ -19,6 +19,9 @@ pub struct TomlNarrative {
     /// Optional flag to skip content generation (both template and inference modes)
     #[serde(default)]
     pub skip_content_generation: bool,
+    /// Optional carousel configuration
+    #[serde(default)]
+    pub carousel: Option<crate::CarouselConfig>,
 }
 
 /// Intermediate structure for deserializing the [toc] section.

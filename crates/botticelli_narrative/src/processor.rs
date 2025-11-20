@@ -268,6 +268,7 @@ mod tests {
             description: "Test narrative".to_string(),
             template: None,
             skip_content_generation: false,
+            carousel: None,
         }
     }
 

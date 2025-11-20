@@ -209,6 +209,36 @@ impl TierConfig {
     }
 }
 
+/// Rate limit configuration for budget tracking.
+///
+/// Contains concrete rate limit values used by the Budget tracker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RateLimitConfig {
+    /// Requests per minute limit
+    pub requests_per_minute: u64,
+    
+    /// Tokens per minute limit
+    pub tokens_per_minute: u64,
+    
+    /// Requests per day limit
+    pub requests_per_day: u64,
+    
+    /// Tokens per day limit
+    pub tokens_per_day: u64,
+}
+
+impl RateLimitConfig {
+    /// Creates a rate limit configuration from a tier config.
+    pub fn from_tier(tier: &TierConfig) -> Self {
+        Self {
+            requests_per_minute: tier.rpm.unwrap_or(u32::MAX) as u64,
+            tokens_per_minute: tier.tpm.unwrap_or(u64::MAX),
+            requests_per_day: tier.rpd.unwrap_or(u32::MAX) as u64,
+            tokens_per_day: tier.tpm.unwrap_or(u64::MAX) * 1440, // Estimate: TPM * minutes per day
+        }
+    }
+}
+
 /// Configuration for a specific provider.
 ///
 /// Contains the default tier name and a map of tier configurations.

@@ -1,0 +1,43 @@
+# Daily Project Showcase Narrative
+# Posts a daily prompt encouraging users to share their Botticelli projects
+
+[metadata]
+title = "Daily Project Showcase"
+description = "Automated daily prompt for community members to share their work"
+version = "1.0.0"
+author = "Botticelli Team"
+
+[config.gemini]
+model = "gemini-2.0-flash-exp"
+max_tokens = 500
+temperature = 0.8
+
+[[steps]]
+[steps.context]
+role = "system"
+content = """
+You create engaging daily prompts for a developer community.
+Keep messages friendly, encouraging, and specific to Botticelli use cases.
+"""
+
+[[steps]]
+[steps.context]
+role = "user"
+content = """
+Create a short, enthusiastic message (2-3 sentences) asking community members to share:
+- What they're building with Botticelli
+- Any interesting narratives they've created
+- Challenges they've overcome
+
+Include a relevant emoji and end with an open-ended question.
+Vary the tone and focus each day.
+"""
+
+[[steps]]
+[steps.bot_commands]
+platform = "discord"
+command = "message.send"
+
+[steps.bot_commands.args]
+channel_id = "${SHOWCASE_CHANNEL_ID}"
+content = "${steps[0].result.text}"

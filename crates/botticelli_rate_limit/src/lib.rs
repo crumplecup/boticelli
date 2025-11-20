@@ -16,6 +16,7 @@
 //! use botticelli_rate_limit::{OpenAITier, GeminiTier};
 //! ```
 
+mod budget;
 mod config;
 mod detector;
 mod error;
@@ -23,7 +24,8 @@ mod limiter;
 mod tier;
 mod tiers;
 
-pub use config::{BotticelliConfig, ModelTierConfig, ProviderConfig, TierConfig};
+pub use budget::{Budget, BudgetRemaining};
+pub use config::{BotticelliConfig, ModelTierConfig, ProviderConfig, RateLimitConfig, TierConfig};
 pub use detector::HeaderRateLimitDetector;
 pub use error::{RateLimitError, RateLimitErrorKind};
 pub use limiter::{RateLimiter, RateLimiterGuard};

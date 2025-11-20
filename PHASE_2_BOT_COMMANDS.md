@@ -11,8 +11,59 @@ Phase 2 adds the ability to execute bot commands (Discord, Slack, etc.) from nar
 3. **Caching & performance** - Cache results, respect rate limits
 4. **Error handling** - Graceful failures with helpful context
 5. **Security** - Read-only operations, proper permissions
+6. **Observability** - Comprehensive tracing for debugging and monitoring
 
 ## Architecture
+
+### Tracing & Observability Strategy
+
+**MANDATORY:** All bot command execution must have comprehensive tracing instrumentation.
+
+#### Span Naming Convention
+
+Use hierarchical span names following the pattern: `component.operation`
+
+- `bot_commands.execute` - Top-level command execution
+- `bot_commands.cache_lookup` - Cache check operations
+- `discord.api_call` - Discord API HTTP requests
+- `discord.parse_response` - Response parsing
+- `bot_commands.validate_args` - Argument validation
+
+#### Required Instrumentation Points
+
+1. **All public functions** - Use `#[instrument]` macro
+2. **Command execution** - Span with command name, platform, args count
+3. **Cache operations** - Log hits, misses, expirations
+4. **API calls** - Log endpoint, method, response status
+5. **Error paths** - Log error context before returning
+6. **Performance** - Log operation duration for slow operations (>100ms)
+
+#### Structured Fields
+
+Capture relevant context in span fields:
+```rust
+#[instrument(
+    skip(self, args),
+    fields(
+        platform = %self.platform(),
+        command,
+        arg_count = args.len(),
+        result_size,
+        cache_hit,
+        duration_ms
+    )
+)]
+```
+
+Common fields to track:
+- `platform` - Discord, Slack, etc.
+- `command` - Command name being executed
+- `guild_id` / `channel_id` - Discord IDs
+- `arg_count` - Number of arguments
+- `result_size` - Size of result in bytes
+- `cache_hit` - Whether result came from cache
+- `duration_ms` - Operation duration
+- `error_kind` - Type of error if failed
 
 ### Trait Design
 
@@ -21,6 +72,13 @@ Phase 2 adds the ability to execute bot commands (Discord, Slack, etc.) from nar
 ///
 /// Implementations handle the platform-specific API calls and return
 /// structured JSON results that can be converted to text for LLM consumption.
+///
+/// # Tracing
+/// All implementations MUST instrument the `execute` method with:
+/// - `#[instrument]` macro
+/// - Span fields: platform, command, arg_count
+/// - Debug events for key operations
+/// - Error events with context
 #[async_trait]
 pub trait BotCommandExecutor: Send + Sync {
     /// Returns the platform this executor handles (e.g., "discord", "slack").
@@ -41,6 +99,22 @@ pub trait BotCommandExecutor: Send + Sync {
     /// - API call fails
     /// - Authentication fails
     /// - Rate limit exceeded
+    ///
+    /// # Tracing
+    /// Must emit:
+    /// - info! at start with command name
+    /// - debug! for validation steps
+    /// - error! if execution fails with full context
+    /// - Record result_size in span
+    #[instrument(
+        skip(self, args),
+        fields(
+            platform = %self.platform(),
+            command,
+            arg_count = args.len(),
+            result_size
+        )
+    )]
     async fn execute(
         &self,
         command: &str,
@@ -166,6 +240,7 @@ pub struct BotCommandRegistry {
 impl BotCommandRegistry {
     /// Create a new empty registry.
     pub fn new() -> Self {
+        tracing::debug!("Creating new BotCommandRegistry");
         Self {
             executors: HashMap::new(),
         }
@@ -177,6 +252,11 @@ impl BotCommandRegistry {
         executor: E,
     ) -> &mut Self {
         let platform = executor.platform().to_string();
+        tracing::info!(
+            platform = %platform,
+            commands = executor.supported_commands().len(),
+            "Registering bot command executor"
+        );
         self.executors.insert(platform, Arc::new(executor));
         self
     }
@@ -187,17 +267,34 @@ impl BotCommandRegistry {
     }
     
     /// Execute a command on a platform.
+    #[instrument(
+        skip(self, args),
+        fields(
+            platform,
+            command,
+            arg_count = args.len()
+        )
+    )]
     pub async fn execute(
         &self,
         platform: &str,
         command: &str,
         args: &HashMap<String, serde_json::Value>,
     ) -> BotCommandResult<serde_json::Value> {
+        tracing::info!("Executing bot command via registry");
+        
         let executor = self
             .get(platform)
-            .ok_or_else(|| BotCommandError::new(
-                BotCommandErrorKind::PlatformNotFound(platform.to_string())
-            ))?;
+            .ok_or_else(|| {
+                tracing::error!(
+                    platform,
+                    available_platforms = ?self.platforms(),
+                    "Platform not found in registry"
+                );
+                BotCommandError::new(
+                    BotCommandErrorKind::PlatformNotFound(platform.to_string())
+                )
+            })?;
         
         executor.execute(command, args).await
     }
@@ -235,6 +332,11 @@ pub struct CachedBotCommandExecutor<E> {
 
 impl<E: BotCommandExecutor> CachedBotCommandExecutor<E> {
     pub fn new(executor: E, default_ttl: std::time::Duration) -> Self {
+        tracing::info!(
+            platform = %executor.platform(),
+            ttl_secs = default_ttl.as_secs(),
+            "Creating cached bot command executor"
+        );
         Self {
             inner: executor,
             cache: Arc::new(Mutex::new(HashMap::new())),
@@ -256,6 +358,16 @@ impl<E: BotCommandExecutor> BotCommandExecutor for CachedBotCommandExecutor<E> {
         self.inner.platform()
     }
     
+    #[instrument(
+        skip(self, args),
+        fields(
+            platform = %self.platform(),
+            command,
+            arg_count = args.len(),
+            cache_hit,
+            cache_age_secs
+        )
+    )]
     async fn execute(
         &self,
         command: &str,
@@ -268,19 +380,25 @@ impl<E: BotCommandExecutor> BotCommandExecutor for CachedBotCommandExecutor<E> {
             let cache = self.cache.lock().unwrap();
             if let Some(cached) = cache.get(&cache_key) {
                 if !cached.is_expired() {
-                    tracing::debug!(
-                        command,
-                        age_secs = cached.cached_at.elapsed().as_secs(),
-                        "Cache hit for bot command"
-                    );
+                    let age_secs = cached.cached_at.elapsed().as_secs();
+                    tracing::Span::current().record("cache_hit", true);
+                    tracing::Span::current().record("cache_age_secs", age_secs);
+                    tracing::info!(age_secs, "Cache hit for bot command");
                     return Ok(cached.result.clone());
+                } else {
+                    tracing::debug!("Cached result expired, re-executing");
                 }
             }
         }
         
         // Cache miss - execute command
-        tracing::debug!(command, "Cache miss for bot command");
+        tracing::Span::current().record("cache_hit", false);
+        tracing::info!("Cache miss, executing bot command");
+        let start = std::time::Instant::now();
         let result = self.inner.execute(command, args).await?;
+        let duration_ms = start.elapsed().as_millis();
+        
+        tracing::debug!(duration_ms, "Bot command executed");
         
         // Cache result
         {
@@ -293,6 +411,7 @@ impl<E: BotCommandExecutor> BotCommandExecutor for CachedBotCommandExecutor<E> {
                     ttl: self.default_ttl,
                 },
             );
+            tracing::debug!(cache_size = cache.len(), "Result cached");
         }
         
         Ok(result)
@@ -474,7 +593,10 @@ type CommandHandler = Arc<
 
 ```rust
 impl DiscordBotCommandExecutor {
+    #[instrument(skip(client), fields(commands_registered))]
     pub fn new(client: Arc<DiscordClient>) -> Self {
+        tracing::info!("Creating Discord bot command executor");
+        
         let mut executor = Self {
             client,
             commands: HashMap::new(),
@@ -486,10 +608,18 @@ impl DiscordBotCommandExecutor {
         executor.register_role_commands();
         executor.register_message_commands();
         
+        tracing::Span::current().record("commands_registered", executor.commands.len());
+        tracing::info!(
+            command_count = executor.commands.len(),
+            "Discord executor initialized"
+        );
+        
         executor
     }
     
     fn register_server_commands(&mut self) {
+        tracing::debug!("Registering server commands");
+        
         // server.get_stats
         self.commands.insert(
             "server.get_stats".to_string(),
@@ -500,29 +630,59 @@ impl DiscordBotCommandExecutor {
                 optional_args: vec![],
                 handler: Arc::new(|client, args| {
                     Box::pin(async move {
+                        let span = tracing::info_span!(
+                            "discord.server_get_stats",
+                            guild_id,
+                            member_count,
+                            channel_count
+                        );
+                        let _enter = span.enter();
+                        
+                        tracing::debug!("Parsing guild_id argument");
                         let guild_id = args
                             .get("guild_id")
                             .and_then(|v| v.as_str())
-                            .ok_or_else(|| BotCommandError::new(
-                                BotCommandErrorKind::MissingArgument {
-                                    command: "server.get_stats".to_string(),
-                                    arg_name: "guild_id".to_string(),
-                                }
-                            ))?;
+                            .ok_or_else(|| {
+                                tracing::error!("Missing guild_id argument");
+                                BotCommandError::new(
+                                    BotCommandErrorKind::MissingArgument {
+                                        command: "server.get_stats".to_string(),
+                                        arg_name: "guild_id".to_string(),
+                                    }
+                                )
+                            })?;
                         
                         let guild_id: u64 = guild_id
                             .parse()
-                            .map_err(|_| BotCommandError::new(
-                                BotCommandErrorKind::InvalidArgument {
-                                    command: "server.get_stats".to_string(),
-                                    arg_name: "guild_id".to_string(),
-                                    reason: "Invalid guild ID format".to_string(),
-                                }
-                            ))?;
+                            .map_err(|_| {
+                                tracing::error!(guild_id, "Invalid guild_id format");
+                                BotCommandError::new(
+                                    BotCommandErrorKind::InvalidArgument {
+                                        command: "server.get_stats".to_string(),
+                                        arg_name: "guild_id".to_string(),
+                                        reason: "Invalid guild ID format".to_string(),
+                                    }
+                                )
+                            })?;
                         
-                        let stats = client.get_guild_stats(guild_id).await?;
+                        tracing::Span::current().record("guild_id", guild_id);
+                        tracing::info!("Fetching guild stats from Discord API");
+                        
+                        let stats = client.get_guild_stats(guild_id).await.map_err(|e| {
+                            tracing::error!(error = %e, "Failed to fetch guild stats");
+                            e
+                        })?;
+                        
+                        tracing::Span::current().record("member_count", stats.member_count);
+                        tracing::Span::current().record("channel_count", stats.channel_count);
+                        tracing::info!(
+                            member_count = stats.member_count,
+                            channel_count = stats.channel_count,
+                            "Successfully retrieved guild stats"
+                        );
                         
                         Ok(serde_json::to_value(stats).map_err(|e| {
+                            tracing::error!(error = %e, "Failed to serialize stats");
                             BotCommandError::new(BotCommandErrorKind::SerializationError {
                                 command: "server.get_stats".to_string(),
                                 reason: e.to_string(),
@@ -534,6 +694,7 @@ impl DiscordBotCommandExecutor {
         );
         
         // More server commands...
+        tracing::debug!(count = 1, "Server commands registered");
     }
 }
 
@@ -543,23 +704,51 @@ impl BotCommandExecutor for DiscordBotCommandExecutor {
         "discord"
     }
     
+    #[instrument(
+        skip(self, args),
+        fields(
+            platform = "discord",
+            command,
+            arg_count = args.len(),
+            result_size,
+            duration_ms
+        )
+    )]
     async fn execute(
         &self,
         command: &str,
         args: &HashMap<String, serde_json::Value>,
     ) -> BotCommandResult<serde_json::Value> {
-        tracing::info!(command, ?args, "Executing Discord bot command");
+        tracing::info!("Executing Discord bot command");
         
         let cmd_def = self
             .commands
             .get(command)
-            .ok_or_else(|| BotCommandError::new(
-                BotCommandErrorKind::CommandNotFound(command.to_string())
-            ))?;
+            .ok_or_else(|| {
+                tracing::error!(
+                    command,
+                    available_commands = ?self.supported_commands(),
+                    "Command not found"
+                );
+                BotCommandError::new(
+                    BotCommandErrorKind::CommandNotFound(command.to_string())
+                )
+            })?;
+        
+        tracing::debug!(
+            required_args = ?cmd_def.required_args,
+            optional_args = ?cmd_def.optional_args,
+            "Validating command arguments"
+        );
         
         // Validate required arguments
         for required_arg in &cmd_def.required_args {
             if !args.contains_key(required_arg) {
+                tracing::error!(
+                    command,
+                    missing_arg = required_arg,
+                    "Missing required argument"
+                );
                 return Err(BotCommandError::new(
                     BotCommandErrorKind::MissingArgument {
                         command: command.to_string(),
@@ -569,8 +758,26 @@ impl BotCommandExecutor for DiscordBotCommandExecutor {
             }
         }
         
+        tracing::debug!("Argument validation passed, executing handler");
+        let start = std::time::Instant::now();
+        
         // Execute command
-        (cmd_def.handler)(&self.client, args).await
+        let result = (cmd_def.handler)(&self.client, args).await?;
+        
+        let duration_ms = start.elapsed().as_millis();
+        let result_size = serde_json::to_string(&result)
+            .map(|s| s.len())
+            .unwrap_or(0);
+        
+        tracing::Span::current().record("duration_ms", duration_ms);
+        tracing::Span::current().record("result_size", result_size);
+        tracing::info!(
+            duration_ms,
+            result_size,
+            "Discord command executed successfully"
+        );
+        
+        Ok(result)
     }
     
     fn supports_command(&self, command: &str) -> bool {
@@ -606,6 +813,11 @@ impl NarrativeExecutor {
         executor: E,
     ) -> Self {
         let platform = executor.platform().to_string();
+        tracing::info!(
+            platform = %platform,
+            commands = executor.supported_commands().len(),
+            "Registering bot executor with narrative executor"
+        );
         self.bot_executors.insert(platform, Arc::new(executor));
         self
     }
@@ -617,6 +829,10 @@ impl NarrativeExecutor {
         discord_client: Arc<DiscordClient>,
         cache_ttl: std::time::Duration,
     ) -> Self {
+        tracing::info!(
+            cache_ttl_secs = cache_ttl.as_secs(),
+            "Adding Discord bot executor with caching"
+        );
         let executor = DiscordBotCommandExecutor::new(discord_client);
         let cached_executor = CachedBotCommandExecutor::new(executor, cache_ttl);
         self.with_bot_executor(cached_executor)
@@ -628,9 +844,23 @@ impl NarrativeExecutor {
 
 ```rust
 impl NarrativeExecutor {
+    #[instrument(
+        skip(self, input),
+        fields(
+            input_type,
+            platform,
+            command,
+            required,
+            result_length,
+            success
+        )
+    )]
     async fn process_input(&self, input: &Input) -> Result<String, NarrativeError> {
         match input {
-            Input::Text(content) => Ok(content.clone()),
+            Input::Text(content) => {
+                tracing::Span::current().record("input_type", "text");
+                Ok(content.clone())
+            }
             
             Input::BotCommand {
                 platform,
@@ -639,30 +869,56 @@ impl NarrativeExecutor {
                 required,
                 cache_duration,
             } => {
-                tracing::info!(platform, command, "Processing bot command input");
+                tracing::Span::current().record("input_type", "bot_command");
+                tracing::Span::current().record("platform", platform.as_str());
+                tracing::Span::current().record("command", command.as_str());
+                tracing::Span::current().record("required", *required);
+                
+                tracing::info!(
+                    platform,
+                    command,
+                    arg_count = args.len(),
+                    required,
+                    "Processing bot command input"
+                );
                 
                 let executor = self
                     .bot_executors
                     .get(platform)
-                    .ok_or_else(|| NarrativeError::new(
-                        NarrativeErrorKind::BotCommandError(format!(
-                            "No executor registered for platform: {}",
-                            platform
-                        ))
-                    ))?;
+                    .ok_or_else(|| {
+                        tracing::error!(
+                            platform,
+                            available_platforms = ?self.bot_executors.keys().collect::<Vec<_>>(),
+                            "No executor registered for platform"
+                        );
+                        NarrativeError::new(
+                            NarrativeErrorKind::BotCommandError(format!(
+                                "No executor registered for platform: {}",
+                                platform
+                            ))
+                        )
+                    })?;
+                
+                tracing::debug!("Executor found, executing command");
                 
                 match executor.execute(command, args).await {
                     Ok(result) => {
+                        tracing::debug!("Command executed, serializing result");
+                        
                         // Convert JSON result to pretty-printed string for LLM
                         let text = serde_json::to_string_pretty(&result)
-                            .map_err(|e| NarrativeError::new(
-                                NarrativeErrorKind::BotCommandError(
-                                    format!("Failed to serialize result: {}", e)
+                            .map_err(|e| {
+                                tracing::error!(error = %e, "Failed to serialize result");
+                                NarrativeError::new(
+                                    NarrativeErrorKind::BotCommandError(
+                                        format!("Failed to serialize result: {}", e)
+                                    )
                                 )
-                            ))?;
+                            })?;
                         
-                        tracing::debug!(
-                            command,
+                        tracing::Span::current().record("result_length", text.len());
+                        tracing::Span::current().record("success", true);
+                        tracing::info!(
                             result_length = text.len(),
                             "Bot command executed successfully"
                         );
@@ -671,6 +927,12 @@ impl NarrativeExecutor {
                     }
                     Err(e) => {
                         if *required {
+                            tracing::Span::current().record("success", false);
+                            tracing::error!(
+                                command,
+                                error = %e,
+                                "Required bot command failed, halting execution"
+                            );
                             // Halt execution if command is required
                             Err(NarrativeError::new(
                                 NarrativeErrorKind::BotCommandError(
@@ -678,13 +940,16 @@ impl NarrativeExecutor {
                                 )
                             ))
                         } else {
+                            tracing::Span::current().record("success", false);
                             // Continue with error message as context
                             tracing::warn!(
                                 command,
                                 error = %e,
-                                "Optional bot command failed, continuing"
+                                "Optional bot command failed, continuing with error message"
                             );
-                            Ok(format!("[Bot command '{}' failed: {}]", command, e))
+                            let error_msg = format!("[Bot command '{}' failed: {}]", command, e);
+                            tracing::Span::current().record("result_length", error_msg.len());
+                            Ok(error_msg)
                         }
                     }
                 }
@@ -694,6 +959,55 @@ impl NarrativeExecutor {
         }
     }
 }
+```
+
+## Tracing Output Examples
+
+### Successful Command Execution
+
+```
+INFO bot_commands.execute{platform="discord" command="server.get_stats" arg_count=1}: Executing bot command via registry
+INFO discord.execute{platform="discord" command="server.get_stats" arg_count=1}: Executing Discord bot command
+DEBUG discord.execute: Validating command arguments required_args=["guild_id"] optional_args=[]
+DEBUG discord.execute: Argument validation passed, executing handler
+INFO discord.server_get_stats{guild_id=1234567890}: Fetching guild stats from Discord API
+INFO discord.server_get_stats{guild_id=1234567890 member_count=1250 channel_count=45}: Successfully retrieved guild stats member_count=1250 channel_count=45
+INFO discord.execute{duration_ms=234 result_size=543}: Discord command executed successfully duration_ms=234 result_size=543
+INFO bot_commands.execute{cache_hit=false}: Cache miss, executing bot command
+DEBUG bot_commands.execute: Bot command executed duration_ms=235
+DEBUG bot_commands.execute: Result cached cache_size=1
+INFO narrative.process_input{input_type="bot_command" platform="discord" command="server.get_stats" required=true result_length=543 success=true}: Bot command executed successfully result_length=543
+```
+
+### Cache Hit
+
+```
+INFO bot_commands.execute{platform="discord" command="server.get_stats" arg_count=1 cache_hit=true cache_age_secs=45}: Cache hit for bot command age_secs=45
+INFO narrative.process_input{result_length=543 success=true}: Bot command executed successfully result_length=543
+```
+
+### Failed Required Command
+
+```
+INFO bot_commands.execute{platform="discord" command="server.get_stats" arg_count=0}: Executing bot command via registry
+ERROR discord.execute: Missing required argument command="server.get_stats" missing_arg="guild_id"
+ERROR narrative.process_input{success=false}: Required bot command failed, halting execution command="server.get_stats" error="Bot Command Error: Missing required argument 'guild_id' for command 'server.get_stats' at line 234 in bot_commands.rs"
+```
+
+### Failed Optional Command
+
+```
+INFO bot_commands.execute{platform="discord" command="channels.list" arg_count=1}: Executing bot command via registry
+ERROR discord.api_call: API call failed status=403 reason="Missing permissions"
+WARN narrative.process_input{success=false result_length=78}: Optional bot command failed, continuing with error message command="channels.list" error="Permission denied"
+```
+
+### Platform Not Found
+
+```
+INFO bot_commands.execute{platform="slack" command="channels.list" arg_count=1}: Executing bot command via registry
+ERROR bot_commands.execute: Platform not found in registry platform="slack" available_platforms=["discord"]
+ERROR narrative.process_input: No executor registered for platform platform="slack" available_platforms=["discord"]
 ```
 
 ## Testing Strategy
@@ -1033,32 +1347,46 @@ Create `BOT_COMMANDS.md` with:
 
 ### Core Infrastructure
 - [ ] Create `botticelli_bot_commands` crate
-- [ ] Define `BotCommandExecutor` trait
+- [ ] Define `BotCommandExecutor` trait with `#[instrument]`
 - [ ] Implement `BotCommandError` types
-- [ ] Create `BotCommandRegistry`
-- [ ] Implement `CachedBotCommandExecutor` wrapper
+- [ ] Create `BotCommandRegistry` with tracing
+- [ ] Implement `CachedBotCommandExecutor` wrapper with cache metrics
 
 ### Discord Implementation
 - [ ] Create `DiscordBotCommandExecutor`
-- [ ] Implement `server.*` commands (5 commands)
-- [ ] Implement `channels.*` commands (5 commands)
-- [ ] Implement `members.*` commands (3 commands)
-- [ ] Implement `roles.*` commands (2 commands)
-- [ ] Implement `messages.*` commands (2 commands)
+- [ ] Implement `server.*` commands (5 commands) with tracing
+- [ ] Implement `channels.*` commands (5 commands) with tracing
+- [ ] Implement `members.*` commands (3 commands) with tracing
+- [ ] Implement `roles.*` commands (2 commands) with tracing
+- [ ] Implement `messages.*` commands (2 commands) with tracing
+- [ ] Add tracing to all command handlers
 
 ### Integration
 - [ ] Add `bot_executors` field to `NarrativeExecutor`
-- [ ] Implement `with_bot_executor()` builder
-- [ ] Implement `with_discord_bot()` convenience builder
-- [ ] Handle `Input::BotCommand` in `process_input()`
+- [ ] Implement `with_bot_executor()` builder with tracing
+- [ ] Implement `with_discord_bot()` convenience builder with tracing
+- [ ] Handle `Input::BotCommand` in `process_input()` with full instrumentation
 - [ ] Add `BotCommandError` to `NarrativeErrorKind`
+
+### Tracing & Observability
+- [ ] Add `#[instrument]` to all public functions
+- [ ] Use span fields for command, platform, args
+- [ ] Record result_size in spans
+- [ ] Record duration_ms for operations
+- [ ] Log cache hits/misses with metrics
+- [ ] Log error context before returning
+- [ ] Emit info! events for major operations
+- [ ] Emit debug! events for detailed flow
+- [ ] Emit error! events with full context
+- [ ] Test tracing output in unit tests
 
 ### Testing
 - [ ] Unit tests for trait and registry
-- [ ] Unit tests for caching
+- [ ] Unit tests for caching with trace verification
 - [ ] Mock executor for testing
 - [ ] Integration tests with Discord API (ignored by default)
 - [ ] End-to-end narrative execution tests
+- [ ] Verify tracing spans in tests
 
 ### Documentation
 - [ ] API documentation for all public types
@@ -1066,6 +1394,7 @@ Create `BOT_COMMANDS.md` with:
 - [ ] User guide for bot setup
 - [ ] Example narratives using bot commands
 - [ ] Security guidelines
+- [ ] Tracing best practices documentation
 
 ### Security Audit
 - [ ] Review all commands are read-only
@@ -1073,6 +1402,7 @@ Create `BOT_COMMANDS.md` with:
 - [ ] Test permission checks
 - [ ] Verify rate limit handling
 - [ ] Audit error messages (no sensitive data leakage)
+- [ ] Verify no sensitive data in trace logs
 
 ## Timeline Estimate
 

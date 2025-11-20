@@ -6,7 +6,7 @@
 use crate::{NarrativeProvider, ProcessorContext, ProcessorRegistry};
 use botticelli_core::{GenerateRequest, Input, Message, Output, Role};
 use botticelli_error::BotticelliResult;
-use botticelli_interface::{ActExecution, BotticelliDriver, NarrativeExecution};
+use botticelli_interface::{ActExecution, BotticelliDriver, NarrativeExecution, TableQueryRegistry};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
@@ -26,25 +26,7 @@ pub trait BotCommandRegistry: Send + Sync {
     ) -> Result<JsonValue, Box<dyn std::error::Error + Send + Sync>>;
 }
 
-/// Trait for querying database tables (platform-agnostic).
-///
-/// This is defined here to avoid circular dependencies between
-/// botticelli_narrative and botticelli_database. Implementations
-/// live in botticelli_database.
-#[async_trait::async_trait]
-pub trait TableQueryRegistry: Send + Sync {
-    /// Query a database table and return results in the specified format.
-    async fn query_table(
-        &self,
-        table_name: &str,
-        columns: Option<&[String]>,
-        where_clause: Option<&str>,
-        limit: Option<u32>,
-        offset: Option<u32>,
-        order_by: Option<&str>,
-        format: &str,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>;
-}
+
 
 /// Executes narratives by calling LLM APIs in sequence.
 ///

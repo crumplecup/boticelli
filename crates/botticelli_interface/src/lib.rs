@@ -4,6 +4,7 @@
 //! the Botticelli interface.
 
 mod narrative;
+mod table_view;
 mod traits;
 mod types;
 
@@ -11,9 +12,10 @@ pub use narrative::{
     ActExecution, ExecutionFilter, ExecutionStatus, ExecutionSummary, NarrativeExecution,
     NarrativeRepository,
 };
+pub use table_view::{TableReference, TableView};
 pub use traits::{
     Audio, BatchGeneration, BotticelliDriver, DocumentProcessing, Embeddings, Health, JsonMode,
-    Metadata, Streaming, TokenCounting, ToolUse, Video, Vision,
+    Metadata, Streaming, TableQueryRegistry, TokenCounting, ToolUse, Video, Vision,
 };
 pub use types::{
     FinishReason, HealthStatus, ModelMetadata, StreamChunk, ToolDefinition, ToolResult,

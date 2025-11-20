@@ -255,3 +255,38 @@ pub trait Health: BotticelliDriver {
     /// Check if the backend is available and functioning.
     async fn health(&self) -> BotticelliResult<HealthStatus>;
 }
+
+/// Trait for querying database tables in narratives.
+///
+/// This trait provides a platform-agnostic interface for narrative executors
+/// to query database tables without directly depending on database crates.
+/// Implementations live in `botticelli_database`.
+#[async_trait]
+pub trait TableQueryRegistry: Send + Sync {
+    /// Query a database table and return results in the specified format.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table to query
+    /// * `columns` - Optional list of specific columns to select
+    /// * `where_clause` - Optional WHERE clause for filtering
+    /// * `limit` - Optional maximum number of rows
+    /// * `offset` - Optional offset for pagination
+    /// * `order_by` - Optional ORDER BY clause
+    /// * `format` - Output format: "json", "markdown", or "csv"
+    ///
+    /// # Returns
+    ///
+    /// Formatted query results as a string, ready for LLM consumption.
+    #[allow(clippy::too_many_arguments)]
+    async fn query_table(
+        &self,
+        table_name: &str,
+        columns: Option<&[String]>,
+        where_clause: Option<&str>,
+        limit: Option<u32>,
+        offset: Option<u32>,
+        order_by: Option<&str>,
+        format: &str,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>;
+}

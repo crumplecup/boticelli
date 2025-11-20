@@ -1,5 +1,6 @@
 //! View structs for table query construction.
 
+use botticelli_interface::TableView;
 use derive_builder::Builder;
 
 /// View for querying table data with flexible filtering and pagination.
@@ -29,6 +30,28 @@ pub struct TableQueryView {
     sample: Option<i64>,
 }
 
+impl TableView for TableQueryView {
+    fn table_name(&self) -> &str {
+        &self.table_name
+    }
+
+    fn filter(&self) -> Option<&str> {
+        self.where_clause.as_deref()
+    }
+
+    fn order_by(&self) -> Option<&str> {
+        self.order_by.as_deref()
+    }
+
+    fn limit(&self) -> Option<i64> {
+        self.limit
+    }
+
+    fn offset(&self) -> Option<i64> {
+        self.offset
+    }
+}
+
 /// View for counting rows in a table with optional filtering.
 #[derive(Debug, Clone, Default, Builder, derive_getters::Getters)]
 #[builder(setter(into, strip_option), default)]
@@ -39,4 +62,14 @@ pub struct TableCountView {
     
     /// WHERE clause for filtering
     where_clause: Option<String>,
+}
+
+impl TableView for TableCountView {
+    fn table_name(&self) -> &str {
+        &self.table_name
+    }
+
+    fn filter(&self) -> Option<&str> {
+        self.where_clause.as_deref()
+    }
 }

@@ -1623,6 +1623,368 @@ impl DiscordCommandExecutor {
         }))
     }
 
+    /// Execute: reactions.add
+    ///
+    /// Add a reaction to a message.
+    ///
+    /// **Security**: Low-risk write operation (easily reversible).
+    ///
+    /// Required args: channel_id, message_id, emoji
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "reactions.add",
+            channel_id,
+            message_id
+        )
+    )]
+    async fn reactions_add(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        // Check permission
+        self.check_permission("reactions.add", ResourceType::Message, "reactions")?;
+
+        // Parse channel_id
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "reactions.add".to_string(),
+                    arg_name: "channel_id".to_string(),
+                })
+            })?;
+        let channel_id: u64 = channel_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "reactions.add".to_string(),
+                arg_name: "channel_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        // Parse message_id
+        let message_id_str = args
+            .get("message_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "reactions.add".to_string(),
+                    arg_name: "message_id".to_string(),
+                })
+            })?;
+        let message_id: u64 = message_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "reactions.add".to_string(),
+                arg_name: "message_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        // Parse emoji (can be Unicode emoji or custom emoji ID)
+        let emoji_str = args
+            .get("emoji")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "reactions.add".to_string(),
+                    arg_name: "emoji".to_string(),
+                })
+            })?;
+
+        tracing::Span::current().record("channel_id", channel_id);
+        tracing::Span::current().record("message_id", message_id);
+
+        info!(channel_id, message_id, emoji = emoji_str, "Adding reaction via Discord API");
+
+        use serenity::model::channel::ReactionType;
+        use serenity::model::id::{ChannelId, MessageId};
+
+        // Try to parse as custom emoji or use as Unicode
+        let reaction = if emoji_str.starts_with("custom:") {
+            let emoji_id = emoji_str
+                .strip_prefix("custom:")
+                .and_then(|s| s.parse::<u64>().ok())
+                .ok_or_else(|| {
+                    BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                        command: "reactions.add".to_string(),
+                        arg_name: "emoji".to_string(),
+                        reason: "Custom emoji must be in format 'custom:ID'".to_string(),
+                    })
+                })?;
+            ReactionType::Custom {
+                animated: false,
+                id: emoji_id.into(),
+                name: Some("custom".to_string()),
+            }
+        } else {
+            ReactionType::Unicode(emoji_str.to_string())
+        };
+
+        self.http
+            .create_reaction(ChannelId::new(channel_id), MessageId::new(message_id), &reaction)
+            .await
+            .map_err(|e| {
+                error!(channel_id, message_id, error = %e, "Failed to add reaction");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "reactions.add".to_string(),
+                    reason: format!("Failed to add reaction: {}", e),
+                })
+            })?;
+
+        info!("Successfully added reaction");
+        Ok(serde_json::json!({
+            "added": true,
+            "channel_id": channel_id.to_string(),
+            "message_id": message_id.to_string(),
+            "emoji": emoji_str,
+        }))
+    }
+
+    /// Execute: reactions.remove
+    ///
+    /// Remove a reaction from a message.
+    ///
+    /// **Security**: Low-risk write operation.
+    ///
+    /// Required args: channel_id, message_id, emoji
+    /// Optional args: user_id (remove specific user's reaction, requires manage messages permission)
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "reactions.remove",
+            channel_id,
+            message_id
+        )
+    )]
+    async fn reactions_remove(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        // Check permission
+        self.check_permission("reactions.remove", ResourceType::Message, "reactions")?;
+
+        // Parse channel_id
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "reactions.remove".to_string(),
+                    arg_name: "channel_id".to_string(),
+                })
+            })?;
+        let channel_id: u64 = channel_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "reactions.remove".to_string(),
+                arg_name: "channel_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        // Parse message_id
+        let message_id_str = args
+            .get("message_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "reactions.remove".to_string(),
+                    arg_name: "message_id".to_string(),
+                })
+            })?;
+        let message_id: u64 = message_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "reactions.remove".to_string(),
+                arg_name: "message_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        // Parse emoji
+        let emoji_str = args
+            .get("emoji")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "reactions.remove".to_string(),
+                    arg_name: "emoji".to_string(),
+                })
+            })?;
+
+        tracing::Span::current().record("channel_id", channel_id);
+        tracing::Span::current().record("message_id", message_id);
+
+        info!(channel_id, message_id, emoji = emoji_str, "Removing reaction via Discord API");
+
+        use serenity::model::channel::ReactionType;
+        use serenity::model::id::{ChannelId, MessageId};
+
+        // Parse reaction type
+        let reaction = if emoji_str.starts_with("custom:") {
+            let emoji_id = emoji_str
+                .strip_prefix("custom:")
+                .and_then(|s| s.parse::<u64>().ok())
+                .ok_or_else(|| {
+                    BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                        command: "reactions.remove".to_string(),
+                        arg_name: "emoji".to_string(),
+                        reason: "Custom emoji must be in format 'custom:ID'".to_string(),
+                    })
+                })?;
+            ReactionType::Custom {
+                animated: false,
+                id: emoji_id.into(),
+                name: Some("custom".to_string()),
+            }
+        } else {
+            ReactionType::Unicode(emoji_str.to_string())
+        };
+
+        // If user_id provided, remove that user's reaction; otherwise remove bot's own reaction
+        if let Some(user_id_str) = args.get("user_id").and_then(|v| v.as_str()) {
+            let user_id: u64 = user_id_str.parse().map_err(|_| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    command: "reactions.remove".to_string(),
+                    arg_name: "user_id".to_string(),
+                    reason: "Invalid Discord ID format".to_string(),
+                })
+            })?;
+
+            use serenity::model::id::UserId;
+            self.http
+                .delete_reaction(
+                    ChannelId::new(channel_id),
+                    MessageId::new(message_id),
+                    Some(UserId::new(user_id)),
+                    &reaction,
+                )
+                .await
+                .map_err(|e| {
+                    error!(channel_id, message_id, user_id, error = %e, "Failed to remove user reaction");
+                    BotCommandError::new(BotCommandErrorKind::ApiError {
+                        command: "reactions.remove".to_string(),
+                        reason: format!("Failed to remove reaction: {}", e),
+                    })
+                })?;
+        } else {
+            // Remove bot's own reaction
+            self.http
+                .delete_reaction(
+                    ChannelId::new(channel_id),
+                    MessageId::new(message_id),
+                    None,
+                    &reaction,
+                )
+                .await
+                .map_err(|e| {
+                    error!(channel_id, message_id, error = %e, "Failed to remove bot reaction");
+                    BotCommandError::new(BotCommandErrorKind::ApiError {
+                        command: "reactions.remove".to_string(),
+                        reason: format!("Failed to remove reaction: {}", e),
+                    })
+                })?;
+        }
+
+        info!("Successfully removed reaction");
+        Ok(serde_json::json!({
+            "removed": true,
+            "channel_id": channel_id.to_string(),
+            "message_id": message_id.to_string(),
+            "emoji": emoji_str,
+        }))
+    }
+
+    /// Execute: channels.edit
+    ///
+    /// Edit channel properties.
+    ///
+    /// **Security**: This command MUST go through the security framework.
+    ///
+    /// Required args: channel_id
+    /// Optional args: name, topic, nsfw, position, bitrate (voice), user_limit (voice)
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "channels.edit",
+            channel_id
+        )
+    )]
+    async fn channels_edit(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        // Check permission
+        self.check_permission("channels.edit", ResourceType::Channel, "channel")?;
+
+        // Parse channel_id
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "channels.edit".to_string(),
+                    arg_name: "channel_id".to_string(),
+                })
+            })?;
+        let channel_id: u64 = channel_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "channels.edit".to_string(),
+                arg_name: "channel_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        tracing::Span::current().record("channel_id", channel_id);
+
+        info!(channel_id, "Editing channel via Discord API");
+
+        use serenity::builder::EditChannel;
+        use serenity::model::id::ChannelId;
+
+        let mut builder = EditChannel::new();
+
+        if let Some(name) = args.get("name").and_then(|v| v.as_str()) {
+            builder = builder.name(name);
+        }
+        if let Some(topic) = args.get("topic").and_then(|v| v.as_str()) {
+            builder = builder.topic(topic);
+        }
+        if let Some(nsfw) = args.get("nsfw").and_then(|v| v.as_bool()) {
+            builder = builder.nsfw(nsfw);
+        }
+        if let Some(position) = args.get("position").and_then(|v| v.as_u64()) {
+            builder = builder.position(position as u16);
+        }
+        if let Some(bitrate) = args.get("bitrate").and_then(|v| v.as_u64()) {
+            builder = builder.bitrate(bitrate as u32);
+        }
+        if let Some(user_limit) = args.get("user_limit").and_then(|v| v.as_u64()) {
+            builder = builder.user_limit(user_limit as u32);
+        }
+
+        let channel = self
+            .http
+            .edit_channel(ChannelId::new(channel_id), &builder, None)
+            .await
+            .map_err(|e| {
+                error!(channel_id, error = %e, "Failed to edit channel");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "channels.edit".to_string(),
+                    reason: format!("Failed to edit channel: {}", e),
+                })
+            })?;
+
+        info!(channel_id, "Successfully edited channel");
+        Ok(serde_json::json!({
+            "id": channel.id.to_string(),
+            "name": channel.name,
+            "type": format!("{:?}", channel.kind),
+            "position": channel.position,
+            "topic": channel.topic,
+            "nsfw": channel.nsfw,
+        }))
+    }
+
     /// Execute: members.kick
     ///
     /// Kick a member from the server.
@@ -1703,6 +2065,515 @@ impl DiscordCommandExecutor {
             "kicked": true,
             "guild_id": guild_id.to_string(),
             "user_id": user_id.to_string(),
+        }))
+    }
+
+    /// Execute: members.timeout
+    ///
+    /// Timeout a member (prevents them from sending messages/joining voice).
+    ///
+    /// **Security**: This command MUST go through the security framework.
+    ///
+    /// Required args: guild_id, user_id, duration_seconds
+    /// Optional args: reason
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "members.timeout",
+            guild_id,
+            user_id,
+            duration_seconds
+        )
+    )]
+    async fn members_timeout(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        let guild_id = Self::parse_guild_id("members.timeout", args)?;
+        
+        // Check permission
+        self.check_permission("members.timeout", ResourceType::Member, &guild_id.to_string())?;
+
+        // Parse user_id
+        let user_id_str = args
+            .get("user_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "members.timeout".to_string(),
+                    arg_name: "user_id".to_string(),
+                })
+            })?;
+        let user_id: u64 = user_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "members.timeout".to_string(),
+                arg_name: "user_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        // Parse duration_seconds
+        let duration_seconds = args
+            .get("duration_seconds")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "members.timeout".to_string(),
+                    arg_name: "duration_seconds".to_string(),
+                })
+            })?;
+
+        // Discord timeout limit is 28 days (2419200 seconds)
+        if duration_seconds > 2419200 {
+            return Err(BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "members.timeout".to_string(),
+                arg_name: "duration_seconds".to_string(),
+                reason: "Timeout duration cannot exceed 28 days (2419200 seconds)".to_string(),
+            }));
+        }
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        tracing::Span::current().record("user_id", user_id);
+        tracing::Span::current().record("duration_seconds", duration_seconds);
+
+        info!(guild_id = %guild_id, user_id, duration_seconds, "Timing out member via Discord API");
+
+        use serenity::builder::EditMember;
+        use serenity::model::id::UserId;
+        use serenity::model::Timestamp;
+
+        // Calculate timeout end time
+        let timeout_until = Timestamp::now().unix_timestamp() + duration_seconds as i64;
+        let timeout_timestamp = Timestamp::from_unix_timestamp(timeout_until)
+            .map_err(|e| {
+                error!("Failed to create timeout timestamp: {}", e);
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    command: "members.timeout".to_string(),
+                    arg_name: "duration_seconds".to_string(),
+                    reason: format!("Invalid duration: {}", e),
+                })
+            })?;
+
+        let builder = EditMember::new().disable_communication_until(timeout_timestamp);
+
+        self.http
+            .edit_member(guild_id, UserId::new(user_id), &builder, None)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, user_id, error = %e, "Failed to timeout member");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "members.timeout".to_string(),
+                    reason: format!("Failed to timeout member: {}", e),
+                })
+            })?;
+
+        info!("Successfully timed out member");
+        Ok(serde_json::json!({
+            "timed_out": true,
+            "guild_id": guild_id.to_string(),
+            "user_id": user_id.to_string(),
+            "duration_seconds": duration_seconds,
+            "timeout_until": timeout_until,
+        }))
+    }
+
+    /// Execute: members.unban
+    ///
+    /// Unban a member (remove ban).
+    ///
+    /// **Security**: This command MUST go through the security framework.
+    ///
+    /// Required args: guild_id, user_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "members.unban",
+            guild_id,
+            user_id
+        )
+    )]
+    async fn members_unban(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        let guild_id = Self::parse_guild_id("members.unban", args)?;
+        
+        // Check permission
+        self.check_permission("members.unban", ResourceType::Member, &guild_id.to_string())?;
+
+        // Parse user_id
+        let user_id_str = args
+            .get("user_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "members.unban".to_string(),
+                    arg_name: "user_id".to_string(),
+                })
+            })?;
+        let user_id: u64 = user_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "members.unban".to_string(),
+                arg_name: "user_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        tracing::Span::current().record("user_id", user_id);
+
+        info!(guild_id = %guild_id, user_id, "Unbanning member via Discord API");
+
+        use serenity::model::id::UserId;
+        self.http
+            .remove_ban(guild_id, UserId::new(user_id), None)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, user_id, error = %e, "Failed to unban member");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "members.unban".to_string(),
+                    reason: format!("Failed to unban member: {}", e),
+                })
+            })?;
+
+        info!("Successfully unbanned member");
+        Ok(serde_json::json!({
+            "unbanned": true,
+            "guild_id": guild_id.to_string(),
+            "user_id": user_id.to_string(),
+        }))
+    }
+
+    /// Execute: roles.assign
+    ///
+    /// Assign a role to a member.
+    ///
+    /// **Security**: This command MUST go through the security framework.
+    ///
+    /// Required args: guild_id, user_id, role_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "roles.assign",
+            guild_id,
+            user_id,
+            role_id
+        )
+    )]
+    async fn roles_assign(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        let guild_id = Self::parse_guild_id("roles.assign", args)?;
+        
+        // Check permission
+        self.check_permission("roles.assign", ResourceType::Role, &guild_id.to_string())?;
+
+        // Parse user_id
+        let user_id_str = args
+            .get("user_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "roles.assign".to_string(),
+                    arg_name: "user_id".to_string(),
+                })
+            })?;
+        let user_id: u64 = user_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.assign".to_string(),
+                arg_name: "user_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        // Parse role_id
+        let role_id_str = args
+            .get("role_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "roles.assign".to_string(),
+                    arg_name: "role_id".to_string(),
+                })
+            })?;
+        let role_id: u64 = role_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.assign".to_string(),
+                arg_name: "role_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        tracing::Span::current().record("user_id", user_id);
+        tracing::Span::current().record("role_id", role_id);
+
+        info!(guild_id = %guild_id, user_id, role_id, "Assigning role to member via Discord API");
+
+        use serenity::model::id::{UserId, RoleId};
+        self.http
+            .add_member_role(guild_id, UserId::new(user_id), RoleId::new(role_id), None)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, user_id, role_id, error = %e, "Failed to assign role");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "roles.assign".to_string(),
+                    reason: format!("Failed to assign role: {}", e),
+                })
+            })?;
+
+        info!("Successfully assigned role to member");
+        Ok(serde_json::json!({
+            "assigned": true,
+            "guild_id": guild_id.to_string(),
+            "user_id": user_id.to_string(),
+            "role_id": role_id.to_string(),
+        }))
+    }
+
+    /// Execute: roles.remove
+    ///
+    /// Remove a role from a member.
+    ///
+    /// **Security**: This command MUST go through the security framework.
+    ///
+    /// Required args: guild_id, user_id, role_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "roles.remove",
+            guild_id,
+            user_id,
+            role_id
+        )
+    )]
+    async fn roles_remove(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        let guild_id = Self::parse_guild_id("roles.remove", args)?;
+        
+        // Check permission
+        self.check_permission("roles.remove", ResourceType::Role, &guild_id.to_string())?;
+
+        // Parse user_id
+        let user_id_str = args
+            .get("user_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "roles.remove".to_string(),
+                    arg_name: "user_id".to_string(),
+                })
+            })?;
+        let user_id: u64 = user_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.remove".to_string(),
+                arg_name: "user_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        // Parse role_id
+        let role_id_str = args
+            .get("role_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "roles.remove".to_string(),
+                    arg_name: "role_id".to_string(),
+                })
+            })?;
+        let role_id: u64 = role_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.remove".to_string(),
+                arg_name: "role_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        tracing::Span::current().record("user_id", user_id);
+        tracing::Span::current().record("role_id", role_id);
+
+        info!(guild_id = %guild_id, user_id, role_id, "Removing role from member via Discord API");
+
+        use serenity::model::id::{UserId, RoleId};
+        self.http
+            .remove_member_role(guild_id, UserId::new(user_id), RoleId::new(role_id), None)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, user_id, role_id, error = %e, "Failed to remove role");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "roles.remove".to_string(),
+                    reason: format!("Failed to remove role: {}", e),
+                })
+            })?;
+
+        info!("Successfully removed role from member");
+        Ok(serde_json::json!({
+            "removed": true,
+            "guild_id": guild_id.to_string(),
+            "user_id": user_id.to_string(),
+            "role_id": role_id.to_string(),
+        }))
+    }
+
+    /// Execute: roles.edit
+    ///
+    /// Edit role properties.
+    ///
+    /// **Security**: This command MUST go through the security framework.
+    ///
+    /// Required args: guild_id, role_id
+    /// Optional args: name, color, hoist, mentionable, permissions
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "roles.edit",
+            guild_id,
+            role_id
+        )
+    )]
+    async fn roles_edit(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        let guild_id = Self::parse_guild_id("roles.edit", args)?;
+        
+        // Check permission
+        self.check_permission("roles.edit", ResourceType::Role, &guild_id.to_string())?;
+
+        // Parse role_id
+        let role_id_str = args
+            .get("role_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "roles.edit".to_string(),
+                    arg_name: "role_id".to_string(),
+                })
+            })?;
+        let role_id: u64 = role_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.edit".to_string(),
+                arg_name: "role_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        tracing::Span::current().record("role_id", role_id);
+
+        info!(guild_id = %guild_id, role_id, "Editing role via Discord API");
+
+        use serenity::builder::EditRole;
+        use serenity::model::id::RoleId;
+        
+        let mut builder = EditRole::new();
+        
+        if let Some(name) = args.get("name").and_then(|v| v.as_str()) {
+            builder = builder.name(name);
+        }
+        if let Some(color) = args.get("color").and_then(|v| v.as_u64()) {
+            builder = builder.colour(color as u32);
+        }
+        if let Some(hoist) = args.get("hoist").and_then(|v| v.as_bool()) {
+            builder = builder.hoist(hoist);
+        }
+        if let Some(mentionable) = args.get("mentionable").and_then(|v| v.as_bool()) {
+            builder = builder.mentionable(mentionable);
+        }
+
+        let role = self
+            .http
+            .edit_role(guild_id, RoleId::new(role_id), &builder, None)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, role_id, error = %e, "Failed to edit role");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "roles.edit".to_string(),
+                    reason: format!("Failed to edit role: {}", e),
+                })
+            })?;
+
+        info!(role_id, "Successfully edited role");
+        Ok(serde_json::json!({
+            "id": role.id.to_string(),
+            "name": role.name,
+            "color": role.colour.0,
+            "hoist": role.hoist,
+            "position": role.position,
+            "permissions": role.permissions.bits(),
+            "mentionable": role.mentionable,
+        }))
+    }
+
+    /// Execute: roles.delete
+    ///
+    /// Delete a role.
+    ///
+    /// **Security**: This command MUST go through the security framework.
+    ///
+    /// Required args: guild_id, role_id
+    #[instrument(
+        skip(self, args),
+        fields(
+            command = "roles.delete",
+            guild_id,
+            role_id
+        )
+    )]
+    async fn roles_delete(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        let guild_id = Self::parse_guild_id("roles.delete", args)?;
+        
+        // Check permission
+        self.check_permission("roles.delete", ResourceType::Role, &guild_id.to_string())?;
+
+        // Parse role_id
+        let role_id_str = args
+            .get("role_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "roles.delete".to_string(),
+                    arg_name: "role_id".to_string(),
+                })
+            })?;
+        let role_id: u64 = role_id_str.parse().map_err(|_| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "roles.delete".to_string(),
+                arg_name: "role_id".to_string(),
+                reason: "Invalid Discord ID format".to_string(),
+            })
+        })?;
+
+        tracing::Span::current().record("guild_id", guild_id.get());
+        tracing::Span::current().record("role_id", role_id);
+
+        info!(guild_id = %guild_id, role_id, "Deleting role via Discord API");
+
+        use serenity::model::id::RoleId;
+        self.http
+            .delete_role(guild_id, RoleId::new(role_id), None)
+            .await
+            .map_err(|e| {
+                error!(guild_id = %guild_id, role_id, error = %e, "Failed to delete role");
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "roles.delete".to_string(),
+                    reason: format!("Failed to delete role: {}", e),
+                })
+            })?;
+
+        info!(role_id, "Successfully deleted role");
+        Ok(serde_json::json!({
+            "deleted": true,
+            "guild_id": guild_id.to_string(),
+            "role_id": role_id.to_string(),
         }))
     }
 
@@ -2287,11 +3158,20 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "messages.send" => self.messages_send(args).await?,
             "messages.edit" => self.messages_edit(args).await?,
             "messages.delete" => self.messages_delete(args).await?,
+            "reactions.add" => self.reactions_add(args).await?,
+            "reactions.remove" => self.reactions_remove(args).await?,
             "channels.create" => self.channels_create(args).await?,
+            "channels.edit" => self.channels_edit(args).await?,
             "channels.delete" => self.channels_delete(args).await?,
             "members.ban" => self.members_ban(args).await?,
             "members.kick" => self.members_kick(args).await?,
+            "members.timeout" => self.members_timeout(args).await?,
+            "members.unban" => self.members_unban(args).await?,
             "roles.create" => self.roles_create(args).await?,
+            "roles.assign" => self.roles_assign(args).await?,
+            "roles.remove" => self.roles_remove(args).await?,
+            "roles.edit" => self.roles_edit(args).await?,
+            "roles.delete" => self.roles_delete(args).await?,
             _ => {
                 error!(
                     command,
@@ -2345,11 +3225,20 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                 | "messages.send"
                 | "messages.edit"
                 | "messages.delete"
+                | "reactions.add"
+                | "reactions.remove"
                 | "channels.create"
+                | "channels.edit"
                 | "channels.delete"
                 | "members.ban"
                 | "members.kick"
+                | "members.timeout"
+                | "members.unban"
                 | "roles.create"
+                | "roles.assign"
+                | "roles.remove"
+                | "roles.edit"
+                | "roles.delete"
         )
     }
 

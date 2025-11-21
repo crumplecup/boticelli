@@ -8,16 +8,9 @@ skip_content_generation = true
 model = "gemini-2.5-flash"
 
 [toc]
-order = ["clear_channel", "create_channel", "generate_content", "select_best", "publish_message", "pin_message"]
+order = ["create_channel", "clear_channel", "generate_content", "select_best", "publish_message", "pin_message"]
 
 # Define bot commands
-[bots.clear_channel]
-platform = "discord"
-command = "messages.bulk_delete"
-guild_id = "1439415903753076859"
-channel_id = "1441256008092483724"
-limit = 100
-
 [bots.create_channel]
 platform = "discord"
 command = "channels.create"
@@ -25,18 +18,25 @@ guild_id = "1439415903753076859"
 name = "faq"
 type = "text"
 
+[bots.clear_channel]
+platform = "discord"
+command = "messages.bulk_delete"
+guild_id = "1439415903753076859"
+channel_id = "{{create_channel}}"
+limit = 100
+
 [bots.publish_message]
 platform = "discord"
 command = "messages.send"
 guild_id = "1439415903753076859"
-channel_id = "1441256008092483724"
+channel_id = "{{create_channel}}"
 content = "{{select_best}}"
 
 [bots.pin_message]
 platform = "discord"
 command = "messages.pin"
 guild_id = "1439415903753076859"
-channel_id = "1441256008092483724"
+channel_id = "{{create_channel}}"
 message_id = "{{publish_message}}"
 
 # Define nested narrative for content generation
@@ -50,11 +50,11 @@ limit = 100
 format = "markdown"
 
 [acts]
-# Act 1: Clear any existing messages in the FAQ channel
-clear_channel = ["bots.clear_channel"]
-
-# Act 2: Create FAQ channel if it doesn't exist (optional, will error if exists)
+# Act 1: Create FAQ channel if it doesn't exist (optional, will error if exists)
 create_channel = ["bots.create_channel"]
+
+# Act 2: Clear any existing messages in the FAQ channel
+clear_channel = ["bots.clear_channel"]
 
 # Act 3: Run FAQ content generation to populate the table
 generate_content = ["narratives.generate_content"]

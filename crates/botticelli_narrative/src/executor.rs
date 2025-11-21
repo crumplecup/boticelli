@@ -161,8 +161,9 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             // Pass execution history for template resolution
             let (processed_inputs, bot_command_result) = self.process_inputs(narrative, config.inputs(), &act_executions, sequence_number).await?;
 
-            // Check if this is an action-only act (no text inputs that need LLM processing)
-            let has_text_prompt = processed_inputs.iter().any(|input| matches!(input, Input::Text(text) if !text.trim().is_empty()));
+            // Check if this is an action-only act (no text inputs from TOML that need LLM processing)
+            // Bot command results in processed_inputs should NOT trigger LLM calls
+            let has_text_prompt = config.inputs().iter().any(|input| matches!(input, Input::Text(text) if !text.trim().is_empty()));
             
             let (response_text, model, temperature, max_tokens) = if has_text_prompt {
                 // This act needs an LLM response

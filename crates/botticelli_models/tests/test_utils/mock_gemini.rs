@@ -6,7 +6,11 @@ use botticelli_error::{BotticelliError, BotticelliResult, GeminiError, GeminiErr
 use botticelli_interface::{
     BotticelliDriver, FinishReason, Metadata, ModelMetadata, StreamChunk, Streaming, Vision,
 };
+use botticelli_rate_limit::RateLimitConfig;
 use std::sync::{Arc, Mutex};
+
+#[cfg(feature = "gemini")]
+use botticelli_rate_limit::GeminiTier;
 
 /// Behavior configuration for mock responses.
 #[derive(Debug, Clone)]
@@ -40,6 +44,7 @@ pub struct MockGeminiClient {
     behavior: MockBehavior,
     call_count: Arc<Mutex<usize>>,
     model_name: String,
+    rate_limits: RateLimitConfig,
 }
 
 impl MockGeminiClient {
@@ -49,6 +54,7 @@ impl MockGeminiClient {
             behavior: MockBehavior::Success(text.into()),
             call_count: Arc::new(Mutex::new(0)),
             model_name: "mock-gemini".to_string(),
+            rate_limits: Self::default_rate_limits(),
         }
     }
 
@@ -58,6 +64,7 @@ impl MockGeminiClient {
             behavior: MockBehavior::Error(error),
             call_count: Arc::new(Mutex::new(0)),
             model_name: "mock-gemini".to_string(),
+            rate_limits: Self::default_rate_limits(),
         }
     }
 
@@ -77,6 +84,7 @@ impl MockGeminiClient {
             },
             call_count: Arc::new(Mutex::new(0)),
             model_name: "mock-gemini".to_string(),
+            rate_limits: Self::default_rate_limits(),
         }
     }
 
@@ -86,6 +94,7 @@ impl MockGeminiClient {
             behavior: MockBehavior::Sequence(responses),
             call_count: Arc::new(Mutex::new(0)),
             model_name: "mock-gemini".to_string(),
+            rate_limits: Self::default_rate_limits(),
         }
     }
 
@@ -96,6 +105,32 @@ impl MockGeminiClient {
             behavior,
             call_count: Arc::new(Mutex::new(0)),
             model_name: "mock-gemini".to_string(),
+            rate_limits: Self::default_rate_limits(),
+        }
+    }
+
+    /// Get default rate limits for mock client.
+    fn default_rate_limits() -> RateLimitConfig {
+        #[cfg(feature = "gemini")]
+        {
+            use botticelli_rate_limit::Tier;
+            let tier = GeminiTier::Free;
+            RateLimitConfig {
+                requests_per_minute: tier.rpm().unwrap_or(15) as u64,
+                tokens_per_minute: tier.tpm().unwrap_or(1_000_000),
+                requests_per_day: tier.rpd().unwrap_or(1500) as u64,
+                tokens_per_day: tier.tpm().unwrap_or(1_000_000) * 1440,
+            }
+        }
+        #[cfg(not(feature = "gemini"))]
+        {
+            // Fallback to reasonable defaults if gemini feature not enabled
+            RateLimitConfig {
+                requests_per_minute: 15,
+                requests_per_day: 1500,
+                tokens_per_minute: 1_000_000,
+                tokens_per_day: 50_000_000,
+            }
         }
     }
 
@@ -175,6 +210,10 @@ impl BotticelliDriver for MockGeminiClient {
 
     fn model_name(&self) -> &str {
         &self.model_name
+    }
+
+    fn rate_limits(&self) -> &RateLimitConfig {
+        &self.rate_limits
     }
 }
 

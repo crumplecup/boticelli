@@ -13,7 +13,7 @@ description = "LLM provider integrations for Botticelli"
 botticelli_error = { workspace = true }
 botticelli_core = { workspace = true }
 botticelli_interface = { workspace = true }
-botticelli_rate_limit = { workspace = true }
+botticelli_rate_limit = { workspace = true, features = [] }
 
 # Async runtime
 tokio = { workspace = true }
@@ -42,8 +42,8 @@ gemini-rust = { workspace = true, optional = true }
 
 [features]
 default = []
-gemini = ["dep:gemini-rust"]
-anthropic = []
+gemini = ["dep:gemini-rust", "botticelli_rate_limit/gemini"]
+anthropic = ["botticelli_rate_limit/anthropic"]
 huggingface = []
 groq = []
 perplexity = []

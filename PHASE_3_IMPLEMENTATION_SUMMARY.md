@@ -10,18 +10,24 @@ This document summarizes the completion of Phase 3 (Table References) and the ne
 
 Phase 3 aimed to enable narratives to reference data from database tables in prompts, allowing content composition workflows where generated content from one narrative could be referenced by another.
 
-### Current Status: DEFERRED
+### Current Status: 🚧 IN PROGRESS - Infrastructure Complete
 
-After analysis documented in `DATABASE_TRAIT_SEPARATION_PLAN.md`, we identified that proper implementation of table references requires:
+**Completed** (as of commit `3042358`):
+1. ✅ **TOML Parsing**: `TomlTableDefinition` and `Input::Table` variant fully implemented
+2. ✅ **Reference Resolution**: `"tables.name"` → `Input::Table` conversion working
+3. ✅ **Table Reference Struct**: `TableReference` with `derive_builder` implemented
+4. ✅ **Example Narratives**: `welcome_content_generation.toml` and `publish_welcome.toml` created
+5. ✅ **Integration Tests**: Tests verify narratives parse correctly
+6. ✅ **Documentation**: `DATABASE_TRAIT_SEPARATION_ANALYSIS.md` provides implementation plan
 
-1. **Trait Separation**: Moving `ContentRepository` trait to `botticelli_interface`
-2. **View Structs**: Creating `TableView` structs with builders for different query patterns
-3. **Dynamic Queries**: Supporting various filter/sort/limit combinations
-4. **Type Safety**: Ensuring proper type handling across crate boundaries
+**Pending**:
+1. 🚧 **ContentRepository Trait**: Design complete, implementation pending
+2. 🚧 **Executor Integration**: Table resolution in `NarrativeExecutor`
+3. 🚧 **End-to-End Testing**: Tests with real database and API calls
 
-**Decision**: Table references are deferred pending database architecture refactoring. The feature is well-designed but requires foundational changes to the database layer that are beyond the scope of the current implementation phase.
+**Next Steps**: Implement `ContentRepository` trait in `botticelli_interface` and integrate table resolution into executor.
 
-**See**: `DATABASE_TRAIT_SEPARATION_PLAN.md` for detailed analysis and implementation plan.
+**See**: `DATABASE_TRAIT_SEPARATION_ANALYSIS.md` for detailed architecture plan.
 
 ## New Feature: Carousel (Budget-Aware Iterative Execution)
 

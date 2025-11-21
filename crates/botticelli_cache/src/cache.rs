@@ -60,19 +60,20 @@ impl CacheKey {
 }
 
 /// Configuration for command cache.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, derive_setters::Setters)]
+#[setters(prefix = "with_")]
 pub struct CommandCacheConfig {
     /// Default TTL for cached entries (seconds)
     #[serde(default = "default_ttl")]
-    pub default_ttl: u64,
+    default_ttl: u64,
     
     /// Maximum cache size (number of entries)
     #[serde(default = "default_max_size")]
-    pub max_size: usize,
+    max_size: usize,
     
     /// Whether caching is enabled
     #[serde(default = "default_enabled")]
-    pub enabled: bool,
+    enabled: bool,
 }
 
 fn default_ttl() -> u64 {

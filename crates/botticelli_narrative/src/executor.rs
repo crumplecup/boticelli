@@ -159,7 +159,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
             // Process inputs (execute bot commands, query tables, etc.)
             // Pass execution history for template resolution
-            let processed_inputs = self.process_inputs(narrative, config.inputs(), &act_executions, sequence_number).await?;
+            let (processed_inputs, bot_command_result) = self.process_inputs(narrative, config.inputs(), &act_executions, sequence_number).await?;
 
             // Check if this is an action-only act (no text inputs that need LLM processing)
             let has_text_prompt = processed_inputs.iter().any(|input| matches!(input, Input::Text(text) if !text.trim().is_empty()));
@@ -204,7 +204,13 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     act = %act_name,
                     "Skipping LLM call for action-only act"
                 );
-                ("Action completed successfully".to_string(), None, None, None)
+                // Use bot command result as response if available, otherwise generic success message
+                let response_text = if let Some(result) = bot_command_result {
+                    serde_json::to_string(&result).unwrap_or_else(|_| "Action completed successfully".to_string())
+                } else {
+                    "Action completed successfully".to_string()
+                };
+                (response_text, None, None, None)
             };
 
             // Create the act execution (store processed inputs)
@@ -393,10 +399,11 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         inputs: &[Input],
         act_executions: &[ActExecution],
         current_index: usize,
-    ) -> BotticelliResult<Vec<Input>> {
+    ) -> BotticelliResult<(Vec<Input>, Option<JsonValue>)> {
         let mut processed = Vec::new();
         let mut bot_command_count = 0;
         let mut table_count = 0;
+        let mut last_bot_command_result: Option<JsonValue> = None;
 
         for input in inputs {
             match input {
@@ -436,11 +443,10 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
                     match registry.execute(platform, command, &resolved_args).await {
                         Ok(result) => {
-                            // Store bot command output for template substitution in later acts
-                            // Note: We can't store in act_outputs here because we don't have &mut self
-                            // The result will be stored after the act completes
+                            // Store bot command result for potential use as act output
+                            last_bot_command_result = Some(result.clone());
                             
-                            // Convert JSON result to pretty-printed text for LLM
+                            // Convert JSON result to pretty-printed text for LLM context
                             let text = serde_json::to_string_pretty(&result).map_err(|e| {
                                 tracing::error!(error = %e, "Failed to serialize bot command result");
                                 botticelli_error::NarrativeError::new(
@@ -671,7 +677,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         tracing::Span::current().record("bot_commands", bot_command_count);
         tracing::Span::current().record("tables", table_count);
 
-        Ok(processed)
+        Ok((processed, last_bot_command_result))
     }
 }
 
@@ -713,8 +719,8 @@ fn resolve_template(
 ) -> BotticelliResult<String> {
     let mut result = template.to_string();
     
-    // Find all {{...}} patterns
-    let re = regex::Regex::new(r"\{\{([^}]+)\}\}").map_err(|e| {
+    // Find all {{...}} or ${...} patterns
+    let re = regex::Regex::new(r"(?:\{\{([^}]+)\}\}|\$\{([^}]+)\})").map_err(|e| {
         botticelli_error::NarrativeError::new(
             botticelli_error::NarrativeErrorKind::TemplateError(
                 format!("Invalid template regex: {}", e),
@@ -723,8 +729,17 @@ fn resolve_template(
     })?;
     
     for cap in re.captures_iter(template) {
-        let placeholder = &cap[0]; // Full match like {{previous}} or {{act_name.field}}
-        let reference = cap[1].trim(); // Inner content like "previous" or "act_name.field"
+        let placeholder = &cap[0]; // Full match like {{previous}}, ${act_name.field}, etc.
+        // Get the reference from whichever capture group matched (group 1 for {{...}}, group 2 for ${...})
+        let reference = cap.get(1).or_else(|| cap.get(2))
+            .map(|m| m.as_str().trim())
+            .ok_or_else(|| {
+                botticelli_error::NarrativeError::new(
+                    botticelli_error::NarrativeErrorKind::TemplateError(
+                        format!("Failed to extract reference from placeholder: {}", placeholder),
+                    ),
+                )
+            })?;
         
         let replacement = if reference == "previous" {
             // Get previous act

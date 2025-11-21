@@ -44,7 +44,7 @@ platform = "discord"
 command = "messages.pin"
 guild_id = "1439415903753076859"
 channel_id = "1441256008092483724"
-message_id = "{{publish_message}}"  # Use message ID from publish act
+message_id = "${publish_message.id}"  # Extract message ID from publish act JSON response
 
 # Define table reference for loading generated messages
 [tables.welcome_messages]

@@ -1,0 +1,97 @@
+# Welcome Message Content Generation
+# Generates multiple welcome message options for the Botticelli Discord community
+# Uses carousel mode to produce 9 total options (3 iterations × 3 refined options per iteration)
+
+[narrative]
+name = "welcome_content_generation"
+description = "Generate welcome message content for Botticelli Discord server"
+# template = "welcome_messages"  # Disabled until table exists
+
+[narrative.carousel]
+iterations = 3
+
+[toc]
+order = ["generate_batch", "critique_batch", "refine_best"]
+
+[acts.generate_batch]
+model = "gemini-2.0-flash-lite"
+temperature = 0.8
+
+[[acts.generate_batch.input]]
+type = "text"
+content = """
+Create 10 welcome message options for the Botticelli Discord community.
+
+Botticelli is an AI narrative framework that uses TOML-based workflows to orchestrate
+multi-step AI interactions. Key features include:
+- Multi-step narratives with context passing between acts
+- Content generation with database persistence
+- Discord bot integration with security policies
+- Support for multiple AI providers (Gemini, Claude, GPT)
+- Carousel mode for batch content generation
+
+Each welcome message should:
+- Be engaging and friendly
+- Explain what Botticelli is in accessible terms
+- Highlight 2-3 key features
+- Include a call-to-action (explore docs, try examples, ask questions)
+- Use Discord markdown for visual appeal (bold, italics, code blocks)
+- Be 150-300 words
+
+Provide your response as a JSON array with this schema:
+[
+  {
+    "title": "Welcome message title",
+    "content": "Full welcome message text with Discord markdown",
+    "tone": "professional|casual|enthusiastic",
+    "key_features_highlighted": ["feature1", "feature2"]
+  }
+]
+"""
+
+[acts.critique_batch]
+model = "gemini-2.0-flash"
+temperature = 0.3
+
+[[acts.critique_batch.input]]
+type = "text"
+content = """
+Review the 10 welcome messages from the previous act and provide a critique.
+
+Evaluate each message on:
+1. Clarity - Is it easy to understand for newcomers?
+2. Engagement - Does it grab attention and encourage participation?
+3. Completeness - Does it cover essential information?
+4. Tone - Is the tone appropriate for a technical community?
+5. Formatting - Is the Discord markdown used effectively?
+
+Provide an overall assessment and identify the 3 strongest messages.
+"""
+
+[acts.refine_best]
+model = "gemini-2.0-flash"
+temperature = 0.6
+
+[[acts.refine_best.input]]
+type = "text"
+content = """
+Based on the critique, select the 3 best welcome messages and improve them further.
+
+For each of the 3 selected messages:
+- Address any issues identified in the critique
+- Enhance clarity and engagement
+- Ensure consistent tone and formatting
+- Make sure they're distinct from each other (different angles/focuses)
+
+Provide your response as a JSON array with the same schema:
+[
+  {
+    "title": "Welcome message title",
+    "content": "Refined welcome message text with Discord markdown",
+    "tone": "professional|casual|enthusiastic",
+    "key_features_highlighted": ["feature1", "feature2"]
+  }
+]
+
+Aim for 3 polished, production-ready welcome messages.
+"""

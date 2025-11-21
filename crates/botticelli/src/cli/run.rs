@@ -16,7 +16,7 @@ pub async fn run_narrative(
     save: bool,
     process_discord: bool,
 ) -> BotticelliResult<()> {
-    use botticelli::{GeminiClient, NarrativeExecutor};
+    use botticelli::{GeminiClient, NarrativeExecutor, NarrativeProvider};
 
     #[cfg(not(feature = "database"))]
     use botticelli::Narrative;
@@ -74,8 +74,34 @@ pub async fn run_narrative(
         }
     };
 
-    // Execute the narrative
+    // Execute the narrative (with carousel if configured)
     tracing::info!("Executing narrative");
+    
+    if narrative.carousel_config().is_some() {
+        tracing::info!("Executing narrative in carousel mode");
+        let carousel_result = executor.execute_carousel(&narrative).await?;
+        
+        tracing::info!(
+            iterations_attempted = carousel_result.iterations_attempted(),
+            successful = carousel_result.successful_iterations(),
+            failed = carousel_result.failed_iterations(),
+            "Carousel execution completed"
+        );
+        
+        // Print carousel summary
+        println!("\nCarousel Execution Summary:");
+        println!("============================");
+        println!("Narrative: {}", narrative.metadata.name);
+        println!("Iterations attempted: {}", carousel_result.iterations_attempted());
+        println!("Successful iterations: {}", carousel_result.successful_iterations());
+        println!("Failed iterations: {}", carousel_result.failed_iterations());
+        println!("Completed: {}", carousel_result.completed());
+        println!("Budget exhausted: {}", carousel_result.budget_exhausted());
+        println!();
+        
+        return Ok(());
+    }
+    
     let execution = executor.execute(&narrative).await?;
 
     tracing::info!(

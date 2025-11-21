@@ -29,7 +29,9 @@ Phase 3 adds the ability to reference database tables from within narratives, en
 **Testing Status**:
 - ✅ All existing tests pass
 - ✅ Zero clippy warnings
-- ⏳ Integration tests with real database tables - TODO
+- ❌ **BLOCKER**: Duplicate `TableQueryView` types - botticelli_database and botticelli_interface define the same type
+  - This violates the "single import path" principle
+  - Must consolidate to ONE canonical type before integration tests can proceed
 
 **Ready For**:
 - Users can add table references to narratives via TOML
@@ -374,6 +376,33 @@ sources = ["tables.draft_posts", "Review these drafts and suggest improvements."
 - **Query plan analysis**: Warn about slow queries
 - **Result streaming**: Stream large results instead of buffering
 - **Incremental loading**: Load data as needed during execution
+
+## Critical Issue: Duplicate TableQueryView Types
+
+**Problem**: Two separate `TableQueryView` types exist:
+1. `botticelli_interface::TableQueryView` - Interface definition with builder
+2. `botticelli_database::table_query_view::TableQueryView` - Database-specific implementation
+
+This violates the workspace organization principle of "single import path" per type.
+
+**Impact**:
+- Integration tests cannot compile (type mismatch errors)
+- Users face ambiguous imports
+- Breaks the clean separation between interface and implementation
+
+**Solution**:
+1. **Remove** `botticelli_database::table_query_view` module entirely
+2. **Use** `botticelli_interface::TableQueryView` everywhere
+3. **Update** `TableQueryExecutor::query_table()` to accept `&botticelli_interface::TableQueryView`
+4. **Verify** all imports use `use botticelli_interface::TableQueryView` or `use crate::TableQueryView`
+
+**Files to Update**:
+- `crates/botticelli_database/src/table_query.rs` - Change parameter type
+- `crates/botticelli_database/src/table_query_view.rs` - DELETE this file
+- `crates/botticelli_database/src/lib.rs` - Remove table_query_view module reference
+- Any other database files importing the local TableQueryView
+
+**Priority**: HIGH - blocks all Phase 3 integration testing
 
 ## Success Criteria
 

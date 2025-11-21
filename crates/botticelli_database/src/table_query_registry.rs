@@ -1,11 +1,8 @@
 //! Implementation of TableQueryRegistry for narrative integration.
 
-use crate::{
-    format_as_csv, format_as_json, format_as_markdown, TableQueryExecutor,
-    table_query_view::TableQueryViewBuilder,
-};
+use crate::{format_as_csv, format_as_json, format_as_markdown, TableQueryExecutor};
 use async_trait::async_trait;
-use botticelli_interface::TableQueryRegistry;
+use botticelli_interface::{TableQueryRegistry, TableQueryViewBuilder};
 use tracing::{debug, error, instrument};
 
 /// Implementation of TableQueryRegistry using TableQueryExecutor.
@@ -54,7 +51,7 @@ impl TableQueryRegistry for DatabaseTableQueryRegistry {
         }
 
         if let Some(where_str) = where_clause {
-            builder.where_clause(where_str.to_string());
+            builder.filter(where_str.to_string());
         }
 
         if let Some(lim) = limit {

@@ -1,54 +1,41 @@
-# Discord Server Setup Narrative
-# Sets up the initial Botticelli community server structure
-
-[metadata]
-title = "Botticelli Community Server Setup"
-description = "Initialize channels, roles, and welcome messages for the Botticelli Discord server"
-version = "1.0.0"
-author = "Botticelli Team"
-
-[config.gemini]
-model = "gemini-2.0-flash-exp"
-max_tokens = 2000
-temperature = 0.7
+# Botticelli Discord Community Server Setup
+# Initial server configuration for the Botticelli community
 
 [[steps]]
-[steps.context]
-role = "system"
-content = """
-You are setting up a Discord community server for Botticelli, an AI narrative automation framework.
-Your goal is to create a welcoming, organized space for developers and users.
-"""
+processor = "bot"
+command = "server.get_info"
+
+[steps.args]
+guild_id = "${GUILD_ID}"
 
 [[steps]]
-[steps.context]
-role = "user"
-content = """
-Create a welcome channel with an engaging introduction to Botticelli that explains:
-- What Botticelli is (AI narrative framework with TOML-based workflows)
-- Key features (multi-step narratives, content generation, Discord bot integration)
-- How to get started (links to docs, examples)
-- Community guidelines
-
-Use Discord markdown formatting for visual appeal.
-"""
-
-[[steps]]
-[steps.bot_commands]
-platform = "discord"
+processor = "bot"
 command = "channel.create"
+description = "Create welcome channel"
 
-[steps.bot_commands.args]
-guild_id = "${DISCORD_GUILD_ID}"
+[steps.args]
+guild_id = "${GUILD_ID}"
 name = "welcome"
-channel_type = "text"
-topic = "Welcome to the Botticelli community!"
+kind = "Text"
 
 [[steps]]
-[steps.bot_commands]
-platform = "discord"
-command = "message.send"
+processor = "bot"
+command = "channel.send_message"
+description = "Post welcome message"
 
-[steps.bot_commands.args]
-channel_id = "${steps[1].result.id}"
-content = "${steps[0].result.text}"
+[steps.args]
+channel_id = "${prev.channel_id}"
+content = """
+# Welcome to Botticelli! 🎨
+
+Botticelli is an AI narrative execution framework that lets you create powerful, composable AI workflows using simple TOML files.
+
+**What makes Botticelli special?**
+- 📝 Define complex AI workflows in readable TOML
+- 🔗 Chain operations with variable substitution
+- 🤖 Built-in Discord bot integration
+- 🎯 Secure, permission-based command execution
+- 🗄️ PostgreSQL-backed content management
+
+Check out the other channels to learn more!
+"""

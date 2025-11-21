@@ -38,7 +38,6 @@ mod schema_inference;
 mod schema_reflection;
 mod table_query;
 mod table_query_registry;
-mod table_query_view;
 
 // Schema module must be public for Diesel's #[diesel(table_name = ...)] attributes
 pub mod schema;
@@ -86,12 +85,6 @@ pub use schema_reflection::{
 // Re-export table query types
 pub use table_query::{format_as_csv, format_as_json, format_as_markdown, TableQueryExecutor};
 pub use table_query_registry::DatabaseTableQueryRegistry;
-
-// Make table_query_view module public for internal use but don't re-export types
-// (avoids ambiguous re-exports with botticelli_interface)
-pub mod table_query_view_impl {
-    pub use crate::table_query_view::*;
-}
 
 use botticelli_error::DatabaseError;
 use botticelli_error::DatabaseErrorKind;

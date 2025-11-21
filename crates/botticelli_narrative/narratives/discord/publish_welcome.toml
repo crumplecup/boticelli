@@ -1,0 +1,38 @@
+# Publish Welcome Message Narrative
+# Demonstrates: Table references, content selection, bot command execution
+# NOTE: Run welcome_content_generation.toml first to populate the table
+
+[narrative]
+name = "publish_welcome"
+description = "Select and publish the best welcome message to Discord server"
+
+[toc]
+order = ["select_best", "publish_message"]
+
+# Define bot command for publishing
+[bots.publish_message]
+platform = "discord"
+command = "channels.create_message"
+guild_id = "{{ env.TEST_GUILD_ID }}"
+channel_id = "{{ env.WELCOME_CHANNEL_ID }}"
+
+# Define table reference for loading generated messages
+[tables.welcome_messages]
+table_name = "welcome_messages"
+limit = 100
+format = "markdown"
+
+[acts]
+# Act 1: Select the best welcome message from generated options (requires table to be populated)
+select_best = [
+    "tables.welcome_messages",
+    """You are reviewing welcome messages for the Botticelli Discord community server.
+
+Review all 9 welcome messages above and:
+1. Evaluate them based on clarity, engagement, completeness, Discord markdown formatting, and tone
+2. Select the SINGLE BEST message
+3. Output ONLY the selected message content (no explanation, no prefix)"""
+]
+
+# Act 2: Publish to Discord welcome channel (uses output from select_best)
+publish_message = ["bots.publish_message"]

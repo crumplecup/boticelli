@@ -114,6 +114,13 @@ guild_id = "1234567890"
 platform = "discord"
 command = "channels.list"
 guild_id = "1234567890"
+
+[bots.send_message]
+platform = "discord"
+command = "channels.create_message"
+guild_id = "1234567890"
+channel_id = "9876543210"
+content = "Hello from Botticelli!"
 ```
 
 Fields:
@@ -122,6 +129,28 @@ Fields:
 - Additional fields are passed as command arguments (flattened)
 
 Reference in acts: `"bots.get_server_stats"`
+
+**Available Discord Commands:**
+
+Read operations (no security policy required):
+- `server.get` - Get guild information
+- `server.get_stats` - Get guild statistics
+- `channels.list` - List all channels
+- `channels.get` - Get channel details
+- `roles.list` - List all roles
+- `members.list` - List guild members
+- `members.get` - Get member details
+
+Write operations (require security policy):
+- `channels.create` - Create a new channel
+- `channels.create_message` - Send a message to a channel
+- `channels.edit` - Edit channel properties
+- `channels.delete` - Delete a channel
+- `roles.create` - Create a new role
+- `roles.edit` - Edit role properties
+- `roles.delete` - Delete a role
+
+**Security Note:** Write operations require a security policy to be defined in the narrative. See [Security Policies](#security-policies) for details.
 
 #### `[tables.name]` - Table Query Definitions
 
@@ -288,7 +317,30 @@ Optional fields:
 Required fields:
 - `order` (array of strings): Act names in execution order
 
+Optional fields:
+- `carousel` (integer): Number of times to repeat the entire narrative (default: 1)
+
 Acts execute sequentially in this order, with each act seeing previous outputs as conversation context.
+
+#### Carousel Mode
+
+When `carousel` is specified, the entire narrative loops the specified number of times:
+
+```toml
+[toc]
+order = ["generate", "critique", "refine"]
+carousel = 3  # Run the full narrative 3 times
+```
+
+**Use cases:**
+- Batch content generation (e.g., generate 10 posts per loop, run 3 loops = 30 posts)
+- Iterative refinement with fresh context each loop
+- Building up a corpus of related content
+
+**How it works:**
+- Each loop sees the conversation context from the current loop only (not previous loops)
+- Content generation creates rows for all loops in the same output table
+- Budget-aware execution ensures rate limits are respected across all loops
 
 ### `[acts]` - Act Definitions
 
@@ -790,33 +842,69 @@ type = "text"
 content = "Provide detailed technical analysis"
 ```
 
+## Security Policies
+
+Bot write operations (create, edit, delete) require explicit security policies to prevent unauthorized actions. Define policies in your narrative:
+
+```toml
+[narrative]
+name = "setup_discord_server"
+description = "Automated server setup"
+
+[security.policy]
+# Define which write operations are allowed
+allowed_commands = [
+    "channels.create",
+    "channels.create_message",
+    "roles.create"
+]
+
+# Optional: Require human confirmation for sensitive operations
+require_confirmation = ["channels.delete", "roles.delete"]
+
+# Optional: Restrict operations to specific resources
+[security.constraints]
+guild_id = "1234567890"  # Only allow operations on this guild
+channel_prefix = "bot-"  # Only create channels starting with "bot-"
+```
+
+**Policy Enforcement:**
+- If a narrative attempts a write operation without proper policy, execution fails with a security error
+- Read operations never require security policies
+- Policies are validated before any bot commands execute
+
 ## Best Practices
 
 1. **Use Friendly Syntax**: Start with friendly syntax (`[bots]`, `[tables]`, `[media]`) for cleaner, more maintainable narratives. Drop down to verbose syntax only when you need fine control.
 
 2. **Context Passing**: Each act sees all previous outputs. Design prompts accordingly.
 
-2. **Temperature Guidelines**:
+3. **Temperature Guidelines**:
    - 0.0-0.3: Analytical, factual, deterministic tasks
    - 0.4-0.7: Balanced tasks
    - 0.8-1.0: Creative, exploratory tasks
 
-3. **Define Resources Once**: Use `[bots]`, `[tables]`, and `[media]` sections to define resources once and reference them multiple times. This follows the DRY principle and makes refactoring easier.
+4. **Define Resources Once**: Use `[bots]`, `[tables]`, and `[media]` sections to define resources once and reference them multiple times. This follows the DRY principle and makes refactoring easier.
 
-4. **Let MIME Types Be Inferred**: For media files, let Botticelli infer MIME types from file extensions (.png, .jpg, .mp3, .pdf, etc.). Only specify `mime` explicitly when you need to override the default.
+5. **Let MIME Types Be Inferred**: For media files, let Botticelli infer MIME types from file extensions (.png, .jpg, .mp3, .pdf, etc.). Only specify `mime` explicitly when you need to override the default.
 
-5. **Model Selection**:
+6. **Model Selection**:
    - Vision tasks: `gemini-pro-vision`, `gpt-4-vision-preview`
    - Audio transcription: `whisper-large-v3`
    - Document analysis: `claude-3-opus-20240229`
    - Creative writing: `gpt-4`, `claude-3-opus-20240229`
    - Fast tasks: `gpt-3.5-turbo`, `claude-3-haiku-20240307`
+   - Cost-effective batch generation: `gemini-2.0-flash-lite`, `gemini-1.5-flash`
 
-6. **Mixing Formats**: You can mix friendly and verbose syntax in the same narrative. Start simple and add complexity only where needed.
+7. **Mixing Formats**: You can mix friendly and verbose syntax in the same narrative. Start simple and add complexity only where needed.
 
-7. **Act Naming**: Use descriptive act names that indicate their purpose (e.g., `fetch_stats`, `analyze_visual`, `recommend_strategy`).
+8. **Act Naming**: Use descriptive act names that indicate their purpose (e.g., `fetch_stats`, `analyze_visual`, `recommend_strategy`).
 
-8. **Array Syntax for Multi-Input**: Use array syntax `act = ["resource1", "resource2", "text"]` for acts with multiple inputs. It's much cleaner than verbose table syntax.
+9. **Array Syntax for Multi-Input**: Use array syntax `act = ["resource1", "resource2", "text"]` for acts with multiple inputs. It's much cleaner than verbose table syntax.
+
+10. **Carousel for Batch Generation**: Use `carousel` in `[toc]` to generate large batches of content efficiently while respecting rate limits.
+
+11. **Security First**: Always define security policies for narratives that perform write operations. Test on development servers first.
 
 ## Content Generation
 

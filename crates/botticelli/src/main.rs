@@ -13,6 +13,9 @@ mod cli;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use cli::{Cli, Commands, handle_content_command, launch_tui, run_narrative};
 
+    // Load environment variables from .env file (if present)
+    let _ = dotenvy::dotenv();
+
     // Parse command-line arguments
     let cli = Cli::parse();
 

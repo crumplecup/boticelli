@@ -1,8 +1,7 @@
 //! Table query execution for narrative table references.
 
-use crate::{DatabaseError, DatabaseErrorKind, DatabaseResult, table_query_view::{TableCountView, TableQueryView}};
-use async_trait::async_trait;
-use botticelli_interface::TableQueryRegistry;
+use crate::{DatabaseError, DatabaseErrorKind, DatabaseResult};
+use botticelli_interface::{TableCountView, TableQueryView};
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Text};
 use serde_json::Value as JsonValue;
@@ -102,7 +101,7 @@ impl TableQueryExecutor {
 
         let mut query = format!("SELECT {} FROM {}", col_list, table_name);
 
-        if let Some(where_clause) = view.where_clause() {
+        if let Some(where_clause) = view.filter() {
             let safe_clause = self.sanitize_where_clause(where_clause)?;
             query.push_str(&format!(" WHERE {}", safe_clause));
         }
@@ -115,13 +114,6 @@ impl TableQueryExecutor {
                 )));
             }
             query.push_str(&format!(" ORDER BY {}", order));
-        }
-
-        // Note: TABLESAMPLE requires more complex handling, omitted for now
-        if view.sample().is_some() {
-            return Err(DatabaseError::new(DatabaseErrorKind::InvalidQuery(
-                "TABLESAMPLE not yet implemented".into(),
-            )));
         }
 
         if let Some(lim) = view.limit() {
@@ -193,7 +185,7 @@ impl TableQueryExecutor {
 
         let mut query = format!("SELECT COUNT(*) as count FROM {}", table_name);
 
-        if let Some(where_clause) = view.where_clause() {
+        if let Some(where_clause) = view.filter() {
             let safe_clause = self.sanitize_where_clause(where_clause)?;
             query.push_str(&format!(" WHERE {}", safe_clause));
         }
@@ -333,62 +325,4 @@ pub fn format_as_csv(rows: &[JsonValue]) -> String {
     output
 }
 
-#[async_trait]
-impl TableQueryRegistry for TableQueryExecutor {
-    #[instrument(skip(self), fields(table_name, format))]
-    async fn query_table(
-        &self,
-        table_name: &str,
-        columns: Option<&[String]>,
-        where_clause: Option<&str>,
-        limit: Option<u32>,
-        offset: Option<u32>,
-        order_by: Option<&str>,
-        format: &str,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        debug!("TableQueryRegistry::query_table called");
 
-        // Build view using the builder pattern
-        let mut builder = crate::table_query_view::TableQueryViewBuilder::default();
-        builder.table_name(table_name);
-
-        if let Some(cols) = columns {
-            builder.columns(cols.to_vec());
-        }
-        if let Some(where_str) = where_clause {
-            builder.where_clause(where_str);
-        }
-        if let Some(lim) = limit {
-            builder.limit(lim as i64);
-        }
-        if let Some(off) = offset {
-            builder.offset(off as i64);
-        }
-        if let Some(order) = order_by {
-            builder.order_by(order);
-        }
-
-        let view = builder
-            .build()
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-
-        // Execute query
-        let rows = self
-            .query_table(&view)
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-
-        // Format results
-        let formatted = match format {
-            "json" => format_as_json(&rows),
-            "markdown" => format_as_markdown(&rows),
-            "csv" => format_as_csv(&rows),
-            _ => {
-                return Err(Box::new(DatabaseError::new(DatabaseErrorKind::InvalidQuery(
-                    format!("Unknown format: {}", format),
-                ))) as Box<dyn std::error::Error + Send + Sync>)
-            }
-        };
-
-        Ok(formatted)
-    }
-}

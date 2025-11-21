@@ -4,11 +4,15 @@
 //! stored in custom tables. Built with ratatui for terminal rendering.
 
 mod app;
+#[cfg(feature = "database")]
+mod database;
 mod error;
 mod events;
 mod ui;
 mod views;
 
-pub use app::{App, AppMode, ContentRow, EditBuffer, EditField, run_tui, run_app};
+pub use app::{App, AppMode, ContentRow, EditBuffer, EditField};
+#[cfg(feature = "database")]
+pub use app::{run_app, run_tui};
 pub use error::{TuiError, TuiErrorKind};
 pub use events::{Event, EventHandler};

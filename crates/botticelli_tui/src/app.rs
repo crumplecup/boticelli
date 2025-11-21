@@ -1,15 +1,20 @@
 //! Application state and main TUI entry point.
 
-use crate::{Event, EventHandler, TuiError, TuiErrorKind};
-use crate::ui;
+use crate::{TuiError, TuiErrorKind};
 use botticelli_error::{BotticelliError, BotticelliResult};
+#[cfg(feature = "database")]
+use crate::{Event, EventHandler, ui};
+#[cfg(feature = "database")]
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+#[cfg(feature = "database")]
 use diesel::PgConnection;
+#[cfg(feature = "database")]
 use ratatui::{Terminal, backend::CrosstermBackend};
+#[cfg(feature = "database")]
 use std::io;
 
 /// Application mode determines which view is displayed.
@@ -91,11 +96,13 @@ pub struct App {
     /// Whether to quit the application
     pub should_quit: bool,
     /// Database connection
+    #[cfg(feature = "database")]
     conn: PgConnection,
 }
 
 impl App {
     /// Create a new App instance.
+    #[cfg(feature = "database")]
     #[tracing::instrument(skip(conn))]
     pub fn new(table_name: String, conn: PgConnection) -> BotticelliResult<Self> {
         let mut app = Self {
@@ -117,63 +124,12 @@ impl App {
     }
 
     /// Reload content from database.
+    #[cfg(feature = "database")]
     #[tracing::instrument(skip(self))]
     pub fn reload_content(&mut self) -> BotticelliResult<()> {
-        use botticelli_database::list_content;
+        use crate::database::load_content;
 
-        let items = list_content(&mut self.conn, &self.table_name, None, 1000)?;
-
-        self.content_items = items
-            .into_iter()
-            .filter_map(|item| {
-                let id = item.get("id").and_then(|v| v.as_i64())?;
-                let review_status = item
-                    .get("review_status")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
-                let rating = item
-                    .get("rating")
-                    .and_then(|v| v.as_i64())
-                    .map(|r| r as i32);
-                let tags = item
-                    .get("tags")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|t| t.as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                // Create a preview from the JSON content
-                let preview = serde_json::to_string(&item)
-                    .unwrap_or_default()
-                    .chars()
-                    .take(50)
-                    .collect::<String>();
-
-                let source_narrative = item
-                    .get("source_narrative")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let source_act = item
-                    .get("source_act")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-
-                Some(ContentRow {
-                    id,
-                    review_status,
-                    rating,
-                    tags,
-                    preview,
-                    content: item,
-                    source_narrative,
-                    source_act,
-                })
-            })
-            .collect();
+        self.content_items = load_content(&mut self.conn, &self.table_name)?;
 
         if self.selected_index >= self.content_items.len() && !self.content_items.is_empty() {
             self.selected_index = self.content_items.len() - 1;
@@ -226,6 +182,7 @@ impl App {
     }
 
     /// Save edits to database.
+    #[cfg(feature = "database")]
     #[tracing::instrument(skip(self))]
     pub fn save_edit(&mut self) -> BotticelliResult<()> {
         if let Some(buffer) = &self.edit_buffer {
@@ -237,17 +194,16 @@ impl App {
                 .filter(|s| !s.is_empty())
                 .collect();
 
-            use botticelli_database::{update_content_metadata, update_review_status};
+            use crate::database::save_content_metadata;
 
-            update_content_metadata(
+            save_content_metadata(
                 &mut self.conn,
                 &self.table_name,
                 item_id,
-                Some(&tags),
+                &tags,
                 buffer.rating,
+                &buffer.status,
             )?;
-
-            update_review_status(&mut self.conn, &self.table_name, item_id, &buffer.status)?;
 
             self.reload_content()?;
             self.status_message = format!("Saved changes to item {}", item_id);
@@ -274,13 +230,14 @@ impl App {
     }
 
     /// Delete selected item.
+    #[cfg(feature = "database")]
     #[tracing::instrument(skip(self))]
     pub fn delete_selected(&mut self) -> BotticelliResult<()> {
         if let Some(item) = self.content_items.get(self.selected_index) {
-            use botticelli_database::delete_content;
+            use crate::database::delete_content_item;
 
             let item_id = item.id;
-            delete_content(&mut self.conn, &self.table_name, item_id)?;
+            delete_content_item(&mut self.conn, &self.table_name, item_id)?;
             self.reload_content()?;
             self.status_message = format!("Deleted item {}", item_id);
         }
@@ -288,12 +245,13 @@ impl App {
     }
 
     /// Promote selected item to target table.
+    #[cfg(feature = "database")]
     #[tracing::instrument(skip(self))]
     pub fn promote_selected(&mut self, target: &str) -> BotticelliResult<()> {
         if let Some(item) = self.content_items.get(self.selected_index) {
-            use botticelli_database::promote_content;
+            use crate::database::promote_content_item;
 
-            let new_id = promote_content(&mut self.conn, &self.table_name, target, item.id)?;
+            let new_id = promote_content_item(&mut self.conn, &self.table_name, target, item.id)?;
             self.status_message = format!("Promoted to {} with ID {}", target, new_id);
         }
         Ok(())
@@ -306,6 +264,7 @@ impl App {
 }
 
 /// Run the TUI application.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip(conn))]
 pub fn run_tui(table_name: String, conn: PgConnection) -> BotticelliResult<()> {
     // Setup terminal
@@ -370,6 +329,7 @@ pub fn run_tui(table_name: String, conn: PgConnection) -> BotticelliResult<()> {
 }
 
 /// Run the application event loop.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip_all)]
 pub fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
@@ -393,6 +353,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
 }
 
 /// Handle keyboard input.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip(app))]
 fn handle_key_event(app: &mut App, key: crossterm::event::KeyEvent) -> BotticelliResult<()> {
     use crossterm::event::{KeyCode, KeyModifiers};

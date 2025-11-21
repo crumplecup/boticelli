@@ -41,6 +41,7 @@ pub enum BotticelliErrorKind {
     #[from(GeminiError)]
     Gemini(GeminiError),
     /// Database error (Phase 3.5)
+    #[cfg(feature = "database")]
     #[from(DatabaseError)]
     Database(DatabaseError),
     /// Narrative error (Phase 3.5)

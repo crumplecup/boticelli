@@ -1,4 +1,5 @@
 //! Database error types.
+#![cfg(feature = "database")]
 
 /// Database error conditions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, derive_more::Display)]

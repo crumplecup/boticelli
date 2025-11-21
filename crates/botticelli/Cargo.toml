@@ -48,7 +48,7 @@ gemini = ["botticelli_models", "botticelli_models/gemini"]
 database = ["botticelli_database", "botticelli_narrative/database"]
 
 # Social platform features
-discord = ["botticelli_social", "botticelli_social/discord"]
+discord = ["botticelli_social", "botticelli_social/discord", "botticelli_social/database"]
 
 # TUI feature
 tui = ["botticelli_tui", "botticelli_database", "dep:ratatui", "dep:crossterm"]

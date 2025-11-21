@@ -27,21 +27,27 @@
 
 #![warn(missing_docs)]
 
+#[cfg(feature = "database")]
 mod bot_commands;
+#[cfg(feature = "database")]
 mod secure_bot_executor;
+#[cfg(feature = "database")]
 mod secure_executor;
 
 #[cfg(feature = "discord")]
 mod discord;
 
-// Export bot command infrastructure (always available)
+// Export bot command infrastructure (requires database feature)
+#[cfg(feature = "database")]
 pub use bot_commands::{
     BotCommandError, BotCommandErrorKind, BotCommandExecutor, BotCommandRegistryImpl,
     BotCommandResult,
 };
 
-// Export secure executor (always available)
+// Export secure executor (requires database feature)
+#[cfg(feature = "database")]
 pub use secure_bot_executor::SecureBotExecutor;
+#[cfg(feature = "database")]
 pub use secure_executor::{ExecutionResult, SecureBotCommandExecutor};
 
 // Export Discord-specific types (feature-gated)

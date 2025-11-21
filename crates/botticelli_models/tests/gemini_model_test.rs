@@ -149,43 +149,43 @@ async fn test_multiple_model_requests() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Request 1: Use lite model
-    let request1 = GenerateRequest {
-        messages: vec![Message {
+    let request1 = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Say 'one'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.5-flash-lite".to_string()),
-    };
+        }])
+        .max_tokens(Some(10))
+        .model(Some("gemini-2.5-flash-lite".to_string()))
+        .build()
+        .expect("Failed to build request1");
 
     let response1 = client.generate(&request1).await.expect("Request 1 failed");
     assert!(!response1.outputs.is_empty());
 
     // Request 2: Use standard model
-    let request2 = GenerateRequest {
-        messages: vec![Message {
+    let request2 = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Say 'two'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.5-flash".to_string()),
-    };
+        }])
+        .max_tokens(Some(10))
+        .model(Some("gemini-2.5-flash".to_string()))
+        .build()
+        .expect("Failed to build request2");
 
     let response2 = client.generate(&request2).await.expect("Request 2 failed");
     assert!(!response2.outputs.is_empty());
 
     // Request 3: Use pro model
-    let request3 = GenerateRequest {
-        messages: vec![Message {
+    let request3 = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Say 'three'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.5-pro".to_string()),
-    };
+        }])
+        .max_tokens(Some(10))
+        .model(Some("gemini-2.5-pro".to_string()))
+        .build()
+        .expect("Failed to build request3");
 
     let response3 = client.generate(&request3).await.expect("Request 3 failed");
     assert!(!response3.outputs.is_empty());

@@ -153,36 +153,51 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             // Pass execution history for template resolution
             let processed_inputs = self.process_inputs(config.inputs(), &act_executions, sequence_number).await?;
 
-            // Build the request with conversation history + processed inputs
-            conversation_history.push(Message {
-                role: Role::User,
-                content: processed_inputs.clone(),
-            });
+            // Check if this is an action-only act (no text inputs that need LLM processing)
+            let has_text_prompt = processed_inputs.iter().any(|input| matches!(input, Input::Text(text) if !text.trim().is_empty()));
+            
+            let (response_text, model, temperature, max_tokens) = if has_text_prompt {
+                // This act needs an LLM response
+                // Build the request with conversation history + processed inputs
+                conversation_history.push(Message {
+                    role: Role::User,
+                    content: processed_inputs.clone(),
+                });
 
-            // Apply narrative-level defaults for model/temperature/max_tokens if act doesn't override
-            let metadata = narrative.metadata();
-            let model = config.model().clone().or_else(|| metadata.model().clone());
-            let temperature = config.temperature().or_else(|| *metadata.temperature());
-            let max_tokens = config.max_tokens().or_else(|| *metadata.max_tokens());
+                // Apply narrative-level defaults for model/temperature/max_tokens if act doesn't override
+                let metadata = narrative.metadata();
+                let model = config.model().clone().or_else(|| metadata.model().clone());
+                let temperature = config.temperature().or_else(|| *metadata.temperature());
+                let max_tokens = config.max_tokens().or_else(|| *metadata.max_tokens());
 
-            let request = GenerateRequest::builder()
-                .messages(conversation_history.clone())
-                .max_tokens(max_tokens)
-                .temperature(temperature)
-                .model(model.clone())
-                .build()
-                .map_err(|e| {
-                    BotticelliError::from(NarrativeError::new(NarrativeErrorKind::FileRead(format!(
-                        "Failed to build request: {}",
-                        e
-                    ))))
-                })?;
+                let request = GenerateRequest::builder()
+                    .messages(conversation_history.clone())
+                    .max_tokens(max_tokens)
+                    .temperature(temperature)
+                    .model(model.clone())
+                    .build()
+                    .map_err(|e| {
+                        BotticelliError::from(NarrativeError::new(NarrativeErrorKind::FileRead(format!(
+                            "Failed to build request: {}",
+                            e
+                        ))))
+                    })?;
 
-            // Call the LLM
-            let response = self.driver.generate(&request).await?;
+                // Call the LLM
+                let response = self.driver.generate(&request).await?;
 
-            // Extract text from response
-            let response_text = extract_text_from_outputs(&response.outputs)?;
+                // Extract text from response
+                let response_text = extract_text_from_outputs(&response.outputs)?;
+                
+                (response_text, model, temperature, max_tokens)
+            } else {
+                // Action-only act - no LLM call needed
+                tracing::debug!(
+                    act = %act_name,
+                    "Skipping LLM call for action-only act"
+                );
+                ("Action completed successfully".to_string(), None, None, None)
+            };
 
             // Create the act execution (store processed inputs)
             let act_execution = ActExecution {
@@ -224,11 +239,13 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             // Store the act execution
             act_executions.push(act_execution);
 
-            // Add the assistant's response to conversation history for the next act
-            conversation_history.push(Message {
-                role: Role::Assistant,
-                content: vec![Input::Text(response_text)],
-            });
+            // Add the assistant's response to conversation history for the next act (only if there was an LLM call)
+            if has_text_prompt {
+                conversation_history.push(Message {
+                    role: Role::Assistant,
+                    content: vec![Input::Text(response_text)],
+                });
+            }
         }
 
         Ok(NarrativeExecution {

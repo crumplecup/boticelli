@@ -76,7 +76,7 @@ impl DiscordRepository {
     /// Store or update a guild in the database.
     ///
     /// Uses INSERT ... ON CONFLICT to upsert the guild.
-    #[instrument(skip(self), fields(guild_id = %guild.id))]
+    #[instrument(skip(self), fields(guild_id = %guild.id()))]
     pub async fn store_guild(&self, guild: &NewGuild) -> DiscordResult<GuildRow> {
         let mut conn = self.conn.lock().await;
 
@@ -85,13 +85,13 @@ impl DiscordRepository {
             .on_conflict(discord_guilds::id)
             .do_update()
             .set((
-                discord_guilds::name.eq(&guild.name),
-                discord_guilds::icon.eq(&guild.icon),
-                discord_guilds::banner.eq(&guild.banner),
-                discord_guilds::owner_id.eq(guild.owner_id),
-                discord_guilds::features.eq(&guild.features),
-                discord_guilds::description.eq(&guild.description),
-                discord_guilds::member_count.eq(guild.member_count),
+                discord_guilds::name.eq(guild.name()),
+                discord_guilds::icon.eq(guild.icon()),
+                discord_guilds::banner.eq(guild.banner()),
+                discord_guilds::owner_id.eq(*guild.owner_id()),
+                discord_guilds::features.eq(guild.features()),
+                discord_guilds::description.eq(guild.description()),
+                discord_guilds::member_count.eq(guild.member_count()),
                 discord_guilds::updated_at.eq(diesel::dsl::now),
             ))
             .get_result(&mut *conn)
@@ -144,7 +144,7 @@ impl DiscordRepository {
     // ============================================================================
 
     /// Store or update a user in the database.
-    #[instrument(skip(self), fields(user_id = %user.id))]
+    #[instrument(skip(self), fields(user_id = %user.id()))]
     pub async fn store_user(&self, user: &NewUser) -> DiscordResult<UserRow> {
         let mut conn = self.conn.lock().await;
 
@@ -153,10 +153,10 @@ impl DiscordRepository {
             .on_conflict(discord_users::id)
             .do_update()
             .set((
-                discord_users::username.eq(&user.username),
-                discord_users::discriminator.eq(&user.discriminator),
-                discord_users::global_name.eq(&user.global_name),
-                discord_users::avatar.eq(&user.avatar),
+                discord_users::username.eq(user.username()),
+                discord_users::discriminator.eq(user.discriminator()),
+                discord_users::global_name.eq(user.global_name()),
+                discord_users::avatar.eq(user.avatar()),
                 discord_users::last_seen.eq(diesel::dsl::now),
                 discord_users::updated_at.eq(diesel::dsl::now),
             ))
@@ -181,7 +181,7 @@ impl DiscordRepository {
     // ============================================================================
 
     /// Store or update a channel in the database.
-    #[instrument(skip(self), fields(channel_id = %channel.id))]
+    #[instrument(skip(self), fields(channel_id = %channel.id()))]
     pub async fn store_channel(&self, channel: &NewChannel) -> DiscordResult<ChannelRow> {
         let mut conn = self.conn.lock().await;
 
@@ -190,12 +190,12 @@ impl DiscordRepository {
             .on_conflict(discord_channels::id)
             .do_update()
             .set((
-                discord_channels::name.eq(&channel.name),
-                discord_channels::channel_type.eq(channel.channel_type),
-                discord_channels::position.eq(channel.position),
-                discord_channels::topic.eq(&channel.topic),
-                discord_channels::nsfw.eq(channel.nsfw),
-                discord_channels::parent_id.eq(channel.parent_id),
+                discord_channels::name.eq(channel.name()),
+                discord_channels::channel_type.eq(*channel.channel_type()),
+                discord_channels::position.eq(*channel.position()),
+                discord_channels::topic.eq(channel.topic()),
+                discord_channels::nsfw.eq(*channel.nsfw()),
+                discord_channels::parent_id.eq(*channel.parent_id()),
                 discord_channels::updated_at.eq(diesel::dsl::now),
             ))
             .get_result(&mut *conn)
@@ -231,7 +231,7 @@ impl DiscordRepository {
     // ============================================================================
 
     /// Store or update a guild member in the database.
-    #[instrument(skip(self), fields(guild_id = %member.guild_id, user_id = %member.user_id))]
+    #[instrument(skip(self), fields(guild_id = %member.guild_id(), user_id = %member.user_id()))]
     pub async fn store_guild_member(
         &self,
         member: &NewGuildMember,
@@ -246,9 +246,9 @@ impl DiscordRepository {
             ))
             .do_update()
             .set((
-                discord_guild_members::nick.eq(&member.nick),
-                discord_guild_members::avatar.eq(&member.avatar),
-                discord_guild_members::premium_since.eq(member.premium_since),
+                discord_guild_members::nick.eq(member.nick()),
+                discord_guild_members::avatar.eq(member.avatar()),
+                discord_guild_members::premium_since.eq(*member.premium_since()),
                 discord_guild_members::updated_at.eq(diesel::dsl::now),
             ))
             .get_result(&mut *conn)
@@ -307,7 +307,7 @@ impl DiscordRepository {
     // ============================================================================
 
     /// Store or update a role in the database.
-    #[instrument(skip(self), fields(role_id = %role.id))]
+    #[instrument(skip(self), fields(role_id = %role.id()))]
     pub async fn store_role(&self, role: &NewRole) -> DiscordResult<RoleRow> {
         let mut conn = self.conn.lock().await;
 
@@ -316,12 +316,12 @@ impl DiscordRepository {
             .on_conflict(discord_roles::id)
             .do_update()
             .set((
-                discord_roles::name.eq(&role.name),
-                discord_roles::color.eq(role.color),
-                discord_roles::position.eq(role.position),
-                discord_roles::permissions.eq(role.permissions),
-                discord_roles::hoist.eq(role.hoist),
-                discord_roles::mentionable.eq(role.mentionable),
+                discord_roles::name.eq(role.name()),
+                discord_roles::color.eq(*role.color()),
+                discord_roles::position.eq(*role.position()),
+                discord_roles::permissions.eq(role.permissions()),
+                discord_roles::hoist.eq(*role.hoist()),
+                discord_roles::mentionable.eq(*role.mentionable()),
                 discord_roles::updated_at.eq(diesel::dsl::now),
             ))
             .get_result(&mut *conn)
@@ -355,7 +355,7 @@ impl DiscordRepository {
     /// Store a member role assignment in the database.
     ///
     /// Uses INSERT ... ON CONFLICT to upsert the role assignment.
-    #[instrument(skip(self), fields(guild_id = %member_role.guild_id, user_id = %member_role.user_id, role_id = %member_role.role_id))]
+    #[instrument(skip(self), fields(guild_id = %member_role.guild_id(), user_id = %member_role.user_id(), role_id = %member_role.role_id()))]
     pub async fn store_member_role(&self, member_role: &NewMemberRole) -> DiscordResult<()> {
         let mut conn = self.conn.lock().await;
 
@@ -368,8 +368,8 @@ impl DiscordRepository {
             ))
             .do_update()
             .set((
-                discord_member_roles::assigned_at.eq(member_role.assigned_at),
-                discord_member_roles::assigned_by.eq(member_role.assigned_by),
+                discord_member_roles::assigned_at.eq(*member_role.assigned_at()),
+                discord_member_roles::assigned_by.eq(*member_role.assigned_by()),
             ))
             .execute(&mut *conn)
             .map_err(DatabaseError::from)?;

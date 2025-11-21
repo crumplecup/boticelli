@@ -62,16 +62,19 @@ Run these commands and ensure ALL pass with zero errors/warnings:
 # 1. Check compilation (no features needed for basic check)
 cargo check
 
-# 2. Run LOCAL tests only (fast, no API keys required)
+# 2. Check all feature combinations compile cleanly
+just check-features
+
+# 3. Run LOCAL tests only (fast, no API keys required)
 cargo test --lib --tests
 
-# 3. Run doctests
+# 4. Run doctests
 cargo test --doc
 
-# 4. Run clippy
+# 5. Run clippy
 cargo clippy --all-targets
 
-# 5. For markdown changes
+# 6. For markdown changes
 markdownlint-cli2 "**/*.md" "#target" "#node_modules"
 ```
 
@@ -112,6 +115,7 @@ cargo test --all-features
 - Use derive_getters to derive field getters for structs with private fields.
 - Use derive_setters to derive field setters for mutable structs with private fields.
 - Use typed_builder for complex construction patterns - prefer this over manual constructors or new() methods.
+- **Documentation propagation**: Doc comments on struct fields are automatically propagated to generated getters, setters, and builder methods. Always document fields, not just the struct.
 
 ### Field Visibility and Access Patterns
 
@@ -127,11 +131,16 @@ use derive_setters::Setters;
 use typed_builder::TypedBuilder;
 
 #[derive(Debug, Clone, Getters, Setters, TypedBuilder)]
+#[setters(prefix = "with_")]
 pub struct SecurityContext {
     #[builder(default)]
+    /// User ID for this context (getter doc)
+    #[setters(doc = "Sets the user ID for this security context")]
     user_id: Option<UserId>,
     
     #[builder(default)]
+    /// Permissions granted (getter doc)
+    #[setters(doc = "Sets the permissions for this security context")]
     permissions: Vec<Permission>,
     
     #[setters(skip)]  // No setter for this field
@@ -156,8 +165,46 @@ ctx.set_permissions(new_permissions);
 **When to use each:**
 - **derive_getters**: Always use for structs with private fields
 - **derive_setters**: Use for mutable configuration/state objects
-- **typed_builder**: Use when construction requires multiple optional parameters or validation
-- **Manual constructors**: Only when complex initialization logic is required (e.g., establishing connections, validating invariants)
+  - When getter and setter names conflict, use `with_` prefix for setters: `#[setters(prefix = "with_")]`
+  - When using both getters and setters, use `#[setters(doc = "...")]` for setter-specific documentation to avoid duplicate doc warnings
+  - Field-level doc comments apply to getters; setter docs must use the attribute
+- **typed_builder**: Prefer this for struct construction - it's more human-friendly than struct literals
+  - Use when construction requires multiple optional parameters
+  - Use for complex configuration objects
+  - Allows setting defaults with `#[builder(default)]`
+  - Enables field validation and transformation
+- **Manual constructors**: Only when complex initialization logic is required (e.g., establishing connections, validating invariants, resource allocation)
+
+**CRITICAL: Prefer Builder Pattern Over Struct Literals**
+
+Always prefer the builder pattern over struct literal construction for human readability and maintainability:
+
+```rust
+// ❌ BAD: Struct literal (hard to read, order-dependent, breaks on field additions)
+let config = Config {
+    host: "localhost".to_string(),
+    port: 8080,
+    timeout: Duration::from_secs(30),
+    max_retries: 3,
+    use_tls: true,
+};
+
+// ✅ GOOD: Builder pattern (self-documenting, order-independent, defaults available)
+let config = Config::builder()
+    .host("localhost")
+    .port(8080)
+    .timeout(Duration::from_secs(30))
+    .max_retries(3)
+    .use_tls(true)
+    .build();
+```
+
+**Benefits of builder pattern:**
+- Self-documenting: method names clarify field purpose
+- Optional fields: easy to omit with `#[builder(default)]`
+- Validation: can validate during build()
+- Future-proof: adding fields doesn't break existing code
+- IDE support: better autocomplete and inline documentation
 
 ### Exception: Error Types
 

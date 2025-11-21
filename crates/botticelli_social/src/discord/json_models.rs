@@ -13,192 +13,192 @@ use serde::{Deserialize, Serialize};
 /// JSON model for Discord guild data.
 ///
 /// Matches the schema defined in DISCORD_NARRATIVE.md for guild generation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, derive_getters::Getters)]
 pub struct DiscordGuildJson {
     /// Discord snowflake ID (required)
-    pub id: i64,
+    id: i64,
     /// Guild name (required, max 100 characters)
-    pub name: String,
+    name: String,
     /// User ID of guild owner (required)
-    pub owner_id: i64,
+    owner_id: i64,
 
     /// Icon hash (optional)
     #[serde(default)]
-    pub icon: Option<String>,
+    icon: Option<String>,
     /// Banner hash (optional)
     #[serde(default)]
-    pub banner: Option<String>,
+    banner: Option<String>,
     /// Guild description (optional)
     #[serde(default)]
-    pub description: Option<String>,
+    description: Option<String>,
     /// Total member count (optional)
     #[serde(default)]
-    pub member_count: Option<i32>,
+    member_count: Option<i32>,
     /// Verification level 0-4 (optional)
     #[serde(default)]
-    pub verification_level: Option<i16>,
+    verification_level: Option<i16>,
     /// Premium tier 0-3 (optional)
     #[serde(default)]
-    pub premium_tier: Option<i16>,
+    premium_tier: Option<i16>,
     /// Array of feature flags (optional)
     #[serde(default)]
-    pub features: Option<Vec<String>>,
+    features: Option<Vec<String>>,
 }
 
 /// JSON model for Discord channel data.
 ///
 /// Matches the schema defined in DISCORD_NARRATIVE.md for channel generation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, derive_getters::Getters)]
 pub struct DiscordChannelJson {
     /// Discord snowflake ID (required)
-    pub id: i64,
+    id: i64,
     /// Channel type (required)
-    pub channel_type: String,
+    channel_type: String,
 
     /// Parent guild ID (optional, required for guild channels)
     #[serde(default)]
-    pub guild_id: Option<i64>,
+    guild_id: Option<i64>,
     /// Channel name (optional)
     #[serde(default)]
-    pub name: Option<String>,
+    name: Option<String>,
     /// Channel topic/description (optional)
     #[serde(default)]
-    pub topic: Option<String>,
+    topic: Option<String>,
     /// Sort position (optional)
     #[serde(default)]
-    pub position: Option<i32>,
+    position: Option<i32>,
     /// Parent category or channel ID (optional)
     #[serde(default)]
-    pub parent_id: Option<i64>,
+    parent_id: Option<i64>,
     /// Age-restricted content (optional)
     #[serde(default)]
-    pub nsfw: Option<bool>,
+    nsfw: Option<bool>,
     /// Slowmode in seconds (optional)
     #[serde(default)]
-    pub rate_limit_per_user: Option<i32>,
+    rate_limit_per_user: Option<i32>,
     /// Voice channel bitrate (optional)
     #[serde(default)]
-    pub bitrate: Option<i32>,
+    bitrate: Option<i32>,
     /// Voice channel user limit (optional)
     #[serde(default)]
-    pub user_limit: Option<i32>,
+    user_limit: Option<i32>,
 }
 
 /// JSON model for Discord user data.
 ///
 /// Matches the schema defined in DISCORD_NARRATIVE.md for user generation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, derive_getters::Getters)]
 pub struct DiscordUserJson {
     /// Discord snowflake ID (required)
-    pub id: i64,
+    id: i64,
     /// Username without @ (required, max 32 characters)
-    pub username: String,
+    username: String,
 
     /// Legacy 4-digit discriminator (optional)
     #[serde(default)]
-    pub discriminator: Option<String>,
+    discriminator: Option<String>,
     /// Display name (optional)
     #[serde(default)]
-    pub global_name: Option<String>,
+    global_name: Option<String>,
     /// Avatar hash (optional)
     #[serde(default)]
-    pub avatar: Option<String>,
+    avatar: Option<String>,
     /// True if bot account (optional)
     #[serde(default)]
-    pub bot: Option<bool>,
+    bot: Option<bool>,
     /// Nitro subscription 0-3 (optional)
     #[serde(default)]
-    pub premium_type: Option<i16>,
+    premium_type: Option<i16>,
     /// Language code (optional)
     #[serde(default)]
-    pub locale: Option<String>,
+    locale: Option<String>,
 }
 
 /// JSON model for Discord role data.
 ///
 /// Matches the schema defined in DISCORD_NARRATIVE.md for role generation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, derive_getters::Getters)]
 pub struct DiscordRoleJson {
     /// Discord snowflake ID (required)
-    pub id: i64,
+    id: i64,
     /// Parent guild ID (required)
-    pub guild_id: i64,
+    guild_id: i64,
     /// Role name (required, max 100 characters)
-    pub name: String,
+    name: String,
     /// Role hierarchy position (required, 0-based)
-    pub position: i32,
+    position: i32,
     /// Permission bitfield (required)
-    pub permissions: i64,
+    permissions: i64,
 
     /// RGB color as decimal integer (optional, 0 for no color)
     #[serde(default)]
-    pub color: Option<i32>,
+    color: Option<i32>,
     /// Display separately in member list (optional)
     #[serde(default)]
-    pub hoist: Option<bool>,
+    hoist: Option<bool>,
     /// Role icon hash (optional)
     #[serde(default)]
-    pub icon: Option<String>,
+    icon: Option<String>,
     /// Unicode emoji for role (optional)
     #[serde(default)]
-    pub unicode_emoji: Option<String>,
+    unicode_emoji: Option<String>,
     /// Managed by integration (optional)
     #[serde(default)]
-    pub managed: Option<bool>,
+    managed: Option<bool>,
     /// Can be @mentioned (optional)
     #[serde(default)]
-    pub mentionable: Option<bool>,
+    mentionable: Option<bool>,
 }
 
 /// JSON model for Discord guild member data.
 ///
 /// Matches the schema defined in DISCORD_NARRATIVE.md for guild member generation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, derive_getters::Getters)]
 pub struct DiscordGuildMemberJson {
     /// Guild ID (required)
-    pub guild_id: i64,
+    guild_id: i64,
     /// User ID (required)
-    pub user_id: i64,
+    user_id: i64,
     /// ISO 8601 timestamp when user joined (required)
-    pub joined_at: String,
+    joined_at: String,
 
     /// Guild-specific nickname (optional)
     #[serde(default)]
-    pub nick: Option<String>,
+    nick: Option<String>,
     /// Guild-specific avatar hash (optional)
     #[serde(default)]
-    pub avatar: Option<String>,
+    avatar: Option<String>,
     /// ISO 8601 timestamp when user started boosting (optional)
     #[serde(default)]
-    pub premium_since: Option<String>,
+    premium_since: Option<String>,
     /// Server deafened status (optional)
     #[serde(default)]
-    pub deaf: Option<bool>,
+    deaf: Option<bool>,
     /// Server muted status (optional)
     #[serde(default)]
-    pub mute: Option<bool>,
+    mute: Option<bool>,
     /// Pending membership screening (optional)
     #[serde(default)]
-    pub pending: Option<bool>,
+    pending: Option<bool>,
 }
 
 /// JSON model for Discord member role assignment data.
 ///
 /// Matches the schema defined in DISCORD_NARRATIVE.md for member role generation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, derive_getters::Getters)]
 pub struct DiscordMemberRoleJson {
     /// Guild ID (required)
-    pub guild_id: i64,
+    guild_id: i64,
     /// User ID (required)
-    pub user_id: i64,
+    user_id: i64,
     /// Role ID (required)
-    pub role_id: i64,
+    role_id: i64,
     /// ISO 8601 timestamp when role was assigned (required)
-    pub assigned_at: String,
+    assigned_at: String,
 
     /// User ID who assigned the role (optional)
     #[serde(default)]
-    pub assigned_by: Option<i64>,
+    assigned_by: Option<i64>,
 }
 
 #[cfg(test)]

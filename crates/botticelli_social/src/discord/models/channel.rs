@@ -18,18 +18,31 @@ use serde_json::Value as JsonValue;
 )]
 #[diesel(sql_type = botticelli_database::schema::sql_types::DiscordChannelType)]
 pub enum ChannelType {
+    /// Text channel in a guild
     GuildText,
+    /// Direct message channel
     Dm,
+    /// Voice channel in a guild
     GuildVoice,
+    /// Group direct message channel
     GroupDm,
+    /// Category that contains channels
     GuildCategory,
+    /// Announcement channel (formerly news channel)
     GuildAnnouncement,
+    /// Thread in an announcement channel
     AnnouncementThread,
+    /// Public thread
     PublicThread,
+    /// Private thread
     PrivateThread,
+    /// Stage voice channel
     GuildStageVoice,
+    /// Guild directory channel
     GuildDirectory,
+    /// Forum channel
     GuildForum,
+    /// Media channel
     GuildMedia,
 }
 
@@ -93,97 +106,97 @@ impl
 /// Database row for discord_channels table.
 ///
 /// Represents a Discord channel (text, voice, thread, forum, etc.) with all settings and metadata.
-#[derive(Debug, Clone, Queryable, Identifiable, Selectable, Associations)]
+#[derive(Debug, Clone, Queryable, Identifiable, Selectable, Associations, derive_getters::Getters)]
 #[diesel(belongs_to(super::guild::GuildRow, foreign_key = guild_id))]
 #[diesel(table_name = botticelli_database::schema::discord_channels)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct ChannelRow {
-    pub id: i64,
-    pub guild_id: Option<i64>,
-    pub name: Option<String>,
-    pub channel_type: ChannelType,
-    pub position: Option<i32>,
+    id: i64,
+    guild_id: Option<i64>,
+    name: Option<String>,
+    channel_type: ChannelType,
+    position: Option<i32>,
 
     // Topic and description
-    pub topic: Option<String>,
+    topic: Option<String>,
 
     // Channel settings
-    pub nsfw: Option<bool>,
-    pub rate_limit_per_user: Option<i32>,
-    pub bitrate: Option<i32>,
-    pub user_limit: Option<i32>,
+    nsfw: Option<bool>,
+    rate_limit_per_user: Option<i32>,
+    bitrate: Option<i32>,
+    user_limit: Option<i32>,
 
     // Thread-specific
-    pub parent_id: Option<i64>,
-    pub owner_id: Option<i64>,
-    pub message_count: Option<i32>,
-    pub member_count: Option<i32>,
-    pub archived: Option<bool>,
-    pub auto_archive_duration: Option<i32>,
-    pub archive_timestamp: Option<NaiveDateTime>,
-    pub locked: Option<bool>,
-    pub invitable: Option<bool>,
+    parent_id: Option<i64>,
+    owner_id: Option<i64>,
+    message_count: Option<i32>,
+    member_count: Option<i32>,
+    archived: Option<bool>,
+    auto_archive_duration: Option<i32>,
+    archive_timestamp: Option<NaiveDateTime>,
+    locked: Option<bool>,
+    invitable: Option<bool>,
 
     // Forum-specific
-    pub available_tags: Option<JsonValue>,
-    pub default_reaction_emoji: Option<JsonValue>,
-    pub default_thread_rate_limit: Option<i32>,
-    pub default_sort_order: Option<i16>,
-    pub default_forum_layout: Option<i16>,
+    available_tags: Option<JsonValue>,
+    default_reaction_emoji: Option<JsonValue>,
+    default_thread_rate_limit: Option<i32>,
+    default_sort_order: Option<i16>,
+    default_forum_layout: Option<i16>,
 
     // Timestamps
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-    pub last_message_at: Option<NaiveDateTime>,
+    created_at: NaiveDateTime,
+    updated_at: NaiveDateTime,
+    last_message_at: Option<NaiveDateTime>,
 
     // Bot tracking
-    pub last_read_message_id: Option<i64>,
-    pub bot_has_access: Option<bool>,
+    last_read_message_id: Option<i64>,
+    bot_has_access: Option<bool>,
 }
 
 /// Insertable struct for discord_channels table.
 ///
 /// Used to create new channel records in the database.
-#[derive(Debug, Clone, Insertable)]
+#[derive(Debug, Clone, Insertable, derive_getters::Getters)]
 #[diesel(table_name = botticelli_database::schema::discord_channels)]
 pub struct NewChannel {
-    pub id: i64,
-    pub guild_id: Option<i64>,
-    pub name: Option<String>,
-    pub channel_type: ChannelType,
-    pub position: Option<i32>,
+    pub(crate) id: i64,
+    pub(crate) guild_id: Option<i64>,
+    pub(crate) name: Option<String>,
+    pub(crate) channel_type: ChannelType,
+    pub(crate) position: Option<i32>,
 
     // Topic and description
-    pub topic: Option<String>,
+    pub(crate) topic: Option<String>,
 
     // Channel settings
-    pub nsfw: Option<bool>,
-    pub rate_limit_per_user: Option<i32>,
-    pub bitrate: Option<i32>,
-    pub user_limit: Option<i32>,
+    pub(crate) nsfw: Option<bool>,
+    pub(crate) rate_limit_per_user: Option<i32>,
+    pub(crate) bitrate: Option<i32>,
+    pub(crate) user_limit: Option<i32>,
 
     // Thread-specific
-    pub parent_id: Option<i64>,
-    pub owner_id: Option<i64>,
-    pub message_count: Option<i32>,
-    pub member_count: Option<i32>,
-    pub archived: Option<bool>,
-    pub auto_archive_duration: Option<i32>,
-    pub archive_timestamp: Option<NaiveDateTime>,
-    pub locked: Option<bool>,
-    pub invitable: Option<bool>,
+    pub(crate) parent_id: Option<i64>,
+    pub(crate) owner_id: Option<i64>,
+    pub(crate) message_count: Option<i32>,
+    pub(crate) member_count: Option<i32>,
+    pub(crate) archived: Option<bool>,
+    pub(crate) auto_archive_duration: Option<i32>,
+    pub(crate) archive_timestamp: Option<NaiveDateTime>,
+    pub(crate) locked: Option<bool>,
+    pub(crate) invitable: Option<bool>,
 
     // Forum-specific
-    pub available_tags: Option<JsonValue>,
-    pub default_reaction_emoji: Option<JsonValue>,
-    pub default_thread_rate_limit: Option<i32>,
-    pub default_sort_order: Option<i16>,
-    pub default_forum_layout: Option<i16>,
+    pub(crate) available_tags: Option<JsonValue>,
+    pub(crate) default_reaction_emoji: Option<JsonValue>,
+    pub(crate) default_thread_rate_limit: Option<i32>,
+    pub(crate) default_sort_order: Option<i16>,
+    pub(crate) default_forum_layout: Option<i16>,
 
     // Timestamps (last_message_at can be set)
-    pub last_message_at: Option<NaiveDateTime>,
+    pub(crate) last_message_at: Option<NaiveDateTime>,
 
     // Bot tracking
-    pub last_read_message_id: Option<i64>,
-    pub bot_has_access: Option<bool>,
+    pub(crate) last_read_message_id: Option<i64>,
+    pub(crate) bot_has_access: Option<bool>,
 }

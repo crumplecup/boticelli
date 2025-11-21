@@ -159,4 +159,12 @@ pub trait NarrativeProvider {
     fn carousel_config(&self) -> Option<&crate::CarouselConfig> {
         None
     }
+
+    /// Get the source file path for this narrative.
+    ///
+    /// Used to resolve relative paths in nested narratives.
+    /// Returns `None` if the narrative wasn't loaded from a file.
+    fn source_path(&self) -> Option<&std::path::Path> {
+        None
+    }
 }

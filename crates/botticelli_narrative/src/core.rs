@@ -90,6 +90,10 @@ pub struct Narrative {
     /// Map of act names to their configurations
     #[serde(skip)]
     acts: HashMap<String, ActConfig>,
+
+    /// Source file path (for resolving relative paths in nested narratives)
+    #[serde(skip)]
+    source_path: Option<std::path::PathBuf>,
 }
 
 impl Narrative {
@@ -103,10 +107,13 @@ impl Narrative {
     /// - Validation fails (missing acts, empty order, etc.)
     #[tracing::instrument(skip_all, fields(path = %path.as_ref().display()))]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, NarrativeError> {
-        let content = std::fs::read_to_string(path.as_ref())
+        let path = path.as_ref();
+        let content = std::fs::read_to_string(path)
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::FileRead(e.to_string())))?;
 
-        content.parse()
+        let mut narrative: Self = content.parse()?;
+        narrative.source_path = Some(path.to_path_buf());
+        Ok(narrative)
     }
 
     /// Loads a narrative from a TOML file with database-driven prompt assembly.
@@ -298,6 +305,7 @@ impl FromStr for Narrative {
             metadata,
             toc,
             acts,
+            source_path: None,
         };
         narrative.validate()?;
         Ok(narrative)
@@ -323,5 +331,9 @@ impl NarrativeProvider for Narrative {
 
     fn carousel_config(&self) -> Option<&CarouselConfig> {
         self.metadata.carousel.as_ref()
+    }
+
+    fn source_path(&self) -> Option<&std::path::Path> {
+        self.source_path.as_deref()
     }
 }

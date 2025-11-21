@@ -151,7 +151,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
             // Process inputs (execute bot commands, query tables, etc.)
             // Pass execution history for template resolution
-            let processed_inputs = self.process_inputs(config.inputs(), &act_executions, sequence_number).await?;
+            let processed_inputs = self.process_inputs(narrative, config.inputs(), &act_executions, sequence_number).await?;
 
             // Check if this is an action-only act (no text inputs that need LLM processing)
             let has_text_prompt = processed_inputs.iter().any(|input| matches!(input, Input::Text(text) if !text.trim().is_empty()));
@@ -371,15 +371,17 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// - `{{previous}}` - Output from immediately previous act
     /// - `{{act_name}}` - Output from specific named act
     #[tracing::instrument(
-        skip(self, inputs, act_executions),
+        skip(self, narrative, inputs, act_executions),
         fields(
+            current_index,
             input_count = inputs.len(),
             bot_commands = 0,
             tables = 0
         )
     )]
-    async fn process_inputs(
+    async fn process_inputs<N: NarrativeProvider>(
         &self,
+        narrative: &N,
         inputs: &[Input],
         act_executions: &[ActExecution],
         current_index: usize,
@@ -565,24 +567,35 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                         narrative_path.push_str(".toml");
                     }
                     
+                    // Resolve path relative to parent narrative's directory
+                    let resolved_path = if std::path::Path::new(&narrative_path).is_absolute() {
+                        std::path::PathBuf::from(&narrative_path)
+                    } else if let Some(parent_path) = narrative.source_path() {
+                        parent_path.parent()
+                            .map(|p| p.join(&narrative_path))
+                            .unwrap_or_else(|| std::path::PathBuf::from(&narrative_path))
+                    } else {
+                        std::path::PathBuf::from(&narrative_path)
+                    };
+                    
                     tracing::info!(
                         name = %name,
-                        path = %narrative_path,
+                        path = %resolved_path.display(),
                         "Loading nested narrative"
                     );
                     
                     // Load the nested narrative from file
-                    let nested_narrative = crate::Narrative::from_file(&narrative_path)
+                    let nested_narrative = crate::Narrative::from_file(&resolved_path)
                         .map_err(|e| {
                             tracing::error!(
                                 name = %name,
-                                path = %narrative_path,
+                                path = %resolved_path.display(),
                                 error = %e,
                                 "Failed to load nested narrative"
                             );
                             botticelli_error::NarrativeError::new(
                                 botticelli_error::NarrativeErrorKind::NestedNarrativeLoadFailed(
-                                    format!("Failed to load nested narrative '{}' from '{}': {}", name, narrative_path, e)
+                                    format!("Failed to load nested narrative '{}' from '{}': {}", name, resolved_path.display(), e)
                                 ),
                             )
                         })?;

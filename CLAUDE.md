@@ -74,7 +74,10 @@ cargo test --doc
 # 5. Run clippy
 cargo clippy --all-targets
 
-# 6. For markdown changes
+# 6. Run security audit
+just audit
+
+# 7. For markdown changes
 markdownlint-cli2 "**/*.md" "#target" "#node_modules"
 ```
 

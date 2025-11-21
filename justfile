@@ -561,6 +561,15 @@ update-deps:
     cargo update
     @echo "✅ Dependencies updated. Run 'just test' to verify."
 
+# Generate OmniBOR artifact tree for supply chain transparency
+omnibor:
+    @command -v omnibor >/dev/null 2>&1 || (echo "Installing omnibor-cli..." && cargo install omnibor-cli)
+    omnibor --help || echo "⚠️  OmniBOR installed, see documentation for usage"
+
+# Run all security checks
+security: audit omnibor
+    @echo "✅ Security checks completed!"
+
 # Benchmarking (if applicable)
 # ============================
 

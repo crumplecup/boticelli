@@ -32,15 +32,20 @@ format = "markdown"
 # Act 1: Run FAQ content generation to populate the table
 generate_content = ["narratives.generate_content"]
 
-# Act 2: Select the best FAQ from generated options
+# Act 2: Compile all FAQ questions into a single formatted document
 select_best = [
   "tables.faq_content",
-  """You are reviewing FAQ document options for the Botticelli Discord server.
+  """You are formatting FAQ questions for the Botticelli Discord server.
 
-Review all FAQ documents above and:
-1. Evaluate them based on question coverage, answer quality, code examples, organization, and formatting
-2. Select the SINGLE BEST FAQ that is most comprehensive and helpful for new users
-3. Output ONLY the selected FAQ content (no explanation, no prefix)""",
+The table above contains 9 FAQ questions generated iteratively. Your task:
+1. Organize all 9 questions into logical categories (Getting Started, Features, Usage, etc.)
+2. Format as a single cohesive FAQ document using Discord markdown
+3. Add a header: "# 📚 Botticelli FAQ"
+4. Use emojis for category headers
+5. Ensure proper Discord formatting (code blocks, bold, links)
+6. Add a footer: "Need more help? Ask in #support!"
+
+Output ONLY the formatted FAQ document (no explanation, no JSON, just the markdown content).""",
 ]
 
 # Act 3: Publish to Discord FAQ channel (uses output from select_best)

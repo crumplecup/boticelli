@@ -534,18 +534,29 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                             processed.push(Input::Text(result));
                         }
                         Err(e) => {
-                            tracing::error!(
-                                table_name = %table_name,
-                                error = %e,
-                                "Table query failed"
-                            );
-                            return Err(botticelli_error::NarrativeError::new(
-                                botticelli_error::NarrativeErrorKind::TableQueryFailed(format!(
-                                    "Table query '{}' failed: {}",
-                                    table_name, e
-                                )),
-                            )
-                            .into());
+                            // Check if this is a "table not found" error
+                            let error_msg = e.to_string();
+                            if error_msg.contains("not found") {
+                                tracing::warn!(
+                                    table_name = %table_name,
+                                    "Table not found, treating as empty result for optional input"
+                                );
+                                // Treat as empty result - don't add to processed inputs
+                                // This allows optional table references in first carousel iteration
+                            } else {
+                                tracing::error!(
+                                    table_name = %table_name,
+                                    error = %e,
+                                    "Table query failed"
+                                );
+                                return Err(botticelli_error::NarrativeError::new(
+                                    botticelli_error::NarrativeErrorKind::TableQueryFailed(format!(
+                                        "Table query '{}' failed: {}",
+                                        table_name, e
+                                    )),
+                                )
+                                .into());
+                            }
                         }
                     }
                 }

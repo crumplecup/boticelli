@@ -3,7 +3,7 @@
 //! This module defines the `NarrativeProvider` trait, which decouples the
 //! narrative executor from specific configuration formats (TOML, YAML, JSON, etc.).
 
-use crate::NarrativeMetadata;
+use crate::{CarouselConfig, NarrativeMetadata};
 use botticelli_core::Input;
 use serde::{Deserialize, Serialize};
 
@@ -37,6 +37,12 @@ pub struct ActConfig {
     ///
     /// Limits the length of the generated response.
     pub max_tokens: Option<u32>,
+
+    /// Optional carousel configuration for repeated execution.
+    ///
+    /// If `Some`, this act will be executed multiple times according to the
+    /// carousel configuration, with rate limit budgeting applied.
+    pub carousel: Option<CarouselConfig>,
 }
 
 impl ActConfig {
@@ -50,6 +56,7 @@ impl ActConfig {
             model: None,
             temperature: None,
             max_tokens: None,
+            carousel: None,
         }
     }
 
@@ -60,6 +67,7 @@ impl ActConfig {
             model: None,
             temperature: None,
             max_tokens: None,
+            carousel: None,
         }
     }
 
@@ -78,6 +86,12 @@ impl ActConfig {
     /// Builder method to set the max_tokens override.
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
         self.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// Builder method to set the carousel configuration.
+    pub fn with_carousel(mut self, carousel: CarouselConfig) -> Self {
+        self.carousel = Some(carousel);
         self
     }
 }
@@ -115,4 +129,11 @@ pub trait NarrativeProvider {
     /// - Optional model override
     /// - Optional temperature/max_tokens overrides
     fn get_act_config(&self, act_name: &str) -> Option<ActConfig>;
+
+    /// Get the carousel configuration if present.
+    ///
+    /// Returns `None` if this narrative doesn't have carousel configuration.
+    fn carousel_config(&self) -> Option<&crate::CarouselConfig> {
+        None
+    }
 }

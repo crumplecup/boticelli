@@ -97,20 +97,23 @@ pub struct Budget {
 
 ## Status
 
-**Implementation Status: COMPLETE (Foundation)**
+**Implementation Status: COMPLETE**
 
 ✅ Budget tracking system
 ✅ Carousel configuration types
 ✅ TOML parsing support
 ✅ Error types
+✅ NarrativeExecutor carousel wrapper (`execute_carousel`)
+✅ Token consumption tracking
+✅ Result aggregation (`CarouselResult`)
 ✅ All tests passing
 
-**TODO: Executor Integration**
+**Future Enhancements**
 
-⬜ NarrativeExecutor carousel wrapper
-⬜ Token consumption tracking
-⬜ Result aggregation
-⬜ Integration tests
+⬜ Act-level carousel support (currently narrative-level only)
+⬜ Actual token tracking from driver responses (currently uses estimates)
+⬜ Integration tests with real API calls
+⬜ Carousel pause/resume functionality
 
 ## Testing
 

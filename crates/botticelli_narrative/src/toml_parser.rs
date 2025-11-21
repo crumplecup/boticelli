@@ -107,6 +107,10 @@ pub struct TomlActConfig {
 
     /// Optional max_tokens override
     pub max_tokens: Option<u32>,
+
+    /// Optional carousel configuration for this act
+    #[serde(default)]
+    pub carousel: Option<crate::CarouselConfig>,
 }
 
 /// TOML representation of an input.
@@ -324,6 +328,7 @@ impl TomlActConfig {
             model: self.model.clone(),
             temperature: self.temperature,
             max_tokens: self.max_tokens,
+            carousel: self.carousel.clone(),
         })
     }
 }
@@ -346,6 +351,7 @@ impl TomlAct {
                         model: None,
                         temperature: None,
                         max_tokens: None,
+                        carousel: None,
                     })
                 } else {
                     // Validate that the text is not empty or just whitespace
@@ -389,6 +395,7 @@ impl TomlAct {
                     model: None,
                     temperature: None,
                     max_tokens: None,
+                    carousel: None,
                 })
             }
             TomlAct::Structured(config) => {
@@ -410,6 +417,7 @@ impl TomlAct {
                     model: config.model.clone(),
                     temperature: config.temperature,
                     max_tokens: config.max_tokens,
+                    carousel: config.carousel.clone(),
                 })
             }
         }

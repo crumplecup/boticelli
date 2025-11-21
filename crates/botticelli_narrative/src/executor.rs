@@ -3,7 +3,7 @@
 //! This module provides the executor that processes multi-act narratives
 //! by calling LLM APIs in sequence, passing context between acts.
 
-use crate::{NarrativeProvider, ProcessorContext, ProcessorRegistry};
+use crate::{CarouselResult, CarouselState, NarrativeProvider, ProcessorContext, ProcessorRegistry};
 use botticelli_core::{GenerateRequest, Input, Message, Output, Role};
 use botticelli_error::BotticelliResult;
 use botticelli_interface::{ActExecution, BotticelliDriver, NarrativeExecution, TableQueryRegistry};
@@ -222,6 +222,107 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             narrative_name: narrative.name().to_string(),
             act_executions,
         })
+    }
+
+    /// Execute a narrative in a carousel loop with budget management.
+    ///
+    /// Runs the narrative multiple times according to the carousel configuration,
+    /// respecting rate limit budgets and stopping when limits are approached.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Carousel configuration is missing
+    /// - Budget cannot be created from rate limits
+    /// - Any iteration fails (if continue_on_error is false)
+    #[tracing::instrument(skip(self, narrative), fields(narrative_name = narrative.name()))]
+    pub async fn execute_carousel<N: NarrativeProvider>(
+        &self,
+        narrative: &N,
+    ) -> BotticelliResult<CarouselResult> {
+        // Get carousel config from narrative
+        let carousel_config = narrative
+            .carousel_config()
+            .ok_or_else(|| {
+                botticelli_error::NarrativeError::new(
+                    botticelli_error::NarrativeErrorKind::ConfigurationError(
+                        "Narrative does not have carousel configuration".to_string(),
+                    ),
+                )
+            })?;
+
+        tracing::info!(
+            iterations = carousel_config.iterations(),
+            estimated_tokens = carousel_config.estimated_tokens_per_iteration(),
+            continue_on_error = carousel_config.continue_on_error(),
+            "Starting carousel execution"
+        );
+
+        // Create carousel state with budget
+        let mut state = CarouselState::new(
+            carousel_config.clone(),
+            *self.driver.rate_limits(),
+        );
+
+        let mut executions = Vec::new();
+
+        while state.can_continue() {
+            if let Err(e) = state.start_iteration() {
+                tracing::error!(error = %e, "Failed to start carousel iteration");
+                break;
+            }
+
+            match self.execute(narrative).await {
+                Ok(execution) => {
+                    tracing::debug!(
+                        iteration = state.current_iteration(),
+                        acts = execution.act_executions.len(),
+                        "Iteration completed successfully"
+                    );
+
+                    // Consume tokens from budget
+                    // TODO: Track actual token usage from driver response
+                    let estimated_tokens = *carousel_config.estimated_tokens_per_iteration();
+                    if let Err(e) = state.budget_mut().consume(estimated_tokens) {
+                        tracing::warn!(
+                            error = %e,
+                            "Failed to consume tokens from budget"
+                        );
+                    }
+
+                    state.record_success();
+                    executions.push(execution);
+                }
+                Err(e) => {
+                    tracing::error!(
+                        iteration = state.current_iteration(),
+                        error = %e,
+                        "Iteration failed"
+                    );
+
+                    state.record_failure();
+
+                    if !carousel_config.continue_on_error() {
+                        tracing::warn!("Stopping carousel due to error (continue_on_error=false)");
+                        break;
+                    }
+                }
+            }
+        }
+
+        state.finish();
+        let result = CarouselResult::from_state(&state);
+
+        tracing::info!(
+            iterations = result.iterations_attempted(),
+            successful = result.successful_iterations(),
+            failed = result.failed_iterations(),
+            completed = result.completed(),
+            budget_exhausted = result.budget_exhausted(),
+            "Carousel execution finished"
+        );
+
+        Ok(result)
     }
 
     /// Get a reference to the underlying LLM driver.

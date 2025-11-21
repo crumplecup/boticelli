@@ -52,6 +52,9 @@ pub enum NarrativeErrorKind {
         /// Maximum iterations requested
         max_iterations: u32,
     },
+    /// Configuration error
+    #[display("Configuration error: {}", _0)]
+    ConfigurationError(String),
 }
 
 /// Error type for narrative operations.

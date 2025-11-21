@@ -306,4 +306,8 @@ impl NarrativeProvider for Narrative {
     fn get_act_config(&self, act_name: &str) -> Option<ActConfig> {
         self.acts.get(act_name).cloned()
     }
+
+    fn carousel_config(&self) -> Option<&CarouselConfig> {
+        self.metadata.carousel.as_ref()
+    }
 }

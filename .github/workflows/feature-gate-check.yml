@@ -1,0 +1,53 @@
+name: Feature Gate Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  feature-gate-check:
+    name: Feature Gate Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+    
+    - name: Install cargo-hack
+      run: cargo install cargo-hack
+    
+    - name: Check no-default-features
+      run: cargo check --workspace --no-default-features
+    
+    - name: Check default features
+      run: cargo check --workspace
+    
+    - name: Check all features
+      run: cargo check --workspace --all-features
+    
+    - name: Check feature powerset (exclude expensive combinations)
+      run: |
+        cargo hack check --workspace \
+          --feature-powerset \
+          --exclude-features api \
+          --optional-deps \
+          --depth 2
+    
+    - name: Clippy no-default-features
+      run: cargo clippy --workspace --no-default-features -- -D warnings
+    
+    - name: Clippy default features
+      run: cargo clippy --workspace -- -D warnings
+    
+    - name: Clippy all features
+      run: cargo clippy --workspace --all-features -- -D warnings

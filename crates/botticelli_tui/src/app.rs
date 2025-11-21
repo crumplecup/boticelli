@@ -1,7 +1,10 @@
 //! Application state and main TUI entry point.
 
+#[cfg(feature = "database")]
 use crate::{TuiError, TuiErrorKind};
-use botticelli_error::{BotticelliError, BotticelliResult};
+#[cfg(feature = "database")]
+use botticelli_error::BotticelliError;
+use botticelli_error::BotticelliResult;
 #[cfg(feature = "database")]
 use crate::{Event, EventHandler, ui};
 #[cfg(feature = "database")]

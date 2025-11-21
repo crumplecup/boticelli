@@ -1,6 +1,8 @@
-//! UI rendering for TUI.
+//! UI rendering for TUI (requires database feature).
 
+#[cfg(feature = "database")]
 use crate::app::{App, AppMode};
+#[cfg(feature = "database")]
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -9,6 +11,7 @@ use ratatui::{
 };
 
 /// Draw the main UI.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip_all)]
 pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()

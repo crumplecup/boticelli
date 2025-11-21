@@ -164,6 +164,11 @@ lint-md:
     @command -v markdownlint-cli2 >/dev/null 2>&1 || (echo "❌ markdownlint-cli2 not installed. Run: just install-node-tools" && exit 1)
     markdownlint-cli2 "**/*.md" "#target" "#node_modules"
 
+# Test various feature gate combinations (requires cargo-hack)
+check-features:
+    @command -v cargo-hack >/dev/null 2>&1 || (echo "❌ cargo-hack not installed. Run: cargo install cargo-hack" && exit 1)
+    ./scripts/feature-gate-check.sh
+
 # Run all checks (lint, format check, tests)
 check-all: lint fmt-check test
     @echo "✅ All checks passed!"

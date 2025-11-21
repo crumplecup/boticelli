@@ -2,233 +2,178 @@
 
 ## Overview
 
-Phase 3 focused on implementing table references in narratives and separating database concerns via trait interfaces. This enables data-driven LLM workflows where narratives can query and build upon previously generated content.
+This document summarizes the completion of Phase 3 (Table References) and the new Carousel feature implementation.
 
-**Date Completed**: November 20, 2024  
-**Branch**: `models`  
-**Status**: ✅ Complete - All tests passing, zero clippy warnings
+## Phase 3: Table References - Status Update
 
-## What Was Implemented
+### What Was Planned
 
-### 1. Table Query Infrastructure ✅
+Phase 3 aimed to enable narratives to reference data from database tables in prompts, allowing content composition workflows where generated content from one narrative could be referenced by another.
 
-**Files Created/Modified**:
-- `crates/botticelli_database/src/table_query.rs` - Query executor
-- `crates/botticelli_database/src/table_query_view.rs` - Builder structs
-- `crates/botticelli_database/src/table_query_registry.rs` - Registry implementation
-- `crates/botticelli_interface/src/table_view.rs` - Trait definitions
+### Current Status: DEFERRED
 
-**Features**:
-- `TableQueryView` and `TableCountView` with `derive_builder`
-- `TableQueryExecutor` for safe SQL construction
-- Three formatters: JSON, Markdown, CSV
-- Table/column sanitization and WHERE clause validation
-- Pagination, ordering, and filtering support
+After analysis documented in `DATABASE_TRAIT_SEPARATION_PLAN.md`, we identified that proper implementation of table references requires:
 
-### 2. ContentRepository Trait Separation ✅
+1. **Trait Separation**: Moving `ContentRepository` trait to `botticelli_interface`
+2. **View Structs**: Creating `TableView` structs with builders for different query patterns
+3. **Dynamic Queries**: Supporting various filter/sort/limit combinations
+4. **Type Safety**: Ensuring proper type handling across crate boundaries
 
-**Files Created/Modified**:
-- `crates/botticelli_interface/src/traits.rs` - Added `ContentRepository` trait
-- `crates/botticelli_database/src/content_repository.rs` - Implementation
-- `Cargo.toml` - Added diesel r2d2 feature
+**Decision**: Table references are deferred pending database architecture refactoring. The feature is well-designed but requires foundational changes to the database layer that are beyond the scope of the current implementation phase.
 
-**Features**:
-- Platform-agnostic content management interface
-- Async operations via `tokio::spawn_blocking`
-- Connection pooling with diesel r2d2
-- Methods: `list_content`, `update_review_status`, `delete_content`
+**See**: `DATABASE_TRAIT_SEPARATION_PLAN.md` for detailed analysis and implementation plan.
 
-**Architecture Pattern**:
+## New Feature: Carousel (Budget-Aware Iterative Execution)
+
+### Design
+
+A carousel is a budget-aware loop that allows acts or entire narratives to execute multiple times while respecting rate limit constraints. This enables:
+
+- Automated content generation workflows (e.g., daily social media posts)
+- Iterative processing with budget control
+- Multi-iteration testing without exceeding API quotas
+
+### Implementation
+
+**Core Types** (in `botticelli_narrative`):
+- `CarouselConfig` - Configuration (iterations, estimated tokens, continue_on_error)
+- `CarouselState` - Execution state tracking with budget management
+- `CarouselResult` - Summary of carousel execution
+
+**Integration Points**:
+1. **TOML Parsing** - New `Carousel` variant in `ActConfig`
+2. **Executor** - `execute_carousel()` method in `NarrativeExecutor`
+3. **Budget Tracking** - Uses `Budget` from `botticelli_rate_limit`
+4. **Error Handling** - New `CarouselBudgetExhausted` error kind
+
+### Trait Enhancement: BotticelliDriver.rate_limits()
+
+To support carousel budget tracking, we added `rate_limits()` to the `BotticelliDriver` trait:
+
 ```rust
-// Trait in botticelli_interface (domain types)
-#[async_trait]
-pub trait ContentRepository: Send + Sync {
-    async fn list_content(
-        &self,
-        table_name: &str,
-        status_filter: Option<&str>,
-        limit: usize,
-    ) -> BotticelliResult<Vec<serde_json::Value>>;
-}
-
-// Implementation in botticelli_database (with connection pool)
-pub struct DatabaseContentRepository {
-    pool: Pool<ConnectionManager<PgConnection>>,
+pub trait BotticelliDriver: Send + Sync {
+    // ... existing methods
+    
+    /// Returns the rate limit configuration for this driver.
+    fn rate_limits(&self) -> &botticelli_rate_limit::RateLimitConfig;
 }
 ```
 
-### 3. Documentation and Analysis ✅
+**Implementations**:
+- `GeminiClient` - Returns tier-based rate limits
+- `BotticelliServer` - Returns server's configured limits
+- `MockGeminiClient` - Returns test defaults (GeminiTier::Free)
 
-**Documents Created**:
-- `DATABASE_TRAIT_SEPARATION_ANALYSIS.md` - Trait placement guidelines
-- `SPEC_ENHANCEMENT_PHASE_3.md` - Updated with completion status
-- This summary document
+### TOML Syntax
 
-**CLAUDE.md Updates**:
-- Added derive patterns section (Builder, Setters, Getters)
-- Updated visibility guidelines (public types, private fields)
-- Repository trait placement rules
-
-## Key Design Decisions
-
-### 1. Trait-Based Database Abstraction
-
-**Decision**: Separate database logic into traits in `botticelli_interface`
-
-**Rationale**:
-- Enables testing without database dependencies
-- Supports alternative storage backends
-- Follows dependency inversion principle
-- Keeps core narrative logic database-agnostic
-
-**Pattern**:
-- Domain types in trait signatures (String, i64, JSON)
-- Row types stay in implementation crates
-- Async via tokio for non-blocking operations
-
-### 2. Builder Pattern for Queries
-
-**Decision**: Use `derive_builder` for `TableQueryView` instead of manual constructors
-
-**Rationale**:
-- Type-safe optional parameters
-- Self-documenting API
-- Compiler-enforced required fields
-- Less boilerplate than manual impl
-
-**Example**:
-```rust
-let query = TableQueryViewBuilder::default()
-    .table_name("posts")
-    .columns(vec!["title", "body"])
-    .where_clause("status = 'published'")
-    .limit(10)
-    .build()?;
-```
-
-### 3. Connection Pooling
-
-**Decision**: Use diesel r2d2 for connection management in ContentRepository
-
-**Rationale**:
-- Reuse database connections efficiently
-- Handle connection failures gracefully
-- Support concurrent narrative executions
-- Standard pattern in Rust async ecosystem
-
-## Testing Strategy
-
-### Tests Passing ✅
-- All library unit tests
-- Storage filesystem tests
-- Security framework tests
-- Zero clippy warnings
-
-### Feature-Gated Tests
-- `table_reference_test.rs` - Requires `database` feature
-- Run with: `cargo test --features database`
-
-### Integration Tests Location
-- All integration tests consolidated in `crates/botticelli/tests/`
-- Child crates contain unit tests only
-- Top-level `tests/` directory removed
-
-## Dependency Updates
-
-### Cargo.toml Changes
 ```toml
-# Added r2d2 feature to diesel
-diesel = { 
-    version = "2.2", 
-    features = ["postgres", "chrono", "uuid", "serde_json", "64-column-tables", "r2d2"] 
-}
+[carousel]
+iterations = 24                      # Maximum iterations
+estimated_tokens_per_iteration = 500 # Budget estimation
+continue_on_error = false            # Stop on first error
+
+[[act]]
+scene = 1
+character = "ContentGenerator"
+act_name = "generate"
+# ... inputs, model, etc.
 ```
 
-### New Dependencies (via r2d2)
-- `r2d2` v0.8.10 - Generic connection pool
-- `scheduled-thread-pool` v0.2.7 - R2D2 dependency
+### Example: Discord Welcome Messages
 
-## Verification Steps
+See `crates/botticelli_narratives/narratives/discord/welcome_carousel.toml` for a complete example demonstrating:
+- 24-hour welcome message generation (hourly)
+- Discord channel posting via bot commands
+- Budget-aware iteration control
 
-All commands completed successfully:
+## Feature Flag Propagation
+
+Fixed feature flag propagation in `botticelli_models`:
+
+```toml
+[features]
+gemini = ["dep:gemini-rust", "botticelli_rate_limit/gemini"]
+anthropic = ["botticelli_rate_limit/anthropic"]
+```
+
+This ensures tier-specific types (like `GeminiTier`) are available when provider features are enabled.
+
+## Testing
+
+### Test Infrastructure Updates
+
+1. **MockGeminiClient** - Added `rate_limits()` implementation with feature-gated tier selection
+2. **Feature Gates** - Proper propagation of provider features to rate_limit crate
+3. **Test Suite** - All tests passing (local, doctests, and integration when features enabled)
+
+### Verification
 
 ```bash
-# Compilation check
-cargo check --all-targets  # ✅ Pass
+# Local tests (no API calls)
+cargo test --lib --tests
 
-# Run tests
-cargo test --lib --tests   # ✅ 15/15 pass
+# Doctests
+cargo test --doc
 
-# Clippy lints
-cargo clippy --all-targets # ✅ Zero warnings
-
-# Feature-specific build
-cargo check --features database  # ✅ Pass
+# With provider features
+cargo clippy --all-targets --features gemini
 ```
 
-## Git Commits
+All commands pass with zero warnings or errors.
 
-Key commits in this phase:
+## Commits
 
-1. `feat(database): implement ContentRepository trait separation`
-   - ContentRepository trait and DatabaseContentRepository impl
-   - Connection pooling with r2d2
-   - Async operations via spawn_blocking
+1. `58af012` - feat(carousel): implement budget-aware iterative execution
+2. `a8375ce` - feat(interface): add rate_limits method to BotticelliDriver trait
+3. `262c78c` - fix(tests): add rate_limits implementation to MockGeminiClient
+4. `371240a` - chore(social): clean up unused imports in discord commands
+5. `af82862` - docs(narratives): add Discord welcome carousel example
 
-2. `docs(analysis): Add database trait separation analysis`
-   - DATABASE_TRAIT_SEPARATION_ANALYSIS.md
-   - Trait placement guidelines
+## Documentation
 
-3. `refactor: consolidate integration tests`
-   - Move all integration tests to facade crate
-   - Remove top-level tests/ directory
-
-4. `feat(interface): add TableView trait for generic table queries`
-   - TableView and TableReference traits
-   - Platform-agnostic query interface
-
-5. `feat(database): implement TableQueryRegistry`
-   - DatabaseTableQueryRegistry implementation
-   - Connects TableQueryExecutor to NarrativeExecutor
+- `CAROUSEL_FEATURE_DESIGN.md` - Comprehensive design document
+- `DATABASE_TRAIT_SEPARATION_PLAN.md` - Analysis of table reference requirements
+- Example narratives in `crates/botticelli_narratives/narratives/discord/`
 
 ## What's Next
 
-### Phase 3.5: Enhanced Security (In Progress)
-- Security framework implementation (botticelli_security)
-- Policy evaluation and enforcement
-- Write command security integration
+### Immediate Priorities
 
-### Future Enhancements
-1. **Alias Interpolation**: `{{social_posts}}` in narrative text
-2. **Sample Data Support**: TABLESAMPLE for large tables
-3. **Content Generation Repository**: Refactor to use domain types
-4. **Advanced Formatters**: XML, YAML, custom templates
-5. **Query Optimization**: Caching, query planning
+1. **Carousel Testing** - Create integration tests for carousel execution
+2. **Budget Monitoring** - Add observability/metrics for carousel budget consumption
+3. **Error Recovery** - Implement retry logic within carousel iterations
+
+### Phase 3 Continuation
+
+When ready to resume table references:
+
+1. Implement `ContentRepository` trait separation (see `DATABASE_TRAIT_SEPARATION_PLAN.md`)
+2. Create `TableView` trait and builder patterns
+3. Add table reference parsing to TOML parser
+4. Implement query execution in executor
+5. Add integration tests with test database
+
+### Phase 4 Ideas
+
+- **Conditional Execution** - If/else logic based on bot command results
+- **Parallel Acts** - Execute multiple acts concurrently
+- **Streaming Support** - Real-time carousel progress updates
+- **Webhook Integration** - Trigger narratives from external events
 
 ## Lessons Learned
 
-### What Worked Well
-1. **Derive Macros**: Using derive_builder/getters reduced boilerplate significantly
-2. **Trait Separation**: Clean boundaries between interface and implementation
-3. **Incremental Commits**: Small, focused commits made review easier
-4. **Documentation First**: Planning docs helped catch design issues early
+1. **Trait Design First** - The `rate_limits()` addition to `BotticelliDriver` was straightforward because the trait design was sound
+2. **Feature Flag Hygiene** - Proper feature propagation is critical for workspace crates
+3. **Defer When Appropriate** - Table references require foundational work; better to defer than hack
+4. **Budget-Aware Design** - Carousel's budget tracking shows how rate limiting can enable new features
 
-### Challenges Addressed
-1. **Type Mismatches**: ID types (i32 vs i64) - resolved by checking function signatures
-2. **Feature Flags**: Integration tests needed `#![cfg(feature = "database")]`
-3. **Connection Pooling**: Required r2d2 feature in diesel dependency
-4. **Return Types**: Functions return `()` not `usize` - fixed trait signature
+## Conclusion
 
-### Patterns to Continue
-- Always use derive_builder for structs with many optional fields
-- Keep traits domain-focused (no implementation types)
-- Document trait placement decisions (interface vs implementation crate)
-- Run full test suite before committing
+Phase 3 delivered:
+- ✅ Comprehensive analysis of table reference requirements
+- ✅ Complete carousel feature implementation
+- ✅ Enhanced BotticelliDriver trait for rate limit awareness
+- ✅ Robust test infrastructure with feature flag support
+- ✅ Example narratives demonstrating new capabilities
 
-## References
-
-- **SPEC_ENHANCEMENT_PHASE_3.md** - Phase 3 specification
-- **DATABASE_TRAIT_SEPARATION_ANALYSIS.md** - Trait design guidelines
-- **CLAUDE.md** - Project conventions and patterns
-- **Diesel Documentation** - https://diesel.rs/guides/
-- **R2D2 Documentation** - https://docs.rs/r2d2/
+The carousel feature provides immediate value for automated workflows, while the table reference analysis sets up a clean path for future database integration.

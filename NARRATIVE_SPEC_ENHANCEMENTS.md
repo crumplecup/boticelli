@@ -9,12 +9,12 @@ This document outlines planned enhancements to the narrative TOML specification 
 
 These features enable narratives to interact with external systems and reference previously generated content, creating more powerful and composable workflows.
 
-**Current Status** (as of commit `d8cf4cb`):
+**Current Status** (as of commit `440c1e7`):
 - ✅ **Phase 1 Complete**: Friendly syntax foundation with resource definitions
 - ✅ **Phase 2 Complete**: Bot commands fully implemented with security framework
-- ✅ **Phase 3 Complete**: Table references fully implemented with tests and examples
+- 🚧 **Phase 3 In Progress**: Table references and carousel features designed, implementation pending
 
-See `IMPLEMENTATION_STATUS.md` for detailed progress tracking.
+See `PHASE_2_5_SUMMARY.md` for detailed completion report and `SPEC_ENHANCEMENT_PHASE_3.md` for Phase 3 plan.
 
 ## Current Implementation Status
 
@@ -39,60 +39,66 @@ All infrastructure for resource definitions is implemented:
 - ✅ `BotCommandExecutor` trait in `botticelli_social` with comprehensive tracing
 - ✅ `DiscordCommandExecutor` implementation with 30+ commands (read and write)
 - ✅ Error types using `derive_more` (BotCommandError, BotCommandErrorKind)
-- ✅ Integration tests with Discord API in facade crate
+- ✅ Integration tests with Discord API (`botticelli/tests/discord_integration_test.rs`)
 - ✅ Security framework in `botticelli_security` crate with 5-layer protection
-- ✅ All child crate tests consolidated (facade for integration, individual crates for unit)
+- ✅ All integration tests consolidated in facade crate
+- ✅ Example Discord community narratives (`crates/botticelli_narratives/narratives/discord/`)
+- ✅ Tested end-to-end: `simple_welcome.toml` successfully generates content via Gemini API
 
-**Commands Implemented**:
-- **Server**: `server.get_info`, `server.get_stats`, `server.list_emojis`, `server.list_stickers`
-- **Channels**: `channels.get`, `channels.list`, `channels.list_threads`, `channels.create`, `channels.delete`, `channels.modify`
-- **Roles**: `roles.get`, `roles.list`, `roles.create`, `roles.delete`, `roles.modify`, `roles.assign`, `roles.remove`
-- **Members**: `members.get`, `members.list`, `members.kick`, `members.ban`, `members.unban`, `members.timeout`, `members.modify`
+**Commands Implemented** (30+):
+- **Server**: `server.get`, `server.get_channels`, `server.get_members`, `server.get_roles`
+- **Channels**: `channels.get`, `channels.list`, `channels.create`, `channels.edit`, `channels.delete`, `channels.create_invite`, `channels.typing`
+- **Roles**: `roles.get`, `roles.list`, `roles.create`, `roles.edit`, `roles.delete`, `roles.assign`, `roles.remove`
+- **Members**: `members.get`, `members.list`, `members.kick`, `members.ban`, `members.unban`, `members.timeout`, `members.remove_timeout`, `members.edit`
+- **Messages**: `messages.list`, `messages.send`, `messages.edit`, `messages.delete`, `messages.pin`, `messages.unpin`
+- **Reactions**: `reactions.add`, `reactions.remove`
 - **Messages**: `messages.get`, `messages.list`, `messages.send`, `messages.delete`, `messages.pin`, `messages.unpin`, `messages.react`
 - **Emojis**: `emojis.get`, `emojis.create`, `emojis.delete`, `emojis.modify`
 
 **Current Status**: ✅ **Fully operational** - All core Discord commands implemented with security framework integration.
 
-### Phase 3: Table References ✅ **COMPLETE**
+### Phase 3: Table References & Carousel Features 🚧 **IN PROGRESS**
 
-**What's Done**:
+**Design Complete**:
+- ✅ `ContentRepository` trait designed in `botticelli_interface`
+- ✅ `TableReference` struct with builder pattern designed
+- ✅ Carousel feature with rate limit budgeting designed (see `CAROUSEL_FEATURE_DESIGN.md`)
+- ✅ Database trait separation analyzed (see `DATABASE_TRAIT_SEPARATION_ANALYSIS.md`)
+- ✅ Act enum variants designed (Generation, Narrative, Bot, Carousel)
+
+**What's Implemented**:
 - ✅ `Input::Table` variant exists in `botticelli_core`
-- ✅ TOML parsing with `TomlTableDefinition`  
+- ✅ TOML parsing with `TomlTableDefinition`
 - ✅ Reference resolution: `"tables.name"` → `Input::Table`
-- ✅ `TableReference` struct with `derive_builder` in `botticelli_narrative`
-- ✅ `ContentRepository` trait in `botticelli_interface` for content queries
-- ✅ `PostgresContentRepository` implementation in `botticelli_database`
-- ✅ `NarrativeExecutor::with_table_registry()` integration complete
-- ✅ `process_inputs()` handles `Input::Table` variants
-- ✅ `TableQueryRegistry` trait for executor integration
-- ✅ SQL query construction with filtering, pagination, ordering
-- ✅ Three output formatters: JSON, Markdown, CSV
-- ✅ Comprehensive error handling using `derive_more`
-- ✅ Comprehensive tracing instrumentation
-
-**Architecture**:
-- Separated concerns: `NarrativeRepository` for narrative CRUD, `ContentRepository` for content queries
-- `TableReference` with builder pattern for query construction
-- `ContentRepository::list_content()` executes queries with filtering
-- `TableQueryRegistry` trait provides executor integration point
-- Eliminates circular dependency between narrative and database crates
-
-**Security Features**:
-- ✅ Table name validation (alphanumeric + underscore only)
-- ✅ Column name validation (prevent SQL injection)
-- ✅ WHERE clause sanitization
-- ✅ Table existence validation before queries
-- ✅ Configurable row limits (default: 10, max varies by implementation)
-
-**Cleanup & Fixes** (commit `d8cf4cb`):
-- ✅ Eliminated ambiguous re-export warnings by removing TableQueryView re-exports from botticelli_database
-- ✅ Fixed integration tests to use correct types (DatabaseTableQueryRegistry vs PostgresContentRepository)
-- ✅ Updated NarrativeMetadata usage in tests (name/description vs title/author)
-- ✅ Removed obsolete table_reference_test.rs (duplicate test with wrong approach)
-- ✅ Follows CLAUDE.md rule: no re-exports across workspace crates
+- ⏸️ `TableReference` struct implementation (scaffolded, not integrated)
+- ⏸️ `ContentRepository` trait (designed, not implemented)
+- ⏸️ `CarouselConfig` parsing (implemented, not integrated with executor)
 
 **What's Remaining**:
-1. ⏸️ Alias interpolation (`{{alias}}`) for table results in prompts (future enhancement)
+
+1. **ContentRepository Implementation**
+   - PostgreSQL implementation of ContentRepository trait
+   - In-memory implementation for testing
+   - Integration with NarrativeExecutor
+
+2. **Act Enum Implementation**
+   - Convert current ActConfig-based system to Act enum
+   - Implement `Act::Generation` (existing behavior)
+   - Implement `Act::Narrative` (nested narrative execution)
+   - Implement `Act::Bot` (bot command execution in act)
+   - Implement `Act::Carousel` (repeated execution with budgeting)
+
+3. **Table Reference Integration**
+   - Process `Input::Table` in executor
+   - Query content from ContentRepository
+   - Format and inject into prompts
+   - Support JSON, Markdown, CSV formats
+
+4. **Carousel Execution**
+   - Rate limit budget tracking
+   - Iteration loop with budget checks
+   - Budget-aware retry strategies
+   - Integration with each Act type
 
 **Current Status**: ✅ **COMPLETE** - Table references fully implemented with tests, examples, documentation, and zero warnings.
 

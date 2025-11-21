@@ -84,6 +84,7 @@ strum = { version = "0.26", features = ["derive"] }
 governor = "0.10"
 tokio-retry2 = { version = "0.6", features = ["jitter"] }
 tracing = "0.1"
+regex = "1"
 
 # Configuration and HTTP
 config = { version = "0.15", features = ["toml"] }

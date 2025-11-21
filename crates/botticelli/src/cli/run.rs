@@ -64,15 +64,35 @@ pub async fn run_narrative(
             let mut registry = ProcessorRegistry::new();
             registry.register(Box::new(processor));
 
-            if process_discord {
-                tracing::warn!("Discord-specific processors not yet implemented");
-            }
-
             // Build executor with processors and table registry
             tracing::info!("Configuring executor with table registry");
             let mut executor = NarrativeExecutor::with_processors(client, registry);
             executor = executor.with_table_registry(Box::new(table_registry));
             tracing::info!("Table registry configured");
+            
+            // Configure Discord bot registry if feature enabled and requested
+            #[cfg(feature = "discord")]
+            if process_discord {
+                use botticelli_social::{DiscordCommandExecutor, BotCommandRegistryImpl};
+                use std::env;
+                
+                if let Ok(token) = env::var("DISCORD_TOKEN") {
+                    tracing::info!("Configuring Discord bot registry");
+                    let discord_executor = DiscordCommandExecutor::new(token);
+                    let mut bot_registry = BotCommandRegistryImpl::new();
+                    bot_registry.register(discord_executor);
+                    executor = executor.with_bot_registry(Box::new(bot_registry));
+                    tracing::info!("Discord bot registry configured");
+                } else {
+                    tracing::warn!("DISCORD_TOKEN not set, Discord commands will fail");
+                }
+            }
+            
+            #[cfg(not(feature = "discord"))]
+            if process_discord {
+                tracing::warn!("Discord feature not enabled, Discord commands will fail");
+            }
+            
             executor
         }
 

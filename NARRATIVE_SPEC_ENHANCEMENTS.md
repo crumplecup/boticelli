@@ -44,6 +44,7 @@ All infrastructure for resource definitions is implemented:
 - ✅ All integration tests consolidated in facade crate
 - ✅ Example Discord community narratives (`crates/botticelli_narrative/narratives/discord/`)
 - ✅ Tested end-to-end: `simple_welcome.toml` successfully generates content via Gemini API
+- ✅ Template injection: Bot command arguments can use `{{act_name}}` or `{{previous}}` to inject LLM outputs
 
 ### Phase 3: Table References and Carousel ✅ **COMPLETE**
 

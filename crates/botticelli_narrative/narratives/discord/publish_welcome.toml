@@ -1,21 +1,25 @@
 # Publish Welcome Message Narrative
-# Demonstrates: Narrative composition (PENDING), table references, content selection, bot command execution
-# NOTE: Narrative composition (narrative: syntax) is parsed but not yet executed
-# For now, run welcome_content_generation.toml manually before running this
+# Demonstrates: Narrative composition, table references, content selection, bot command execution
 
 [narrative]
 name = "publish_welcome"
 description = "Generate, select, and publish the best welcome message to Discord server"
+skip_content_generation = true
 
 [toc]
-order = ["select_best", "publish_message"]
+order = ["generate_content", "select_best", "publish_message"]
+
+# Define nested narrative for content generation
+[narratives.generate_content]
+narrative = "welcome_content_generation"
 
 # Define bot command for publishing
 [bots.publish_message]
 platform = "discord"
-command = "channels.create_message"
-guild_id = "{{ env.TEST_GUILD_ID }}"
-channel_id = "{{ env.WELCOME_CHANNEL_ID }}"
+command = "messages.send"
+guild_id = "1439415903753076859"
+channel_id = "1441256008092483724"
+content = "{{select_best}}"        # Inject output from select_best act
 
 # Define table reference for loading generated messages
 [tables.welcome_messages]
@@ -24,15 +28,18 @@ limit = 100
 format = "markdown"
 
 [acts]
-# Act 1: Select the best welcome message from generated options (requires table to be populated)
-select_best = [
-    "tables.welcome_messages",
-    """You are reviewing welcome messages for the Botticelli Discord community server.
+# Act 1: Run welcome content generation to populate the table
+generate_content = ["narratives.generate_content"]
 
-Review all 9 welcome messages above and:
+# Act 2: Select the best welcome message from generated options
+select_best = [
+  "tables.welcome_messages",
+  """You are reviewing welcome messages for the Botticelli Discord community server.
+
+Review all welcome messages above and:
 1. Evaluate them based on clarity, engagement, completeness, Discord markdown formatting, and tone
 2. Select the SINGLE BEST message
-3. Output ONLY the selected message content (no explanation, no prefix)"""
+3. Output ONLY the selected message content (no explanation, no prefix)""",
 ]
 
 # Act 3: Publish to Discord welcome channel (uses output from select_best)

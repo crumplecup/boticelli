@@ -55,6 +55,9 @@ pub enum NarrativeErrorKind {
     /// Configuration error
     #[display("Configuration error: {}", _0)]
     ConfigurationError(String),
+    /// Template resolution error
+    #[display("Template error: {}", _0)]
+    TemplateError(String),
 }
 
 /// Error type for narrative operations.

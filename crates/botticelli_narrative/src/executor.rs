@@ -150,7 +150,8 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 .expect("NarrativeProvider should ensure all acts exist");
 
             // Process inputs (execute bot commands, query tables, etc.)
-            let processed_inputs = self.process_inputs(&config.inputs).await?;
+            // Pass execution history for template resolution
+            let processed_inputs = self.process_inputs(&config.inputs, &act_executions, sequence_number).await?;
 
             // Build the request with conversation history + processed inputs
             conversation_history.push(Message {
@@ -336,15 +337,24 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// - BotCommand: Execute via registry and format result as JSON text
     /// - Table: (Future) Query database and format result
     /// - Other: Pass through unchanged
+    ///
+    /// Bot command arguments can use template syntax to inject previous act outputs:
+    /// - `{{previous}}` - Output from immediately previous act
+    /// - `{{act_name}}` - Output from specific named act
     #[tracing::instrument(
-        skip(self, inputs),
+        skip(self, inputs, act_executions),
         fields(
             input_count = inputs.len(),
             bot_commands = 0,
             tables = 0
         )
     )]
-    async fn process_inputs(&self, inputs: &[Input]) -> BotticelliResult<Vec<Input>> {
+    async fn process_inputs(
+        &self,
+        inputs: &[Input],
+        act_executions: &[ActExecution],
+        current_index: usize,
+    ) -> BotticelliResult<Vec<Input>> {
         let mut processed = Vec::new();
         let mut bot_command_count = 0;
         let mut table_count = 0;
@@ -377,7 +387,15 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                         )
                     })?;
 
-                    match registry.execute(platform, command, args).await {
+                    // Resolve templates in bot command arguments
+                    let mut resolved_args = args.clone();
+                    for (_key, value) in resolved_args.iter_mut() {
+                        if let JsonValue::String(s) = value {
+                            *s = resolve_template(s, act_executions, current_index)?;
+                        }
+                    }
+
+                    match registry.execute(platform, command, &resolved_args).await {
                         Ok(result) => {
                             // Convert JSON result to pretty-printed text for LLM
                             let text = serde_json::to_string_pretty(&result).map_err(|e| {
@@ -546,4 +564,68 @@ fn extract_text_from_outputs(outputs: &[Output]) -> BotticelliResult<String> {
     } else {
         Ok(texts.join("\n"))
     }
+}
+
+/// Resolve template placeholders in a string using act execution history.
+///
+/// Supports:
+/// - `{{previous}}` - Content from the immediately previous act
+/// - `{{act_name}}` - Content from a specific named act
+///
+/// # Errors
+///
+/// Returns error if:
+/// - Referenced act doesn't exist
+/// - Referenced act hasn't executed yet
+/// - Template syntax is malformed
+fn resolve_template(
+    template: &str,
+    act_executions: &[ActExecution],
+    current_index: usize,
+) -> BotticelliResult<String> {
+    let mut result = template.to_string();
+    
+    // Find all {{...}} patterns
+    let re = regex::Regex::new(r"\{\{([^}]+)\}\}").map_err(|e| {
+        botticelli_error::NarrativeError::new(
+            botticelli_error::NarrativeErrorKind::TemplateError(
+                format!("Invalid template regex: {}", e),
+            ),
+        )
+    })?;
+    
+    for cap in re.captures_iter(template) {
+        let placeholder = &cap[0]; // Full match like {{previous}}
+        let reference = cap[1].trim(); // Inner content like "previous"
+        
+        let replacement = if reference == "previous" {
+            // Get previous act
+            if current_index == 0 {
+                return Err(botticelli_error::NarrativeError::new(
+                    botticelli_error::NarrativeErrorKind::TemplateError(
+                        "Cannot reference {{previous}} in first act".to_string(),
+                    ),
+                )
+                .into());
+            }
+            act_executions[current_index - 1].response.clone()
+        } else {
+            // Get named act
+            act_executions
+                .iter()
+                .find(|exec| exec.act_name == reference)
+                .map(|exec| exec.response.clone())
+                .ok_or_else(|| {
+                    botticelli_error::NarrativeError::new(
+                        botticelli_error::NarrativeErrorKind::TemplateError(
+                            format!("Referenced act '{}' not found in execution history", reference),
+                        ),
+                    )
+                })?
+        };
+        
+        result = result.replace(placeholder, &replacement);
+    }
+    
+    Ok(result)
 }

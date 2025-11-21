@@ -130,6 +130,28 @@ Fields:
 
 Reference in acts: `"bots.get_server_stats"`
 
+**Template Injection:**
+
+Bot command arguments can use template syntax to inject outputs from previous acts:
+
+```toml
+[bots.send_message]
+platform = "discord"
+command = "channels.create_message"
+channel_id = "123456"
+content = "{{select_best}}"  # Inject output from "select_best" act
+
+[acts]
+select_best = "Choose the best option from these candidates..."
+send_message = ["bots.send_message"]  # Will use output from select_best
+```
+
+Template placeholders:
+- `{{previous}}` - Output from immediately previous act
+- `{{act_name}}` - Output from specific named act
+
+Templates are resolved when the bot command executes, allowing dynamic content based on LLM responses.
+
 **Available Discord Commands:**
 
 Read operations (no security policy required):

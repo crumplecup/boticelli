@@ -207,7 +207,9 @@ impl GeminiClient {
     fn model_name_to_enum(name: &str) -> Model {
         match name {
             "gemini-2.5-flash" => Model::Gemini25Flash,
-            "gemini-2.5-flash-lite" => Model::Gemini25FlashLite,
+            // NOTE: gemini-rust 1.5's Model::Gemini25FlashLite incorrectly maps to "gemini-2.0-flash-lite"
+            // Use Custom variant to get correct 2.5 version until upstream is fixed
+            "gemini-2.5-flash-lite" => Model::Custom("models/gemini-2.5-flash-lite".to_string()),
             "gemini-2.5-pro" => Model::Gemini25Pro,
             "text-embedding-004" => Model::TextEmbedding004,
             // For other model names, use Custom variant with "models/" prefix

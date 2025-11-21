@@ -15,6 +15,7 @@ order = ["generate_batch", "critique_batch", "refine_best"]
 [acts.generate_batch]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
+max_tokens = 4000
 
 [[acts.generate_batch.input]]
 type = "text"
@@ -51,6 +52,7 @@ Provide your response as a JSON array with this schema:
 [acts.critique_batch]
 model = "gemini-2.5-flash"
 temperature = 0.3
+max_tokens = 2000
 
 [[acts.critique_batch.input]]
 type = "text"
@@ -70,6 +72,7 @@ Provide an overall assessment and identify the 3 strongest messages.
 [acts.refine_best]
 model = "gemini-2.5-flash"
 temperature = 0.3
+max_tokens = 4000
 
 [[acts.refine_best.input]]
 type = "text"

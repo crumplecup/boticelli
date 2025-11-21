@@ -107,7 +107,7 @@ async fn last_generation(format: OutputFormat) -> BotticelliResult<()> {
     match repo.get_last_successful()? {
         Some(generation) => match format {
             OutputFormat::TableNameOnly => {
-                println!("{}", generation.table_name);
+                println!("{}", generation.table_name());
             }
             OutputFormat::Json => {
                 let json = serde_json::to_string_pretty(&generation)
@@ -115,14 +115,14 @@ async fn last_generation(format: OutputFormat) -> BotticelliResult<()> {
                 println!("{}", json);
             }
             OutputFormat::Human => {
-                println!("Last generated table: {}", generation.table_name);
-                println!("  Narrative: {}", generation.narrative_name);
-                println!("  File: {}", generation.narrative_file);
-                println!("  Generated: {}", generation.generated_at);
-                if let Some(rows) = generation.row_count {
+                println!("Last generated table: {}", generation.table_name());
+                println!("  Narrative: {}", generation.narrative_name());
+                println!("  File: {}", generation.narrative_file());
+                println!("  Generated: {}", generation.generated_at());
+                if let Some(rows) = generation.row_count() {
                     println!("  Rows: {}", rows);
                 }
-                if let Some(ms) = generation.generation_duration_ms {
+                if let Some(ms) = generation.generation_duration_ms() {
                     println!("  Duration: {}ms", ms);
                 }
             }
@@ -163,13 +163,13 @@ async fn list_generations(status: Option<&str>, limit: i64) -> BotticelliResult<
     for generation in generations {
         println!(
             "{:<20} {:<15} {:<10} {:<20}",
-            generation.table_name,
-            generation.status,
+            generation.table_name(),
+            generation.status(),
             generation
-                .row_count
+                .row_count()
                 .map(|r| r.to_string())
                 .unwrap_or_else(|| "-".to_string()),
-            generation.generated_at.format("%Y-%m-%d %H:%M")
+            generation.generated_at().format("%Y-%m-%d %H:%M")
         );
     }
 

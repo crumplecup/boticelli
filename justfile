@@ -34,6 +34,9 @@ install-cargo-tools:
     cargo install diesel_cli --no-default-features --features postgres || true
     cargo install cargo-audit || true
     cargo install cargo-watch || true
+    cargo install cargo-hack || true
+    cargo install cargo-dist || true
+    cargo install omnibor-cli || true
     @echo "✅ Cargo tools installed"
 
 # Install node-based tools (markdownlint)
@@ -569,6 +572,29 @@ omnibor:
 # Run all security checks
 security: audit omnibor
     @echo "✅ Security checks completed!"
+
+# Release Management
+# ==================
+
+# Build distribution artifacts for current platform
+dist-build:
+    dist build
+
+# Build and check distribution artifacts (doesn't upload)
+dist-check:
+    dist build --check
+
+# Generate release configuration
+dist-init:
+    dist init
+
+# Plan a release (preview changes)
+dist-plan:
+    dist plan
+
+# Generate CI workflow files
+dist-generate:
+    dist generate
 
 # Benchmarking (if applicable)
 # ============================

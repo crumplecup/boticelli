@@ -116,6 +116,63 @@ The `justfile` is a **first-class project document** that must be maintained alo
 - Build optimizations → update build recipes
 - CI/CD changes → sync with justfile equivalents
 
+## Release Management
+
+### cargo-dist
+
+We use [cargo-dist](https://opensource.axo.dev/cargo-dist/) for building and distributing release artifacts across multiple platforms.
+
+**Key files:**
+- `dist-workspace.toml` - cargo-dist configuration
+- `.github/workflows/release.yml` - Auto-generated release workflow
+
+**Common tasks:**
+```bash
+# Build distribution artifacts for current platform
+just dist-build
+
+# Build and verify artifacts without uploading
+just dist-check
+
+# Preview release plan
+just dist-plan
+
+# Update CI workflow after configuration changes
+just dist-generate
+```
+
+**Release process:**
+1. Update version in `Cargo.toml`
+2. Run `just dist-plan` to preview changes
+3. Run `just pre-release` to verify everything builds
+4. Create and push a git tag (e.g., `v0.1.0`)
+5. GitHub Actions automatically builds and publishes release artifacts
+
+**Supported platforms** (configured in `dist-workspace.toml`):
+- Linux (x86_64, aarch64)
+- macOS (x86_64, aarch64/Apple Silicon)
+- Windows (x86_64)
+
+### Supply Chain Security
+
+We use `cargo-audit` and `omnibor-cli` for supply chain security:
+
+```bash
+# Check for known vulnerabilities
+just audit
+
+# Generate OmniBOR artifact tree
+just omnibor
+
+# Run all security checks
+just security
+```
+
+**Before each release:**
+- Run `just security` to check for vulnerabilities
+- Update dependencies if needed: `just update-deps`
+- Re-run full test suite after updates
+
 ## Linting
 
 - When running any linter (e.g. clippy or markdownlint), rather than deny all warnings, let them complete so you can fix them all in a single pass.

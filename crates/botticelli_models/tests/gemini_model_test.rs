@@ -8,6 +8,7 @@
 // - Cost control (using cheaper models when appropriate)
 // - Feature testing across different model capabilities
 //
+use botticelli_core::MessageBuilder;
 // ## Test Strategy
 //
 // Most tests use MockGeminiClient for fast, deterministic testing without API calls.
@@ -30,15 +31,17 @@ use test_utils::{create_test_request, MockGeminiClient};
 async fn test_mock_model_basic_generate() {
     let mock = MockGeminiClient::new_success("Mock response");
 
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: None,
-    };
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Test".to_string())])
+        .build()
+        .expect("Valid message");
+    
+    let request = GenerateRequest::builder()
+        .messages(vec![message])
+        .max_tokens(10)
+        .build()
+        .expect("Valid request");
 
     let response = mock.generate(&request).await.expect("Mock should succeed");
     assert!(!response.outputs.is_empty());
@@ -72,9 +75,9 @@ async fn test_default_model_usage() {
     assert_eq!(client.model_name(), "gemini-2.0-flash-lite");
 
     let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'ok'".to_string())],
+        messages: vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Say 'ok'".to_string())])
         }],
         max_tokens: Some(10),
         temperature: None,
@@ -97,9 +100,9 @@ async fn test_model_override_in_request() {
 
     // Request should use gemini-2.5-flash-lite, not the default
     let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'ok'".to_string())],
+        messages: vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Say 'ok'".to_string())])
         }],
         max_tokens: Some(10),
         temperature: None,
@@ -126,9 +129,9 @@ async fn test_gemini_2_5_model_override() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'ok'".to_string())],
+        messages: vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Say 'ok'".to_string())])
         }],
         max_tokens: Some(10),
         temperature: None,
@@ -150,10 +153,10 @@ async fn test_multiple_model_requests() {
 
     // Request 1: Use lite model
     let request1 = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'one'".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Say 'one'".to_string())])
+        .build()])
         .max_tokens(Some(10))
         .model(Some("gemini-2.5-flash-lite".to_string()))
         .build()
@@ -164,10 +167,10 @@ async fn test_multiple_model_requests() {
 
     // Request 2: Use standard model
     let request2 = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'two'".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Say 'two'".to_string())])
+        .build()])
         .max_tokens(Some(10))
         .model(Some("gemini-2.5-flash".to_string()))
         .build()
@@ -178,10 +181,10 @@ async fn test_multiple_model_requests() {
 
     // Request 3: Use pro model
     let request3 = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'three'".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Say 'three'".to_string())])
+        .build()])
         .max_tokens(Some(10))
         .model(Some("gemini-2.5-pro".to_string()))
         .build()

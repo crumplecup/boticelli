@@ -8,6 +8,7 @@ use botticelli_error::{BotticelliError, GeminiError, GeminiErrorKind};
 use botticelli_interface::{BotticelliDriver, Metadata, Vision};
 use botticelli_models::GeminiClient;
 
+// MessageBuilder trait is auto-imported via derive_builder
 
 //
 // ─── ERROR HANDLING TESTS ───────────────────────────────────────────────────────
@@ -76,13 +77,15 @@ fn test_simple_text_request_structure() -> anyhow::Result<()> {
     let message = MessageBuilder::default()
         .role(Role::User)
         .content(vec![Input::Text("Hello, world!".to_string())])
-        .build()?;
+        .build()
+        .expect("Valid message");
         
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(100))
         .temperature(Some(0.7))
-        .build()?;
+        .build()
+        .expect("Valid request");
 
     assert_eq!(request.messages().len(), 1);
     assert_eq!(*request.max_tokens(), Some(100));

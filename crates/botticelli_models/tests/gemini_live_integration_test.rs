@@ -8,6 +8,7 @@ mod test_utils;
 //
 // Run with:
 // ```bash
+use botticelli_core::MessageBuilder;
 // cargo test --features gemini,api
 // ```
 //
@@ -32,10 +33,10 @@ async fn test_gemini_client_routes_to_live_api() {
 
     // Create request for a live model (experimental model)
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'Hello from Live API'".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Say 'Hello from Live API'".to_string())])
+        .build()])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))
         .max_tokens(Some(20))
         .build().unwrap();
@@ -60,10 +61,10 @@ async fn test_gemini_client_streaming_routes_to_live_api() {
 
     // Create request for live model with streaming
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Count from 1 to 3".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Count from 1 to 3".to_string())])
+        .build()])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))
         .max_tokens(Some(50))
         .build().unwrap();
@@ -106,10 +107,10 @@ async fn test_gemini_client_detects_live_models() {
 
     // Test with "-exp" model (should use Live API)
     let request_exp = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Test".to_string())])
+        .build()])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))
         .max_tokens(Some(5))
         .build().unwrap();
@@ -123,10 +124,10 @@ async fn test_gemini_client_detects_live_models() {
     // Test with "-live" model (should use Live API)
     // Note: This may fail if the model doesn't exist, but it tests the routing logic
     let request_live = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+            .role(Role::User)
+            .content(vec![Input::Text("Test".to_string())])
+        .build()])
         .model(Some("models/gemini-2.0-flash-live".to_string()))
         .max_tokens(Some(5))
         .build().unwrap();

@@ -8,19 +8,23 @@
 mod test_utils;
 
 use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_core::MessageBuilder;
 use botticelli_error::GeminiErrorKind;
 use botticelli_interface::BotticelliDriver;
-use test_utils::{create_test_request, MockGeminiClient, MockResponse};
+use test_utils::{MockGeminiClient, MockResponse};
 
 #[tokio::test]
 async fn test_mock_basic_generate() {
     let mock = MockGeminiClient::new_success("Hello from mock!");
 
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Say hello".to_string())])
+        .build()
+        .expect("Valid message");
+    
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say hello".to_string())],
-        }])
+        .messages(vec![message])
         .max_tokens(Some(10))
         .build().unwrap();
 
@@ -34,13 +38,17 @@ async fn test_mock_basic_generate() {
 async fn test_mock_multiple_requests() {
     let mock = MockGeminiClient::new_success("Response");
 
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Test".to_string())])
+        .build()
+        .expect("Valid message");
+    
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .expect("Valid request");
 
     // First request
     let _response1 = mock.generate(&request).await.expect("Should succeed");
@@ -62,13 +70,17 @@ async fn test_mock_error_503() {
         message: "Model is overloaded".to_string(),
     });
 
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Test".to_string())])
+        .build()
+        .expect("Valid message");
+    
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .expect("Valid request");
 
     let result = mock.generate(&request).await;
     assert!(result.is_err());
@@ -88,10 +100,10 @@ async fn test_mock_retry_behavior() {
     );
 
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+                .role(Role::User)
+                .content(vec![Input::Text("Test".to_string())])
+            .build()])
         .max_tokens(Some(10))
         .build().unwrap();
 
@@ -113,10 +125,10 @@ async fn test_mock_rate_limit_error() {
     });
 
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+                .role(Role::User)
+                .content(vec![Input::Text("Test".to_string())])
+            .build()])
         .max_tokens(Some(10))
         .build().unwrap();
 
@@ -136,10 +148,10 @@ async fn test_mock_sequence_mixed_responses() {
     ]);
 
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+                .role(Role::User)
+                .content(vec![Input::Text("Test".to_string())])
+            .build()])
         .max_tokens(Some(10))
         .build().unwrap();
 
@@ -178,10 +190,10 @@ async fn test_mock_different_error_types() {
     });
 
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }])
+        .messages(vec![MessageBuilder::default()
+                .role(Role::User)
+                .content(vec![Input::Text("Test".to_string())])
+            .build()])
         .max_tokens(Some(10))
         .build().unwrap();
 

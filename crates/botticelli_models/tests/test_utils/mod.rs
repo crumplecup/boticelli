@@ -2,7 +2,7 @@
 //!
 //! This module provides mock implementations and test helpers.
 
-use botticelli_core::{GenerateRequest, GenerateRequestBuilder, Message, Role};
+use botticelli_core::{GenerateRequest, MessageBuilder, Role};
 
 pub mod mock_gemini;
 
@@ -15,7 +15,7 @@ pub fn create_test_request(
     model: Option<String>,
     max_tokens: Option<u32>,
 ) -> GenerateRequest {
-    let message = botticelli_core::MessageBuilder::default()
+    let message = MessageBuilder::default()
         .role(Role::User)
         .content(vec![botticelli_core::Input::Text(prompt.to_string())])
         .build()

@@ -193,7 +193,44 @@ just security
 - Use derive_getters to derive field getters for structs with private fields.
 - Use derive_setters to derive field setters for mutable structs with private fields.
 - Use typed_builder for complex construction patterns - prefer this over manual constructors or new() methods.
+- **Builder pattern preference**: NEVER use struct literal syntax. Always use builders for struct construction (better readability, maintainability, IDE support).
 - **Documentation propagation**: Doc comments on struct fields are automatically propagated to generated getters, setters, and builder methods. Always document fields, not just the struct.
+
+### Builder Pattern Usage
+
+**Two types of builders exist in this codebase:**
+
+1. **derive_builder** (`#[derive(derive_builder::Builder)]`):
+   - Creates a companion `TypeBuilder` struct
+   - **You MUST import the Builder struct**: `use crate::MessageBuilder;`
+   - Usage: `MessageBuilder::default().field(value).build()`
+   - Example: `Message` uses this pattern
+   
+2. **Manual builders** (`impl Type { pub fn builder() -> TypeBuilder {...} }`):
+   - Type provides its own `builder()` method
+   - **DO NOT import the Builder struct**
+   - Usage: `Type::builder().field(value).build()`
+   - Example: `GenerateRequest` uses this pattern
+
+**In tests:** Always extract message/request building into separate statements when using `.build()` that returns `Result<_, String>`:
+```rust
+// ✅ GOOD
+let message = MessageBuilder::default()
+    .role(Role::User)
+    .content(vec![Input::Text("test".to_string())])
+    .build()
+    .expect("Valid message");
+
+let request = GenerateRequest::builder()
+    .messages(vec![message])
+    .build()
+    .expect("Valid request");
+
+// ❌ BAD - nested builds don't handle Result properly
+let request = GenerateRequest::builder()
+    .messages(vec![MessageBuilder::default()...build()])
+    .build();
+```
 
 ### Field Visibility and Access Patterns
 

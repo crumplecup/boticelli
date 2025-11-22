@@ -15,7 +15,7 @@ mod test_utils;
 // This appears to be a timing or protocol issue with the Live API handshake.
 // Tests that connect to Live API are currently ignored until the handshake issue is resolved.
 
-use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_core::{GenerateRequest, GenerateRequestBuilder, Input, Message, MessageBuilder, Role};
 use botticelli_interface::{BotticelliDriver, Streaming};
 use botticelli_models::{GeminiClient, GeminiLiveClient, GenerationConfig, LiveRateLimiter};
 use futures_util::StreamExt;
@@ -30,15 +30,18 @@ async fn test_live_api_invalid_model() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Try to use a non-existent model
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }],
-        model: Some("models/nonexistent-live-model".to_string()),
-        max_tokens: Some(5),
-        ..Default::default()
-    };
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Test".to_string())])
+        .build()
+        .expect("Failed to build message");
+    
+    let request = GenerateRequestBuilder::default()
+        .messages(vec![message])
+        .model(Some("models/nonexistent-live-model".to_string()))
+        .max_tokens(Some(5))
+        .build()
+        .expect("Failed to build request");
 
     // Should fail gracefully
     let result = client.generate(&request).await;
@@ -188,15 +191,18 @@ async fn test_unified_client_handles_live_model_errors() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Test with invalid configuration (negative max_tokens isn't possible, but we can test zero)
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Test".to_string())],
-        }],
-        model: Some("models/gemini-2.0-flash-exp".to_string()),
-        max_tokens: Some(0), // Invalid
-        ..Default::default()
-    };
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Test".to_string())])
+        .build()
+        .expect("Failed to build message");
+    
+    let request = GenerateRequestBuilder::default()
+        .messages(vec![message])
+        .model(Some("models/gemini-2.0-flash-exp".to_string()))
+        .max_tokens(Some(0)) // Invalid
+        .build()
+        .expect("Failed to build request");
 
     // Should handle gracefully
     let result = client.generate(&request).await;
@@ -262,8 +268,8 @@ async fn test_streaming_error_recovery() {
     
     let request = GenerateRequest::builder()
         .messages(vec![message])
-        .model("models/gemini-2.0-flash-exp".to_string())
-        .max_tokens(50)
+        .model(Some("models/gemini-2.0-flash-exp".to_string()))
+        .max_tokens(Some(50))
         .build()
         .expect("Failed to build request");
 

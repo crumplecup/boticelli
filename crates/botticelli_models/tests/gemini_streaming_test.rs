@@ -250,7 +250,7 @@ async fn test_rate_limit_comparison() {
     // Try 3 requests to standard model
     let mut standard_success = 0;
     for i in 0..3 {
-        let request = create_test_request("ok", Some("gemini-2.0-flash".to_string(), Some(10)));
+        let request = create_test_request("ok", Some("gemini-2.0-flash".to_string()), Some(10));
 
         match client.generate_stream(&request).await {
             Ok(mut stream) => {

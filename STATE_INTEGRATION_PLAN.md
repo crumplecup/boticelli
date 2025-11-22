@@ -5,15 +5,16 @@ Enable bot commands to automatically save their output IDs to persistent state, 
 
 ## Implementation Checklist
 
-### Phase 1: State Template Resolution ✓ NEXT
-- [ ] Add `state:` prefix handling to `resolve_template()` function
-- [ ] Check if state_manager is available in executor
-- [ ] Load value from state using the key after `state:`
-- [ ] Return error if state_manager is None or key not found
-- [ ] Add tests for state template resolution
+### Phase 1: State Template Resolution ✅ DONE
+- [x] Add `state:` prefix handling to `resolve_template()` function
+- [x] Check if state_manager is available in executor
+- [x] Load value from state using the key after `state:`
+- [x] Return error if state_manager is None or key not found
+- [x] Add helpful error messages with available keys
+- [ ] Add unit tests for state template resolution (deferred)
 
-### Phase 2: Bot Command Output Capture
-- [ ] Identify where bot commands are executed in executor.rs
+### Phase 2: Bot Command Output Capture ⏳ IN PROGRESS
+- [x] Identify where bot commands are executed in executor.rs (process_inputs method)
 - [ ] After successful bot command execution, parse JSON response
 - [ ] Extract common ID fields (channel_id, message_id, role_id, etc.)
 - [ ] Generate state key: `<platform>.<command>.<id_type>`

@@ -155,6 +155,90 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         self
     }
 
+    /// Capture and save ID fields from bot command output to state.
+    ///
+    /// Extracts common ID fields (channel_id, message_id, role_id, etc.) from JSON response
+    /// and saves them to persistent state for later reference.
+    fn capture_bot_command_ids(
+        &self,
+        state_mgr: &StateManager,
+        platform: &str,
+        command: &str,
+        result: &JsonValue,
+    ) -> BotticelliResult<()> {
+        // Load global state
+        let mut state = state_mgr.load(&crate::state::StateScope::Global).map_err(|e| {
+            NarrativeError::new(NarrativeErrorKind::StateError(
+                format!("Failed to load state: {}", e),
+            ))
+        })?;
+
+        // List of common ID field names to capture
+        let id_fields = [
+            "channel_id",
+            "message_id",
+            "role_id",
+            "user_id",
+            "guild_id",
+            "emoji_id",
+            "webhook_id",
+            "integration_id",
+            "invite_code",
+            "thread_id",
+            "event_id",
+            "sticker_id",
+        ];
+
+        // Extract and save any ID fields found in the response
+        let mut captured_count = 0;
+        for id_field in &id_fields {
+            if let Some(value) = result.get(id_field) {
+                // Convert value to string
+                let id_str = match value {
+                    JsonValue::String(s) => s.clone(),
+                    JsonValue::Number(n) => n.to_string(),
+                    _ => continue, // Skip non-scalar values
+                };
+
+                // Generate state key: <platform>.<command>.<field>
+                let state_key = format!("{}.{}.{}", platform, command, id_field);
+                
+                // Also save with just the field name for convenient short-form access
+                let short_key = id_field.to_string();
+
+                state.set(&state_key, &id_str);
+                state.set(&short_key, &id_str);
+                
+                tracing::debug!(
+                    key = %state_key,
+                    short_key = %short_key,
+                    value = %id_str,
+                    "Captured bot command ID to state"
+                );
+                
+                captured_count += 1;
+            }
+        }
+
+        // Save state back to disk
+        if captured_count > 0 {
+            state_mgr.save(&crate::state::StateScope::Global, &state).map_err(|e| {
+                NarrativeError::new(NarrativeErrorKind::StateError(
+                    format!("Failed to save state: {}", e),
+                ))
+            })?;
+            
+            tracing::info!(
+                platform = %platform,
+                command = %command,
+                count = captured_count,
+                "Saved bot command IDs to state"
+            );
+        }
+
+        Ok(())
+    }
+
     /// Execute a narrative, processing all acts in sequence.
     ///
     /// Each act sees the outputs from all previous acts as conversation history.
@@ -485,6 +569,11 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                         Ok(result) => {
                             // Store bot command result for potential use as act output
                             last_bot_command_result = Some(result.clone());
+                            
+                            // Extract and save IDs to state if state_manager is available
+                            if let Some(state_mgr) = &self.state_manager {
+                                self.capture_bot_command_ids(state_mgr, platform, command, &result)?;
+                            }
                             
                             // Convert JSON result to pretty-printed text for LLM context
                             let text = serde_json::to_string_pretty(&result).map_err(|e| {

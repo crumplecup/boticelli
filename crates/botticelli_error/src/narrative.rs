@@ -64,6 +64,9 @@ pub enum NarrativeErrorKind {
     /// Nested narrative execution failed
     #[display("Nested narrative execution failed: {}", _0)]
     NestedNarrativeExecutionFailed(String),
+    /// State management error
+    #[display("State error: {}", _0)]
+    StateError(String),
 }
 
 /// Error type for narrative operations.

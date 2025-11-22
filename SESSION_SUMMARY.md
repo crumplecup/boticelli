@@ -141,3 +141,25 @@ just narrate publish_welcome
 - **Commands Implemented**: 30+
 - **Test Coverage**: 1/30+ commands tested (need to expand)
 - **Documentation**: 10+ markdown files created/updated
+
+---
+
+# Session Update - 2025-11-22
+
+## Major Progress
+
+### Discord Testing Infrastructure ✅
+- 30+ Discord command tests with narrative-based approach
+- State management for test resource lifecycle
+- Comprehensive documentation (AI_NARRATIVE_TOML_GUIDE, TESTING_PATTERNS)
+
+### Known Blockers 🔴
+- Struct literal usage in table_references_test.rs (lines 25-47, 216-238, 327-349)
+- Struct literal usage in gemini_test.rs files
+- Must convert to builder pattern before tests will compile
+
+### Next Steps
+1. Fix table_references_test.rs struct literals (CRITICAL)
+2. Fix gemini_test.rs struct literals (CRITICAL)  
+3. Run `just test-all` to verify
+4. Complete Discord command test coverage

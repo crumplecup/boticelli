@@ -354,3 +354,28 @@ Target for "feature parity":
 2. **Permission Overwrites** - Fine-grained access control
 3. **Emoji/Sticker Management** - Custom branding
 4. **Server Templates** - Community replication
+
+## Implementation Progress Update
+
+### Phase 3: Forum Channels and Scheduled Events (IN PROGRESS)
+
+**Status**: Implementation complete, but code needs structural refactoring
+
+**Completed**:
+- ✅ Added forum.create_post, forum.list_posts, forum.get_post commands
+- ✅ Added events.create, events.edit, events.delete, events.get commands
+- ✅ Added command documentation and help text
+- ✅ Updated supported_commands list
+- ✅ Added necessary helper functions (missing_arg_error, parse_channel_id, parse_guild_id, parse_event_id)
+- ✅ Added necessary Serenity imports (CreateForumPost, CreateScheduledEvent, etc.)
+
+**Issue Found**: 
+- Helper methods (messages_bulk_delete, threads_*, reactions_*, members_*, roles_*, etc.) are currently inside the trait impl block but should be in the struct impl block
+- This causes ~119 compilation errors
+
+**Next Steps**:
+1. Move all helper methods from inside trait impl (after line 4772) to before trait impl (before line 4251)
+2. Ensure all methods are in DiscordCommandExecutor impl block, not BotCommandExecutor trait impl
+3. Run cargo check to verify compilation
+4. Test the new commands with actual narratives
+

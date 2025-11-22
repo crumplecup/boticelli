@@ -72,31 +72,34 @@ fn test_gemini_error_source_location_tracking() {
 //
 
 #[test]
-fn test_simple_text_request_structure() {
+fn test_simple_text_request_structure() -> anyhow::Result<()> {
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Hello, world!".to_string())])
+        .build()?;
+        
     let request = GenerateRequest::builder()
-        .messages(vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Hello, world!".to_string())],
-        }])
+        .messages(vec![message])
         .max_tokens(Some(100))
         .temperature(Some(0.7))
-        .build()
-        .expect("Failed to build request");
+        .build()?;
 
     assert_eq!(request.messages().len(), 1);
     assert_eq!(*request.max_tokens(), Some(100));
     assert_eq!(*request.temperature(), Some(0.7));
+    
+    Ok(())
 }
 
 #[test]
 fn test_multi_message_request_structure() {
-    let message1 = Message::builder()
+    let message1 = MessageBuilder::default()
         .role(Role::System)
         .content(vec![Input::Text("You are a helpful assistant.".to_string())])
         .build()
         .expect("Failed to build message");
     
-    let message2 = Message::builder()
+    let message2 = MessageBuilder::default()
         .role(Role::User)
         .content(vec![Input::Text("What is Rust?".to_string())])
         .build()
@@ -161,7 +164,7 @@ fn test_real_api_call() {
         }
     };
 
-    let message = Message::builder()
+    let message = MessageBuilder::default()
         .role(Role::User)
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()

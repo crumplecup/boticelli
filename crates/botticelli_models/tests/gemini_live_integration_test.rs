@@ -31,15 +31,14 @@ async fn test_gemini_client_routes_to_live_api() {
     let client = GeminiClient::new().expect("Failed to create GeminiClient");
 
     // Create request for a live model (experimental model)
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Say 'Hello from Live API'".to_string())],
-        }],
-        model: Some("models/gemini-2.0-flash-exp".to_string()),
-        max_tokens: Some(20),
-        ..Default::default()
-    };
+        }])
+        .model(Some("models/gemini-2.0-flash-exp".to_string()))
+        .max_tokens(Some(20))
+        .build().unwrap();
 
     // Call generate - should route to Live API
     let response = client
@@ -60,15 +59,14 @@ async fn test_gemini_client_streaming_routes_to_live_api() {
     let client = GeminiClient::new().expect("Failed to create GeminiClient");
 
     // Create request for live model with streaming
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Count from 1 to 3".to_string())],
-        }],
-        model: Some("models/gemini-2.0-flash-exp".to_string()),
-        max_tokens: Some(50),
-        ..Default::default()
-    };
+        }])
+        .model(Some("models/gemini-2.0-flash-exp".to_string()))
+        .max_tokens(Some(50))
+        .build().unwrap();
 
     // Call generate_stream - should route to Live API
     let mut stream = client
@@ -107,15 +105,14 @@ async fn test_gemini_client_detects_live_models() {
     let client = GeminiClient::new().expect("Failed to create GeminiClient");
 
     // Test with "-exp" model (should use Live API)
-    let request_exp = GenerateRequest {
-        messages: vec![Message {
+    let request_exp = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: Some("models/gemini-2.0-flash-exp".to_string()),
-        max_tokens: Some(5),
-        ..Default::default()
-    };
+        }])
+        .model(Some("models/gemini-2.0-flash-exp".to_string()))
+        .max_tokens(Some(5))
+        .build().unwrap();
 
     let response_exp = client
         .generate(&request_exp)
@@ -125,15 +122,14 @@ async fn test_gemini_client_detects_live_models() {
 
     // Test with "-live" model (should use Live API)
     // Note: This may fail if the model doesn't exist, but it tests the routing logic
-    let request_live = GenerateRequest {
-        messages: vec![Message {
+    let request_live = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: Some("models/gemini-2.0-flash-live".to_string()),
-        max_tokens: Some(5),
-        ..Default::default()
-    };
+        }])
+        .model(Some("models/gemini-2.0-flash-live".to_string()))
+        .max_tokens(Some(5))
+        .build().unwrap();
 
     // This might fail if the model doesn't exist, so we just verify it attempts to use Live API
     let _ = client.generate(&request_live).await;

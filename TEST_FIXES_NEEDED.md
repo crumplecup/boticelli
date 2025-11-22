@@ -17,16 +17,18 @@ Tests are currently failing due to API changes. This document tracks what needs 
 
 ## Issues
 
-### 1. Gemini Model Tests - Struct Literal Usage
+### 1. Gemini Model Tests - Builder Pattern Migration (IN PROGRESS)
 
-**Files affected:**
-- `crates/botticelli_models/tests/gemini_2_0_models_test.rs` - PARTIALLY FIXED
-- `crates/botticelli_models/tests/gemini_streaming_test.rs`
-- `crates/botticelli_models/tests/gemini.rs`
-- `crates/botticelli_models/tests/gemini_model_test.rs`
-- `crates/botticelli_models/tests/gemini_mock_test.rs`
-- `crates/botticelli_models/tests/gemini_live_integration_test.rs`
-- `crates/botticelli_models/tests/gemini_live_error_test.rs`
+**Status Update (2025-11-22):**
+- ✅ gemini_live_error_test.rs - FIXED (2/2 struct literals converted)
+- ✅ gemini_2_0_models_test.rs - PARTIALLY FIXED
+- ❌ gemini_live_integration_test.rs - 4 struct literals remaining
+- ❌ gemini_mock_test.rs - 4+ struct literals remaining
+- ❌ gemini_model_test.rs - 11+ struct literals remaining
+- ❌ gemini_streaming_test.rs - 2 struct literals remaining
+- ❌ gemini.rs - 3 struct literals remaining (Message::builder needs MessageBuilder import)
+
+**Required Pattern:**
 
 **Problem:** Tests use struct literal construction for `GenerateRequest` which now has private fields.
 

@@ -16,15 +16,13 @@ use test_utils::{create_test_request, MockGeminiClient, MockResponse};
 async fn test_mock_basic_generate() {
     let mock = MockGeminiClient::new_success("Hello from mock!");
 
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Say hello".to_string())],
-        }],
-        model: None,
-        max_tokens: Some(10),
-        temperature: None,
-    };
+        }])
+        .max_tokens(Some(10))
+        .build().unwrap();
 
     let response = mock.generate(&request).await.expect("Mock should succeed");
 
@@ -36,15 +34,13 @@ async fn test_mock_basic_generate() {
 async fn test_mock_multiple_requests() {
     let mock = MockGeminiClient::new_success("Response");
 
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: None,
-        max_tokens: Some(10),
-        temperature: None,
-    };
+        }])
+        .max_tokens(Some(10))
+        .build().unwrap();
 
     // First request
     let _response1 = mock.generate(&request).await.expect("Should succeed");
@@ -66,15 +62,13 @@ async fn test_mock_error_503() {
         message: "Model is overloaded".to_string(),
     });
 
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: None,
-        max_tokens: Some(10),
-        temperature: None,
-    };
+        }])
+        .max_tokens(Some(10))
+        .build().unwrap();
 
     let result = mock.generate(&request).await;
     assert!(result.is_err());
@@ -93,15 +87,13 @@ async fn test_mock_retry_behavior() {
         "Success after retries",
     );
 
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: None,
-        max_tokens: Some(10),
-        temperature: None,
-    };
+        }])
+        .max_tokens(Some(10))
+        .build().unwrap();
 
     // First two calls fail
     assert!(mock.generate(&request).await.is_err());
@@ -120,15 +112,13 @@ async fn test_mock_rate_limit_error() {
         message: "Rate limit exceeded".to_string(),
     });
 
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: None,
-        max_tokens: Some(10),
-        temperature: None,
-    };
+        }])
+        .max_tokens(Some(10))
+        .build().unwrap();
 
     let result = mock.generate(&request).await;
     assert!(result.is_err());
@@ -145,15 +135,13 @@ async fn test_mock_sequence_mixed_responses() {
         MockResponse::Success("Third response".to_string()),
     ]);
 
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: None,
-        max_tokens: Some(10),
-        temperature: None,
-    };
+        }])
+        .max_tokens(Some(10))
+        .build().unwrap();
 
     // First succeeds
     let response1 = mock.generate(&request).await.expect("First should succeed");
@@ -189,15 +177,13 @@ async fn test_mock_different_error_types() {
         message: "Invalid API key".to_string(),
     });
 
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Test".to_string())],
-        }],
-        model: None,
-        max_tokens: Some(10),
-        temperature: None,
-    };
+        }])
+        .max_tokens(Some(10))
+        .build().unwrap();
 
     assert!(mock_auth.generate(&request).await.is_err());
 

@@ -7,7 +7,7 @@ mod test_utils;
 // Live models (e.g., gemini-2.0-flash-live) offer better rate limits on the free tier,
 // which is the primary motivation for implementing streaming.
 
-use botticelli_core::{Output, Role};
+use botticelli_core::Output;
 use botticelli_interface::{BotticelliDriver, Streaming};
 use botticelli_models::GeminiClient;
 use futures_util::StreamExt;
@@ -275,7 +275,7 @@ async fn test_rate_limit_comparison() {
     // Try 3 requests to live model
     let mut live_success = 0;
     for i in 0..3 {
-        let request = create_test_request("ok", Some("gemini-2.0-flash-live".to_string(), Some(10)));
+        let request = create_test_request("ok", Some("gemini-2.0-flash-live".to_string()), Some(10));
 
         match client.generate_stream(&request).await {
             Ok(mut stream) => {

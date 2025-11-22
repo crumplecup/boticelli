@@ -14,20 +14,16 @@ use std::path::Path;
 /// Uses the model_options.toml narrative which demonstrates multiple Gemini models.
 #[tokio::test]
 #[cfg_attr(not(feature = "api"), ignore)] // Requires GEMINI_API_KEY
-async fn test_narrative_multi_model_execution() {
+async fn test_narrative_multi_model_execution() -> anyhow::Result<()> {
     let _ = dotenvy::dotenv();
 
-    let client = GeminiClient::new().expect("Failed to create client");
+    let client = GeminiClient::new()?;
     let executor = NarrativeExecutor::new(client);
 
     let narrative_path = Path::new("narratives/model_options.toml");
-    let narrative =
-        Narrative::from_file(narrative_path).expect("Failed to load model_options.toml narrative");
+    let narrative = Narrative::from_file(narrative_path)?;
 
-    let execution = executor
-        .execute(&narrative)
-        .await
-        .expect("Narrative execution failed");
+    let execution = executor.execute(&narrative).await?;
 
     // Should have executed the enabled acts (currently 4: flash_20, flash_lite_20, flash_25, flash_lite_25)
     assert!(
@@ -59,4 +55,6 @@ async fn test_narrative_multi_model_execution() {
         "Multi-model narrative executed {} acts successfully",
         execution.act_executions.len()
     );
+    
+    Ok(())
 }

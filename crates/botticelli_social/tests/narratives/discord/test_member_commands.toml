@@ -1,5 +1,5 @@
 # Test: Member Commands
-# Tests: members.list, members.get, members.edit
+# Tests: members.list, members.get
 
 [narrative]
 name = "test_member_commands"
@@ -11,30 +11,21 @@ name = "gemini-2.0-flash-exp"
 temperature = 0.7
 max_tokens = 100
 
-[[act]]
-name = "list_members"
-prompt = "List server members"
+[toc]
+order = ["list_members", "get_member"]
 
-[[act.input]]
-type = "bot_command"
+[bots.list_members_cmd]
 platform = "discord"
 command = "members.list"
-required = true
-
-[act.input.args]
 guild_id = "${TEST_GUILD_ID}"
 limit = "10"
 
-[[act]]
-name = "get_member"
-prompt = "Get specific member details"
-
-[[act.input]]
-type = "bot_command"
+[bots.get_member_cmd]
 platform = "discord"
 command = "members.get"
-required = true
-
-[act.input.args]
 guild_id = "${TEST_GUILD_ID}"
 user_id = "${BOT_USER_ID}"
+
+[acts]
+list_members = "bots.list_members_cmd"
+get_member = "bots.get_member_cmd"

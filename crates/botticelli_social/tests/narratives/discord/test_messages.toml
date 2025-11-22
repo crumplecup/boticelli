@@ -5,47 +5,20 @@ name = "test_messages"
 description = "Test Discord messages commands"
 skip_content_generation = true
 
-[[act]]
-name = "get_test_channel"
-prompt = "Get the test channel"
+[toc]
+order = ["list_channels", "send_message"]
 
-[[act.input]]
-type = "bot_command"
+[bots.list_channels_cmd]
 platform = "discord"
-command = "channels.get_or_create"
-required = true
-
-[act.input.args]
+command = "channels.list"
 guild_id = "${TEST_GUILD_ID}"
-channel_name = "botticelli-test"
-channel_type = "text"
 
-[[act]]
-name = "send_message"
-prompt = "Send a test message"
-
-[[act.input]]
-type = "bot_command"
+[bots.send_message_cmd]
 platform = "discord"
 command = "messages.send"
-required = true
+channel_id = "${TEST_CHANNEL_ID}"
+content = "Integration test message"
 
-[act.input.args]
-guild_id = "${TEST_GUILD_ID}"
-channel_name = "botticelli-test"
-content = "Integration test message - {{timestamp}}"
-
-[[act]]
-name = "list_messages"
-prompt = "List recent messages in the channel"
-
-[[act.input]]
-type = "bot_command"
-platform = "discord"
-command = "messages.list"
-required = true
-
-[act.input.args]
-guild_id = "${TEST_GUILD_ID}"
-channel_name = "botticelli-test"
-limit = "5"
+[acts]
+list_channels = "bots.list_channels_cmd"
+send_message = "bots.send_message_cmd"

@@ -4,7 +4,33 @@ description = "Test listing messages in a channel"
 skip_content_generation = true
 
 [toc]
-order = ["list_messages"]
+order = ["create_channel", "send_message", "list_messages", "cleanup"]
+
+[acts.create_channel]
+
+[[acts.create_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_channel.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "temp-test-channel"
+kind = "text"
+
+[acts.send_message]
+
+[[acts.send_message.input]]
+type = "bot_command"
+platform = "discord"
+command = "messages.send"
+required = true
+
+[acts.send_message.input.args]
+guild_id = "${TEST_GUILD_ID}"
+channel_id = "${create_channel.id}"
+content = "Test message for listing"
 
 [acts.list_messages]
 
@@ -15,5 +41,17 @@ command = "messages.list"
 required = true
 
 [acts.list_messages.input.args]
-channel_id = "${TEST_CHANNEL_ID}"
+channel_id = "${create_channel.id}"
 limit = "10"
+
+[acts.cleanup]
+
+[[acts.cleanup.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.delete"
+required = false
+
+[acts.cleanup.input.args]
+guild_id = "${TEST_GUILD_ID}"
+channel_id = "${create_channel.id}"

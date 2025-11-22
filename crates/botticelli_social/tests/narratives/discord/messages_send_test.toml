@@ -4,7 +4,20 @@ description = "Test sending a message to a channel"
 skip_content_generation = true
 
 [toc]
-order = ["send_test_message"]
+order = ["create_channel", "send_test_message", "cleanup"]
+
+[acts.create_channel]
+
+[[acts.create_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_channel.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "temp-test-channel"
+kind = "text"
 
 [acts.send_test_message]
 
@@ -15,5 +28,18 @@ command = "messages.send"
 required = true
 
 [acts.send_test_message.input.args]
-channel_id = "${TEST_CHANNEL_ID}"
+guild_id = "${TEST_GUILD_ID}"
+channel_id = "${create_channel.id}"
 content = "Test message from Botticelli command test"
+
+[acts.cleanup]
+
+[[acts.cleanup.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.delete"
+required = false
+
+[acts.cleanup.input.args]
+guild_id = "${TEST_GUILD_ID}"
+channel_id = "${create_channel.id}"

@@ -17,4 +17,4 @@ required = true
 [acts.create_test_channel.input.args]
 guild_id = "${TEST_GUILD_ID}"
 name = "botticelli-test-channel"
-channel_type = "text"
+kind = "text"

@@ -1,4 +1,8 @@
-//! Integration tests for Discord bot commands using test narratives.
+//! Discord bot command tests.
+//!
+//! This file contains two types of tests:
+//! 1. Parse-only tests: Fast validation that narrative files are syntactically correct
+//! 2. Integration tests: Full execution tests that actually call Discord APIs
 
 use std::{env, path::PathBuf};
 
@@ -13,6 +17,60 @@ fn get_test_narrative_path(name: &str) -> PathBuf {
         .join("tests/narratives/discord")
         .join(format!("{}.toml", name))
 }
+
+// ============================================================================
+// Parse-Only Tests - Fast validation without API calls
+// ============================================================================
+
+use botticelli_narrative::Narrative;
+
+/// Helper to load a narrative file for validation.
+fn load_narrative(relative_path: &str) -> Result<Narrative, Box<dyn std::error::Error>> {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let narrative_path = format!("{}/tests/narratives/{}", manifest_dir, relative_path);
+    Ok(Narrative::from_file(&narrative_path)?)
+}
+
+macro_rules! parse_test {
+    ($name:ident, $file:expr) => {
+        #[test]
+        fn $name() -> Result<(), Box<dyn std::error::Error>> {
+            let narrative = load_narrative($file)?;
+            assert!(!narrative.acts().is_empty());
+            Ok(())
+        }
+    };
+}
+
+parse_test!(parse_channels_list, "discord/channels_list_test.toml");
+parse_test!(parse_channels_get, "discord/channels_get_test.toml");
+parse_test!(parse_channels_create, "discord/channels_create_test.toml");
+parse_test!(parse_channels_delete, "discord/channels_delete_test.toml");
+parse_test!(parse_messages_list, "discord/messages_list_test.toml");
+parse_test!(parse_messages_get, "discord/messages_get_test.toml");
+parse_test!(parse_messages_send, "discord/messages_send_test.toml");
+parse_test!(parse_messages_edit, "discord/messages_edit_test.toml");
+parse_test!(parse_messages_delete, "discord/messages_delete_test.toml");
+parse_test!(parse_messages_pin, "discord/messages_pin_test.toml");
+parse_test!(parse_messages_unpin, "discord/messages_unpin_test.toml");
+parse_test!(parse_members_list, "discord/members_list_test.toml");
+parse_test!(parse_members_get, "discord/members_get_test.toml");
+parse_test!(parse_roles_list, "discord/roles_list_test.toml");
+parse_test!(parse_roles_get, "discord/roles_get_test.toml");
+parse_test!(parse_reactions_add, "discord/reactions_add_test.toml");
+parse_test!(parse_reactions_remove, "discord/reactions_remove_test.toml");
+parse_test!(parse_threads_list, "discord/threads_list_test.toml");
+parse_test!(parse_threads_create, "discord/threads_create_test.toml");
+parse_test!(parse_emojis_list, "discord/emojis_list_test.toml");
+parse_test!(parse_invites_list, "discord/invites_list_test.toml");
+parse_test!(parse_bans_list, "discord/bans_list_test.toml");
+parse_test!(parse_stickers_list, "discord/stickers_list_test.toml");
+parse_test!(parse_voice_regions_list, "discord/voice_regions_list_test.toml");
+parse_test!(parse_events_list, "discord/events_list_test.toml");
+
+// ============================================================================
+// Integration Tests - Full execution with Discord API
+// ============================================================================
 
 /// Helper to run a test narrative
 async fn run_test_narrative(name: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -46,47 +104,21 @@ async fn run_test_narrative(name: &str) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-#[tokio::test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_channels_list() {
-    load_env();
-    run_test_narrative("channels_list_test")
-        .await
-        .expect("channels_list_test narrative failed");
+macro_rules! integration_test {
+    ($name:ident, $file:expr) => {
+        #[tokio::test]
+        #[cfg_attr(not(feature = "discord"), ignore)]
+        async fn $name() {
+            load_env();
+            run_test_narrative($file)
+                .await
+                .expect(&format!("{} narrative failed", $file));
+        }
+    };
 }
 
-#[tokio::test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_channels_get() {
-    load_env();
-    run_test_narrative("channels_get_test")
-        .await
-        .expect("channels_get_test narrative failed");
-}
-
-#[tokio::test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_messages_list() {
-    load_env();
-    run_test_narrative("messages_list_test")
-        .await
-        .expect("messages_list_test narrative failed");
-}
-
-#[tokio::test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_messages_send() {
-    load_env();
-    run_test_narrative("messages_send_test")
-        .await
-        .expect("messages_send_test narrative failed");
-}
-
-#[tokio::test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_members_list() {
-    load_env();
-    run_test_narrative("members_list_test")
-        .await
-        .expect("members_list_test narrative failed");
-}
+integration_test!(test_channels_list, "channels_list_test");
+integration_test!(test_channels_get, "channels_get_test");
+integration_test!(test_messages_list, "messages_list_test");
+integration_test!(test_messages_send, "messages_send_test");
+integration_test!(test_members_list, "members_list_test");

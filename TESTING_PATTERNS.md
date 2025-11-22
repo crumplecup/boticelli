@@ -83,28 +83,42 @@ let request = GenerateRequest::builder()
 
 ## Builder Error Handling
 
-### ❌ WRONG: Converting builder errors to strings
+### ❌ WRONG: Using .unwrap() or .expect() on builder results
 
 ```rust
 let request = Request::builder()
     .field(value)
     .build()
-    .map_err(|e| e.to_string())?; // BAD - loses error context
+    .unwrap(); // BAD - loses error context and panics
 ```
 
-### ✅ CORRECT: Wrap in native error type
+### ✅ CORRECT: Convert to BuilderError via String
 
 ```rust
-let request = Request::builder()
-    .field(value)
-    .build()
-    .map_err(|e| BotticelliError::builder_error(e))?;
+use botticelli_error::{BotticelliResult, BuilderError};
+
+#[test]
+fn test_example() -> BotticelliResult<()> {
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("test".to_string())])
+        .build()
+        .map_err(|e| BuilderError::from(e.to_string()))?;
+    
+    Ok(())
+}
 ```
 
-**Required:** Builder errors must be wrapped in our error framework to capture:
-- File and line information via `#[track_caller]`
+**How it works:**
+1. Builder errors (e.g., `MessageBuilderError`) convert to String
+2. String converts to `BuilderError` (via `From<String>`)  
+3. `BuilderError` auto-converts to `BotticelliError` (via `From<BuilderError>`)
+4. Use `?` operator for clean error propagation
+
+**Required:** Builder errors must flow through our error framework to provide:
+- Proper error types for library users
 - Error context for debugging
-- Proper error propagation through `?`
+- Consistent error handling patterns
 
 ## Test Organization
 

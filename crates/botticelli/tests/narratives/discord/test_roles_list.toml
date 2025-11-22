@@ -1,12 +1,16 @@
 [narrative]
 name = "test_roles_list"
-description = "Test listing guild roles"
+description = "Test roles.list Discord command"
 skip_content_generation = true
 
 [toc]
 order = ["list_roles"]
 
 [acts.list_roles]
+model = "gemini-2.0-flash-exp"
+temperature = 0.7
+max_tokens = 100
+prompt = "Summarize the roles"
 
 [[acts.list_roles.input]]
 type = "bot_command"

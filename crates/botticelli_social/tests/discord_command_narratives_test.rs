@@ -1,54 +1,69 @@
-//! Discord command narrative tests.
+//! Discord command narrative validation tests.
 //!
-//! These tests execute Discord bot commands through narrative files
-//! to verify end-to-end functionality.
+//! These tests validate that Discord command narrative files can be loaded and parsed.
+//! Actual execution tests should be in the botticelli crate's integration tests.
 
-use botticelli_error::BotticelliError;
-use botticelli_narrative::{Narrative, NarrativeExecutor};
-use botticelli_social::{BotCommandRegistryImpl, DiscordCommandExecutor};
-use std::env;
-use std::path::PathBuf;
+use botticelli_narrative::Narrative;
 
-/// Helper to run a Discord command test narrative.
-fn run_discord_command_test(narrative_name: &str) -> Result<(), BotticelliError> {
-    dotenvy::dotenv().ok();
-    
-    let token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set");
-    let discord_executor = DiscordCommandExecutor::new(&token);
-    
-    let mut bot_registry = BotCommandRegistryImpl::new();
-    bot_registry.register_discord(discord_executor);
-    
-    let narrative_path = PathBuf::from(format!("tests/narratives/{}.toml", narrative_name));
-    let narrative = Narrative::from_file(&narrative_path)?;
-    
-    let executor = NarrativeExecutor::builder()
-        .narrative(narrative)
-        .bot_registry(bot_registry)
-        .build()
-        .expect("Failed to build executor");
-    
-    tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(executor.execute())?;
-    
+/// Helper to load a narrative file for validation.
+fn load_narrative(relative_path: &str) -> Result<Narrative, Box<dyn std::error::Error>> {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let narrative_path = format!("{}/tests/narratives/{}", manifest_dir, relative_path);
+    Ok(Narrative::from_file(&narrative_path)?)
+}
+
+#[test]
+fn test_members_list_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("members_list.toml")?;
+    assert!(!narrative.acts().is_empty());
     Ok(())
 }
 
 #[test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-fn test_members_list() -> Result<(), BotticelliError> {
-    run_discord_command_test("members_list")
+fn test_roles_list_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("roles_list.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
 }
 
 #[test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-fn test_roles_list() -> Result<(), BotticelliError> {
-    run_discord_command_test("roles_list")
+fn test_channels_list_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("channels_list.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
 }
 
 #[test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-fn test_channels_list() -> Result<(), BotticelliError> {
-    run_discord_command_test("channels_list")
+fn test_test_channels_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/test_channels.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_channels_create_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("channels_create_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_messages_send_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("messages_send_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_messages_delete_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("messages_delete_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_channels_delete_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("channels_delete_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
 }

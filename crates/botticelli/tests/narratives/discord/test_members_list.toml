@@ -1,12 +1,16 @@
 [narrative]
 name = "test_members_list"
-description = "Test listing guild members"
+description = "Test members.list Discord command"
 skip_content_generation = true
 
 [toc]
 order = ["list_members"]
 
 [acts.list_members]
+model = "gemini-2.0-flash-exp"
+temperature = 0.7
+max_tokens = 100
+prompt = "Summarize the members"
 
 [[acts.list_members.input]]
 type = "bot_command"
@@ -16,4 +20,4 @@ required = true
 
 [acts.list_members.input.args]
 guild_id = "${TEST_GUILD_ID}"
-limit = "10"
+limit = 10

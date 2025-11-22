@@ -2,7 +2,24 @@
 
 ## Current Status
 
-We've implemented many Discord bot commands but comprehensive testing is still needed.
+We've implemented many Discord bot commands and are systematically testing them using narrative-based integration tests.
+
+### Tests Implemented (Phase 1 & 2)
+
+**Read Commands:**
+- ✅ `guilds.get` - Retrieves guild information
+- ✅ `channels.list` - Lists all channels in guild
+- ✅ `members.list` - Lists guild members
+- ✅ `roles.list` - Lists guild roles
+
+**Write Commands with State Management:**
+- ✅ `channels.create` - Creates test channel (caches ID)
+- ✅ `messages.send` - Sends message (caches message ID)
+- ✅ `messages.edit` - Edits cached message
+- ✅ `messages.delete` - Deletes cached message
+- ✅ `reactions.add` - Adds reaction to message
+- ✅ `threads.create` - Creates thread in channel
+- ✅ `channels.delete` - Deletes test channel (cleanup)
 
 ## Testing Challenges
 

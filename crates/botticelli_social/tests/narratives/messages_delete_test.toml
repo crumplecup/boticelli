@@ -1,0 +1,19 @@
+[narrative]
+name = "messages_delete_test"
+description = "Test deleting a message"
+skip_content_generation = true
+
+[toc]
+order = ["delete_test_message"]
+
+[acts.delete_test_message]
+
+[[acts.delete_test_message.input]]
+type = "bot_command"
+platform = "discord"
+command = "messages.delete"
+required = true
+
+[acts.delete_test_message.input.args]
+channel_id = "${TEST_CHANNEL_ID}"
+message_id = "${TEST_MESSAGE_ID}"

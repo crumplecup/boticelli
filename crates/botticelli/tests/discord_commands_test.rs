@@ -70,10 +70,8 @@ async fn test_channels_list() {
     assert!(result.is_ok(), "Failed to execute channels.list: {:?}", result.err());
 }
 
-/// Test messages.send command
-#[tokio::test]
-#[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_messages_send() {
+/// Helper function to run a Discord command test
+async fn run_discord_command_test(test_name: &str) {
     dotenvy::dotenv().ok();
 
     let gemini_client = GeminiClient::new().expect("Failed to create Gemini client");
@@ -87,11 +85,32 @@ async fn test_messages_send() {
     let executor = NarrativeExecutor::new(gemini_client)
         .with_bot_registry(Box::new(bot_registry));
 
-    let path = get_test_narrative_path("test_messages_send");
+    let path = get_test_narrative_path(test_name);
     assert!(path.exists(), "Test narrative not found: {:?}", path);
 
     let narrative = Narrative::from_file(&path).expect("Failed to load narrative");
     let result = executor.execute(&narrative).await;
     
-    assert!(result.is_ok(), "Failed to execute messages.send: {:?}", result.err());
+    assert!(result.is_ok(), "Failed to execute {}: {:?}", test_name, result.err());
+}
+
+/// Test messages.send command
+#[tokio::test]
+#[cfg_attr(not(feature = "discord"), ignore)]
+async fn test_messages_send() {
+    run_discord_command_test("test_messages_send").await;
+}
+
+/// Test roles.list command  
+#[tokio::test]
+#[cfg_attr(not(feature = "discord"), ignore)]
+async fn test_roles_list() {
+    run_discord_command_test("test_roles_list").await;
+}
+
+/// Test members.list command
+#[tokio::test]
+#[cfg_attr(not(feature = "discord"), ignore)]
+async fn test_members_list() {
+    run_discord_command_test("test_members_list").await;
 }

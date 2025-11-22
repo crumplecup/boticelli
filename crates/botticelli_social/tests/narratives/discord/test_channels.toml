@@ -5,28 +5,29 @@ name = "test_channels"
 description = "Test Discord channel commands"
 skip_content_generation = true
 
-[[act]]
-name = "create_test_channel"
+[toc]
+order = ["create_test_channel", "list_channels"]
 
-[[act.input]]
+[acts.create_test_channel]
+
+[[acts.create_test_channel.input]]
 type = "bot_command"
 platform = "discord"
 command = "channels.create"
 required = true
 
-[act.input.args]
+[acts.create_test_channel.input.args]
 guild_id = "${TEST_GUILD_ID}"
 name = "botticelli-test-channel"
-channel_type = "text"
+kind = "text"
 
-[[act]]
-name = "list_channels"
+[acts.list_channels]
 
-[[act.input]]
+[[acts.list_channels.input]]
 type = "bot_command"
 platform = "discord"
 command = "channels.list"
 required = true
 
-[act.input.args]
+[acts.list_channels.input.args]
 guild_id = "${TEST_GUILD_ID}"

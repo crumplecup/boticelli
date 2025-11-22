@@ -16,7 +16,7 @@ pub fn create_test_request(
     max_tokens: Option<u32>,
 ) -> GenerateRequest {
     let mut builder = GenerateRequestBuilder::default();
-    builder
+    builder = builder
         .messages(vec![Message {
             role: Role::User,
             content: vec![botticelli_core::Input::Text(prompt.to_string())],
@@ -25,7 +25,7 @@ pub fn create_test_request(
         .temperature(None);
     
     if let Some(m) = model {
-        builder.model(Some(m));
+        builder = builder.model(Some(m));
     }
     
     builder.build().expect("Failed to build test request")

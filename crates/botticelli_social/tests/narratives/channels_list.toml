@@ -1,16 +1,18 @@
-[metadata]
+[narrative]
 name = "test_channels_list"
 description = "Test listing guild channels"
 skip_content_generation = true
 
-[[acts]]
-name = "list_channels"
+[toc]
+order = ["list_channels"]
 
-[[acts.inputs]]
+[acts.list_channels]
+
+[[acts.list_channels.input]]
 type = "bot_command"
 platform = "discord"
 command = "channels.list"
 required = true
 
-[acts.inputs.args]
+[acts.list_channels.input.args]
 guild_id = "${TEST_GUILD_ID}"

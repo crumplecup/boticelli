@@ -1,0 +1,20 @@
+[narrative]
+name = "reactions_add_test"
+description = "Test adding a reaction to a message"
+skip_content_generation = true
+
+[toc]
+order = ["add_test_reaction"]
+
+[acts.add_test_reaction]
+
+[[acts.add_test_reaction.input]]
+type = "bot_command"
+platform = "discord"
+command = "reactions.add"
+required = true
+
+[acts.add_test_reaction.input.args]
+channel_id = "${TEST_CHANNEL_ID}"
+message_id = "${TEST_MESSAGE_ID}"
+emoji = "👍"

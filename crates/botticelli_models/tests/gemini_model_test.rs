@@ -17,10 +17,10 @@ use botticelli_core::MessageBuilder;
 
 mod test_utils;
 
-use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_core::{GenerateRequest, Input, Role};
 use botticelli_interface::BotticelliDriver;
 use botticelli_models::GeminiClient;
-use test_utils::{create_test_request, MockGeminiClient};
+use test_utils::MockGeminiClient;
 
 use botticelli_error::{BotticelliResult, BuilderError, BuilderErrorKind};
 

@@ -21,37 +21,42 @@ struct TableReferenceNarrative {
 }
 
 impl TableReferenceNarrative {
-    fn new(table_name: &str) -> Self {
-        let metadata = NarrativeMetadata {
-            name: "table_reference_test".to_string(),
-            description: "Test narrative with table references".to_string(),
-            template: None,
-            skip_content_generation: false,
+    fn new(table_name: &str) -> botticelli::BotticelliResult<Self> {
+        let metadata = NarrativeMetadata::builder()
+            .name("table_reference_test".to_string())
+            .description("Test narrative with table references".to_string())
+            .skip_content_generation(false)
+            .build()
+            .map_err(|e| botticelli::BotticelliError::new(
+                botticelli::BotticelliErrorKind::Builder(e)
+            ))?;
+
+        let table_input = Input::Table {
+            table_name: table_name.to_string(),
+            columns: None,
+            where_clause: None,
+            limit: Some(5),
+            offset: None,
+            order_by: None,
+            alias: Some("test_data".to_string()),
+            format: TableFormat::Markdown,
+            sample: None,
         };
 
-        let act_config = ActConfig {
-            inputs: vec![Input::Table {
-                table_name: table_name.to_string(),
-                columns: None,
-                where_clause: None,
-                limit: Some(5),
-                offset: None,
-                order_by: None,
-                alias: Some("test_data".to_string()),
-                format: TableFormat::Markdown,
-                sample: None,
-            }],
-            model: Some("gemini-2.0-flash-lite".to_string()),
-            temperature: Some(0.7),
-            max_tokens: Some(100),
-        };
+        let act_config = ActConfig::new(
+            vec![table_input],
+            Some("gemini-2.0-flash-lite".to_string()),
+            Some(0.7),
+            Some(100),
+            None,
+        );
 
         let act_name = "query_table".to_string();
-        Self {
+        Ok(Self {
             metadata,
             act_names: vec![act_name.clone()],
             acts: vec![(act_name, act_config)],
-        }
+        })
     }
 }
 
@@ -116,7 +121,7 @@ fn establish_connection() -> Pool<ConnectionManager<PgConnection>> {
 
 #[tokio::test]
 #[cfg_attr(not(feature = "api"), ignore)]
-async fn test_table_reference_query() {
+async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
     let pool = establish_connection();
     let mut conn = pool.get().expect("Failed to get connection");
 
@@ -152,7 +157,7 @@ async fn test_table_reference_query() {
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative
-    let narrative = TableReferenceNarrative::new("test_products");
+    let narrative = TableReferenceNarrative::new("test_products")?;
 
     // Create executor with table registry
     let executor = NarrativeExecutor::new(MockDriver).with_table_registry(Box::new(table_registry));
@@ -178,7 +183,7 @@ async fn test_table_reference_query() {
 
 #[tokio::test]
 #[cfg_attr(not(feature = "api"), ignore)]
-async fn test_table_reference_with_filter() {
+async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> {
     let pool = establish_connection();
     let mut conn = pool.get().expect("Failed to get connection");
 
@@ -213,29 +218,34 @@ async fn test_table_reference_with_filter() {
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with WHERE clause
-    let metadata = NarrativeMetadata {
-        name: "filtered_query_test".to_string(),
-        description: "Test with WHERE clause filtering".to_string(),
-        template: None,
-        skip_content_generation: false,
+    let metadata = NarrativeMetadata::builder()
+        .name("filtered_query_test".to_string())
+        .description("Test with WHERE clause filtering".to_string())
+        .skip_content_generation(false)
+        .build()
+        .map_err(|e| botticelli::BotticelliError::new(
+            botticelli::BotticelliErrorKind::Builder(e)
+        ))?;
+
+    let table_input = Input::Table {
+        table_name: "test_orders".to_string(),
+        columns: Some(vec!["customer".to_string(), "total".to_string()]),
+        where_clause: Some("status = 'completed'".to_string()),
+        limit: Some(10),
+        offset: None,
+        order_by: Some("total DESC".to_string()),
+        alias: Some("completed_orders".to_string()),
+        format: TableFormat::Json,
+        sample: None,
     };
 
-    let act_config = ActConfig {
-        inputs: vec![Input::Table {
-            table_name: "test_orders".to_string(),
-            columns: Some(vec!["customer".to_string(), "total".to_string()]),
-            where_clause: Some("status = 'completed'".to_string()),
-            limit: Some(10),
-            offset: None,
-            order_by: Some("total DESC".to_string()),
-            alias: Some("completed_orders".to_string()),
-            format: TableFormat::Json,
-            sample: None,
-        }],
-        model: Some("gemini-2.0-flash-lite".to_string()),
-        temperature: Some(0.7),
-        max_tokens: Some(100),
-    };
+    let act_config = ActConfig::new(
+        vec![table_input],
+        Some("gemini-2.0-flash-lite".to_string()),
+        Some(0.7),
+        Some(100),
+        None,
+    );
 
     struct FilteredNarrative {
         metadata: NarrativeMetadata,
@@ -287,11 +297,12 @@ async fn test_table_reference_with_filter() {
         }
         _ => panic!("Expected Text input after table processing"),
     }
+    Ok(())
 }
 
 #[tokio::test]
 #[cfg_attr(not(feature = "api"), ignore)]
-async fn test_table_reference_format_csv() {
+async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
     let pool = establish_connection();
     let mut conn = pool.get().expect("Failed to get connection");
 
@@ -324,29 +335,34 @@ async fn test_table_reference_format_csv() {
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with CSV format
-    let metadata = NarrativeMetadata {
-        name: "csv_format_test".to_string(),
-        description: "Test CSV format output".to_string(),
-        template: None,
-        skip_content_generation: false,
+    let metadata = NarrativeMetadata::builder()
+        .name("csv_format_test".to_string())
+        .description("Test CSV format output".to_string())
+        .skip_content_generation(false)
+        .build()
+        .map_err(|e| botticelli::BotticelliError::new(
+            botticelli::BotticelliErrorKind::Builder(e)
+        ))?;
+
+    let table_input = Input::Table {
+        table_name: "test_employees".to_string(),
+        columns: None,
+        where_clause: None,
+        limit: Some(10),
+        offset: None,
+        order_by: None,
+        alias: Some("employees".to_string()),
+        format: TableFormat::Csv,
+        sample: None,
     };
 
-    let act_config = ActConfig {
-        inputs: vec![Input::Table {
-            table_name: "test_employees".to_string(),
-            columns: None,
-            where_clause: None,
-            limit: Some(10),
-            offset: None,
-            order_by: None,
-            alias: Some("employees".to_string()),
-            format: TableFormat::Csv,
-            sample: None,
-        }],
-        model: Some("gemini-2.0-flash-lite".to_string()),
-        temperature: Some(0.7),
-        max_tokens: Some(100),
-    };
+    let act_config = ActConfig::new(
+        vec![table_input],
+        Some("gemini-2.0-flash-lite".to_string()),
+        Some(0.7),
+        Some(100),
+        None,
+    );
 
     struct CsvNarrative {
         metadata: NarrativeMetadata,
@@ -397,4 +413,5 @@ async fn test_table_reference_format_csv() {
         }
         _ => panic!("Expected Text input after table processing"),
     }
+    Ok(())
 }

@@ -17,7 +17,7 @@ use botticelli_core::MessageBuilder;
 // Tests are currently ignored until the handshake issue is resolved.
 
 use botticelli_core::{GenerateRequest, Input, Role};
-use botticelli_error::BotticelliError;
+
 use botticelli_interface::{BotticelliDriver, Streaming};
 use botticelli_models::GeminiClient;
 use futures_util::StreamExt;

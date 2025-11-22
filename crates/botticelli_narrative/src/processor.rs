@@ -263,13 +263,7 @@ mod tests {
     }
 
     fn create_test_metadata(name: &str) -> NarrativeMetadata {
-        NarrativeMetadata {
-            name: name.to_string(),
-            description: "Test narrative".to_string(),
-            template: None,
-            skip_content_generation: false,
-            carousel: None,
-        }
+        NarrativeMetadata::new_test(name)
     }
 
     #[tokio::test]

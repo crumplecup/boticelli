@@ -23,10 +23,12 @@ Tests are currently failing due to API changes. This document tracks what needs 
 
 **Solution:** Replace all `GenerateRequest { ... }` with calls to `test_utils::create_test_request()` helper.
 
-**Status:** In progress - duplicate imports removed, but new issues found:
-1. Sed command created malformed syntax `Some("model", Some(10))` - needs manual fix
-2. `Message::new()` doesn't exist - need to use builder or struct literal with public fields
-3. `GenerateRequest` fields are private - tests need to use getters instead of direct field access
+**Status:** MOSTLY FIXED:
+1. ✅ `Message` uses struct literals with public fields (no `new()` method needed)
+2. ✅ `GenerateRequest` fields now use getters (`messages()`, `max_tokens()`, `temperature()`)
+3. ✅ test_utils fixed to use correct types (u32 not usize)
+4. ✅ gemini.rs tests updated to use builder pattern with `.expect()` calls
+5. ⚠️ Some botticelli_models tests still have issues to investigate
 
 ### 2. Discord Test API Changes
 
@@ -71,9 +73,25 @@ just test-local
 
 ## Priority
 
-1. **High:** Fix Discord tests - these are actively being used for development
-2. **Medium:** Fix Gemini model tests - needed for model validation
-3. **Low:** Documentation comment errors - cosmetic but should be fixed
+1. ~~**High:** Fix Discord tests~~ ✅ DONE
+2. **Medium:** Fix Gemini model tests - IN PROGRESS (see remaining work below)
+3. ~~**Low:** Documentation comment errors~~ ✅ DONE
+
+## Remaining Work for Gemini Tests
+
+1. **Fix malformed function calls in gemini_streaming_test.rs**
+   - Lines 73, 113, 253, 278 have `Some("model", Some(10))` which is invalid
+   - Should be `Some("model"), Some(10)` (separate arguments)
+   
+2. **Fix test_utils/mod.rs `create_test_request`**
+   - `Message::new()` doesn't exist
+   - Need to use `MessageBuilder` or check if Message has public fields
+   
+3. **Fix private field access in gemini.rs and other tests**
+   - `request.messages`, `request.max_tokens`, `request.temperature` are private
+   - Need to add getters to `GenerateRequest` or use builder assertions
+   
+4. **Fix remaining duplicate import in gemini_live_basic_test.rs line 19**
 
 ## Notes
 

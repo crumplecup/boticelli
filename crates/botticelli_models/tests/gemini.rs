@@ -73,25 +73,25 @@ fn test_gemini_error_source_location_tracking() {
 
 #[test]
 fn test_simple_text_request_structure() {
-    let request = GenerateRequest {
-        messages: vec![Message {
+    let request = GenerateRequest::builder()
+        .messages(vec![Message {
             role: Role::User,
             content: vec![Input::Text("Hello, world!".to_string())],
-        }],
-        max_tokens: Some(100),
-        temperature: Some(0.7),
-        model: None,
-    };
+        }])
+        .max_tokens(Some(100))
+        .temperature(Some(0.7))
+        .build()
+        .expect("Failed to build request");
 
-    assert_eq!(request.messages.len(), 1);
-    assert_eq!(request.max_tokens, Some(100));
-    assert_eq!(request.temperature, Some(0.7));
+    assert_eq!(request.messages().len(), 1);
+    assert_eq!(request.max_tokens(), Some(100));
+    assert_eq!(request.temperature(), Some(0.7));
 }
 
 #[test]
 fn test_multi_message_request_structure() {
-    let request = GenerateRequest {
-        messages: vec![
+    let request = GenerateRequest::builder()
+        .messages(vec![
             Message {
                 role: Role::System,
                 content: vec![Input::Text("You are a helpful assistant.".to_string())],
@@ -100,15 +100,13 @@ fn test_multi_message_request_structure() {
                 role: Role::User,
                 content: vec![Input::Text("What is Rust?".to_string())],
             },
-        ],
-        max_tokens: None,
-        temperature: None,
-        model: None,
-    };
+        ])
+        .build()
+        .expect("Failed to build request");
 
-    assert_eq!(request.messages.len(), 2);
-    assert_eq!(request.messages[0].role, Role::System);
-    assert_eq!(request.messages[1].role, Role::User);
+    assert_eq!(request.messages().len(), 2);
+    assert_eq!(request.messages()[0].role, Role::System);
+    assert_eq!(request.messages()[1].role, Role::User);
 }
 
 //

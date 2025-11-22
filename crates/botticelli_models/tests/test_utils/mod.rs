@@ -13,11 +13,14 @@ pub use mock_gemini::{MockBehavior, MockGeminiClient, MockResponse};
 pub fn create_test_request(
     prompt: &str,
     model: Option<String>,
-    max_tokens: Option<usize>,
+    max_tokens: Option<u32>,
 ) -> GenerateRequest {
     let mut builder = GenerateRequestBuilder::default();
     builder
-        .messages(vec![Message::new(Role::User, prompt.to_string())])
+        .messages(vec![Message {
+            role: Role::User,
+            content: vec![botticelli_core::Input::Text(prompt.to_string())],
+        }])
         .max_tokens(max_tokens)
         .temperature(None);
     

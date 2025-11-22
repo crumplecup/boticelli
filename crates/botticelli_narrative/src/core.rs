@@ -39,6 +39,23 @@ pub struct NarrativeMetadata {
     max_tokens: Option<u32>,
 }
 
+impl NarrativeMetadata {
+    /// Create a minimal test metadata (for tests only).
+    #[cfg(test)]
+    pub fn new_test(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            description: "Test narrative".to_string(),
+            template: None,
+            skip_content_generation: false,
+            carousel: None,
+            model: None,
+            temperature: None,
+            max_tokens: None,
+        }
+    }
+}
+
 /// Table of contents from the `[toc]` section.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, derive_getters::Getters)]
 pub struct NarrativeToc {

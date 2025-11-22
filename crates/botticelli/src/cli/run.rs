@@ -16,8 +16,7 @@ pub async fn run_narrative(
     narrative_path: &Path,
     save: bool,
     process_discord: bool,
-    #[cfg_attr(not(feature = "database"), allow(unused_variables))]
-    state_dir: Option<&Path>,
+    #[cfg(feature = "database")] state_dir: Option<&Path>,
 ) -> BotticelliResult<()> {
     use botticelli::{GeminiClient, NarrativeExecutor, NarrativeProvider};
 
@@ -51,8 +50,8 @@ pub async fn run_narrative(
         #[cfg(feature = "database")]
         {
             use botticelli::ProcessorRegistry;
-            use botticelli_narrative::ContentGenerationProcessor;
             use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor};
+            use botticelli_narrative::ContentGenerationProcessor;
             use std::sync::{Arc, Mutex};
 
             // Create database connection for table queries
@@ -72,13 +71,13 @@ pub async fn run_narrative(
             let mut executor = NarrativeExecutor::with_processors(client, registry);
             executor = executor.with_table_registry(Box::new(table_registry));
             tracing::info!("Table registry configured");
-            
+
             // Configure Discord bot registry if feature enabled and requested
             #[cfg(feature = "discord")]
             if process_discord {
-                use botticelli_social::{DiscordCommandExecutor, BotCommandRegistryImpl};
+                use botticelli_social::{BotCommandRegistryImpl, DiscordCommandExecutor};
                 use std::env;
-                
+
                 if let Ok(token) = env::var("DISCORD_TOKEN") {
                     tracing::info!("Configuring Discord bot registry");
                     let discord_executor = DiscordCommandExecutor::new(token);
@@ -90,12 +89,12 @@ pub async fn run_narrative(
                     tracing::warn!("DISCORD_TOKEN not set, Discord commands will fail");
                 }
             }
-            
+
             #[cfg(not(feature = "discord"))]
             if process_discord {
                 tracing::warn!("Discord feature not enabled, Discord commands will fail");
             }
-            
+
             // Configure state manager if state_dir provided
             if let Some(dir) = state_dir {
                 tracing::info!(state_dir = %dir.display(), "Configuring state manager");
@@ -104,7 +103,7 @@ pub async fn run_narrative(
                 executor = executor.with_state_manager(state_mgr);
                 tracing::info!("State manager configured");
             }
-            
+
             executor
         }
 
@@ -119,32 +118,38 @@ pub async fn run_narrative(
 
     // Execute the narrative (with carousel if configured)
     tracing::info!("Executing narrative");
-    
+
     if narrative.carousel_config().is_some() {
         tracing::info!("Executing narrative in carousel mode");
         let carousel_result = executor.execute_carousel(&narrative).await?;
-        
+
         tracing::info!(
             iterations_attempted = carousel_result.iterations_attempted(),
             successful = carousel_result.successful_iterations(),
             failed = carousel_result.failed_iterations(),
             "Carousel execution completed"
         );
-        
+
         // Print carousel summary
         println!("\nCarousel Execution Summary:");
         println!("============================");
         println!("Narrative: {}", narrative.metadata().name());
-        println!("Iterations attempted: {}", carousel_result.iterations_attempted());
-        println!("Successful iterations: {}", carousel_result.successful_iterations());
+        println!(
+            "Iterations attempted: {}",
+            carousel_result.iterations_attempted()
+        );
+        println!(
+            "Successful iterations: {}",
+            carousel_result.successful_iterations()
+        );
         println!("Failed iterations: {}", carousel_result.failed_iterations());
         println!("Completed: {}", carousel_result.completed());
         println!("Budget exhausted: {}", carousel_result.budget_exhausted());
         println!();
-        
+
         return Ok(());
     }
-    
+
     let execution = executor.execute(&narrative).await?;
 
     tracing::info!(
@@ -204,7 +209,7 @@ pub async fn run_narrative(
     _narrative_path: &Path,
     _save: bool,
     _process_discord: bool,
-    _state_dir: Option<&Path>,
+    #[cfg(feature = "database")] _state_dir: Option<&Path>,
 ) -> BotticelliResult<()> {
     eprintln!("Error: Gemini feature not enabled. Rebuild with --features gemini");
     std::process::exit(1);

@@ -22,14 +22,13 @@ struct TableReferenceNarrative {
 
 impl TableReferenceNarrative {
     fn new(table_name: &str) -> botticelli::BotticelliResult<Self> {
-        let metadata = NarrativeMetadata::builder()
-            .name("table_reference_test".to_string())
-            .description("Test narrative with table references".to_string())
-            .skip_content_generation(false)
-            .build()
-            .map_err(|e| botticelli::BotticelliError::new(
-                botticelli::BotticelliErrorKind::Builder(e)
-            ))?;
+        // Create a simple test metadata - NarrativeMetadata is typically deserialized from TOML
+        // For testing, we'll construct acts directly
+        let metadata = serde_json::from_str(r#"{
+            "name": "table_reference_test",
+            "description": "Test narrative with table references",
+            "skip_content_generation": false
+        }"#).unwrap();
 
         let table_input = Input::Table {
             table_name: table_name.to_string(),
@@ -91,14 +90,28 @@ impl botticelli::BotticelliDriver for MockDriver {
         "mock-model"
     }
 
+    fn rate_limits(&self) -> &botticelli::RateLimitConfig {
+        // For testing, use unlimited rate limits
+        use botticelli::RateLimitConfig;
+        static RATE_LIMIT: std::sync::OnceLock<RateLimitConfig> = std::sync::OnceLock::new();
+        RATE_LIMIT.get_or_init(|| {
+            RateLimitConfig {
+                requests_per_minute: u64::MAX,
+                tokens_per_minute: u64::MAX,
+                requests_per_day: u64::MAX,
+                tokens_per_day: u64::MAX,
+            }
+        })
+    }
+
     async fn generate(
         &self,
         request: &botticelli::GenerateRequest,
     ) -> botticelli::BotticelliResult<botticelli::GenerateResponse> {
         // Extract the table data from the request messages
         let mut table_content = String::new();
-        for message in &request.messages {
-            for input in &message.content {
+        for message in request.messages() {
+            for input in message.content() {
                 if let Input::Text(text) = input {
                     table_content = text.clone();
                     break;
@@ -179,6 +192,8 @@ async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
         }
         _ => panic!("Expected Text input after table processing"),
     }
+    
+    Ok(())
 }
 
 #[tokio::test]
@@ -218,14 +233,11 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with WHERE clause
-    let metadata = NarrativeMetadata::builder()
-        .name("filtered_query_test".to_string())
-        .description("Test with WHERE clause filtering".to_string())
-        .skip_content_generation(false)
-        .build()
-        .map_err(|e| botticelli::BotticelliError::new(
-            botticelli::BotticelliErrorKind::Builder(e)
-        ))?;
+    let metadata: NarrativeMetadata = serde_json::from_str(r#"{
+        "name": "filtered_query_test",
+        "description": "Test with WHERE clause filtering",
+        "skip_content_generation": false
+    }"#).unwrap();
 
     let table_input = Input::Table {
         table_name: "test_orders".to_string(),
@@ -335,14 +347,11 @@ async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with CSV format
-    let metadata = NarrativeMetadata::builder()
-        .name("csv_format_test".to_string())
-        .description("Test CSV format output".to_string())
-        .skip_content_generation(false)
-        .build()
-        .map_err(|e| botticelli::BotticelliError::new(
-            botticelli::BotticelliErrorKind::Builder(e)
-        ))?;
+    let metadata: NarrativeMetadata = serde_json::from_str(r#"{
+        "name": "csv_format_test",
+        "description": "Test CSV format output",
+        "skip_content_generation": false
+    }"#).unwrap();
 
     let table_input = Input::Table {
         table_name: "test_employees".to_string(),

@@ -39,7 +39,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             process_discord,
             state_dir,
         } => {
-            run_narrative(&narrative, save, process_discord, state_dir.as_deref()).await?;
+            #[cfg(feature = "database")]
+            {
+                run_narrative(&narrative, save, process_discord, state_dir.as_deref()).await?;
+            }
+            #[cfg(not(feature = "database"))]
+            {
+                let _ = state_dir; // Suppress unused warning
+                run_narrative(&narrative, save, process_discord).await?;
+            }
         }
 
         Commands::Tui { table } => {

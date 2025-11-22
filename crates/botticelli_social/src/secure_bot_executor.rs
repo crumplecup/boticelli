@@ -132,6 +132,97 @@ where
     fn command_help(&self, command: &str) -> Option<String> {
         self.inner.command_help(command)
     }
+
+    async fn messages_bulk_delete(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.messages_bulk_delete(args).await
+    }
+
+    async fn threads_create(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_create(args).await
+    }
+
+    async fn threads_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_list(args).await
+    }
+
+    async fn threads_get(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_get(args).await
+    }
+
+    async fn threads_edit(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_edit(args).await
+    }
+
+    async fn threads_delete(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_delete(args).await
+    }
+
+    async fn threads_join(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_join(args).await
+    }
+
+    async fn threads_leave(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_leave(args).await
+    }
+
+    async fn threads_add_member(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_add_member(args).await
+    }
+
+    async fn threads_remove_member(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.threads_remove_member(args).await
+    }
+
+    async fn reactions_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.reactions_list(args).await
+    }
+
+    async fn reactions_clear(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.reactions_clear(args).await
+    }
+
+    async fn reactions_clear_emoji(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
+        self.inner.reactions_clear_emoji(args).await
+    }
 }
 
 /// Convert HashMap<String, JsonValue> to HashMap<String, String> for security checks.

@@ -2,7 +2,7 @@
 
 [narrative]
 name = "channel_update_test"
-description = "Update test channel name using cached ID"
+description = "Update test channel name"
 skip_content_generation = true
 
 [toc]

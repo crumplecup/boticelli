@@ -2,7 +2,7 @@
 
 [narrative]
 name = "channel_create_setup"
-description = "Create a test channel and cache its ID"
+description = "Create a test channel for testing"
 skip_content_generation = true
 
 [toc]

@@ -1,0 +1,11 @@
+# No-op narrative for placeholder use
+
+name = "noop"
+skip_content_generation = true
+
+[[acts]]
+name = "noop"
+
+[[acts.inputs]]
+type = "text"
+content = "No operation"

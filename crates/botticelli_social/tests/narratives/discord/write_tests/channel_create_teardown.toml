@@ -1,0 +1,20 @@
+# Teardown: Delete the test channel
+
+[narrative]
+name = "channel_create_teardown"
+description = "Delete test channel using cached ID"
+skip_content_generation = true
+
+[toc]
+order = ["delete_test_channel"]
+
+[acts.delete_test_channel]
+
+[[acts.delete_test_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.delete"
+required = false
+
+[acts.delete_test_channel.input.args]
+channel_id = "${WRITE_TEST_CHANNEL_ID}"

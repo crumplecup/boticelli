@@ -131,3 +131,9 @@ integration_test!(test_members_list, "members_list_test");
 integration_test!(test_server_get_stats, "server_get_stats_test");
 integration_test!(test_webhooks_list, "webhooks_list_test");
 integration_test!(test_integrations_list, "integrations_list_test");
+
+#[tokio::test]
+async fn test_write_channel_lifecycle() {
+    load_env();
+    run_test_narrative("write_channel_lifecycle_test").await.expect("write_channel_lifecycle_test failed");
+}

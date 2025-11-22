@@ -1,0 +1,21 @@
+# Test: Update channel properties
+
+[narrative]
+name = "channel_update_test"
+description = "Update test channel name using cached ID"
+skip_content_generation = true
+
+[toc]
+order = ["update_channel_name"]
+
+[acts.update_channel_name]
+
+[[acts.update_channel_name.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.update"
+required = true
+
+[acts.update_channel_name.input.args]
+channel_id = "${WRITE_TEST_CHANNEL_ID}"
+name = "botticelli-test-updated"

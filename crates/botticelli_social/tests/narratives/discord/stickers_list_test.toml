@@ -1,0 +1,17 @@
+[narrative]
+name = "stickers_list_test"
+description = "Test listing guild stickers"
+skip_content_generation = true
+
+[[act]]
+name = "list_stickers"
+prompt = "List all stickers in the guild"
+
+[[act.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "stickers.list"
+required = true
+
+[act.inputs.args]
+guild_id = "${TEST_GUILD_ID}"

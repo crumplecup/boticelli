@@ -130,3 +130,59 @@ fn test_threads_create_narrative_loads() -> Result<(), Box<dyn std::error::Error
     assert!(!narrative.acts().is_empty());
     Ok(())
 }
+
+#[test]
+fn test_channels_get_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/channels_get_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_roles_get_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/roles_get_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_members_get_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/members_get_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_messages_get_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/messages_get_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_messages_list_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/messages_list_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_stickers_list_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/stickers_list_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_voice_regions_list_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/voice_regions_list_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_events_list_narrative_loads() -> Result<(), Box<dyn std::error::Error>> {
+    let narrative = load_narrative("discord/events_list_test.toml")?;
+    assert!(!narrative.acts().is_empty());
+    Ok(())
+}

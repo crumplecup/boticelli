@@ -48,45 +48,45 @@ async fn run_test_narrative(name: &str) -> Result<(), Box<dyn std::error::Error>
 
 #[tokio::test]
 #[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_channels() {
+async fn test_channels_list() {
     load_env();
-    run_test_narrative("test_channels")
+    run_test_narrative("channels_list_test")
         .await
-        .expect("test_channels narrative failed");
+        .expect("channels_list_test narrative failed");
 }
 
 #[tokio::test]
 #[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_roles() {
+async fn test_channels_get() {
     load_env();
-    run_test_narrative("test_roles")
+    run_test_narrative("channels_get_test")
         .await
-        .expect("test_roles narrative failed");
+        .expect("channels_get_test narrative failed");
 }
 
 #[tokio::test]
 #[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_members() {
+async fn test_messages_list() {
     load_env();
-    run_test_narrative("test_members")
+    run_test_narrative("messages_list_test")
         .await
-        .expect("test_members narrative failed");
+        .expect("messages_list_test narrative failed");
 }
 
 #[tokio::test]
 #[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_server_stats() {
+async fn test_messages_send() {
     load_env();
-    run_test_narrative("test_server_stats")
+    run_test_narrative("messages_send_test")
         .await
-        .expect("test_server_stats narrative failed");
+        .expect("messages_send_test narrative failed");
 }
 
 #[tokio::test]
 #[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_messages() {
+async fn test_members_list() {
     load_env();
-    run_test_narrative("test_messages")
+    run_test_narrative("members_list_test")
         .await
-        .expect("test_messages narrative failed");
+        .expect("members_list_test narrative failed");
 }

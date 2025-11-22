@@ -1,0 +1,19 @@
+[narrative]
+name = "test_channels_get"
+description = "Test getting channel details"
+skip_content_generation = true
+
+[toc]
+order = ["get_channel"]
+
+[acts.get_channel]
+
+[[acts.get_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.get"
+required = true
+
+[acts.get_channel.input.args]
+guild_id = "${TEST_GUILD_ID}"
+channel_id = "${TEST_CHANNEL_ID}"

@@ -1,0 +1,19 @@
+[narrative]
+name = "test_messages_list"
+description = "Test listing messages in a channel"
+skip_content_generation = true
+
+[toc]
+order = ["list_messages"]
+
+[acts.list_messages]
+
+[[acts.list_messages.input]]
+type = "bot_command"
+platform = "discord"
+command = "messages.list"
+required = true
+
+[acts.list_messages.input.args]
+channel_id = "${TEST_CHANNEL_ID}"
+limit = "10"

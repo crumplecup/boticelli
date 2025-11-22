@@ -5,7 +5,7 @@
 use botticelli::{
     BotCommandRegistryImpl, DiscordCommandExecutor, Narrative, NarrativeExecutor,
 };
-use botticelli_models::GeminiClient;
+use botticelli::GeminiClient;
 use std::env;
 use std::path::PathBuf;
 

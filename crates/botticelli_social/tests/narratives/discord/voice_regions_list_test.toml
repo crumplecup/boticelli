@@ -1,0 +1,17 @@
+[narrative]
+name = "voice_regions_list_test"
+description = "Test listing voice regions"
+skip_content_generation = true
+
+[[act]]
+name = "list_voice_regions"
+prompt = "List available voice regions"
+
+[[act.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "voice_regions.list"
+required = true
+
+[act.inputs.args]
+guild_id = "${TEST_GUILD_ID}"

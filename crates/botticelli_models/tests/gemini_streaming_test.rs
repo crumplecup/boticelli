@@ -1,4 +1,5 @@
 #![cfg(feature = "gemini")]
+mod test_utils;
 
 // Tests for Gemini streaming support.
 //
@@ -7,9 +8,13 @@
 // which is the primary motivation for implementing streaming.
 
 use botticelli_core::{GenerateRequest, Input, Message, Output, Role};
+use test_utils::create_test_request;
 use botticelli_interface::{BotticelliDriver, Streaming};
+use test_utils::create_test_request;
 use botticelli_models::GeminiClient;
+use test_utils::create_test_request;
 use futures_util::StreamExt;
+use test_utils::create_test_request;
 
 /// Helper to create a simple test request.
 fn create_test_request(prompt: &str, model: Option<String>) -> GenerateRequest {

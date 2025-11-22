@@ -5,9 +5,11 @@
 // These tests validate that older Gemini 2.0 models work correctly
 // via the Model::Custom() variant with proper "models/" prefix.
 
-use botticelli_core::{GenerateRequest, Input, Message, Role};
+mod test_utils;
+
 use botticelli_interface::BotticelliDriver;
 use botticelli_models::GeminiClient;
+use test_utils::create_test_request;
 
 /// Test that Gemini 2.0 Flash works via Model::Custom with "models/" prefix.
 #[tokio::test]
@@ -15,15 +17,11 @@ use botticelli_models::GeminiClient;
 async fn test_gemini_2_0_flash() {
     let client = GeminiClient::new().expect("Failed to create client");
 
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'ok'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.0-flash".to_string()),
-    };
+    let request = create_test_request(
+        "Say 'ok'",
+        Some("gemini-2.0-flash".to_string()),
+        Some(10),
+    );
 
     let response = client
         .generate(&request)
@@ -39,15 +37,11 @@ async fn test_gemini_2_0_flash() {
 async fn test_gemini_2_0_flash_lite() {
     let client = GeminiClient::new().expect("Failed to create client");
 
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'ok'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.0-flash-lite".to_string()),
-    };
+    let request = create_test_request(
+        "Say 'ok'",
+        Some("gemini-2.0-flash-lite".to_string()),
+        Some(10),
+    );
 
     let response = client
         .generate(&request)
@@ -64,43 +58,19 @@ async fn test_mixed_2_0_and_2_5_models() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Request 1: Use Gemini 2.0 Flash
-    let request1 = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'one'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.0-flash".to_string()),
-    };
+    let request1 = create_test_request("Say 'one'", Some("gemini-2.0-flash".to_string()), Some(10));
 
     let response1 = client.generate(&request1).await.expect("Request 1 failed");
     assert!(!response1.outputs.is_empty());
 
     // Request 2: Use Gemini 2.5 Flash (should use enum variant)
-    let request2 = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'two'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.5-flash".to_string()),
-    };
+    let request2 = create_test_request("Say 'two'", Some("gemini-2.5-flash".to_string()), Some(10));
 
     let response2 = client.generate(&request2).await.expect("Request 2 failed");
     assert!(!response2.outputs.is_empty());
 
     // Request 3: Use Gemini 2.0 Flash Lite
-    let request3 = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'three'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("gemini-2.0-flash-lite".to_string()),
-    };
+    let request3 = create_test_request("Say 'three'", Some("gemini-2.0-flash-lite".to_string()), Some(10));
 
     let response3 = client.generate(&request3).await.expect("Request 3 failed");
     assert!(!response3.outputs.is_empty());
@@ -113,15 +83,7 @@ async fn test_explicit_models_prefix() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Use explicit "models/" prefix
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Hello".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: None,
-        model: Some("models/gemini-2.0-flash".to_string()),
-    };
+    let request = create_test_request("Hello", Some("models/gemini-2.0-flash".to_string()), Some(10));
 
     let response = client
         .generate(&request)

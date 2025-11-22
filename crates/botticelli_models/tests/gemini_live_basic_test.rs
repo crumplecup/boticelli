@@ -1,4 +1,5 @@
 //! Integration tests for Gemini Live API basic functionality.
+mod test_utils;
 //!
 //! These tests require the `api` feature flag to run:
 //! ```bash
@@ -12,7 +13,9 @@
 #![cfg(feature = "gemini")]
 
 use botticelli_models::{GeminiLiveClient, GenerationConfig};
+use test_utils::create_test_request;
 use futures_util::StreamExt;
+use test_utils::create_test_request;
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]

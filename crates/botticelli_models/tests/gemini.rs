@@ -1,11 +1,16 @@
 #![cfg(feature = "gemini")]
+mod test_utils;
 
 // Tests for the Gemini client implementation.
 
 use botticelli_core::{GenerateRequest, Input, Message, Role};
+use test_utils::create_test_request;
 use botticelli_error::{BotticelliError, GeminiError, GeminiErrorKind};
+use test_utils::create_test_request;
 use botticelli_interface::{BotticelliDriver, Metadata, Vision};
+use test_utils::create_test_request;
 use botticelli_models::GeminiClient;
+use test_utils::create_test_request;
 
 //
 // ─── ERROR HANDLING TESTS ───────────────────────────────────────────────────────

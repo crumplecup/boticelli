@@ -1,4 +1,5 @@
 #![cfg(feature = "gemini")]
+mod test_utils;
 
 // Error handling tests for Gemini Live API.
 //
@@ -15,10 +16,15 @@
 // Tests that connect to Live API are currently ignored until the handshake issue is resolved.
 
 use botticelli_core::{GenerateRequest, Input, Message, Role};
+use test_utils::create_test_request;
 use botticelli_interface::{BotticelliDriver, Streaming};
+use test_utils::create_test_request;
 use botticelli_models::{GeminiClient, GeminiLiveClient, GenerationConfig, LiveRateLimiter};
+use test_utils::create_test_request;
 use futures_util::StreamExt;
+use test_utils::create_test_request;
 use std::time::Instant;
+use test_utils::create_test_request;
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]

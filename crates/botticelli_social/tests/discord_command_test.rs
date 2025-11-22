@@ -1,37 +1,54 @@
-//! Integration tests for Discord bot commands using direct API calls.
+//! Integration tests for Discord bot commands using test narratives.
 
-use botticelli_social::{BotCommandExecutor, BotticelliBot};
-use std::env;
+use std::{env, path::PathBuf};
 
 /// Helper to load environment variables from .env
 fn load_env() {
     dotenvy::dotenv().ok();
 }
 
-/// Helper to get test guild ID from environment
-fn get_test_guild_id() -> String {
-    env::var("TEST_GUILD_ID").expect("TEST_GUILD_ID not set in environment")
+/// Helper to get path to test narrative
+fn get_test_narrative_path(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/narratives/discord")
+        .join(format!("{}.toml", name))
 }
 
-/// Helper to get Discord token from environment
-fn get_discord_token() -> String {
-    env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set in environment")
-}
-
-/// Helper to create a Discord bot
-async fn create_discord_bot() -> BotticelliBot {
-    let token = get_discord_token();
-    BotticelliBot::new(token).await.expect("Failed to create Discord bot")
+/// Helper to run a test narrative
+async fn run_test_narrative(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let narrative_path = get_test_narrative_path(name);
+    
+    // Use botticelli CLI to run the narrative
+    let output = tokio::process::Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "botticelli",
+            "--features",
+            "discord,local",
+            "--",
+            "run",
+            "--narrative",
+            narrative_path.to_str().unwrap(),
+            "--process-discord",
+        ])
+        .output()
+        .await?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("Narrative {} failed:\n{}", name, stderr);
+        return Err(format!("Narrative execution failed: {}", stderr).into());
+    }
+    
+    Ok(())
 }
 
 #[tokio::test]
 #[cfg_attr(not(feature = "discord"), ignore)]
-async fn test_channels_list() {
+async fn test_channels() {
     load_env();
-    let bot = create_discord_bot().await;
-    let guild_id = get_test_guild_id();
-    
-    // Test channels.list command
-    let result = bot.execute("channels.list", vec![("guild_id", &guild_id)]).await;
-    assert!(result.is_ok(), "Failed to list channels: {:?}", result.err());
+    run_test_narrative("test_channels")
+        .await
+        .expect("test_channels narrative failed");
 }

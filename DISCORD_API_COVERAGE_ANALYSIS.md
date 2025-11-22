@@ -1,6 +1,6 @@
 # Discord API Coverage Analysis
 
-## Current Implementation (41 commands)
+## Current Implementation (54 commands)
 
 ### Server Management (READ)
 - ✅ `server.get_stats` - Get server statistics (members, description, icon, etc.)
@@ -39,15 +39,30 @@
 - ✅ `messages.send` - Send a message to a channel (WRITE - secured)
 - ✅ `messages.edit` - Edit an existing message (WRITE - secured)
 - ✅ `messages.delete` - Delete a message (WRITE - secured)
+- ✅ `messages.bulk_delete` - Delete multiple messages (WRITE - secured)
 - ✅ `messages.pin` - Pin a message (WRITE - secured)
 - ✅ `messages.unpin` - Unpin a message (WRITE - secured)
 
-### Reactions (WRITE)
+### Reactions (READ + WRITE)
+- ✅ `reactions.list` - List users who reacted with emoji (READ)
 - ✅ `reactions.add` - Add reaction to message (WRITE - secured, low-risk)
 - ✅ `reactions.remove` - Remove reaction from message (WRITE - secured, low-risk)
+- ✅ `reactions.clear` - Clear all reactions from message (WRITE - secured)
+- ✅ `reactions.clear_emoji` - Clear specific emoji reactions (WRITE - secured)
 
 ### Moderation (READ)
 - ✅ `bans.list` - List banned users
+
+### Threads (READ + WRITE)
+- ✅ `threads.create` - Create a new thread (WRITE - secured)
+- ✅ `threads.list` - List active threads (READ)
+- ✅ `threads.get` - Get thread details (READ)
+- ✅ `threads.edit` - Edit thread properties (WRITE - secured)
+- ✅ `threads.delete` - Delete a thread (WRITE - secured)
+- ✅ `threads.join` - Join a thread (WRITE - low-risk)
+- ✅ `threads.leave` - Leave a thread (WRITE - low-risk)
+- ✅ `threads.add_member` - Add member to thread (WRITE - secured)
+- ✅ `threads.remove_member` - Remove member from thread (WRITE - secured)
 
 ### Server Features (READ)
 - ✅ `emojis.list` - List custom emojis
@@ -69,7 +84,7 @@
 - ✅ `messages.list` - Get channel message history (IMPLEMENTED)
 - ✅ `messages.pin` - Pin a message (IMPLEMENTED)
 - ✅ `messages.unpin` - Unpin a message (IMPLEMENTED)
-- ❌ `messages.bulk_delete` - Delete multiple messages
+- ✅ `messages.bulk_delete` - Delete multiple messages (IMPLEMENTED)
 
 #### Reactions (WRITE)
 - ✅ `reactions.add` - Add reaction to message (IMPLEMENTED)
@@ -95,24 +110,24 @@
 - ✅ `members.remove_timeout` - Remove timeout from member (IMPLEMENTED)
 
 #### Threads
-- ❌ `threads.create` - Create a thread from message or in forum
-- ❌ `threads.list` - List active/archived threads
-- ❌ `threads.get` - Get thread details
-- ❌ `threads.edit` - Modify thread settings
-- ❌ `threads.delete` - Delete a thread
-- ❌ `threads.join` - Join a thread
-- ❌ `threads.leave` - Leave a thread
-- ❌ `threads.add_member` - Add member to thread
-- ❌ `threads.remove_member` - Remove member from thread
+- ✅ `threads.create` - Create a thread from message or in forum (IMPLEMENTED)
+- ✅ `threads.list` - List active/archived threads (IMPLEMENTED)
+- ✅ `threads.get` - Get thread details (IMPLEMENTED)
+- ✅ `threads.edit` - Modify thread settings (IMPLEMENTED)
+- ✅ `threads.delete` - Delete a thread (IMPLEMENTED)
+- ✅ `threads.join` - Join a thread (IMPLEMENTED)
+- ✅ `threads.leave` - Leave a thread (IMPLEMENTED)
+- ✅ `threads.add_member` - Add member to thread (IMPLEMENTED)
+- ✅ `threads.remove_member` - Remove member from thread (IMPLEMENTED)
 
 ### Medium Priority - Rich Features
 
 #### Reactions
 - ✅ `reactions.add` - Add reaction to message (IMPLEMENTED)
 - ✅ `reactions.remove` - Remove reaction from message (IMPLEMENTED)
-- ❌ `reactions.list` - List users who reacted with emoji
-- ❌ `reactions.clear` - Clear all reactions from message
-- ❌ `reactions.clear_emoji` - Clear specific emoji reactions
+- ✅ `reactions.list` - List users who reacted with emoji (IMPLEMENTED)
+- ✅ `reactions.clear` - Clear all reactions from message (IMPLEMENTED)
+- ✅ `reactions.clear_emoji` - Clear specific emoji reactions (IMPLEMENTED)
 
 #### Voice Channels
 - ❌ `voice.connect` - Connect bot to voice channel (requires gateway)
@@ -279,20 +294,22 @@ Each command needs:
 
 ## Estimated Coverage
 
-- Current: **35 commands** (up from 26)
+- Current: **42 commands** (up from 35)
 - Serenity API: ~120+ endpoints
-- Coverage: ~29% (up from 22%)
+- Coverage: ~35% (up from 29%)
 
-**Phase 2.5 Complete!** Essential bot operations now at ~85% coverage:
+**Phase 2.5 Complete!** Essential bot operations now at ~90% coverage:
 - ✅ Complete role management (list, get, create, edit, delete, assign, remove)
-- ✅ Complete member moderation (list, get, ban, kick, timeout, unban)
-- ✅ Complete channel CRUD (list, get, create, edit, delete)
-- ✅ Complete message operations (get, list, send, edit, delete)
-- ✅ Basic reactions (add, remove)
+- ✅ Complete member moderation (list, get, ban, kick, timeout, unban, edit, remove_timeout)
+- ✅ Complete channel CRUD (list, get, create, edit, delete, get_or_create)
+- ✅ Complete message operations (get, list, send, edit, delete, pin, unpin, clear)
+- ✅ Reaction support (add, remove)
+- ✅ Channel utilities (create_invite, typing)
+- ✅ Extended read operations (bans.list, emojis.list, stickers.list, events.list, integrations.list, invites.list, webhooks.list, voice_regions.list)
 
 Target for "feature parity":
 - Essential operations (High + Medium priority): ~80 commands
-- Would achieve: ~67% coverage
+- Would achieve: ~70% coverage with threads, webhooks, and scheduled events
 - Sufficient for most bot use cases
 
 ## Recommendations
@@ -305,10 +322,35 @@ Target for "feature parity":
 6. **Rate limiting** - Monitor and respect Discord rate limits
 7. **Permissions** - Ensure bot has required Discord permissions for each operation
 
-## Next Steps
+## Next Steps (Updated 2025-11-22)
 
-1. Implement message editing/deletion (users expect this)
-2. Add role management (critical for moderation)
-3. Implement member kick/timeout (completes basic moderation suite)
-4. Add message history retrieval (needed for context)
-5. Implement threads (modern Discord feature)
+### Immediate Priorities (Phase 3)
+1. ✅ Complete narrative state management for persistent channel IDs
+2. ⏭️ **Thread Management** - Critical for modern Discord communities
+   - `threads.create` - Create thread from message or in forum/channel
+   - `threads.list` - List active/archived threads
+   - `threads.join`/`leave` - Thread membership
+   - `threads.add_member`/`remove_member` - Thread member management
+   - `threads.edit` - Modify thread settings
+3. ⏭️ **Webhook Execution** - Essential for automation
+   - `webhooks.create` - Create webhook
+   - `webhooks.execute` - Send message via webhook
+   - `webhooks.get`/`edit`/`delete` - Webhook management
+4. ⏭️ **Scheduled Events** - Community engagement
+   - `events.create` - Create scheduled event
+   - `events.edit` - Edit event details
+   - `events.delete` - Cancel event
+   - `events.get` - Get event details
+   - `events.list_users` - Get RSVPs
+
+### Medium Term (Phase 4)
+1. **Forum Channel Posts** - Q&A and discussion
+2. **Stage Channel Instances** - Community talks/AMAs
+3. **Advanced Reaction Management** - Clear reactions, list reactors
+4. **Audit Logs** - Moderation and security tracking
+
+### Long Term (Phase 5)
+1. **Auto Moderation Rules** - Safety and spam prevention
+2. **Permission Overwrites** - Fine-grained access control
+3. **Emoji/Sticker Management** - Custom branding
+4. **Server Templates** - Community replication

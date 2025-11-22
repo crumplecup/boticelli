@@ -3863,6 +3863,19 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "roles.delete" => self.roles_delete(args).await?,
             "messages.pin" => self.messages_pin(args).await?,
             "messages.unpin" => self.messages_unpin(args).await?,
+            "messages.bulk_delete" => self.messages_bulk_delete(args).await?,
+            "threads.create" => self.threads_create(args).await?,
+            "threads.list" => self.threads_list(args).await?,
+            "threads.get" => self.threads_get(args).await?,
+            "threads.edit" => self.threads_edit(args).await?,
+            "threads.delete" => self.threads_delete(args).await?,
+            "threads.join" => self.threads_join(args).await?,
+            "threads.leave" => self.threads_leave(args).await?,
+            "threads.add_member" => self.threads_add_member(args).await?,
+            "threads.remove_member" => self.threads_remove_member(args).await?,
+            "reactions.list" => self.reactions_list(args).await?,
+            "reactions.clear" => self.reactions_clear(args).await?,
+            "reactions.clear_emoji" => self.reactions_clear_emoji(args).await?,
             "members.edit" => self.members_edit(args).await?,
             "members.remove_timeout" => self.members_remove_timeout(args).await?,
             "channels.create_invite" => self.channels_create_invite(args).await?,
@@ -3966,6 +3979,19 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             "messages.clear".to_string(),
             "messages.pin".to_string(),
             "messages.unpin".to_string(),
+            "messages.bulk_delete".to_string(),
+            "threads.create".to_string(),
+            "threads.list".to_string(),
+            "threads.get".to_string(),
+            "threads.edit".to_string(),
+            "threads.delete".to_string(),
+            "threads.join".to_string(),
+            "threads.leave".to_string(),
+            "threads.add_member".to_string(),
+            "threads.remove_member".to_string(),
+            "reactions.list".to_string(),
+            "reactions.clear".to_string(),
+            "reactions.clear_emoji".to_string(),
             "channels.create".to_string(),
             "channels.get_or_create".to_string(),
             "channels.edit".to_string(),
@@ -4169,8 +4195,729 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                  Required arguments: channel_id"
                     .to_string(),
             ),
+            "messages.bulk_delete" => Some(
+                "Delete multiple messages at once (requires security framework)\n\
+                 Required arguments: channel_id, message_ids (array of message IDs)"
+                    .to_string(),
+            ),
+            "threads.create" => Some(
+                "Create a new thread (requires security framework)\n\
+                 Required arguments: channel_id, name\n\
+                 Optional arguments: auto_archive_duration, invitable"
+                    .to_string(),
+            ),
+            "threads.list" => Some(
+                "List active threads in a server\n\
+                 Required arguments: guild_id"
+                    .to_string(),
+            ),
+            "threads.get" => Some(
+                "Get thread details\n\
+                 Required arguments: thread_id"
+                    .to_string(),
+            ),
+            "threads.edit" => Some(
+                "Edit thread properties (requires security framework)\n\
+                 Required arguments: thread_id\n\
+                 Optional arguments: name, archived (bool), locked (bool)"
+                    .to_string(),
+            ),
+            "threads.delete" => Some(
+                "Delete a thread (requires security framework)\n\
+                 Required arguments: thread_id"
+                    .to_string(),
+            ),
+            "threads.join" => Some(
+                "Join a thread (low-risk write)\n\
+                 Required arguments: thread_id"
+                    .to_string(),
+            ),
+            "threads.leave" => Some(
+                "Leave a thread (low-risk write)\n\
+                 Required arguments: thread_id"
+                    .to_string(),
+            ),
+            "threads.add_member" => Some(
+                "Add a member to a thread (requires security framework)\n\
+                 Required arguments: thread_id, user_id"
+                    .to_string(),
+            ),
+            "threads.remove_member" => Some(
+                "Remove a member from a thread (requires security framework)\n\
+                 Required arguments: thread_id, user_id"
+                    .to_string(),
+            ),
+            "reactions.list" => Some(
+                "List users who reacted with a specific emoji\n\
+                 Required arguments: channel_id, message_id, emoji"
+                    .to_string(),
+            ),
+            "reactions.clear" => Some(
+                "Clear all reactions from a message (requires security framework)\n\
+                 Required arguments: channel_id, message_id"
+                    .to_string(),
+            ),
+            "reactions.clear_emoji" => Some(
+                "Clear specific emoji reactions from a message (requires security framework)\n\
+                 Required arguments: channel_id, message_id, emoji"
+                    .to_string(),
+            ),
             _ => None,
         }
+    }
+
+    /// Execute: messages.bulk_delete
+    #[instrument(skip(self, args), fields(command = "messages.bulk_delete", channel_id, message_count))]
+    async fn messages_bulk_delete(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "channel_id".to_string(),
+                    command: "messages.bulk_delete".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let message_ids: Vec<String> = if let Some(ids) = args.get("message_ids") {
+            serde_json::from_value(ids.clone()).map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "message_ids".to_string(),
+                    command: "messages.bulk_delete".to_string(),
+                    reason: format!("Invalid message IDs array: {}", e),
+                })
+            })?
+        } else {
+            return Err(BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "message_ids".to_string(),
+                command: "messages.bulk_delete".to_string(),
+                reason: "Missing required argument".to_string(),
+            }));
+        };
+
+        let channel_id = channel_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "channel_id".to_string(),
+                command: "messages.bulk_delete".to_string(),
+                reason: format!("Invalid channel ID format: {}", e),
+            })
+        })?;
+
+        let message_ids_u64: Vec<u64> = message_ids
+            .iter()
+            .map(|id| id.parse().map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "message_ids".to_string(),
+                    command: "messages.bulk_delete".to_string(),
+                    reason: format!("Invalid message ID format: {}", e),
+                })
+            }))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.http
+            .delete_messages(channel_id, &message_ids_u64, None)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                    command: "messages.bulk_delete".to_string(),
+                    reason: format!("Failed to bulk delete messages: {}", e),
+                })
+            })?;
+
+        Ok(serde_json::json!({
+            "success": true,
+            "deleted_count": message_ids.len()
+        }))
+    }
+
+    /// Execute: threads.create
+    #[instrument(skip(self, args), fields(command = "threads.create", channel_id, name))]
+    async fn threads_create(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "channel_id".to_string(),
+                    command: "threads.create".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let name = args
+            .get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "name".to_string(),
+                    command: "threads.create".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let channel_id = channel_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "channel_id".to_string(),
+                command: "threads.create".to_string(),
+                reason: format!("Invalid channel ID format: {}", e),
+            })
+        })?;
+
+        // Create thread using serenity's API
+        use serenity::builder::CreateThread;
+        use serenity::model::channel::ChannelType;
+        
+        let builder = CreateThread::new(name.to_string())
+            .kind(ChannelType::PublicThread);
+
+        let thread = self.http
+            .create_thread(channel_id, builder, None)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                    command: "threads.create".to_string(),
+                    reason: format!("Failed to create thread: {}", e),
+                })
+            })?;
+
+        Ok(serde_json::json!({
+            "thread_id": thread.id.to_string(),
+            "name": thread.name,
+            "type": format!("{:?}", thread.kind)
+        }))
+    }
+
+    /// Execute: threads.list
+    #[instrument(skip(self, args), fields(command = "threads.list", guild_id))]
+    async fn threads_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let guild_id_str = args
+            .get("guild_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "guild_id".to_string(),
+                    command: "threads.list".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let guild_id: GuildId = guild_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "guild_id".to_string(),
+                command: "threads.list".to_string(),
+                reason: format!("Invalid guild ID format: {}", e),
+            })
+        })?;
+
+        let threads = self.http.get_guild_active_threads(guild_id).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.list".to_string(),
+                reason: format!("Failed to list threads: {}", e),
+            })
+        })?;
+
+        let thread_list: Vec<JsonValue> = threads
+            .threads
+            .iter()
+            .map(|thread| {
+                serde_json::json!({
+                    "id": thread.id.to_string(),
+                    "name": thread.name,
+                    "type": format!("{:?}", thread.kind),
+                    "parent_id": thread.parent_id.map(|id| id.to_string())
+                })
+            })
+            .collect();
+
+        Ok(serde_json::json!({
+            "threads": thread_list,
+            "count": thread_list.len()
+        }))
+    }
+
+    /// Execute: threads.get
+    #[instrument(skip(self, args), fields(command = "threads.get", thread_id))]
+    async fn threads_get(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let thread_id_str = args
+            .get("thread_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "thread_id".to_string(),
+                    command: "threads.get".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let thread_id = thread_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "thread_id".to_string(),
+                command: "threads.get".to_string(),
+                reason: format!("Invalid thread ID format: {}", e),
+            })
+        })?;
+
+        let thread = self.http.get_channel(thread_id).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.get".to_string(),
+                reason: format!("Failed to get thread: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({
+            "id": thread.id.to_string(),
+            "name": thread.name,
+            "type": format!("{:?}", thread.kind),
+            "parent_id": thread.parent_id.map(|id| id.to_string())
+        }))
+    }
+
+    /// Execute: threads.edit
+    #[instrument(skip(self, args), fields(command = "threads.edit", thread_id))]
+    async fn threads_edit(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let thread_id_str = args
+            .get("thread_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "thread_id".to_string(),
+                    command: "threads.edit".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let thread_id = thread_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "thread_id".to_string(),
+                command: "threads.edit".to_string(),
+                reason: format!("Invalid thread ID format: {}", e),
+            })
+        })?;
+
+        use serenity::builder::EditThread;
+        let mut builder = EditThread::new();
+
+        if let Some(name) = args.get("name").and_then(|v| v.as_str()) {
+            builder = builder.name(name);
+        }
+
+        if let Some(archived) = args.get("archived").and_then(|v| v.as_bool()) {
+            builder = builder.archived(archived);
+        }
+
+        if let Some(locked) = args.get("locked").and_then(|v| v.as_bool()) {
+            builder = builder.locked(locked);
+        }
+
+        self.http.edit_thread(thread_id, &builder, None).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.edit".to_string(),
+                reason: format!("Failed to edit thread: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({ "success": true }))
+    }
+
+    /// Execute: threads.delete
+    #[instrument(skip(self, args), fields(command = "threads.delete", thread_id))]
+    async fn threads_delete(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let thread_id_str = args
+            .get("thread_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "thread_id".to_string(),
+                    command: "threads.delete".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let thread_id = thread_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "thread_id".to_string(),
+                command: "threads.delete".to_string(),
+                reason: format!("Invalid thread ID format: {}", e),
+            })
+        })?;
+
+        self.http.delete_channel(thread_id, None).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.delete".to_string(),
+                reason: format!("Failed to delete thread: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({ "success": true }))
+    }
+
+    /// Execute: threads.join
+    #[instrument(skip(self, args), fields(command = "threads.join", thread_id))]
+    async fn threads_join(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let thread_id_str = args
+            .get("thread_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "thread_id".to_string(),
+                    command: "threads.join".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let thread_id = thread_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "thread_id".to_string(),
+                command: "threads.join".to_string(),
+                reason: format!("Invalid thread ID format: {}", e),
+            })
+        })?;
+
+        self.http.join_thread(thread_id).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.join".to_string(),
+                reason: format!("Failed to join thread: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({ "success": true }))
+    }
+
+    /// Execute: threads.leave
+    #[instrument(skip(self, args), fields(command = "threads.leave", thread_id))]
+    async fn threads_leave(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let thread_id_str = args
+            .get("thread_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "thread_id".to_string(),
+                    command: "threads.leave".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let thread_id = thread_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "thread_id".to_string(),
+                command: "threads.leave".to_string(),
+                reason: format!("Invalid thread ID format: {}", e),
+            })
+        })?;
+
+        self.http.leave_thread(thread_id).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.leave".to_string(),
+                reason: format!("Failed to leave thread: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({ "success": true }))
+    }
+
+    /// Execute: threads.add_member
+    #[instrument(skip(self, args), fields(command = "threads.add_member", thread_id, user_id))]
+    async fn threads_add_member(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let thread_id_str = args
+            .get("thread_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "thread_id".to_string(),
+                    command: "threads.add_member".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let user_id_str = args
+            .get("user_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "user_id".to_string(),
+                    command: "threads.add_member".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let thread_id = thread_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "thread_id".to_string(),
+                command: "threads.add_member".to_string(),
+                reason: format!("Invalid thread ID format: {}", e),
+            })
+        })?;
+
+        let user_id = user_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "user_id".to_string(),
+                command: "threads.add_member".to_string(),
+                reason: format!("Invalid user ID format: {}", e),
+            })
+        })?;
+
+        self.http.add_thread_member(thread_id, user_id).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.add_member".to_string(),
+                reason: format!("Failed to add member to thread: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({ "success": true }))
+    }
+
+    /// Execute: threads.remove_member
+    #[instrument(skip(self, args), fields(command = "threads.remove_member", thread_id, user_id))]
+    async fn threads_remove_member(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let thread_id_str = args
+            .get("thread_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "thread_id".to_string(),
+                    command: "threads.remove_member".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let user_id_str = args
+            .get("user_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "user_id".to_string(),
+                    command: "threads.remove_member".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let thread_id = thread_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "thread_id".to_string(),
+                command: "threads.remove_member".to_string(),
+                reason: format!("Invalid thread ID format: {}", e),
+            })
+        })?;
+
+        let user_id = user_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "user_id".to_string(),
+                command: "threads.remove_member".to_string(),
+                reason: format!("Invalid user ID format: {}", e),
+            })
+        })?;
+
+        self.http.remove_thread_member(thread_id, user_id).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "threads.remove_member".to_string(),
+                reason: format!("Failed to remove member from thread: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({ "success": true }))
+    }
+
+    /// Execute: reactions.list
+    #[instrument(skip(self, args), fields(command = "reactions.list", channel_id, message_id, emoji))]
+    async fn reactions_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "channel_id".to_string(),
+                    command: "reactions.list".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let message_id_str = args
+            .get("message_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "message_id".to_string(),
+                    command: "reactions.list".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let emoji = args
+            .get("emoji")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "emoji".to_string(),
+                    command: "reactions.list".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let channel_id = channel_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "channel_id".to_string(),
+                command: "reactions.list".to_string(),
+                reason: format!("Invalid channel ID format: {}", e),
+            })
+        })?;
+
+        let message_id = message_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "message_id".to_string(),
+                command: "reactions.list".to_string(),
+                reason: format!("Invalid message ID format: {}", e),
+            })
+        })?;
+
+        use serenity::model::channel::ReactionType;
+        let reaction_type = ReactionType::Unicode(emoji.to_string());
+
+        let users = self.http
+            .get_reaction_users(channel_id, message_id, &reaction_type, None, None)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                    command: "reactions.list".to_string(),
+                    reason: format!("Failed to list reactions: {}", e),
+                })
+            })?;
+
+        let user_list: Vec<JsonValue> = users
+            .iter()
+            .map(|user| {
+                serde_json::json!({
+                    "id": user.id.to_string(),
+                    "name": user.name,
+                    "discriminator": user.discriminator,
+                    "bot": user.bot
+                })
+            })
+            .collect();
+
+        Ok(serde_json::json!({
+            "users": user_list,
+            "count": user_list.len()
+        }))
+    }
+
+    /// Execute: reactions.clear
+    #[instrument(skip(self, args), fields(command = "reactions.clear", channel_id, message_id))]
+    async fn reactions_clear(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "channel_id".to_string(),
+                    command: "reactions.clear".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let message_id_str = args
+            .get("message_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "message_id".to_string(),
+                    command: "reactions.clear".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let channel_id = channel_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "channel_id".to_string(),
+                command: "reactions.clear".to_string(),
+                reason: format!("Invalid channel ID format: {}", e),
+            })
+        })?;
+
+        let message_id = message_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "message_id".to_string(),
+                command: "reactions.clear".to_string(),
+                reason: format!("Invalid message ID format: {}", e),
+            })
+        })?;
+
+        self.http.delete_message_reactions(channel_id, message_id).await.map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                command: "reactions.clear".to_string(),
+                reason: format!("Failed to clear reactions: {}", e),
+            })
+        })?;
+
+        Ok(serde_json::json!({ "success": true }))
+    }
+
+    /// Execute: reactions.clear_emoji
+    #[instrument(skip(self, args), fields(command = "reactions.clear_emoji", channel_id, message_id, emoji))]
+    async fn reactions_clear_emoji(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult {
+        let channel_id_str = args
+            .get("channel_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "channel_id".to_string(),
+                    command: "reactions.clear_emoji".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let message_id_str = args
+            .get("message_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "message_id".to_string(),
+                    command: "reactions.clear_emoji".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let emoji = args
+            .get("emoji")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                    arg: "emoji".to_string(),
+                    command: "reactions.clear_emoji".to_string(),
+                    reason: "Missing required argument".to_string(),
+                })
+            })?;
+
+        let channel_id = channel_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "channel_id".to_string(),
+                command: "reactions.clear_emoji".to_string(),
+                reason: format!("Invalid channel ID format: {}", e),
+            })
+        })?;
+
+        let message_id = message_id_str.parse().map_err(|e| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg: "message_id".to_string(),
+                command: "reactions.clear_emoji".to_string(),
+                reason: format!("Invalid message ID format: {}", e),
+            })
+        })?;
+
+        use serenity::model::channel::ReactionType;
+        let reaction_type = ReactionType::Unicode(emoji.to_string());
+
+        self.http
+            .delete_message_reaction_emoji(channel_id, message_id, &reaction_type)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ExecutionFailed {
+                    command: "reactions.clear_emoji".to_string(),
+                    reason: format!("Failed to clear emoji reactions: {}", e),
+                })
+            })?;
+
+        Ok(serde_json::json!({ "success": true }))
     }
 }
 

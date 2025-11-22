@@ -34,7 +34,7 @@ pub fn to_chat_request(
 fn message_to_server_message(msg: Message) -> Result<crate::Message, ServerError> {
     // Extract text from content (handle multimodal inputs)
     let text = msg
-        .content
+        .content()
         .iter()
         .filter_map(|input| match input {
             Input::Text(t) => Some(t.as_str()),
@@ -53,7 +53,7 @@ fn message_to_server_message(msg: Message) -> Result<crate::Message, ServerError
     }
 
     Ok(crate::Message {
-        role: match msg.role {
+        role: match msg.role() {
             botticelli_core::Role::User => "user".to_string(),
             botticelli_core::Role::Assistant => "assistant".to_string(),
             botticelli_core::Role::System => "system".to_string(),

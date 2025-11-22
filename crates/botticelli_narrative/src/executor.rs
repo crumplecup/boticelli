@@ -4,7 +4,7 @@
 //! by calling LLM APIs in sequence, passing context between acts.
 
 use crate::{CarouselResult, CarouselState, NarrativeProvider, ProcessorContext, ProcessorRegistry, StateManager};
-use botticelli_core::{GenerateRequest, Input, Message, Output, Role};
+use botticelli_core::{GenerateRequest, Input, Message, MessageBuilder, Output, Role};
 use botticelli_error::{BotticelliError, BotticelliResult, NarrativeError, NarrativeErrorKind};
 use botticelli_interface::{ActExecution, BotticelliDriver, NarrativeExecution, TableQueryRegistry};
 use serde_json::Value as JsonValue;
@@ -191,10 +191,18 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             let (response_text, model, temperature, max_tokens) = if has_text_prompt {
                 // This act needs an LLM response
                 // Build the request with conversation history + processed inputs
-                conversation_history.push(Message {
-                    role: Role::User,
-                    content: processed_inputs.clone(),
-                });
+                conversation_history.push(
+                    MessageBuilder::default()
+                        .role(Role::User)
+                        .content(processed_inputs.clone())
+                        .build()
+                        .map_err(|e| {
+                            NarrativeError::new(NarrativeErrorKind::ConfigurationError(format!(
+                                "Failed to build message: {}",
+                                e
+                            )))
+                        })?,
+                );
 
                 // Apply narrative-level defaults for model/temperature/max_tokens if act doesn't override
                 let metadata = narrative.metadata();
@@ -279,10 +287,18 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
             // Add the assistant's response to conversation history for the next act (only if there was an LLM call)
             if has_text_prompt {
-                conversation_history.push(Message {
-                    role: Role::Assistant,
-                    content: vec![Input::Text(response_text)],
-                });
+                conversation_history.push(
+                    MessageBuilder::default()
+                        .role(Role::Assistant)
+                        .content(vec![Input::Text(response_text)])
+                        .build()
+                        .map_err(|e| {
+                            NarrativeError::new(NarrativeErrorKind::ConfigurationError(format!(
+                                "Failed to build message: {}",
+                                e
+                            )))
+                        })?,
+                );
             }
         }
 

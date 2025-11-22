@@ -67,14 +67,14 @@ pub enum Output {
 ///     arguments: json!({"location": "San Francisco"}),
 /// };
 ///
-/// assert_eq!(call.name, "get_weather");
+/// assert_eq!(*call.name(), "get_weather");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, derive_getters::Getters, derive_builder::Builder)]
 pub struct ToolCall {
     /// Unique identifier for this tool call
-    pub id: String,
+    id: String,
     /// Name of the tool/function to call
-    pub name: String,
+    name: String,
     /// Arguments to pass to the tool (as JSON)
-    pub arguments: serde_json::Value,
+    arguments: serde_json::Value,
 }

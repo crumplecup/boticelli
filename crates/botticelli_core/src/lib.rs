@@ -14,7 +14,7 @@ mod role;
 
 pub use input::{Input, TableFormat};
 pub use media::MediaSource;
-pub use message::Message;
-pub use output::{Output, ToolCall};
+pub use message::{Message, MessageBuilder};
+pub use output::{Output, ToolCall, ToolCallBuilder};
 pub use request::{GenerateRequest, GenerateRequestBuilder, GenerateResponse};
 pub use role::Role;

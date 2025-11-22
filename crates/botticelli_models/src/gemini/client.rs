@@ -613,7 +613,7 @@ impl GeminiClient {
     fn combine_messages(&self, req: &GenerateRequest) -> String {
         let mut combined_text = String::new();
         for msg in req.messages() {
-            for input in &msg.content {
+            for input in msg.content() {
                 if let Some(text) = Self::extract_text(input) {
                     combined_text.push_str(&text);
                     combined_text.push('\n');
@@ -671,7 +671,7 @@ impl GeminiClient {
         let estimated_tokens: u64 = req
             .messages()
             .iter()
-            .flat_map(|msg| &msg.content)
+            .flat_map(|msg| msg.content())
             .filter_map(Self::extract_text)
             .map(|text| Self::estimate_tokens(&text))
             .sum();
@@ -697,16 +697,16 @@ impl GeminiClient {
                 let mut system_prompt = None;
 
                 for msg in &messages {
-                    match msg.role {
+                    match msg.role() {
                         Role::System => {
                             // Gemini uses a separate system prompt
-                            if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                            if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                                 system_prompt = Some(text);
                             }
                         }
                         Role::User => {
                             // Add user message(s)
-                            for input in &msg.content {
+                            for input in msg.content() {
                                 if let Some(text) = Self::extract_text(input) {
                                     builder = builder.with_user_message(&text);
                                 }
@@ -714,7 +714,7 @@ impl GeminiClient {
 
                             // Note: gemini-rust's simple API doesn't directly support
                             // multimodal inputs through the builder pattern.
-                            if Self::has_media(&msg.content) {
+                            if Self::has_media(msg.content()) {
                                 return Err(GeminiError::new(
                                     GeminiErrorKind::MultimodalNotSupported,
                                 ));
@@ -722,7 +722,7 @@ impl GeminiClient {
                         }
                         Role::Assistant => {
                             // Add model/assistant message
-                            if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                            if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                                 builder = builder.with_model_message(&text);
                             }
                         }
@@ -852,7 +852,7 @@ impl GeminiClient {
         // Combine all user messages into a single text
         let mut combined_text = String::new();
         for msg in req.messages() {
-            for input in &msg.content {
+            for input in msg.content() {
                 if let Some(text) = Self::extract_text(input) {
                     combined_text.push_str(&text);
                     combined_text.push('\n');
@@ -916,7 +916,7 @@ impl Streaming for GeminiClient {
         let estimated_tokens: u64 = req
             .messages()
             .iter()
-            .flat_map(|msg| &msg.content)
+            .flat_map(|msg| msg.content())
             .filter_map(Self::extract_text)
             .map(|text| Self::estimate_tokens(&text))
             .sum();
@@ -934,26 +934,26 @@ impl Streaming for GeminiClient {
         let mut system_prompt = None;
 
         for msg in req.messages() {
-            match msg.role {
+            match msg.role() {
                 Role::System => {
-                    if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                    if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                         system_prompt = Some(text);
                     }
                 }
                 Role::User => {
-                    for input in &msg.content {
+                    for input in msg.content() {
                         if let Some(text) = Self::extract_text(input) {
                             builder = builder.with_user_message(&text);
                         }
                     }
-                    if Self::has_media(&msg.content) {
+                    if Self::has_media(msg.content()) {
                         return Err(
                             GeminiError::new(GeminiErrorKind::MultimodalNotSupported).into()
                         );
                     }
                 }
                 Role::Assistant => {
-                    if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                    if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                         builder = builder.with_model_message(&text);
                     }
                 }

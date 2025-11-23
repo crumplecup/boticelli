@@ -1,14 +1,15 @@
 //! Tests for skill registry.
 
 use async_trait::async_trait;
-use botticelli_actor::{Skill, SkillContext, SkillOutput, SkillRegistry, SkillResult};
+use botticelli_actor::{
+    PlatformMetadataBuilder, Skill, SkillContext, SkillOutput, SkillRegistry, SkillResult,
+};
 use serde_json::json;
 
 /// Mock skill for testing.
 struct MockSkill {
     name: String,
     description: String,
-    fail: bool,
 }
 
 impl MockSkill {
@@ -16,13 +17,7 @@ impl MockSkill {
         Self {
             name: name.to_string(),
             description: description.to_string(),
-            fail: false,
         }
-    }
-
-    fn with_failure(mut self) -> Self {
-        self.fail = true;
-        self
     }
 }
 
@@ -37,12 +32,6 @@ impl Skill for MockSkill {
     }
 
     async fn execute(&self, _context: &SkillContext) -> SkillResult<SkillOutput> {
-        if self.fail {
-            return Err(botticelli_actor::ActorError::new(
-                botticelli_actor::ActorErrorKind::ValidationFailed("Mock failure".to_string()),
-            ));
-        }
-
         Ok(SkillOutput {
             skill_name: self.name.clone(),
             data: json!({"status": "success"}),
@@ -141,12 +130,13 @@ async fn test_skill_registry_execute_success() {
         }
 
         fn metadata(&self) -> botticelli_actor::PlatformMetadata {
-            botticelli_actor::PlatformMetadata::builder()
+            PlatformMetadataBuilder::default()
                 .name("dummy".to_string())
                 .max_text_length(280)
                 .max_media_attachments(4)
                 .supported_media_types(vec![])
                 .build()
+                .expect("Valid metadata")
         }
     }
 
@@ -200,12 +190,13 @@ async fn test_skill_registry_execute_not_found() {
         }
 
         fn metadata(&self) -> botticelli_actor::PlatformMetadata {
-            botticelli_actor::PlatformMetadata::builder()
+            PlatformMetadataBuilder::default()
                 .name("dummy".to_string())
                 .max_text_length(280)
                 .max_media_attachments(4)
                 .supported_media_types(vec![])
                 .build()
+                .expect("Valid metadata")
         }
     }
 

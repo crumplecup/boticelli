@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
-use typed_builder::TypedBuilder;
 
 /// Result type for platform operations.
 pub type PlatformResult<T> = Result<T, ActorError>;
@@ -21,7 +20,7 @@ pub struct PostId(pub String);
 pub struct ScheduleId(pub String);
 
 /// Metadata about a platform.
-#[derive(Debug, Clone, PartialEq, Eq, Getters, Serialize, Deserialize, TypedBuilder)]
+#[derive(Debug, Clone, PartialEq, Eq, Getters, Serialize, Deserialize, derive_builder::Builder)]
 pub struct PlatformMetadata {
     /// Platform name (e.g., "discord", "twitter").
     name: String,

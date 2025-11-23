@@ -2,7 +2,8 @@
 
 use async_trait::async_trait;
 use botticelli_actor::{
-    Content, MediaAttachment, MediaType, PlatformMetadata, PlatformResult, PostId, ScheduleId,
+    Content, ContentBuilder, MediaAttachment, MediaAttachmentBuilder, MediaType,
+    PlatformMetadata, PlatformMetadataBuilder, PlatformResult, PostId, ScheduleId,
     SocialMediaPlatform,
 };
 use chrono::{DateTime, Utc};
@@ -47,21 +48,23 @@ impl SocialMediaPlatform for MockPlatform {
     }
 
     fn metadata(&self) -> PlatformMetadata {
-        PlatformMetadata::builder()
+        PlatformMetadataBuilder::default()
             .name(self.name.clone())
             .max_text_length(280)
             .max_media_attachments(4)
             .supported_media_types(vec!["image".to_string(), "video".to_string()])
             .build()
+            .expect("Valid metadata")
     }
 }
 
 #[tokio::test]
 async fn test_mock_platform_post_success() {
     let platform = MockPlatform::new("test");
-    let content = Content::builder()
+    let content = ContentBuilder::default()
         .text(Some("Test post".to_string()))
-        .build();
+        .build()
+        .expect("Valid content");
 
     let result = platform.post(content).await;
     assert!(result.is_ok());
@@ -71,9 +74,10 @@ async fn test_mock_platform_post_success() {
 #[tokio::test]
 async fn test_mock_platform_post_failure() {
     let platform = MockPlatform::new("test").with_post_failure();
-    let content = Content::builder()
+    let content = ContentBuilder::default()
         .text(Some("Test post".to_string()))
-        .build();
+        .build()
+        .expect("Valid content");
 
     let result = platform.post(content).await;
     assert!(result.is_err());
@@ -83,9 +87,10 @@ async fn test_mock_platform_post_failure() {
 #[tokio::test]
 async fn test_mock_platform_schedule() {
     let platform = MockPlatform::new("test");
-    let content = Content::builder()
+    let content = ContentBuilder::default()
         .text(Some("Scheduled post".to_string()))
-        .build();
+        .build()
+        .expect("Valid content");
     let time = Utc::now();
 
     let result = platform.schedule(content, time).await;
@@ -115,14 +120,18 @@ async fn test_mock_platform_metadata() {
 
 #[test]
 fn test_content_builder() {
-    let content = Content::builder()
+    let attachment = MediaAttachmentBuilder::default()
+        .url("https://example.com/image.png".to_string())
+        .media_type(MediaType::Image)
+        .alt_text(Some("Test image".to_string()))
+        .build()
+        .expect("Valid attachment");
+
+    let content = ContentBuilder::default()
         .text(Some("Hello world".to_string()))
-        .media(vec![MediaAttachment::builder()
-            .url("https://example.com/image.png".to_string())
-            .media_type(MediaType::Image)
-            .alt_text(Some("Test image".to_string()))
-            .build()])
-        .build();
+        .media(vec![attachment])
+        .build()
+        .expect("Valid content");
 
     assert_eq!(content.text(), &Some("Hello world".to_string()));
     assert_eq!(content.media().len(), 1);
@@ -132,10 +141,11 @@ fn test_content_builder() {
 
 #[test]
 fn test_media_attachment_builder() {
-    let attachment = MediaAttachment::builder()
+    let attachment = MediaAttachmentBuilder::default()
         .url("https://example.com/video.mp4".to_string())
         .media_type(MediaType::Video)
-        .build();
+        .build()
+        .expect("Valid attachment");
 
     assert_eq!(attachment.url(), "https://example.com/video.mp4");
     assert_eq!(attachment.media_type(), &MediaType::Video);

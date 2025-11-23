@@ -3,7 +3,6 @@
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use typed_builder::TypedBuilder;
 
 /// Media types supported for attachments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -17,7 +16,7 @@ pub enum MediaType {
 }
 
 /// Media attachment for content.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Getters, Serialize, Deserialize, TypedBuilder)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Getters, Serialize, Deserialize, derive_builder::Builder)]
 pub struct MediaAttachment {
     /// URL to media file.
     url: String,
@@ -32,7 +31,7 @@ pub struct MediaAttachment {
 }
 
 /// Content to be posted to social media.
-#[derive(Debug, Clone, PartialEq, Eq, Getters, Serialize, Deserialize, TypedBuilder)]
+#[derive(Debug, Clone, PartialEq, Eq, Getters, Serialize, Deserialize, derive_builder::Builder)]
 pub struct Content {
     /// Text content.
     #[builder(default)]

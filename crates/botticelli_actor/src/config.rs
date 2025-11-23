@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use typed_builder::TypedBuilder;
 
 /// Cache strategy for actor state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,20 +26,20 @@ impl Default for CacheStrategy {
 }
 
 /// Actor state cache configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, derive_builder::Builder)]
 pub struct ActorCacheConfig {
     /// Cache strategy.
-    #[builder(default = CacheStrategy::Memory)]
+    #[builder(default = "default_cache_strategy()")]
     #[serde(default = "default_cache_strategy")]
     strategy: CacheStrategy,
 
     /// TTL in seconds for cached entries.
-    #[builder(default = 300)]
+    #[builder(default = "default_cache_ttl()")]
     #[serde(default = "default_cache_ttl")]
     ttl_seconds: u64,
 
     /// Maximum number of cache entries.
-    #[builder(default = 1000)]
+    #[builder(default = "default_cache_max_entries()")]
     #[serde(default = "default_cache_max_entries")]
     max_entries: usize,
 
@@ -74,20 +73,20 @@ impl Default for ActorCacheConfig {
 }
 
 /// Execution configuration for error handling.
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, derive_builder::Builder)]
 pub struct ExecutionConfig {
     /// Stop execution on unrecoverable errors.
-    #[builder(default = true)]
+    #[builder(default = "default_stop_on_unrecoverable()")]
     #[serde(default = "default_stop_on_unrecoverable")]
     stop_on_unrecoverable: bool,
 
     /// Maximum retry attempts for recoverable errors.
-    #[builder(default = 3)]
+    #[builder(default = "default_max_retries()")]
     #[serde(default = "default_max_retries")]
     max_retries: u32,
 
     /// Continue execution on recoverable errors (collect vs fail fast).
-    #[builder(default = true)]
+    #[builder(default = "default_continue_on_error()")]
     #[serde(default = "default_continue_on_error")]
     continue_on_error: bool,
 }
@@ -115,25 +114,25 @@ impl Default for ExecutionConfig {
 }
 
 /// Actor settings with sensible defaults.
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, derive_builder::Builder)]
 pub struct ActorSettings {
     /// Maximum posts per day.
-    #[builder(default = 10)]
+    #[builder(default = "default_max_posts()")]
     #[serde(default = "default_max_posts")]
     max_posts_per_day: u32,
 
     /// Minimum interval between posts in minutes.
-    #[builder(default = 60)]
+    #[builder(default = "default_min_interval()")]
     #[serde(default = "default_min_interval")]
     min_interval_minutes: u32,
 
     /// Number of retry attempts for failed operations.
-    #[builder(default = 3)]
+    #[builder(default = "default_retry_attempts()")]
     #[serde(default = "default_retry_attempts")]
     retry_attempts: u32,
 
     /// Timezone for scheduling (IANA timezone name).
-    #[builder(default = "UTC".to_string())]
+    #[builder(default = "default_timezone()")]
     #[serde(default = "default_timezone")]
     timezone: String,
 }
@@ -166,10 +165,10 @@ impl Default for ActorSettings {
 }
 
 /// Per-skill configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, derive_builder::Builder)]
 pub struct SkillConfig {
     /// Whether this skill is enabled.
-    #[builder(default = true)]
+    #[builder(default = "default_skill_enabled()")]
     #[serde(default = "default_skill_enabled")]
     enabled: bool,
 
@@ -194,7 +193,7 @@ impl Default for SkillConfig {
 }
 
 /// Main actor configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, derive_builder::Builder)]
 pub struct ActorConfig {
     /// Actor name.
     name: String,

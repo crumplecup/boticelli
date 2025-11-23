@@ -36,9 +36,14 @@ mod platform;
 mod skill;
 
 pub use config::{
-    ActorCacheConfig, ActorConfig, ActorSettings, CacheStrategy, ExecutionConfig, SkillConfig,
+    ActorCacheConfig, ActorCacheConfigBuilder, ActorConfig, ActorConfigBuilder, ActorSettings,
+    ActorSettingsBuilder, CacheStrategy, ExecutionConfig, ExecutionConfigBuilder, SkillConfig,
+    SkillConfigBuilder,
 };
-pub use content::{Content, MediaAttachment, MediaType};
+pub use content::{Content, ContentBuilder, MediaAttachment, MediaAttachmentBuilder, MediaType};
 pub use error::{ActorError, ActorErrorKind, ActorResult};
-pub use platform::{PlatformMetadata, PlatformResult, PostId, ScheduleId, SocialMediaPlatform};
+pub use platform::{
+    PlatformMetadata, PlatformMetadataBuilder, PlatformResult, PostId, ScheduleId,
+    SocialMediaPlatform,
+};
 pub use skill::{Skill, SkillContext, SkillInfo, SkillOutput, SkillRegistry, SkillResult};

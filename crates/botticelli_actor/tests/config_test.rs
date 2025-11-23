@@ -1,7 +1,9 @@
 //! Tests for actor configuration.
 
 use botticelli_actor::{
-    ActorCacheConfig, ActorConfig, ActorSettings, CacheStrategy, ExecutionConfig, SkillConfig,
+    ActorCacheConfig, ActorCacheConfigBuilder, ActorConfig, ActorConfigBuilder, ActorSettings,
+    ActorSettingsBuilder, CacheStrategy, ExecutionConfig, ExecutionConfigBuilder, SkillConfig,
+    SkillConfigBuilder,
 };
 use std::collections::HashMap;
 
@@ -16,12 +18,13 @@ fn test_actor_settings_defaults() {
 
 #[test]
 fn test_actor_settings_builder() {
-    let settings = ActorSettings::builder()
+    let settings = ActorSettingsBuilder::default()
         .max_posts_per_day(20)
         .min_interval_minutes(30)
         .retry_attempts(5)
         .timezone("America/New_York".to_string())
-        .build();
+        .build()
+        .expect("Valid settings");
 
     assert_eq!(*settings.max_posts_per_day(), 20);
     assert_eq!(*settings.min_interval_minutes(), 30);
@@ -40,12 +43,13 @@ fn test_cache_config_defaults() {
 
 #[test]
 fn test_cache_config_builder() {
-    let cache = ActorCacheConfig::builder()
+    let cache = ActorCacheConfigBuilder::default()
         .strategy(CacheStrategy::Disk)
         .ttl_seconds(600)
         .max_entries(500)
         .disk_path(Some(".cache".into()))
-        .build();
+        .build()
+        .expect("Valid cache config");
 
     assert_eq!(*cache.strategy(), CacheStrategy::Disk);
     assert_eq!(*cache.ttl_seconds(), 600);
@@ -63,11 +67,12 @@ fn test_execution_config_defaults() {
 
 #[test]
 fn test_execution_config_builder() {
-    let exec = ExecutionConfig::builder()
+    let exec = ExecutionConfigBuilder::default()
         .stop_on_unrecoverable(false)
         .max_retries(5)
         .continue_on_error(false)
-        .build();
+        .build()
+        .expect("Valid execution config");
 
     assert!(!*exec.stop_on_unrecoverable());
     assert_eq!(*exec.max_retries(), 5);
@@ -86,10 +91,11 @@ fn test_skill_config_builder() {
     let mut settings = HashMap::new();
     settings.insert("key".to_string(), serde_json::json!("value"));
 
-    let skill = SkillConfig::builder()
+    let skill = SkillConfigBuilder::default()
         .enabled(false)
         .settings(settings.clone())
-        .build();
+        .build()
+        .expect("Valid skill config");
 
     assert!(!*skill.enabled());
     assert_eq!(skill.settings().len(), 1);
@@ -108,12 +114,13 @@ fn test_actor_config_from_file() {
 
 #[test]
 fn test_actor_config_validation() {
-    let config = ActorConfig::builder()
+    let config = ActorConfigBuilder::default()
         .name("Test Actor".to_string())
         .description("Test".to_string())
         .knowledge(vec![])
         .skills(vec![])
-        .build();
+        .build()
+        .expect("Valid config");
 
     let warnings = config.validate();
     assert!(warnings.len() >= 2);
@@ -123,12 +130,13 @@ fn test_actor_config_validation() {
 
 #[test]
 fn test_actor_config_validation_valid() {
-    let config = ActorConfig::builder()
+    let config = ActorConfigBuilder::default()
         .name("Test Actor".to_string())
         .description("Test".to_string())
         .knowledge(vec!["table1".to_string()])
         .skills(vec!["skill1".to_string()])
-        .build();
+        .build()
+        .expect("Valid config");
 
     let warnings = config.validate();
     assert_eq!(warnings.len(), 0);
@@ -136,12 +144,13 @@ fn test_actor_config_validation_valid() {
 
 #[test]
 fn test_config_builder_with_defaults() {
-    let config = ActorConfig::builder()
+    let config = ActorConfigBuilder::default()
         .name("Minimal Actor".to_string())
         .description("A minimal configuration".to_string())
         .knowledge(vec!["table1".to_string()])
         .skills(vec!["skill1".to_string()])
-        .build();
+        .build()
+        .expect("Valid config");
 
     assert_eq!(config.name(), "Minimal Actor");
     assert_eq!(*config.config().max_posts_per_day(), 10); // Default

@@ -36,6 +36,7 @@ mod error;
 mod knowledge;
 mod platform;
 mod skill;
+pub mod skills;
 
 pub use actor::{Actor, ActorBuilder, ExecutionResult};
 pub use config::{
@@ -51,3 +52,4 @@ pub use platform::{
     SocialMediaPlatform,
 };
 pub use skill::{Skill, SkillContext, SkillInfo, SkillOutput, SkillRegistry, SkillResult};
+pub use skills::{ContentSchedulingSkill, RateLimitingSkill};

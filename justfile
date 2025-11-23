@@ -156,11 +156,11 @@ lint-fix:
 
 # Check code formatting
 fmt-check:
-    cargo fmt -- --check
+    cargo fmt --all -- --check
 
 # Format all code
 fmt:
-    cargo fmt
+    cargo fmt --all
 
 # Check markdown files for issues
 lint-md:
@@ -173,7 +173,7 @@ check-features:
     ./scripts/feature-gate-check.sh
 
 # Run all checks (lint, format check, tests)
-check-all: lint fmt-check test
+check-all: lint fmt-check test-all
     @echo "✅ All checks passed!"
 
 # Fix all auto-fixable issues

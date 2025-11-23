@@ -64,8 +64,8 @@ pub use json_models::{
     DiscordRoleJson, DiscordUserJson,
 };
 pub use models::{
-    ChannelRow, ChannelType, GuildMemberRow, GuildRow, NewChannel, NewGuild, NewGuildMember,
-    NewRole, NewUser, RoleRow, UserRow,
+    ChannelRow, ChannelType, GuildMemberRow, GuildRow, NewChannel, NewGuild, NewGuildBuilder,
+    NewGuildMember, NewRole, NewUser, RoleRow, UserRow,
 };
 // pub use processors::{
 //     DiscordChannelProcessor, DiscordGuildMemberProcessor, DiscordGuildProcessor,

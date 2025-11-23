@@ -57,6 +57,6 @@ pub use discord::{
     DiscordCommandExecutor, DiscordError, DiscordErrorKind, DiscordErrorResult, DiscordGuildJson,
     DiscordGuildMemberJson, DiscordMemberRoleJson, DiscordRepository, DiscordResult,
     DiscordRoleJson, DiscordUserJson, GuildMemberRow, GuildRow, NewChannel, NewGuild,
-    NewGuildMember, NewMemberRole, NewRole, NewUser, RoleRow, UserRow, parse_channel_type,
-    parse_iso_timestamp,
+    NewGuildBuilder, NewGuildMember, NewMemberRole, NewRole, NewUser, RoleRow, UserRow,
+    parse_channel_type, parse_iso_timestamp,
 };

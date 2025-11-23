@@ -35,8 +35,8 @@
 //!
 //! // Override to use a different model
 //! let message2 = Message::new(Role::User, vec![Input::Text("Complex task".to_string())]);
-//! let mut request2 = GenerateRequest::new(vec![message2]);
-//! request2.with_model(Some("gemini-2.5-flash".to_string()));
+//! let request2 = GenerateRequest::new(vec![message2])
+//!     .with_model(Some("gemini-2.5-flash".to_string()));
 //! let response2 = client.generate(&request2).await?;
 //! # Ok(())
 //! # }

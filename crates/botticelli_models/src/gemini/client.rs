@@ -29,25 +29,14 @@
 //! let client = GeminiClient::new()?;
 //!
 //! // Use default model (gemini-2.0-flash-lite)
-//! let request1 = GenerateRequest {
-//!     messages: vec![Message {
-//!         role: Role::User,
-//!         content: vec![Input::Text("Hello".to_string())],
-//!     }],
-//!     model: None,
-//!     ..Default::default()
-//! };
+//! let message1 = Message::new(Role::User, vec![Input::Text("Hello".to_string())]);
+//! let request1 = GenerateRequest::new(vec![message1]);
 //! let response1 = client.generate(&request1).await?;
 //!
 //! // Override to use a different model
-//! let request2 = GenerateRequest {
-//!     messages: vec![Message {
-//!         role: Role::User,
-//!         content: vec![Input::Text("Complex task".to_string())],
-//!     }],
-//!     model: Some("gemini-2.5-flash".to_string()),
-//!     ..Default::default()
-//! };
+//! let message2 = Message::new(Role::User, vec![Input::Text("Complex task".to_string())]);
+//! let mut request2 = GenerateRequest::new(vec![message2]);
+//! request2.with_model(Some("gemini-2.5-flash".to_string()));
 //! let response2 = client.generate(&request2).await?;
 //! # Ok(())
 //! # }

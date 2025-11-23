@@ -10,19 +10,10 @@ use serde::{Deserialize, Serialize};
 /// ```
 /// use botticelli_core::{GenerateRequest, Message, Role, Input};
 ///
-/// let request = GenerateRequest::builder()
-///     .messages(vec![Message {
-///         role: Role::User,
-///         content: vec![Input::Text("Hello!".to_string())],
-///     }])
-///     .max_tokens(Some(100))
-///     .temperature(Some(0.7))
-///     .model(Some("gemini-2.0-flash-lite".to_string()))
-///     .build()
-///     .unwrap();
+/// let message = Message::new(Role::User, vec![Input::Text("Hello!".to_string())]);
+/// let request = GenerateRequest::new(vec![message]);
 ///
 /// assert_eq!(request.messages().len(), 1);
-/// assert_eq!(request.max_tokens(), &Some(100));
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, derive_getters::Getters, derive_setters::Setters)]
 #[setters(prefix = "with_")]
@@ -38,6 +29,16 @@ pub struct GenerateRequest {
 }
 
 impl GenerateRequest {
+    /// Creates a new GenerateRequest with the given messages.
+    pub fn new(messages: Vec<Message>) -> Self {
+        Self {
+            messages,
+            max_tokens: None,
+            temperature: None,
+            model: None,
+        }
+    }
+
     /// Creates a new builder for GenerateRequest.
     pub fn builder() -> GenerateRequestBuilder {
         GenerateRequestBuilder::default()

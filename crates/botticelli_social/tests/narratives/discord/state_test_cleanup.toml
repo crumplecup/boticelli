@@ -15,4 +15,5 @@ command = "channels.delete"
 required = true
 
 [acts.delete_channel.input.args]
+guild_id = "${env:TEST_GUILD_ID}"
 channel_id = "${state:channel_id}"

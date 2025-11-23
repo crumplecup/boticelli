@@ -61,11 +61,11 @@ pub enum Output {
 /// use botticelli_core::ToolCall;
 /// use serde_json::json;
 ///
-/// let call = ToolCall {
-///     id: "call_123".to_string(),
-///     name: "get_weather".to_string(),
-///     arguments: json!({"location": "San Francisco"}),
-/// };
+/// let call = ToolCall::new(
+///     "call_123".to_string(),
+///     "get_weather".to_string(),
+///     json!({"location": "San Francisco"})
+/// );
 ///
 /// assert_eq!(*call.name(), "get_weather");
 /// ```
@@ -77,4 +77,11 @@ pub struct ToolCall {
     name: String,
     /// Arguments to pass to the tool (as JSON)
     arguments: serde_json::Value,
+}
+
+impl ToolCall {
+    /// Creates a new tool call.
+    pub fn new(id: String, name: String, arguments: serde_json::Value) -> Self {
+        Self { id, name, arguments }
+    }
 }

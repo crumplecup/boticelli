@@ -10,11 +10,7 @@ use serde::{Deserialize, Serialize};
 /// ```
 /// use botticelli_core::{Message, Role, Input};
 ///
-/// let message = Message::builder()
-///     .role(Role::User)
-///     .content(vec![Input::Text("Hello!".to_string())])
-///     .build()
-///     .unwrap();
+/// let message = Message::new(Role::User, vec![Input::Text("Hello!".to_string())]);
 ///
 /// assert_eq!(*message.role(), Role::User);
 /// assert_eq!(message.content().len(), 1);
@@ -25,4 +21,11 @@ pub struct Message {
     role: Role,
     /// The content of the message (can be multimodal)
     content: Vec<Input>,
+}
+
+impl Message {
+    /// Creates a new message with the given role and content.
+    pub fn new(role: Role, content: Vec<Input>) -> Self {
+        Self { role, content }
+    }
 }

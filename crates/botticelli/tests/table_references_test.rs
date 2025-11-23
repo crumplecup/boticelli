@@ -142,9 +142,11 @@ fn establish_connection() -> botticelli::BotticelliResult<Pool<ConnectionManager
 async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
     use botticelli::{ConfigError, DatabaseError, DatabaseErrorKind};
     
-    let pool = establish_connection()?;
-    let mut conn = pool.get()
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to get connection: {}", e))))?;
+    dotenvy::dotenv().ok();
+    let database_url = env::var("DATABASE_URL")
+        .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
+    let mut conn = PgConnection::establish(&database_url)
+        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
 
     // Create a test table
     diesel::sql_query(
@@ -170,12 +172,8 @@ async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
     .execute(&mut conn)
     .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(format!("Failed to insert test data: {}", e))))?;
 
-    // Create table query registry
-    let database_url = env::var("DATABASE_URL")
-        .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
-    let query_conn = PgConnection::establish(&database_url)
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
-    let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(query_conn)));
+    // Use the same connection for the query executor so it can see the temp table
+    let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(conn)));
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative
@@ -212,11 +210,13 @@ async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
 
 #[tokio::test]
 async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> {
-    use botticelli::{DatabaseError, DatabaseErrorKind};
+    use botticelli::{ConfigError, DatabaseError, DatabaseErrorKind};
     
-    let pool = establish_connection()?;
-    let mut conn = pool.get()
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to get connection: {}", e))))?;
+    dotenvy::dotenv().ok();
+    let database_url = env::var("DATABASE_URL")
+        .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
+    let mut conn = PgConnection::establish(&database_url)
+        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
 
     // Create test table
     diesel::sql_query(
@@ -242,10 +242,8 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
     .execute(&mut conn)
     .expect("Failed to insert test data");
 
-    // Create table query registry
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let query_conn = PgConnection::establish(&database_url).expect("Failed to establish connection");
-    let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(query_conn)));
+    // Use the same connection for the query executor so it can see the temp table
+    let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(conn)));
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with WHERE clause
@@ -330,11 +328,13 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
 
 #[tokio::test]
 async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
-    use botticelli::{DatabaseError, DatabaseErrorKind};
+    use botticelli::{ConfigError, DatabaseError, DatabaseErrorKind};
     
-    let pool = establish_connection()?;
-    let mut conn = pool.get()
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to get connection: {}", e))))?;
+    dotenvy::dotenv().ok();
+    let database_url = env::var("DATABASE_URL")
+        .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
+    let mut conn = PgConnection::establish(&database_url)
+        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
 
     // Create test table
     diesel::sql_query(
@@ -358,12 +358,8 @@ async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
     .execute(&mut conn)
     .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(format!("Failed to insert test data: {}", e))))?;
 
-    // Create table query registry
-    let database_url = env::var("DATABASE_URL")
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("DATABASE_URL not set: {}", e))))?;
-    let query_conn = PgConnection::establish(&database_url)
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
-    let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(query_conn)));
+    // Use the same connection for the query executor so it can see the temp table
+    let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(conn)));
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with CSV format

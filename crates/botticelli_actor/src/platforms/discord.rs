@@ -9,6 +9,8 @@ use async_trait::async_trait;
 /// Discord platform implementation.
 ///
 /// Integrates with Discord API for posting content to channels.
+#[derive(derive_builder::Builder)]
+#[builder(setter(into))]
 pub struct DiscordPlatform {
     /// Discord bot token for authentication.
     #[allow(dead_code)]
@@ -47,7 +49,11 @@ impl DiscordPlatform {
 
         tracing::debug!("Created Discord platform instance");
 
-        Ok(Self { token, channel_id })
+        Ok(DiscordPlatformBuilder::default()
+            .token(token)
+            .channel_id(channel_id)
+            .build()
+            .expect("DiscordPlatform with validated fields"))
     }
 
     /// Get the configured channel ID.

@@ -4,4 +4,4 @@
 pub mod discord;
 
 #[cfg(feature = "discord")]
-pub use discord::DiscordPlatform;
+pub use discord::{DiscordPlatform, DiscordPlatformBuilder};

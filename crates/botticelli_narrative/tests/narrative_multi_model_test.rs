@@ -5,6 +5,7 @@
 // This test validates that narratives can execute with different models per act,
 // which is critical for cost optimization and feature selection.
 
+use botticelli_error::BotticelliResult;
 use botticelli_models::GeminiClient;
 use botticelli_narrative::{Narrative, NarrativeExecutor};
 use std::path::Path;
@@ -14,7 +15,7 @@ use std::path::Path;
 /// Uses the model_options.toml narrative which demonstrates multiple Gemini models.
 #[tokio::test]
 #[cfg_attr(not(feature = "api"), ignore)] // Requires GEMINI_API_KEY
-async fn test_narrative_multi_model_execution() -> anyhow::Result<()> {
+async fn test_narrative_multi_model_execution() -> BotticelliResult<()> {
     let _ = dotenvy::dotenv();
 
     let client = GeminiClient::new()?;

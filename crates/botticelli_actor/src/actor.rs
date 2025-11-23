@@ -2,7 +2,7 @@
 
 use crate::{
     ActorConfig, ActorError, ActorErrorKind, ActorResult, KnowledgeTable, Platform, SkillContext,
-    SkillOutput, SkillRegistry,
+    SkillContextBuilder, SkillOutput, SkillRegistry,
 };
 use diesel::PgConnection;
 use serde_json::Value as JsonValue;
@@ -10,13 +10,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Execution result from running an actor.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_builder::Builder)]
+#[builder(setter(into))]
 pub struct ExecutionResult {
     /// Successfully executed skills.
+    #[builder(default)]
     pub succeeded: Vec<SkillOutput>,
     /// Failed skill executions with errors.
+    #[builder(default)]
     pub failed: Vec<(String, ActorError)>,
     /// Skipped skills.
+    #[builder(default)]
     pub skipped: Vec<String>,
 }
 
@@ -62,11 +66,9 @@ impl Actor {
         // Load knowledge from configured tables
         let knowledge = self.load_knowledge(conn)?;
 
-        let mut result = ExecutionResult {
-            succeeded: Vec::new(),
-            failed: Vec::new(),
-            skipped: Vec::new(),
-        };
+        let mut result = ExecutionResultBuilder::default()
+            .build()
+            .expect("ExecutionResult with valid defaults");
 
         // Execute each configured skill
         for skill_name in self.config.skills() {
@@ -82,11 +84,12 @@ impl Actor {
             }
 
             // Build skill context
-            let context = SkillContext {
-                knowledge: knowledge.clone(),
-                config: self.extract_skill_config(skill_name),
-                platform: Arc::clone(&self.platform),
-            };
+            let context = SkillContextBuilder::default()
+                .knowledge(knowledge.clone())
+                .config(self.extract_skill_config(skill_name))
+                .platform(Arc::clone(&self.platform))
+                .build()
+                .expect("SkillContext with valid fields");
 
             // Execute skill with retry logic
             match self.execute_skill_with_retry(skill_name, &context).await {

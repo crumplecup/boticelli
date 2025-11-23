@@ -50,7 +50,7 @@ mod server;
 mod skill;
 pub mod skills;
 
-pub use actor::{Actor, ActorBuilder, ExecutionResult};
+pub use actor::{Actor, ActorBuilder, ExecutionResult, ExecutionResultBuilder};
 pub use config::{
     ActorCacheConfig, ActorCacheConfigBuilder, ActorConfig, ActorConfigBuilder, ActorSettings,
     ActorSettingsBuilder, CacheStrategy, ExecutionConfig, ExecutionConfigBuilder, SkillConfig,
@@ -67,7 +67,10 @@ pub use server::{
     BasicActorServer, GenericActorManager, GenericContentPoster, JsonStatePersistence,
     SimpleTaskScheduler,
 };
-pub use skill::{Skill, SkillContext, SkillInfo, SkillOutput, SkillRegistry, SkillResult};
+pub use skill::{
+    Skill, SkillContext, SkillContextBuilder, SkillInfo, SkillInfoBuilder, SkillOutput,
+    SkillOutputBuilder, SkillRegistry, SkillResult,
+};
 pub use skills::{
     ContentFormatterSkill, ContentSchedulingSkill, ContentSelectionSkill, DuplicateCheckSkill,
     RateLimitingSkill,
@@ -80,4 +83,4 @@ pub use discord_server::{
 };
 
 #[cfg(feature = "discord")]
-pub use platforms::DiscordPlatform;
+pub use platforms::{DiscordPlatform, DiscordPlatformBuilder};

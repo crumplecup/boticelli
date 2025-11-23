@@ -10,7 +10,8 @@ use std::sync::Arc;
 pub type SkillResult<T> = Result<T, ActorError>;
 
 /// Output from skill execution.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_builder::Builder)]
+#[builder(setter(into))]
 pub struct SkillOutput {
     /// Skill name that produced output.
     pub skill_name: String,
@@ -19,6 +20,8 @@ pub struct SkillOutput {
 }
 
 /// Context provided to skills during execution.
+#[derive(derive_builder::Builder)]
+#[builder(setter(into))]
 pub struct SkillContext {
     /// Knowledge table data (table_name -> rows).
     pub knowledge: HashMap<String, Vec<JsonValue>>,
@@ -29,7 +32,8 @@ pub struct SkillContext {
 }
 
 /// Information about a skill.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_builder::Builder)]
+#[builder(setter(into))]
 pub struct SkillInfo {
     /// Skill name.
     pub name: String,

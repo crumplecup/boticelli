@@ -20,3 +20,7 @@ required = true
 guild_id = "${TEST_GUILD_ID}"
 name = "botticelli-write-test"
 kind = "text"
+
+# Capture the channel ID from the bot command output
+[acts.create_channel.state_capture]
+channel_id = "$.channel_id"

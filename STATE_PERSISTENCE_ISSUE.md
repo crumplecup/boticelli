@@ -54,20 +54,125 @@ The state IS being saved after the setup narrative completes, but when the test 
 3. **File path issue**: State files are being written/read from different locations
 4. **State manager not configured**: Test narratives might not be getting state manager instance
 
-## Next Steps
+## Investigation Cycle 1
 
-1. **Add debug logging** to confirm:
-   - Setup narrative is actually saving state
-   - Test narrative is loading from correct location
-   - File system shows state file exists and contains data
+Added debug tracing to state manager to see what's happening. Need to run tests and capture logs.
 
-2. **Verify scope consistency**: Both narratives should use `StateScope::Global`
+## Investigation Cycle 2
 
-3. **Check file permissions**: Ensure state directory is writable and files are readable
+Running with RUST_LOG=debug to see state operations:
+```bash
+cargo test --features local test_discord_write_operations_with_teardown -- --nocapture
+```
 
-4. **Test with single CLI invocation**: Run both setup and test in one narrative file to eliminate inter-process state issues
+Waiting for compilation... (this is fine, making tea)
 
-5. **Manual state file inspection**: After running setup, check `/tmp/botticelli_test_state/global.json` exists and contains `channel_id`
+## Investigation Cycle 3 - FOUND THE ISSUE!
+
+Test output shows:
+```
+2025-11-23T01:51:39.169426Z  INFO Configuring state manager state_dir=/tmp/botticelli_test_state
+2025-11-23T01:51:39.169486Z  INFO State manager configured
+2025-11-23T01:51:39.169499Z  INFO Executing narrative
+Error: TemplateError("State key 'channel_id' not found. Available keys: none")
+```
+
+**Key observation**: State manager IS being configured with `/tmp/botticelli_test_state`, but when template substitution runs, it finds NO available keys!
+
+This means:
+1. ✅ State directory is configured correctly
+2. ✅ State manager is initialized
+3. ❌ State is EMPTY when template tries to substitute `${state:channel_id}`
+
+**Root Cause**: The setup narrative CREATED the channel and presumably saved the ID, but the test narrative is loading empty state. This suggests:
+
+**The state is not being LOADED from disk at the start of narrative execution!**
+
+Looking at executor.rs line 900 (where error occurs) - this is in template substitution. The executor needs to load state BEFORE template substitution happens, not just when bot commands run.
+
+## Investigation Cycle 4 - Checking State Save
+
+Code shows (executor.rs:224-229):
+- IDs ARE being captured to state
+- State IS being saved if captured_count > 0
+- Uses `StateScope::Global`
+
+Need to verify:
+1. Is `capture_bot_command_ids()` actually being called after channel creation?
+2. Is it finding the `channel_id` in the output?
+3. Is the file `/tmp/botticelli_test_state/global.json` created after setup?
+
+Let me manually check if the state file exists after running setup narrative...
+
+## Investigation Cycle 5 - Bot Registry Not Configured!
+
+When running the setup narrative manually:
+```
+WARN Discord processing requires database feature
+ERROR Bot command 'channels.create' requires bot_registry to be configured
+```
+
+**AH HA!** The test helper is not passing `--process-discord` flag OR the bot registry is not being initialized!
+
+Looking at the test output from cycle 3, I see:
+```
+INFO Registering bot command executor platform=discord commands=62
+INFO Discord bot registry configured
+```
+
+So in the TEST it IS configured. But when running manually, it's not. The difference must be in how the test helper configures the executor vs how the CLI does it.
+
+## Investigation Cycle 6 - FOUND IT!!!
+
+Setup narrative runs successfully:
+```
+INFO Successfully created channel channel_id=1441970520919904349 name="botticelli-write-test"
+INFO Narrative execution completed acts_completed=1
+```
+
+But checking the state directory:
+```
+=== STATE FILE ===
+No state file found
+```
+
+**THE BUG**: The `state_capture` configuration in the TOML is NOT being processed!
+
+The narrative has:
+```toml
+[acts.create_channel.state_capture]
+channel_id = "$.channel_id"
+```
+
+But this is never executed. The state file is never created even though the bot command returned a channel_id.
+
+Looking at executor.rs:162-235 (`capture_bot_command_ids`), this function captures IDs from bot command outputs.  But it's only called AFTER the act is processed. The question is: does the act configuration have the state_capture info available to the executor?
+
+## Solution
+
+The `state_capture` configuration in TOML is being parsed but NOT used by the executor!
+
+**What needs to happen:**
+1. Parse `state_capture` from TOML (may already exist)
+2. Pass state_capture configuration to executor  
+3. After bot command executes, use state_capture JSONPath queries to extract values
+4. Save extracted values to state with configured keys
+5. Persist state to disk
+
+**Files to modify:**
+- `crates/botticelli_narrative/src/core.rs` - Parse state_capture from TOML
+- `crates/botticelli_narrative/src/executor.rs` - Use state_capture to extract and save values
+
+## Implementation Status
+
+`state_capture` is mentioned in NARRATIVE_TOML_SPEC and used in test narratives, but **NOT IMPLEMENTED** in the code!
+
+**Next steps:**
+1. Add `state_capture` field to Act/ActConfig structs
+2. Parse `state_capture` from TOML (HashMap<String, String> where key=state_key, value=JSONPath)
+3. In executor, after bot command executes, apply JSONPath queries to output
+4. Save extracted values to state manager
+5. Update NARRATIVE_TOML_SPEC if syntax needs clarification
 
 ## Related Code
 

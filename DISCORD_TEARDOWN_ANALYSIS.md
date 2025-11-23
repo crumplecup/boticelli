@@ -96,9 +96,20 @@ The setup narrative needs to use state management actions to save the channel ID
 ## Next Steps
 
 1. ✅ Identified the problem - setup not saving state
-2. Fix setup narrative to save channel_id to state
-3. Verify state persists between narratives
-4. Re-run full test to confirm fix
+2. ✅ Confirmed `--save` flag is passed and state dir is created
+3. ✅ Verified state shows "Available keys: none" - setup is NOT saving
+4. **ACTION**: Fix setup narrative channel_create_setup.toml to save channel_id to state
+5. Verify state persists between narratives
+6. Re-run full test to confirm fix
+
+## Investigation Results
+
+Test output shows:
+- Setup runs but doesn't save state
+- Test narrative fails: "State key 'channel_id' not found. Available keys: none"
+- This confirms setup is not properly configured to save to state
+
+Need to check: Does channel_create_setup.toml have proper output/state configuration?
 
 ## Resolution Plan
 

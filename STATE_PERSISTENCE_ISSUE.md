@@ -181,3 +181,32 @@ The `state_capture` configuration in TOML is being parsed but NOT used by the ex
 - `crates/botticelli_narrative/src/executor.rs:575` - ID capture invocation
 - `crates/botticelli/src/cli/run.rs:99-105` - State manager configuration
 - `crates/botticelli_social/tests/narratives/discord/write_tests/` - Test narratives
+
+## Test Results (2025-11-22)
+
+### Basic State Persistence Test
+✅ **PASSED** - Basic file I/O for state works correctly
+- Can write state to JSON file
+- Can read state back from file
+- File operations are reliable
+
+### Remaining Issues
+
+1. **CLI Integration incomplete**
+   - Test with `--save` flag exists but is `#[ignore]`d
+   - Need to verify full CLI workflow with state persistence
+
+2. **End-to-end setup/teardown flow not tested**
+   - Setup narrative creates resource and saves ID
+   - Teardown narrative should load state and clean up
+   - This full cycle needs integration test
+
+### Next Steps
+
+Create end-to-end integration test:
+1. Run setup narrative with `--save --state-dir`
+2. Verify state file contains expected ID
+3. Run separate narrative that loads state
+4. Verify state was loaded correctly
+5. Run teardown to clean up
+

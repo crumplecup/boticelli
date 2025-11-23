@@ -24,10 +24,14 @@ tracing = "0.1"
 
 botticelli_database = { path = "../botticelli_database" }
 botticelli_error = { path = "../botticelli_error" }
+botticelli_server = { path = "../botticelli_server" }
+
+# Optional Discord platform support
+serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model"], optional = true }
 
 [features]
 default = []
-discord = []
+discord = ["serenity"]
 local = ["discord"]
 
 [dev-dependencies]

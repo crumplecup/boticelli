@@ -1,165 +1,124 @@
-# Session Summary - Discord Bot Command Implementation & Testing
+# Session Summary: Actor Server Traits Implementation
 
-## What We Accomplished
+## What Was Built
 
-### 1. Phase 2 Bot Command Implementation
-- ✅ Created comprehensive Discord bot command infrastructure in `botticelli_social`
-- ✅ Implemented 30+ Discord commands covering channels, messages, roles, emojis, webhooks, etc.
-- ✅ Integrated bot commands into the narrative execution system
-- ✅ Created working example narratives (publish_welcome, publish_faq, setup_channels)
+### Phase 1: Trait Definitions (botticelli_server) ✅
 
-### 2. Security Framework
-- ✅ Created `botticelli_security` crate with policy-based permission system
-- ✅ Integrated security checks into bot command execution
-- ✅ Implemented rate limiting and action approval workflows
+**File**: `crates/botticelli_server/src/actor_traits.rs`
 
-### 3. Narrative System Enhancements
-- ✅ Implemented carousel feature for looped content generation
-- ✅ Added nested narrative execution support
-- ✅ Implemented table reference system for database content
-- ✅ Added action-only acts (no LLM call required)
-- ✅ Created narrative state management for persistent IDs
+Added five core traits for actor-based server implementations:
 
-### 4. Testing Infrastructure
-- ✅ Created narrative-based testing strategy for Discord commands
-- ✅ Set up test harness using cargo run with feature flags
-- ✅ Created first working test: `test_channels.toml`
-- ⏳ Need to create remaining test narratives systematically
+1. **TaskScheduler** - Periodic task scheduling
+   - `schedule()` - Register periodic tasks with async closures
+   - `cancel()` - Stop scheduled tasks
+   - `is_scheduled()`, `scheduled_tasks()` - Query state
 
-### 5. Code Quality Improvements
-- ✅ Updated CLAUDE.md with comprehensive guidelines:
-  - Builder pattern preference over struct literals
-  - derive_getters/derive_setters/derive_builders usage
-  - Feature gate testing with cargo-hack
-  - Justfile as first-class maintained document
-- ✅ Added cargo-audit and omnibor-cli to CI workflow
-- ✅ Fixed feature gate issues across crates
-- ✅ Made diesel and database features properly optional
+2. **ActorManager<ActorId, Context>** - Actor lifecycle management
+   - `register_actor()`, `unregister_actor()` - Actor registration
+   - `execute_actor()` - Execute actor with context
+   - `registered_actors()`, `is_registered()` - Query actors
 
-### 6. Documentation
-- ✅ Updated NARRATIVE_TOML_SPEC with carousel and table references
-- ✅ Created Discord Community Server Plan
-- ✅ Created Discord API Coverage Analysis
-- ✅ Documented testing strategies
+3. **ContentPoster<Content, Destination, Posted>** - Platform posting
+   - `post()` - Post content to destination
+   - `can_post()` - Check posting availability
 
-## Current Status
+4. **StatePersistence<State>** - State management
+   - `save_state()`, `load_state()`, `clear_state()` - State operations
 
-### Working Features
-1. **Discord Bot Commands**: 30+ commands implemented and integrated
-2. **Example Narratives**:
-   - `publish_welcome.toml` - Creates welcome channel, generates content, publishes, pins
-   - `publish_faq.toml` - Generates 9 FAQ questions iteratively, publishes
-   - `setup_channels.toml` - Creates Discord server channel structure
-3. **Carousel System**: Looped content generation with budget constraints
-4. **Table References**: Query database tables in narratives
-5. **Nested Narratives**: Call narratives from within narratives
+5. **ActorServer** - Main coordinator
+   - `start()`, `stop()` - Server lifecycle
+   - `is_running()`, `reload()` - Server state
 
-### In Progress
-1. **Discord Command Testing**: 
-   - Test harness created
-   - One test passing (test_channels)
-   - Need to create remaining test narratives
-2. **Feature Parity**: Discord API coverage ~60%, need more commands
-3. **Message Pinning**: Works but needs act output capture system refinement
+### Phase 2: Generic Implementations (botticelli_actor) ✅
+
+**File**: `crates/botticelli_actor/src/server.rs`
+
+Implemented concrete types for all traits:
+
+1. **SimpleTaskScheduler** - Uses tokio spawn + interval
+2. **GenericActorManager<I, C>** - HashMap-based actor registry
+3. **GenericContentPoster<C, D, P>** - Stub for extension
+4. **JsonStatePersistence<T>** - JSON file persistence with serde
+5. **BasicActorServer** - Minimal coordinator with Arc<RwLock<bool>>
+
+All implementations include:
+- Full `#[instrument]` tracing for observability
+- Proper error handling with `ActorServerResult<T>`
+- Thread-safe with Send + Sync bounds
+- Async-first design with tokio
+
+## Key Design Decisions
+
+1. **Trait Location**: Traits in `botticelli_server` (not a new crate)
+   - Keeps server traits centralized
+   - No new workspace crate needed
+
+2. **Generic Implementations**: Platform-agnostic base in `botticelli_actor`
+   - Reusable across platforms (Discord, Twitter, etc.)
+   - Concrete types extend generics
+
+3. **Error Handling**: Type alias `ActorServerResult<T>`
+   - Flexible: `Box<dyn Error + Send + Sync>`
+   - Compatible with any error type
+
+4. **Observability**: Full tracing instrumentation
+   - Every public function has `#[instrument]`
+   - Debug/info/error events at key points
+
+## Testing
+
+Both packages pass all checks:
+- `just check-all botticelli_server` ✅
+- `just check-all botticelli_actor` ✅
+
+Results:
+- Zero compilation errors
+- Zero clippy warnings
+- All existing tests passing
+- Format checks passing
+
+## Updated Just Recipes
+
+Enhanced justfile with package-specific commands:
+- `just check [package]` - Check specific or all packages
+- `just check-all [package]` - Full checks on specific or all packages
+- `just lint [package]` - Lint specific or all packages
+- `just test-package <package>` - Test with local features
 
 ## Next Steps
 
-### Immediate (High Priority)
-1. **Complete Discord Command Tests**:
-   - Create test narratives for all implemented commands
-   - Run full test suite
-   - Fix any failing commands
-   
-2. **Finish Discord API Coverage**:
-   - Implement remaining high-priority commands
-   - Focus on: threads, forums, scheduled events, auto-moderation
-   
-3. **Act Output Capture**:
-   - Refine system for capturing bot command outputs (message IDs, channel IDs)
-   - Enable chaining commands that depend on previous outputs
+### Phase 3: Discord Integration
+- Implement `DiscordActorManager` using serenity
+- Implement `DiscordContentPoster` for Discord channels
+- Combine into `DiscordActorServer`
+- Wire up database for state persistence
 
-### Medium Priority
-4. **Persistent State Management**:
-   - Implement the narrative state system for channel/message IDs
-   - Avoid recreating channels on every run
+### Phase 4: Testing & Examples
+- Unit tests for each implementation
+- Integration test with mock Discord
+- Example Discord poster bot
+- Documentation updates
 
-5. **Error Handling**:
-   - Improve error messages for bot command failures
-   - Better handling of permission errors
-   
-6. **Documentation**:
-   - Create user guide for writing narratives
-   - Document all available bot commands
-   - Add more example narratives
+## Files Modified
 
-### Lower Priority  
-7. **Additional Platforms**:
-   - Design Twitter/X bot commands
-   - Design Bluesky bot commands
-   - Create platform-agnostic bot trait
+### New Files
+- `crates/botticelli_server/src/actor_traits.rs` (151 lines)
+- `crates/botticelli_actor/src/server.rs` (316 lines)
 
-8. **Advanced Features**:
-   - Implement conversation threading
-   - Add reaction-based workflows
-   - Create scheduled narrative execution
+### Modified Files
+- `crates/botticelli_server/src/lib.rs` - Added actor_traits exports
+- `crates/botticelli_server/Cargo.toml` - No changes needed
+- `crates/botticelli_actor/src/lib.rs` - Added server exports
+- `crates/botticelli_actor/Cargo.toml` - Added botticelli_server dependency
+- `justfile` - Enhanced check/lint recipes with optional package arg
+- `ACTOR_SERVER_TRAITS_PLAN.md` - Updated with completion status
 
-## Test Execution Notes
+## Code Quality
 
-### Running Tests
-```bash
-# Run Discord command tests
-cargo test --test discord_command_test --features discord,api
-
-# Run specific test
-cargo test --test discord_command_test --features discord,api -- test_channels
-
-# Run example narrative
-just narrate publish_welcome
-```
-
-### Environment Variables Required
-- `DISCORD_TOKEN` - Bot token
-- `TEST_GUILD_ID` - Test server ID
-- `GEMINI_API_KEY` - For AI generation
-- `DATABASE_URL` - PostgreSQL connection string
-
-### Known Issues
-1. Test narratives take ~2 minutes to run (compiling binary each time)
-2. Need better caching strategy for test runs
-3. Some commands need proper permissions configured on test server
-
-## Key Files Modified
-- `crates/botticelli_social/src/discord/commands.rs` - All Discord commands
-- `crates/botticelli_narrative/src/executor.rs` - Narrative execution
-- `crates/botticelli_security/` - New security framework
-- `CLAUDE.md` - Comprehensive development guidelines
-- `justfile` - Updated with new recipes
-- Test narratives in `crates/botticelli_social/tests/narratives/discord/`
-
-## Metrics
-- **Lines of Code**: Added ~5000+ lines across multiple crates
-- **Commands Implemented**: 30+
-- **Test Coverage**: 1/30+ commands tested (need to expand)
-- **Documentation**: 10+ markdown files created/updated
-
----
-
-# Session Update - 2025-11-22
-
-## Major Progress
-
-### Discord Testing Infrastructure ✅
-- 30+ Discord command tests with narrative-based approach
-- State management for test resource lifecycle
-- Comprehensive documentation (AI_NARRATIVE_TOML_GUIDE, TESTING_PATTERNS)
-
-### Known Blockers 🔴
-- Struct literal usage in table_references_test.rs (lines 25-47, 216-238, 327-349)
-- Struct literal usage in gemini_test.rs files
-- Must convert to builder pattern before tests will compile
-
-### Next Steps
-1. Fix table_references_test.rs struct literals (CRITICAL)
-2. Fix gemini_test.rs struct literals (CRITICAL)  
-3. Run `just test-all` to verify
-4. Complete Discord command test coverage
+All code follows CLAUDE.md guidelines:
+- ✅ No `#[cfg(test)]` in source files
+- ✅ All public functions instrumented
+- ✅ Crate-level imports only
+- ✅ lib.rs contains only mod + pub use
+- ✅ Full tracing observability
+- ✅ Zero warnings policy

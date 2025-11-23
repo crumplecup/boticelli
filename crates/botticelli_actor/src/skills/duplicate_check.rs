@@ -69,7 +69,11 @@ impl Skill for DuplicateCheckSkill {
 
         let content_ids: Vec<i32> = post_history
             .iter()
-            .filter_map(|row| row.get("content_id").and_then(|v| v.as_i64()).map(|i| i as i32))
+            .filter_map(|row| {
+                row.get("content_id")
+                    .and_then(|v| v.as_i64())
+                    .map(|i| i as i32)
+            })
             .collect();
 
         tracing::info!(

@@ -45,37 +45,60 @@ min_interval_minutes = 60
 
 ```rust
 use botticelli_actor::{
-    Actor, ActorConfig, ContentSchedulingSkill, DiscordPlatform,
-    RateLimitingSkill, Skill, SkillRegistry, SocialMediaPlatform,
+    Actor, ActorConfigBuilder, ContentSchedulingSkill, DiscordPlatform,
+    ExecutionConfigBuilder, RateLimitingSkill, Skill, SkillRegistry,
 };
+use botticelli_actor::skills::{
+    ContentFormatterSkill, ContentSelectionSkill, DuplicateCheckSkill,
+};
+use botticelli_database::establish_connection;
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load configuration
-    let config = ActorConfig::from_file("actor.toml")?;
+    // Create configuration
+    let execution_config = ExecutionConfigBuilder::default()
+        .continue_on_error(true)
+        .stop_on_unrecoverable(true)
+        .max_retries(3)
+        .build()?;
+
+    let config = ActorConfigBuilder::default()
+        .name("my_actor".to_string())
+        .description("My content poster".to_string())
+        .knowledge(vec!["content".to_string(), "post_history".to_string()])
+        .skills(vec!["content_selection".to_string()])
+        .execution(execution_config)
+        .build()?;
 
     // Register skills
     let mut registry = SkillRegistry::new();
-    registry.register(Arc::new(ContentSchedulingSkill::new()));
-    registry.register(Arc::new(RateLimitingSkill::new()));
+    registry.register(Arc::new(ContentSelectionSkill::default()) as Arc<dyn Skill>);
+    registry.register(Arc::new(ContentSchedulingSkill::default()) as Arc<dyn Skill>);
+    registry.register(Arc::new(RateLimitingSkill::default()) as Arc<dyn Skill>);
+    registry.register(Arc::new(DuplicateCheckSkill::default()) as Arc<dyn Skill>);
+    registry.register(Arc::new(ContentFormatterSkill::default()) as Arc<dyn Skill>);
 
     // Create platform
-    let platform = DiscordPlatform::new(
-        std::env::var("DISCORD_BOT_TOKEN")?,
-        std::env::var("DISCORD_CHANNEL_ID")?,
-    )?;
+    let token = std::env::var("DISCORD_TOKEN")?;
+    let channel_id: u64 = std::env::var("DISCORD_CHANNEL_ID")?.parse()?;
+    let platform = Arc::new(DiscordPlatform::new(token, channel_id.to_string())?);
 
     // Build actor
     let actor = Actor::builder()
         .config(config)
         .skills(registry)
-        .platform(Arc::new(platform))
+        .platform(platform)
         .build()?;
 
-    // Execute (with database connection)
-    // let mut conn = establish_connection()?;
-    // let result = actor.execute(&mut conn).await?;
+    // Execute with database connection
+    let mut conn = establish_connection()?;
+    let result = actor.execute(&mut conn).await?;
+    
+    println!("Execution complete!");
+    println!("  Succeeded: {}", result.succeeded.len());
+    println!("  Failed: {}", result.failed.len());
+    println!("  Skipped: {}", result.skipped.len());
 
     Ok(())
 }
@@ -84,12 +107,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 3. Run Your Actor
 
 ```bash
-export DISCORD_BOT_TOKEN="your_bot_token"
-export DISCORD_CHANNEL_ID="your_channel_id"
+export DISCORD_TOKEN="your_bot_token"
+export DISCORD_CHANNEL_ID="1234567890"
 export DATABASE_URL="postgresql://user:pass@localhost/db"
 
-cargo run --features discord
+# Run the example
+just run-example botticelli_actor discord_poster
+
+# Or build and run manually
+cargo run --example discord_poster --features discord
 ```
+
+See `crates/botticelli_actor/examples/discord_poster.rs` for a complete working example.
 
 ## Core Concepts
 

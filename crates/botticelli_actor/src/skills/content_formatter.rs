@@ -63,7 +63,11 @@ impl Skill for ContentFormatterSkill {
             "Content formatter configuration loaded"
         );
 
-        let content_rows = context.knowledge.get("content").cloned().unwrap_or_default();
+        let content_rows = context
+            .knowledge
+            .get("content")
+            .cloned()
+            .unwrap_or_default();
 
         let formatted_count = content_rows.len();
 

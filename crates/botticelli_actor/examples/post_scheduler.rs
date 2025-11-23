@@ -12,8 +12,8 @@
 //! ```
 
 use botticelli_actor::{
-    Actor, ActorConfig, ContentSchedulingSkill, DiscordPlatform, RateLimitingSkill, Skill,
-    SkillRegistry, SocialMediaPlatform,
+    Actor, ActorConfig, ContentSchedulingSkill, DiscordPlatform, Platform, RateLimitingSkill,
+    Skill, SkillRegistry,
 };
 use std::sync::Arc;
 
@@ -78,13 +78,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("DISCORD_CHANNEL_ID").unwrap_or_else(|_| "123456789".to_string());
 
     let platform = DiscordPlatform::new(discord_token, channel_id)?;
-    let metadata = platform.metadata();
-    println!("   ✓ Platform: {}", metadata.name());
-    println!("   ✓ Max text length: {}", metadata.max_text_length());
-    println!(
-        "   ✓ Max media attachments: {}",
-        metadata.max_media_attachments()
-    );
+    println!("   ✓ Platform: {}", platform.platform_name());
+    println!("   ✓ Capabilities: {:?}", platform.capabilities());
 
     // 4. Build the actor
     println!("\n🎭 Building actor...");

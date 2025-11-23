@@ -63,7 +63,11 @@ impl Skill for ContentSelectionSkill {
             "Content selection configuration loaded"
         );
 
-        let content_rows = context.knowledge.get("content").cloned().unwrap_or_default();
+        let content_rows = context
+            .knowledge
+            .get("content")
+            .cloned()
+            .unwrap_or_default();
 
         tracing::debug!(count = content_rows.len(), "Processing content items");
 
@@ -72,10 +76,7 @@ impl Skill for ContentSelectionSkill {
             .take(max_candidates)
             .collect::<Vec<_>>();
 
-        tracing::info!(
-            selected = candidates.len(),
-            "Content selection completed"
-        );
+        tracing::info!(selected = candidates.len(), "Content selection completed");
 
         Ok(SkillOutput {
             skill_name: self.name.clone(),

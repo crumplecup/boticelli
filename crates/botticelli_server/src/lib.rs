@@ -44,6 +44,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod actor_traits;
 mod client;
 mod config;
 mod convert;
@@ -51,6 +52,9 @@ mod request;
 mod response;
 mod traits;
 
+pub use actor_traits::{
+    ActorManager, ActorServer, ActorServerResult, ContentPoster, StatePersistence, TaskScheduler,
+};
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
 pub use config::ServerConfig;

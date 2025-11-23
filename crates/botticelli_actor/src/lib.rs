@@ -40,10 +40,13 @@
 mod actor;
 mod config;
 mod content;
+#[cfg(feature = "discord")]
+mod discord_server;
 mod error;
 mod knowledge;
-mod platform;
+mod platform_trait;
 pub mod platforms;
+mod server;
 mod skill;
 pub mod skills;
 
@@ -53,17 +56,27 @@ pub use config::{
     ActorSettingsBuilder, CacheStrategy, ExecutionConfig, ExecutionConfigBuilder, SkillConfig,
     SkillConfigBuilder,
 };
-pub use content::{Content, ContentBuilder, MediaAttachment, MediaAttachmentBuilder, MediaType};
+pub use content::{
+    Content, ContentBuilder, ContentPost, ContentPostBuilder, MediaAttachment,
+    MediaAttachmentBuilder, MediaType,
+};
 pub use error::{ActorError, ActorErrorKind, ActorResult};
 pub use knowledge::KnowledgeTable;
-pub use platform::{
-    PlatformMetadata, PlatformMetadataBuilder, PlatformResult, PostId, ScheduleId,
-    SocialMediaPlatform,
+pub use platform_trait::{Platform, PlatformCapability, PlatformMessage, PlatformMetadata};
+pub use server::{
+    BasicActorServer, GenericActorManager, GenericContentPoster, JsonStatePersistence,
+    SimpleTaskScheduler,
 };
 pub use skill::{Skill, SkillContext, SkillInfo, SkillOutput, SkillRegistry, SkillResult};
 pub use skills::{
     ContentFormatterSkill, ContentSchedulingSkill, ContentSelectionSkill, DuplicateCheckSkill,
     RateLimitingSkill,
+};
+
+#[cfg(feature = "discord")]
+pub use discord_server::{
+    DiscordActorId, DiscordActorManager, DiscordActorServer, DiscordContentPoster, DiscordContext,
+    DiscordServerState, DiscordTaskScheduler,
 };
 
 #[cfg(feature = "discord")]

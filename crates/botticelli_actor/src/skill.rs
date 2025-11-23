@@ -1,6 +1,6 @@
 //! Skill system for reusable actor capabilities.
 
-use crate::{ActorError, ActorErrorKind, SocialMediaPlatform};
+use crate::{ActorError, ActorErrorKind, Platform};
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ pub struct SkillContext {
     /// Skill-specific configuration.
     pub config: HashMap<String, String>,
     /// Platform interface.
-    pub platform: Arc<dyn SocialMediaPlatform>,
+    pub platform: Arc<dyn Platform>,
 }
 
 /// Information about a skill.

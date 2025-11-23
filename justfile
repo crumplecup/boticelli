@@ -237,8 +237,27 @@ check-features:
     ./scripts/feature-gate-check.sh
 
 # Run all checks (lint, format check, tests)
-check-all: lint fmt-check test-all
-    @echo "✅ All checks passed!"
+check-all package='':
+    #!/usr/bin/env bash
+    if [ -z "{{package}}" ]; then
+        echo "🔍 Running all checks on entire workspace..."
+        just lint
+        just fmt-check
+        just test-all
+    else
+        echo "🔍 Running all checks on {{package}}..."
+        just lint "{{package}}"
+        just fmt-check
+        just test-package "{{package}}"
+        # Run doc tests for the package if it has any
+        if cargo metadata --format-version 1 --no-deps 2>/dev/null | \
+           jq -e ".packages[] | select(.name == \"{{package}}\") | .features | has(\"local\")" >/dev/null 2>&1; then
+            cargo test -p "{{package}}" --features local --doc
+        else
+            cargo test -p "{{package}}" --doc
+        fi
+    fi
+    echo "✅ All checks passed!"
 
 # Fix all auto-fixable issues
 fix-all: fmt lint-fix

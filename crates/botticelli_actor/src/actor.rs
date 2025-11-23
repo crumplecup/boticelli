@@ -1,8 +1,8 @@
 //! Core actor implementation.
 
 use crate::{
-    ActorConfig, ActorError, ActorErrorKind, ActorResult, KnowledgeTable, SkillContext,
-    SkillOutput, SkillRegistry, SocialMediaPlatform,
+    ActorConfig, ActorError, ActorErrorKind, ActorResult, KnowledgeTable, Platform, SkillContext,
+    SkillOutput, SkillRegistry,
 };
 use diesel::PgConnection;
 use serde_json::Value as JsonValue;
@@ -24,7 +24,7 @@ pub struct ExecutionResult {
 pub struct Actor {
     config: ActorConfig,
     skills: SkillRegistry,
-    platform: Arc<dyn SocialMediaPlatform>,
+    platform: Arc<dyn Platform>,
 }
 
 impl Actor {
@@ -235,7 +235,7 @@ impl Actor {
 pub struct ActorBuilder {
     config: Option<ActorConfig>,
     skills: Option<SkillRegistry>,
-    platform: Option<Arc<dyn SocialMediaPlatform>>,
+    platform: Option<Arc<dyn Platform>>,
 }
 
 impl ActorBuilder {
@@ -252,7 +252,7 @@ impl ActorBuilder {
     }
 
     /// Set platform implementation.
-    pub fn platform(mut self, platform: Arc<dyn SocialMediaPlatform>) -> Self {
+    pub fn platform(mut self, platform: Arc<dyn Platform>) -> Self {
         self.platform = Some(platform);
         self
     }

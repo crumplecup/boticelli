@@ -1,6 +1,8 @@
 # State Persistence Issue
 
-## Problem
+**STATUS: RESOLVED** - State persistence is working correctly. Tests added in `botticelli_narrative/tests/state_persistence_test.rs` verify functionality.
+
+## Problem (Historical)
 
 State is not persisting between narrative executions, even when using `--state-dir` flag.
 

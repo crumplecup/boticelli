@@ -48,3 +48,4 @@ gemini = []  # Marker feature for Gemini-specific tests
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 botticelli_models = { workspace = true, features = ["gemini"] }
 dotenvy = { workspace = true }
+tempfile = "3.23.0"

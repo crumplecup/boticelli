@@ -14,12 +14,12 @@ use serde::{Deserialize, Serialize};
 pub struct CarouselConfig {
     /// Maximum number of iterations to attempt
     iterations: u32,
-    
+
     /// Estimated tokens per iteration
     /// Used to pre-check budget before starting an iteration
     #[serde(default = "default_estimated_tokens")]
     estimated_tokens_per_iteration: u64,
-    
+
     /// Whether to stop on first error or continue
     #[serde(default)]
     continue_on_error: bool,
@@ -38,7 +38,7 @@ impl CarouselConfig {
             continue_on_error: false,
         }
     }
-    
+
     /// Sets whether to continue on errors.
     pub fn with_continue_on_error(mut self, continue_on_error: bool) -> Self {
         self.continue_on_error = continue_on_error;
@@ -54,23 +54,23 @@ pub struct CarouselState {
     /// Carousel configuration
     #[getter(skip)]
     config: CarouselConfig,
-    
+
     /// Budget tracker
     #[getter(skip)]
     budget: Budget,
-    
+
     /// Current iteration number (1-indexed)
     current_iteration: u32,
-    
+
     /// Number of successful iterations
     successful_iterations: u32,
-    
+
     /// Number of failed iterations
     failed_iterations: u32,
-    
+
     /// Whether carousel completed all iterations
     completed: bool,
-    
+
     /// Whether carousel was stopped due to budget constraints
     budget_exhausted: bool,
 }
@@ -88,17 +88,17 @@ impl CarouselState {
             budget_exhausted: false,
         }
     }
-    
+
     /// Gets the carousel configuration.
     pub fn config(&self) -> &CarouselConfig {
         &self.config
     }
-    
+
     /// Gets mutable access to the budget.
     pub fn budget_mut(&mut self) -> &mut Budget {
         &mut self.budget
     }
-    
+
     /// Checks if another iteration can be started.
     ///
     /// Returns true if:
@@ -110,16 +110,19 @@ impl CarouselState {
             tracing::debug!("Max iterations reached");
             return false;
         }
-        
-        if !self.budget.can_afford(self.config.estimated_tokens_per_iteration) {
+
+        if !self
+            .budget
+            .can_afford(self.config.estimated_tokens_per_iteration)
+        {
             tracing::warn!("Budget exhausted, cannot continue carousel");
             self.budget_exhausted = true;
             return false;
         }
-        
+
         true
     }
-    
+
     /// Starts the next iteration.
     ///
     /// # Errors
@@ -128,22 +131,24 @@ impl CarouselState {
     #[tracing::instrument(skip(self))]
     pub fn start_iteration(&mut self) -> Result<u32, NarrativeError> {
         if !self.can_continue() {
-            return Err(NarrativeError::new(NarrativeErrorKind::CarouselBudgetExhausted {
-                completed_iterations: self.successful_iterations,
-                max_iterations: self.config.iterations,
-            }));
+            return Err(NarrativeError::new(
+                NarrativeErrorKind::CarouselBudgetExhausted {
+                    completed_iterations: self.successful_iterations,
+                    max_iterations: self.config.iterations,
+                },
+            ));
         }
-        
+
         self.current_iteration += 1;
         tracing::info!(
             iteration = self.current_iteration,
             max_iterations = self.config.iterations,
             "Starting carousel iteration"
         );
-        
+
         Ok(self.current_iteration)
     }
-    
+
     /// Records a successful iteration.
     pub fn record_success(&mut self) {
         self.successful_iterations += 1;
@@ -153,7 +158,7 @@ impl CarouselState {
             "Carousel iteration succeeded"
         );
     }
-    
+
     /// Records a failed iteration.
     pub fn record_failure(&mut self) {
         self.failed_iterations += 1;
@@ -163,7 +168,7 @@ impl CarouselState {
             "Carousel iteration failed"
         );
     }
-    
+
     /// Marks the carousel as completed.
     pub fn finish(&mut self) {
         self.completed = true;
@@ -181,16 +186,16 @@ impl CarouselState {
 pub struct CarouselResult {
     /// Total iterations attempted
     iterations_attempted: u32,
-    
+
     /// Successful iterations
     successful_iterations: u32,
-    
+
     /// Failed iterations
     failed_iterations: u32,
-    
+
     /// Whether all requested iterations completed
     completed: bool,
-    
+
     /// Whether stopped due to budget constraints
     budget_exhausted: bool,
 }

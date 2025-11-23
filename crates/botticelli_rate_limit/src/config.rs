@@ -216,13 +216,13 @@ impl TierConfig {
 pub struct RateLimitConfig {
     /// Requests per minute limit
     pub requests_per_minute: u64,
-    
+
     /// Tokens per minute limit
     pub tokens_per_minute: u64,
-    
+
     /// Requests per day limit
     pub requests_per_day: u64,
-    
+
     /// Tokens per day limit
     pub tokens_per_day: u64,
 }
@@ -330,7 +330,7 @@ impl BotticelliConfig {
     #[instrument]
     pub fn load() -> BotticelliResult<Self> {
         debug!("Loading configuration with precedence: current dir > home dir > bundled defaults");
-        
+
         // Bundled default configuration
         const DEFAULT_CONFIG: &str = include_str!("../../../botticelli.toml");
 
@@ -397,7 +397,7 @@ impl BotticelliConfig {
         let provider_config = self.providers.get(provider)?;
 
         let tier = tier_name.unwrap_or(&provider_config.default_tier);
-        
+
         debug!(provider, tier, "Looking up tier configuration");
 
         provider_config.tiers.get(tier).cloned()

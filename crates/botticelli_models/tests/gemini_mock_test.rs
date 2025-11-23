@@ -7,8 +7,8 @@
 
 mod test_utils;
 
-use botticelli_core::{GenerateRequest, Input, Role};
 use botticelli_core::MessageBuilder;
+use botticelli_core::{GenerateRequest, Input, Role};
 use botticelli_error::GeminiErrorKind;
 use botticelli_interface::BotticelliDriver;
 use test_utils::{MockGeminiClient, MockResponse};
@@ -21,11 +21,12 @@ async fn test_mock_basic_generate() -> anyhow::Result<()> {
         .role(Role::User)
         .content(vec![Input::Text("Say hello".to_string())])
         .build()?;
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let response = mock.generate(&request).await?;
 
@@ -42,11 +43,12 @@ async fn test_mock_multiple_requests() -> anyhow::Result<()> {
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // First request
     let _response1 = mock.generate(&request).await?;
@@ -73,11 +75,12 @@ async fn test_mock_error_503() -> anyhow::Result<()> {
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let result = mock.generate(&request).await;
     assert!(result.is_err());
@@ -105,7 +108,8 @@ async fn test_mock_retry_behavior() -> anyhow::Result<()> {
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // First two calls fail
     assert!(mock.generate(&request).await.is_err());
@@ -133,7 +137,8 @@ async fn test_mock_rate_limit_error() -> anyhow::Result<()> {
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let result = mock.generate(&request).await;
     assert!(result.is_err());
@@ -159,7 +164,8 @@ async fn test_mock_sequence_mixed_responses() -> anyhow::Result<()> {
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // First succeeds
     let response1 = mock.generate(&request).await?;
@@ -204,7 +210,8 @@ async fn test_mock_different_error_types() -> anyhow::Result<()> {
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert!(mock_auth.generate(&request).await.is_err());
 

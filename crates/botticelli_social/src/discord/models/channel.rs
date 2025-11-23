@@ -106,7 +106,9 @@ impl
 /// Database row for discord_channels table.
 ///
 /// Represents a Discord channel (text, voice, thread, forum, etc.) with all settings and metadata.
-#[derive(Debug, Clone, Queryable, Identifiable, Selectable, Associations, derive_getters::Getters)]
+#[derive(
+    Debug, Clone, Queryable, Identifiable, Selectable, Associations, derive_getters::Getters,
+)]
 #[diesel(belongs_to(super::guild::GuildRow, foreign_key = guild_id))]
 #[diesel(table_name = botticelli_database::schema::discord_channels)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

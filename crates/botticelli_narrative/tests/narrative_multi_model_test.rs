@@ -56,6 +56,6 @@ async fn test_narrative_multi_model_execution() -> BotticelliResult<()> {
         "Multi-model narrative executed {} acts successfully",
         execution.act_executions.len()
     );
-    
+
     Ok(())
 }

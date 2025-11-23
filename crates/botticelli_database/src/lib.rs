@@ -74,16 +74,16 @@ pub use narrative_repository::PostgresNarrativeRepository;
 pub use schema_docs::{assemble_prompt, generate_schema_prompt, is_content_focus};
 
 // Re-export schema inference types
-pub use schema_inference::{create_inferred_table, infer_schema, InferredSchema};
+pub use schema_inference::{InferredSchema, create_inferred_table, infer_schema};
 
 // Re-export schema reflection types
 pub use schema_reflection::{
-    create_content_table, generate_create_table_sql, reflect_table_schema, table_exists,
-    ColumnInfo, TableSchema,
+    ColumnInfo, TableSchema, create_content_table, generate_create_table_sql, reflect_table_schema,
+    table_exists,
 };
 
 // Re-export table query types
-pub use table_query::{format_as_csv, format_as_json, format_as_markdown, TableQueryExecutor};
+pub use table_query::{TableQueryExecutor, format_as_csv, format_as_json, format_as_markdown};
 pub use table_query_registry::DatabaseTableQueryRegistry;
 
 use botticelli_error::DatabaseError;

@@ -119,7 +119,10 @@ impl ApprovalWorkflow {
 
     /// Check if a command requires approval.
     pub fn requires_approval(&self, command: &str) -> bool {
-        self.requires_approval.get(command).copied().unwrap_or(false)
+        self.requires_approval
+            .get(command)
+            .copied()
+            .unwrap_or(false)
     }
 
     /// Create a pending action and return its ID.
@@ -133,7 +136,7 @@ impl ApprovalWorkflow {
     ) -> SecurityResult<String> {
         let narrative_id = narrative_id.into();
         let command = command.into();
-        
+
         // Generate unique ID
         let id = format!(
             "{}-{}-{}",
@@ -280,4 +283,3 @@ impl Default for ApprovalWorkflow {
         Self::new()
     }
 }
-

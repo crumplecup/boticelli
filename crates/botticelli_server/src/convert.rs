@@ -39,7 +39,10 @@ fn message_to_server_message(msg: Message) -> Result<crate::Message, ServerError
         .filter_map(|input| match input {
             Input::Text(t) => Some(t.as_str()),
             // Skip non-text inputs for text-only server
-            Input::Image { .. } | Input::Audio { .. } | Input::Video { .. } | Input::Document { .. } => None,
+            Input::Image { .. }
+            | Input::Audio { .. }
+            | Input::Video { .. }
+            | Input::Document { .. } => None,
             // Skip bot commands, table references, and narrative references (not supported in text-only server)
             Input::BotCommand { .. } | Input::Table { .. } | Input::Narrative { .. } => None,
         })
@@ -67,9 +70,10 @@ fn message_to_server_message(msg: Message) -> Result<crate::Message, ServerError
 pub fn from_chat_response(
     response: ChatCompletionResponse,
 ) -> Result<GenerateResponse, ServerError> {
-    let choice = response.choices.first().ok_or_else(|| {
-        ServerError::new(ServerErrorKind::Api("No choices in response".into()))
-    })?;
+    let choice = response
+        .choices
+        .first()
+        .ok_or_else(|| ServerError::new(ServerErrorKind::Api("No choices in response".into())))?;
 
     let text = choice.message.content.clone();
     let output = Output::Text(text);
@@ -91,9 +95,10 @@ fn map_finish_reason(reason: &str) -> FinishReason {
 
 /// Convert streaming chunk to StreamChunk
 pub fn chunk_to_stream_chunk(chunk: ChatCompletionChunk) -> Result<StreamChunk, ServerError> {
-    let choice = chunk.choices.first().ok_or_else(|| {
-        ServerError::new(ServerErrorKind::Api("No choices in chunk".into()))
-    })?;
+    let choice = chunk
+        .choices
+        .first()
+        .ok_or_else(|| ServerError::new(ServerErrorKind::Api("No choices in chunk".into())))?;
 
     let text = choice.delta.content.clone().unwrap_or_default();
     let is_final = choice.finish_reason.is_some();

@@ -22,11 +22,9 @@ pub fn create_test_request(
         .content(vec![Input::Text(content.to_string())])
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     GenerateRequest::builder()
@@ -35,10 +33,8 @@ pub fn create_test_request(
         .max_tokens(max_tokens)
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })
 }

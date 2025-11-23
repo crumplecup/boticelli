@@ -167,4 +167,3 @@ impl CommandValidator for DiscordValidator {
         Ok(())
     }
 }
-

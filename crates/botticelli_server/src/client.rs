@@ -1,5 +1,5 @@
 use crate::{
-    convert, ChatCompletionChunk, ChatCompletionRequest, ChatCompletionResponse, ServerConfig,
+    ChatCompletionChunk, ChatCompletionRequest, ChatCompletionResponse, ServerConfig, convert,
 };
 use botticelli_core::{GenerateRequest, GenerateResponse};
 use botticelli_error::{ServerError, ServerErrorKind};
@@ -150,55 +150,57 @@ fn parse_sse_stream(
 ) -> impl Stream<Item = Result<ChatCompletionChunk, ServerError>> {
     use futures::StreamExt;
 
-    response.bytes_stream().scan(String::new(), |buffer, bytes_result| {
-        let bytes = match bytes_result {
-            Ok(b) => b,
-            Err(e) => {
-                return futures::future::ready(Some(Err(ServerError::new(
-                    ServerErrorKind::Stream(format!("Stream error: {}", e)),
-                ))));
-            }
-        };
-
-        let text = match std::str::from_utf8(&bytes) {
-            Ok(t) => t,
-            Err(e) => {
-                return futures::future::ready(Some(Err(ServerError::new(
-                    ServerErrorKind::Stream(format!("Invalid UTF-8: {}", e)),
-                ))));
-            }
-        };
-
-        buffer.push_str(text);
-
-        // Process complete SSE events
-        if let Some(pos) = buffer.find("\n\n") {
-            let event = buffer[..pos].to_string();
-            buffer.drain(..pos + 2);
-
-            // Parse SSE event
-            if let Some(data) = event.strip_prefix("data: ") {
-                if data == "[DONE]" {
-                    return futures::future::ready(None);
+    response
+        .bytes_stream()
+        .scan(String::new(), |buffer, bytes_result| {
+            let bytes = match bytes_result {
+                Ok(b) => b,
+                Err(e) => {
+                    return futures::future::ready(Some(Err(ServerError::new(
+                        ServerErrorKind::Stream(format!("Stream error: {}", e)),
+                    ))));
                 }
+            };
 
-                match serde_json::from_str::<ChatCompletionChunk>(data) {
-                    Ok(chunk) => return futures::future::ready(Some(Ok(chunk))),
-                    Err(e) => {
-                        return futures::future::ready(Some(Err(ServerError::new(
-                            ServerErrorKind::Deserialization(format!(
-                                "Failed to parse chunk: {}",
-                                e
-                            )),
-                        ))));
+            let text = match std::str::from_utf8(&bytes) {
+                Ok(t) => t,
+                Err(e) => {
+                    return futures::future::ready(Some(Err(ServerError::new(
+                        ServerErrorKind::Stream(format!("Invalid UTF-8: {}", e)),
+                    ))));
+                }
+            };
+
+            buffer.push_str(text);
+
+            // Process complete SSE events
+            if let Some(pos) = buffer.find("\n\n") {
+                let event = buffer[..pos].to_string();
+                buffer.drain(..pos + 2);
+
+                // Parse SSE event
+                if let Some(data) = event.strip_prefix("data: ") {
+                    if data == "[DONE]" {
+                        return futures::future::ready(None);
+                    }
+
+                    match serde_json::from_str::<ChatCompletionChunk>(data) {
+                        Ok(chunk) => return futures::future::ready(Some(Ok(chunk))),
+                        Err(e) => {
+                            return futures::future::ready(Some(Err(ServerError::new(
+                                ServerErrorKind::Deserialization(format!(
+                                    "Failed to parse chunk: {}",
+                                    e
+                                )),
+                            ))));
+                        }
                     }
                 }
             }
-        }
 
-        futures::future::ready(None)
-    })
-    .filter_map(|item| futures::future::ready(Some(item)))
+            futures::future::ready(None)
+        })
+        .filter_map(|item| futures::future::ready(Some(item)))
 }
 
 #[async_trait::async_trait]

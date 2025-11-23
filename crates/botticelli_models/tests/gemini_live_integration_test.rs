@@ -37,7 +37,7 @@ async fn test_gemini_client_routes_to_live_api() -> botticelli_error::Botticelli
         .content(vec![Input::Text("Say 'Hello from Live API'".to_string())])
         .build()
         .map_err(|e| botticelli_error::BuilderError::from(e.to_string()))?;
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))
@@ -51,13 +51,14 @@ async fn test_gemini_client_routes_to_live_api() -> botticelli_error::Botticelli
     // Verify we got a response
     assert!(!response.outputs.is_empty());
     println!("Live API response: {:?}", response.outputs);
-    
+
     Ok(())
 }
 
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
-async fn test_gemini_client_streaming_routes_to_live_api() -> botticelli_error::BotticelliResult<()> {
+async fn test_gemini_client_streaming_routes_to_live_api() -> botticelli_error::BotticelliResult<()>
+{
     let _ = dotenvy::dotenv();
 
     let client = GeminiClient::new()?;
@@ -68,7 +69,7 @@ async fn test_gemini_client_streaming_routes_to_live_api() -> botticelli_error::
         .content(vec![Input::Text("Count from 1 to 3".to_string())])
         .build()
         .map_err(|e| botticelli_error::BuilderError::from(e.to_string()))?;
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))
@@ -100,7 +101,7 @@ async fn test_gemini_client_streaming_routes_to_live_api() -> botticelli_error::
     assert!(found_final, "Should receive final chunk with is_final=true");
 
     println!("Total chunks received: {}", chunks.len());
-    
+
     Ok(())
 }
 
@@ -117,7 +118,7 @@ async fn test_gemini_client_detects_live_models() -> botticelli_error::Botticell
         .content(vec![Input::Text("Test".to_string())])
         .build()
         .map_err(|e| botticelli_error::BuilderError::from(e.to_string()))?;
-    
+
     let request_exp = GenerateRequest::builder()
         .messages(vec![message_exp])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))
@@ -135,7 +136,7 @@ async fn test_gemini_client_detects_live_models() -> botticelli_error::Botticell
         .content(vec![Input::Text("Test".to_string())])
         .build()
         .map_err(|e| botticelli_error::BuilderError::from(e.to_string()))?;
-    
+
     let request_live = GenerateRequest::builder()
         .messages(vec![message_live])
         .model(Some("models/gemini-2.0-flash-live".to_string()))
@@ -146,6 +147,6 @@ async fn test_gemini_client_detects_live_models() -> botticelli_error::Botticell
     // This might fail if the model doesn't exist, so we just verify it attempts to use Live API
     let _ = client.generate(&request_live).await;
     // We don't assert success here because the model might not exist
-    
+
     Ok(())
 }

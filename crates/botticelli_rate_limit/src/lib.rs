@@ -30,8 +30,8 @@ pub use detector::HeaderRateLimitDetector;
 pub use error::{RateLimitError, RateLimitErrorKind};
 pub use limiter::{RateLimiter, RateLimiterGuard};
 pub use tier::Tier;
-pub use tiers::OpenAITier;
-#[cfg(feature = "gemini")]
-pub use tiers::GeminiTier;
 #[cfg(feature = "anthropic")]
 pub use tiers::AnthropicTier;
+#[cfg(feature = "gemini")]
+pub use tiers::GeminiTier;
+pub use tiers::OpenAITier;

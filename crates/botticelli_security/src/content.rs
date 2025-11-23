@@ -112,7 +112,7 @@ impl ContentFilter {
                 Err(e) => {
                     return Err(SecurityError::new(SecurityErrorKind::Configuration(
                         format!("Invalid regex pattern '{}': {}", pattern, e),
-                    )))
+                    )));
                 }
             }
         }
@@ -154,8 +154,7 @@ impl ContentFilter {
         {
             debug!("Content contains mass mention");
             return Err(SecurityError::new(SecurityErrorKind::ContentViolation {
-                reason: "Content contains prohibited mass mention (@everyone or @here)"
-                    .to_string(),
+                reason: "Content contains prohibited mass mention (@everyone or @here)".to_string(),
             }));
         }
 
@@ -228,15 +227,16 @@ impl ContentFilter {
     /// Extract domain from URL.
     fn extract_domain<'a>(&self, url: &'a str) -> Option<&'a str> {
         // Remove protocol
-        let without_protocol = url.strip_prefix("http://").or_else(|| url.strip_prefix("https://"))?;
-        
+        let without_protocol = url
+            .strip_prefix("http://")
+            .or_else(|| url.strip_prefix("https://"))?;
+
         // Extract domain (before first slash or end of string)
         let domain = without_protocol.split('/').next()?;
-        
+
         // Remove port if present
         let domain = domain.split(':').next()?;
-        
+
         Some(domain)
     }
 }
-

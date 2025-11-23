@@ -17,10 +17,7 @@ pub struct WriteOperationTest {
 
 impl WriteOperationTest {
     /// Create a new write operation test
-    pub fn new(
-        setup_narrative: impl Into<PathBuf>,
-        test_narrative: impl Into<PathBuf>,
-    ) -> Self {
+    pub fn new(setup_narrative: impl Into<PathBuf>, test_narrative: impl Into<PathBuf>) -> Self {
         Self {
             setup_narrative: setup_narrative.into(),
             test_narrative: test_narrative.into(),
@@ -55,13 +52,13 @@ impl WriteOperationTest {
     /// Run a single narrative using just command
     fn run_narrative(&self, path: &PathBuf, stage: &str) -> TestResult {
         println!("\n=== Running {} narrative: {} ===", stage, path.display());
-        
+
         // Extract just the narrative name from the path
         let narrative_name = path
             .file_stem()
             .and_then(|s| s.to_str())
             .ok_or("Invalid narrative path")?;
-        
+
         let output = Command::new("just")
             .arg("narrate")
             .arg(narrative_name)

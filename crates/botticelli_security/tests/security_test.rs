@@ -51,7 +51,7 @@ fn test_rate_limit_with_burst() {
 #[test]
 fn test_rate_limit_unconfigured_allows() {
     let mut limiter = RateLimiter::new();
-    
+
     // No limit configured, should always pass
     assert!(limiter.check("unconfigured.operation").is_ok());
     assert!(limiter.check("unconfigured.operation").is_ok());
@@ -86,7 +86,7 @@ fn test_content_filter_clean_text() {
 fn test_content_filter_max_length() {
     let config = ContentFilterConfig::new().with_max_length(10);
     let filter = ContentFilter::new(config).unwrap();
-    
+
     assert!(filter.filter("Short").is_ok());
     assert!(filter.filter("This is way too long for the limit").is_err());
 }
@@ -96,7 +96,7 @@ fn test_content_filter_custom_pattern() {
     let patterns = vec!["\\b(secret|password)\\b".to_string()];
     let config = ContentFilterConfig::new().with_prohibited_patterns(patterns);
     let filter = ContentFilter::new(config).unwrap();
-    
+
     assert!(filter.filter("Safe content here").is_ok());
     assert!(filter.filter("The secret code is 123").is_err());
     assert!(filter.filter("My password is hunter2").is_err());
@@ -106,7 +106,7 @@ fn test_content_filter_custom_pattern() {
 fn test_content_filter_mass_mentions() {
     let config = ContentFilterConfig::default();
     let filter = ContentFilter::new(config).unwrap();
-    
+
     // @everyone and @here should be blocked
     assert!(filter.filter("Hey @everyone look at this!").is_err());
     assert!(filter.filter("Attention @here please").is_err());
@@ -126,8 +126,7 @@ fn test_permission_default_deny() {
 
 #[test]
 fn test_permission_allow_by_default() {
-    let config = PermissionConfig::new()
-        .with_allow_all_by_default(true);
+    let config = PermissionConfig::new().with_allow_all_by_default(true);
     let checker = PermissionChecker::new(config);
     let result = checker.check_command("test.command");
     assert!(result.is_ok());
@@ -141,14 +140,11 @@ fn test_permission_allow_by_default() {
 fn test_approval_create_action() {
     let mut workflow = ApprovalWorkflow::new();
     let params = HashMap::new();
-    
-    let action_id = workflow.create_pending_action(
-        "narrative1",
-        "test.command",
-        params,
-        None,
-    ).unwrap();
-    
+
+    let action_id = workflow
+        .create_pending_action("narrative1", "test.command", params, None)
+        .unwrap();
+
     assert!(workflow.get_pending_action(&action_id).is_some());
 }
 
@@ -156,16 +152,15 @@ fn test_approval_create_action() {
 fn test_approval_approve_action() {
     let mut workflow = ApprovalWorkflow::new();
     let params = HashMap::new();
-    
-    let action_id = workflow.create_pending_action(
-        "narrative1",
-        "test.command",
-        params,
-        None,
-    ).unwrap();
-    
-    workflow.approve_action(&action_id, "admin", Some("Looks good".to_string())).unwrap();
-    
+
+    let action_id = workflow
+        .create_pending_action("narrative1", "test.command", params, None)
+        .unwrap();
+
+    workflow
+        .approve_action(&action_id, "admin", Some("Looks good".to_string()))
+        .unwrap();
+
     assert!(workflow.check_approval(&action_id).is_ok());
 }
 
@@ -173,16 +168,15 @@ fn test_approval_approve_action() {
 fn test_approval_deny_action() {
     let mut workflow = ApprovalWorkflow::new();
     let params = HashMap::new();
-    
-    let action_id = workflow.create_pending_action(
-        "narrative1",
-        "test.command",
-        params,
-        None,
-    ).unwrap();
-    
-    workflow.deny_action(&action_id, "admin", Some("Not allowed".to_string())).unwrap();
-    
+
+    let action_id = workflow
+        .create_pending_action("narrative1", "test.command", params, None)
+        .unwrap();
+
+    workflow
+        .deny_action(&action_id, "admin", Some("Not allowed".to_string()))
+        .unwrap();
+
     assert!(workflow.check_approval(&action_id).is_err());
 }
 
@@ -190,14 +184,11 @@ fn test_approval_deny_action() {
 fn test_approval_pending_blocks() {
     let mut workflow = ApprovalWorkflow::new();
     let params = HashMap::new();
-    
-    let action_id = workflow.create_pending_action(
-        "narrative1",
-        "test.command",
-        params,
-        None,
-    ).unwrap();
-    
+
+    let action_id = workflow
+        .create_pending_action("narrative1", "test.command", params, None)
+        .unwrap();
+
     // Should block while pending
     assert!(workflow.check_approval(&action_id).is_err());
 }

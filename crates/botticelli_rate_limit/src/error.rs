@@ -13,7 +13,9 @@ pub enum RateLimitErrorKind {
     #[display("Invalid tier: {_0}")]
     InvalidTier(String),
     /// Budget exceeded.
-    #[display("Budget exceeded: requested {requested_tokens} tokens, available: {available_tokens_minute} TPM, {available_tokens_day} TPD, {available_requests_minute} RPM, {available_requests_day} RPD")]
+    #[display(
+        "Budget exceeded: requested {requested_tokens} tokens, available: {available_tokens_minute} TPM, {available_tokens_day} TPD, {available_requests_minute} RPM, {available_requests_day} RPD"
+    )]
     BudgetExceeded {
         /// Requested token count
         requested_tokens: u64,

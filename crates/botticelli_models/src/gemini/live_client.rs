@@ -138,7 +138,10 @@ impl GeminiLiveClient {
     ///
     /// * `model` - Model name
     /// * `generation_config` - Generation parameters (temperature, max_tokens, etc.)
-    #[instrument(name = "gemini_live_client_connect_with_config", skip(self, generation_config))]
+    #[instrument(
+        name = "gemini_live_client_connect_with_config",
+        skip(self, generation_config)
+    )]
     pub async fn connect_with_config(
         &self,
         model: &str,

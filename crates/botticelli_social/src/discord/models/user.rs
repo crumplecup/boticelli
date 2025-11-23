@@ -9,7 +9,7 @@ use diesel::prelude::*;
 #[derive(Debug, Clone, Queryable, Identifiable, Selectable)]
 #[diesel(table_name = botticelli_database::schema::discord_users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[allow(dead_code)]  // Model fields used for database operations
+#[allow(dead_code)] // Model fields used for database operations
 pub struct UserRow {
     id: i64,
     username: String,

@@ -4,7 +4,7 @@
 
 mod discord_write_test_helpers;
 
-use discord_write_test_helpers::{narrative_path, WriteOperationTest};
+use discord_write_test_helpers::{WriteOperationTest, narrative_path};
 
 #[test]
 #[cfg_attr(not(feature = "discord"), ignore)]

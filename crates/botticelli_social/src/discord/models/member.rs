@@ -13,7 +13,7 @@ use diesel::prelude::*;
 #[diesel(table_name = botticelli_database::schema::discord_guild_members)]
 #[diesel(primary_key(guild_id, user_id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[allow(dead_code)]  // Model fields used for database operations
+#[allow(dead_code)] // Model fields used for database operations
 pub struct GuildMemberRow {
     guild_id: i64,
     user_id: i64,

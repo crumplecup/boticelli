@@ -65,11 +65,17 @@ parse_test!(parse_emojis_list, "discord/emojis_list_test.toml");
 parse_test!(parse_invites_list, "discord/invites_list_test.toml");
 parse_test!(parse_bans_list, "discord/bans_list_test.toml");
 parse_test!(parse_stickers_list, "discord/stickers_list_test.toml");
-parse_test!(parse_voice_regions_list, "discord/voice_regions_list_test.toml");
+parse_test!(
+    parse_voice_regions_list,
+    "discord/voice_regions_list_test.toml"
+);
 parse_test!(parse_events_list, "discord/events_list_test.toml");
 parse_test!(parse_server_get_stats, "discord/server_get_stats_test.toml");
 parse_test!(parse_webhooks_list, "discord/webhooks_list_test.toml");
-parse_test!(parse_integrations_list, "discord/integrations_list_test.toml");
+parse_test!(
+    parse_integrations_list,
+    "discord/integrations_list_test.toml"
+);
 parse_test!(parse_threads_get, "discord/threads_get_test.toml");
 parse_test!(parse_reactions_list, "discord/reactions_list_test.toml");
 parse_test!(parse_events_get, "discord/events_get_test.toml");
@@ -81,7 +87,7 @@ parse_test!(parse_events_get, "discord/events_get_test.toml");
 /// Helper to run a test narrative
 async fn run_test_narrative(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let narrative_path = get_test_narrative_path(name);
-    
+
     // Use botticelli CLI to run the narrative
     let output = tokio::process::Command::new("cargo")
         .args(&[
@@ -100,13 +106,13 @@ async fn run_test_narrative(name: &str) -> Result<(), Box<dyn std::error::Error>
         ])
         .output()
         .await?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         eprintln!("Narrative {} failed:\n{}", name, stderr);
         return Err(format!("Narrative execution failed: {}", stderr).into());
     }
-    
+
     Ok(())
 }
 

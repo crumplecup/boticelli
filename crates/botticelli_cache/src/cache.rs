@@ -38,11 +38,11 @@ struct CacheKey {
 impl CacheKey {
     fn new(platform: &str, command: &str, args: &HashMap<String, JsonValue>) -> Self {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        
+
         // Create stable hash of args
         let mut sorted_keys: Vec<_> = args.keys().collect();
         sorted_keys.sort();
-        
+
         for key in sorted_keys {
             key.hash(&mut hasher);
             // Hash JSON value as string for stability
@@ -50,7 +50,7 @@ impl CacheKey {
                 s.hash(&mut hasher);
             }
         }
-        
+
         Self {
             platform: platform.to_string(),
             command: command.to_string(),
@@ -60,17 +60,19 @@ impl CacheKey {
 }
 
 /// Configuration for command cache.
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, derive_setters::Setters, derive_builder::Builder)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Getters, derive_setters::Setters, derive_builder::Builder,
+)]
 #[setters(prefix = "with_")]
 pub struct CommandCacheConfig {
     /// Default TTL for cached entries (seconds)
     #[serde(default = "default_ttl")]
     default_ttl: u64,
-    
+
     /// Maximum cache size (number of entries)
     #[serde(default = "default_max_size")]
     max_size: usize,
-    
+
     /// Whether caching is enabled
     #[serde(default = "default_enabled")]
     enabled: bool,
@@ -264,9 +266,7 @@ impl CommandCache {
 
         self.entries.retain(|key, entry| {
             let keep = !entry.is_expired();
-            if !keep
-                && let Some(pos) = self.access_order.iter().position(|k| k == key)
-            {
+            if !keep && let Some(pos) = self.access_order.iter().position(|k| k == key) {
                 self.access_order.remove(pos);
             }
             keep
@@ -274,7 +274,11 @@ impl CommandCache {
 
         let removed = before - self.entries.len();
         if removed > 0 {
-            tracing::info!(removed, remaining = self.entries.len(), "Cleaned up expired cache entries");
+            tracing::info!(
+                removed,
+                remaining = self.entries.len(),
+                "Cleaned up expired cache entries"
+            );
         }
         removed
     }

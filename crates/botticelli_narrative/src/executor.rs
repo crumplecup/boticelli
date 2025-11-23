@@ -3,10 +3,15 @@
 //! This module provides the executor that processes multi-act narratives
 //! by calling LLM APIs in sequence, passing context between acts.
 
-use crate::{CarouselResult, CarouselState, NarrativeProvider, ProcessorContext, ProcessorRegistry, StateManager};
+use crate::{
+    CarouselResult, CarouselState, NarrativeProvider, ProcessorContext, ProcessorRegistry,
+    StateManager,
+};
 use botticelli_core::{GenerateRequest, Input, Message, MessageBuilder, Output, Role};
 use botticelli_error::{BotticelliError, BotticelliResult, NarrativeError, NarrativeErrorKind};
-use botticelli_interface::{ActExecution, BotticelliDriver, NarrativeExecution, TableQueryRegistry};
+use botticelli_interface::{
+    ActExecution, BotticelliDriver, NarrativeExecution, TableQueryRegistry,
+};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
@@ -25,8 +30,6 @@ pub trait BotCommandRegistry: Send + Sync {
         args: &HashMap<String, JsonValue>,
     ) -> Result<JsonValue, Box<dyn std::error::Error + Send + Sync>>;
 }
-
-
 
 /// Executes narratives by calling LLM APIs in sequence.
 ///
@@ -173,17 +176,20 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             result = %serde_json::to_string_pretty(result).unwrap_or_else(|_| "invalid json".to_string()),
             "Bot command result for ID extraction"
         );
-        
+
         // Load global state
-        let mut state = state_mgr.load(&crate::state::StateScope::Global).map_err(|e| {
-            NarrativeError::new(NarrativeErrorKind::StateError(
-                format!("Failed to load state: {}", e),
-            ))
-        })?;
+        let mut state = state_mgr
+            .load(&crate::state::StateScope::Global)
+            .map_err(|e| {
+                NarrativeError::new(NarrativeErrorKind::StateError(format!(
+                    "Failed to load state: {}",
+                    e
+                )))
+            })?;
 
         // List of common ID field names to capture
         let id_fields = [
-            "id",  // Generic ID field (most common in Discord responses)
+            "id", // Generic ID field (most common in Discord responses)
             "channel_id",
             "message_id",
             "role_id",
@@ -211,32 +217,35 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
                 // Generate state key: <platform>.<command>.<field>
                 let state_key = format!("{}.{}.{}", platform, command, id_field);
-                
+
                 // Also save with just the field name for convenient short-form access
                 let short_key = id_field.to_string();
 
                 state.set(&state_key, &id_str);
                 state.set(&short_key, &id_str);
-                
+
                 tracing::debug!(
                     key = %state_key,
                     short_key = %short_key,
                     value = %id_str,
                     "Captured bot command ID to state"
                 );
-                
+
                 captured_count += 1;
             }
         }
 
         // Save state back to disk
         if captured_count > 0 {
-            state_mgr.save(&crate::state::StateScope::Global, &state).map_err(|e| {
-                NarrativeError::new(NarrativeErrorKind::StateError(
-                    format!("Failed to save state: {}", e),
-                ))
-            })?;
-            
+            state_mgr
+                .save(&crate::state::StateScope::Global, &state)
+                .map_err(|e| {
+                    NarrativeError::new(NarrativeErrorKind::StateError(format!(
+                        "Failed to save state: {}",
+                        e
+                    )))
+                })?;
+
             tracing::info!(
                 platform = %platform,
                 command = %command,
@@ -275,12 +284,17 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
             // Process inputs (execute bot commands, query tables, etc.)
             // Pass execution history for template resolution
-            let (processed_inputs, bot_command_result) = self.process_inputs(narrative, config.inputs(), &act_executions, sequence_number).await?;
+            let (processed_inputs, bot_command_result) = self
+                .process_inputs(narrative, config.inputs(), &act_executions, sequence_number)
+                .await?;
 
             // Check if this is an action-only act (no text inputs from TOML that need LLM processing)
             // Bot command results in processed_inputs should NOT trigger LLM calls
-            let has_text_prompt = config.inputs().iter().any(|input| matches!(input, Input::Text(text) if !text.trim().is_empty()));
-            
+            let has_text_prompt = config
+                .inputs()
+                .iter()
+                .any(|input| matches!(input, Input::Text(text) if !text.trim().is_empty()));
+
             let (response_text, model, temperature, max_tokens) = if has_text_prompt {
                 // This act needs an LLM response
                 // Build the request with conversation history + processed inputs
@@ -310,10 +324,9 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     .model(model.clone())
                     .build()
                     .map_err(|e| {
-                        BotticelliError::from(NarrativeError::new(NarrativeErrorKind::FileRead(format!(
-                            "Failed to build request: {}",
-                            e
-                        ))))
+                        BotticelliError::from(NarrativeError::new(NarrativeErrorKind::FileRead(
+                            format!("Failed to build request: {}", e),
+                        )))
                     })?;
 
                 // Call the LLM
@@ -321,7 +334,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
                 // Extract text from response
                 let response_text = extract_text_from_outputs(&response.outputs)?;
-                
+
                 (response_text, model, temperature, max_tokens)
             } else {
                 // Action-only act - no LLM call needed
@@ -331,7 +344,8 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 );
                 // Use bot command result as response if available, otherwise generic success message
                 let response_text = if let Some(result) = bot_command_result {
-                    serde_json::to_string(&result).unwrap_or_else(|_| "Action completed successfully".to_string())
+                    serde_json::to_string(&result)
+                        .unwrap_or_else(|_| "Action completed successfully".to_string())
                 } else {
                     "Action completed successfully".to_string()
                 };
@@ -418,15 +432,13 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         narrative: &N,
     ) -> BotticelliResult<CarouselResult> {
         // Get carousel config from narrative
-        let carousel_config = narrative
-            .carousel_config()
-            .ok_or_else(|| {
-                botticelli_error::NarrativeError::new(
-                    botticelli_error::NarrativeErrorKind::ConfigurationError(
-                        "Narrative does not have carousel configuration".to_string(),
-                    ),
-                )
-            })?;
+        let carousel_config = narrative.carousel_config().ok_or_else(|| {
+            botticelli_error::NarrativeError::new(
+                botticelli_error::NarrativeErrorKind::ConfigurationError(
+                    "Narrative does not have carousel configuration".to_string(),
+                ),
+            )
+        })?;
 
         tracing::info!(
             iterations = carousel_config.iterations(),
@@ -436,10 +448,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         );
 
         // Create carousel state with budget
-        let mut state = CarouselState::new(
-            carousel_config.clone(),
-            *self.driver.rate_limits(),
-        );
+        let mut state = CarouselState::new(carousel_config.clone(), *self.driver.rate_limits());
 
         let mut executions = Vec::new();
 
@@ -570,7 +579,12 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     let mut resolved_args = args.clone();
                     for (_key, value) in resolved_args.iter_mut() {
                         if let JsonValue::String(s) = value {
-                            *s = resolve_template(s, act_executions, current_index, self.state_manager.as_ref())?;
+                            *s = resolve_template(
+                                s,
+                                act_executions,
+                                current_index,
+                                self.state_manager.as_ref(),
+                            )?;
                         }
                     }
 
@@ -578,12 +592,14 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                         Ok(result) => {
                             // Store bot command result for potential use as act output
                             last_bot_command_result = Some(result.clone());
-                            
+
                             // Extract and save IDs to state if state_manager is available
                             if let Some(state_mgr) = &self.state_manager {
-                                self.capture_bot_command_ids(state_mgr, platform, command, &result)?;
+                                self.capture_bot_command_ids(
+                                    state_mgr, platform, command, &result,
+                                )?;
                             }
-                            
+
                             // Convert JSON result to pretty-printed text for LLM context
                             let text = serde_json::to_string_pretty(&result).map_err(|e| {
                                 tracing::error!(error = %e, "Failed to serialize bot command result");
@@ -644,13 +660,13 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     sample: _,
                 } => {
                     table_count += 1;
-                    
+
                     let format_str = match format {
                         botticelli_core::TableFormat::Json => "json",
                         botticelli_core::TableFormat::Markdown => "markdown",
                         botticelli_core::TableFormat::Csv => "csv",
                     };
-                    
+
                     tracing::debug!(
                         table_name = %table_name,
                         format = %format_str,
@@ -706,10 +722,9 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                                     "Table query failed"
                                 );
                                 return Err(botticelli_error::NarrativeError::new(
-                                    botticelli_error::NarrativeErrorKind::TableQueryFailed(format!(
-                                        "Table query '{}' failed: {}",
-                                        table_name, e
-                                    )),
+                                    botticelli_error::NarrativeErrorKind::TableQueryFailed(
+                                        format!("Table query '{}' failed: {}", table_name, e),
+                                    ),
                                 )
                                 .into());
                             }
@@ -723,38 +738,40 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                         path = ?path,
                         "Processing narrative reference input - executing nested narrative"
                     );
-                    
+
                     // Resolve the path (if None, use name.toml)
                     // Add .toml extension if not present
-                    let mut narrative_path = path.as_ref()
+                    let mut narrative_path = path
+                        .as_ref()
                         .map(|p| p.to_string())
                         .unwrap_or_else(|| name.to_string());
-                    
+
                     if !narrative_path.ends_with(".toml") {
                         narrative_path.push_str(".toml");
                     }
-                    
+
                     // Resolve path relative to parent narrative's directory
                     let resolved_path = if std::path::Path::new(&narrative_path).is_absolute() {
                         std::path::PathBuf::from(&narrative_path)
                     } else if let Some(parent_path) = narrative.source_path() {
-                        parent_path.parent()
+                        parent_path
+                            .parent()
                             .map(|p| p.join(&narrative_path))
                             .unwrap_or_else(|| std::path::PathBuf::from(&narrative_path))
                     } else {
                         std::path::PathBuf::from(&narrative_path)
                     };
-                    
+
                     tracing::info!(
                         name = %name,
                         path = %resolved_path.display(),
                         exists = %resolved_path.exists(),
                         "Loading nested narrative"
                     );
-                    
+
                     // Load the nested narrative from file
-                    let nested_narrative = crate::Narrative::from_file(&resolved_path)
-                        .map_err(|e| {
+                    let nested_narrative =
+                        crate::Narrative::from_file(&resolved_path).map_err(|e| {
                             tracing::error!(
                                 name = %name,
                                 path = %resolved_path.display(),
@@ -763,17 +780,22 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                             );
                             botticelli_error::NarrativeError::new(
                                 botticelli_error::NarrativeErrorKind::NestedNarrativeLoadFailed(
-                                    format!("Failed to load nested narrative '{}' from '{}': {}", name, resolved_path.display(), e)
+                                    format!(
+                                        "Failed to load nested narrative '{}' from '{}': {}",
+                                        name,
+                                        resolved_path.display(),
+                                        e
+                                    ),
                                 ),
                             )
                         })?;
-                    
+
                     tracing::info!(
                         name = %name,
                         acts = nested_narrative.act_names().len(),
                         "Executing nested narrative"
                     );
-                    
+
                     // Execute the nested narrative recursively
                     // Use Box::pin to avoid infinite sized future in recursive async function
                     let nested_execution = Box::pin(self.execute(&nested_narrative)).await
@@ -789,13 +811,13 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                                 ),
                             )
                         })?;
-                    
+
                     tracing::info!(
                         name = %name,
                         acts_executed = nested_execution.act_executions.len(),
                         "Nested narrative execution completed"
                     );
-                    
+
                     // Note: We don't include the nested narrative's output in processed inputs
                     // The nested narrative is executed for its side effects (e.g., populating tables)
                     // If you want to include the output, uncomment the lines below:
@@ -859,56 +881,62 @@ fn resolve_template(
     state_manager: Option<&StateManager>,
 ) -> BotticelliResult<String> {
     let mut result = template.to_string();
-    
+
     // Find all {{...}} or ${...} patterns
     let re = regex::Regex::new(r"(?:\{\{([^}]+)\}\}|\$\{([^}]+)\})").map_err(|e| {
-        botticelli_error::NarrativeError::new(
-            botticelli_error::NarrativeErrorKind::TemplateError(
-                format!("Invalid template regex: {}", e),
-            ),
-        )
+        botticelli_error::NarrativeError::new(botticelli_error::NarrativeErrorKind::TemplateError(
+            format!("Invalid template regex: {}", e),
+        ))
     })?;
-    
+
     for cap in re.captures_iter(template) {
         let placeholder = &cap[0]; // Full match like {{previous}}, ${act_name.field}, etc.
         // Get the reference from whichever capture group matched (group 1 for {{...}}, group 2 for ${...})
-        let reference = cap.get(1).or_else(|| cap.get(2))
+        let reference = cap
+            .get(1)
+            .or_else(|| cap.get(2))
             .map(|m| m.as_str().trim())
             .ok_or_else(|| {
                 botticelli_error::NarrativeError::new(
-                    botticelli_error::NarrativeErrorKind::TemplateError(
-                        format!("Failed to extract reference from placeholder: {}", placeholder),
-                    ),
+                    botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                        "Failed to extract reference from placeholder: {}",
+                        placeholder
+                    )),
                 )
             })?;
-        
+
         let replacement = if reference.starts_with("state:") {
             // State reference like "${state:channel_id}" or "${state:discord.channels.create.channel_id}"
             let state_key = reference.strip_prefix("state:").unwrap();
-            
+
             let state_mgr = state_manager.ok_or_else(|| {
                 botticelli_error::NarrativeError::new(
-                    botticelli_error::NarrativeErrorKind::TemplateError(
-                        format!("State reference '{}' requires state_manager to be configured", reference),
-                    ),
+                    botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                        "State reference '{}' requires state_manager to be configured",
+                        reference
+                    )),
                 )
             })?;
-            
+
             // Try to load global state
-            let state = state_mgr.load(&crate::state::StateScope::Global).map_err(|e| {
-                botticelli_error::NarrativeError::new(
-                    botticelli_error::NarrativeErrorKind::TemplateError(
-                        format!("Failed to load state: {}", e),
-                    ),
-                )
-            })?;
-            
-            state.get(state_key).ok_or_else(|| {
-                // Provide helpful error with available keys
-                let available_keys: Vec<_> = state.keys().collect();
-                botticelli_error::NarrativeError::new(
-                    botticelli_error::NarrativeErrorKind::TemplateError(
-                        format!(
+            let state = state_mgr
+                .load(&crate::state::StateScope::Global)
+                .map_err(|e| {
+                    botticelli_error::NarrativeError::new(
+                        botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                            "Failed to load state: {}",
+                            e
+                        )),
+                    )
+                })?;
+
+            state
+                .get(state_key)
+                .ok_or_else(|| {
+                    // Provide helpful error with available keys
+                    let available_keys: Vec<_> = state.keys().collect();
+                    botticelli_error::NarrativeError::new(
+                        botticelli_error::NarrativeErrorKind::TemplateError(format!(
                             "State key '{}' not found. Available keys: {}",
                             state_key,
                             if available_keys.is_empty() {
@@ -916,19 +944,20 @@ fn resolve_template(
                             } else {
                                 available_keys.join(", ")
                             }
-                        ),
-                    ),
-                )
-            })?.to_string()
+                        )),
+                    )
+                })?
+                .to_string()
         } else if reference.starts_with("env:") {
             // Environment variable reference like "${env:TEST_GUILD_ID}"
             let env_var = reference.strip_prefix("env:").unwrap();
-            
+
             std::env::var(env_var).map_err(|e| {
                 botticelli_error::NarrativeError::new(
-                    botticelli_error::NarrativeErrorKind::TemplateError(
-                        format!("Environment variable '{}' not found: {}", env_var, e),
-                    ),
+                    botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                        "Environment variable '{}' not found: {}",
+                        env_var, e
+                    )),
                 )
             })?
         } else if reference == "previous" {
@@ -947,40 +976,43 @@ fn resolve_template(
             let parts: Vec<&str> = reference.splitn(2, '.').collect();
             let act_name = parts[0];
             let json_path = parts[1];
-            
+
             // Find the act
             let act_exec = act_executions
                 .iter()
                 .find(|exec| exec.act_name == act_name)
                 .ok_or_else(|| {
                     botticelli_error::NarrativeError::new(
-                        botticelli_error::NarrativeErrorKind::TemplateError(
-                            format!("Referenced act '{}' not found in execution history", act_name),
-                        ),
+                        botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                            "Referenced act '{}' not found in execution history",
+                            act_name
+                        )),
                     )
                 })?;
-            
+
             // Try to parse response as JSON and navigate path
             let json_value: JsonValue = serde_json::from_str(&act_exec.response).map_err(|e| {
                 botticelli_error::NarrativeError::new(
-                    botticelli_error::NarrativeErrorKind::TemplateError(
-                        format!("Act '{}' response is not valid JSON: {}", act_name, e),
-                    ),
+                    botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                        "Act '{}' response is not valid JSON: {}",
+                        act_name, e
+                    )),
                 )
             })?;
-            
+
             // Navigate JSON path
             let mut current = &json_value;
             for segment in json_path.split('.') {
                 current = current.get(segment).ok_or_else(|| {
                     botticelli_error::NarrativeError::new(
-                        botticelli_error::NarrativeErrorKind::TemplateError(
-                            format!("JSON path '{}' not found in act '{}'", json_path, act_name),
-                        ),
+                        botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                            "JSON path '{}' not found in act '{}'",
+                            json_path, act_name
+                        )),
                     )
                 })?;
             }
-            
+
             // Convert value to string
             match current {
                 JsonValue::String(s) => s.clone(),
@@ -989,9 +1021,10 @@ fn resolve_template(
                 JsonValue::Null => "null".to_string(),
                 _ => serde_json::to_string(current).map_err(|e| {
                     botticelli_error::NarrativeError::new(
-                        botticelli_error::NarrativeErrorKind::TemplateError(
-                            format!("Failed to serialize JSON value: {}", e),
-                        ),
+                        botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                            "Failed to serialize JSON value: {}",
+                            e
+                        )),
                     )
                 })?,
             }
@@ -1003,15 +1036,16 @@ fn resolve_template(
                 .map(|exec| exec.response.clone())
                 .ok_or_else(|| {
                     botticelli_error::NarrativeError::new(
-                        botticelli_error::NarrativeErrorKind::TemplateError(
-                            format!("Referenced act '{}' not found in execution history", reference),
-                        ),
+                        botticelli_error::NarrativeErrorKind::TemplateError(format!(
+                            "Referenced act '{}' not found in execution history",
+                            reference
+                        )),
                     )
                 })?
         };
-        
+
         result = result.replace(placeholder, &replacement);
     }
-    
+
     Ok(result)
 }

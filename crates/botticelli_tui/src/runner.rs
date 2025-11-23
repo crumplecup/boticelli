@@ -7,9 +7,9 @@ use crate::{App, Event, EventHandler, TuiBackend, TuiError, TuiErrorKind, TuiRes
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
 /// Run the TUI with the provided backend.
@@ -21,14 +21,27 @@ use std::io;
 #[cfg(feature = "database")]
 pub fn run_tui(backend: &mut dyn TuiBackend, table_name: String) -> TuiResult<()> {
     // Setup terminal
-    enable_raw_mode().map_err(|e| TuiError::new(TuiErrorKind::TerminalSetup(format!("Failed to enable raw mode: {}", e))))?;
+    enable_raw_mode().map_err(|e| {
+        TuiError::new(TuiErrorKind::TerminalSetup(format!(
+            "Failed to enable raw mode: {}",
+            e
+        )))
+    })?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
-        .map_err(|e| TuiError::new(TuiErrorKind::TerminalSetup(format!("Failed to setup terminal: {}", e))))?;
-    
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(|e| {
+        TuiError::new(TuiErrorKind::TerminalSetup(format!(
+            "Failed to setup terminal: {}",
+            e
+        )))
+    })?;
+
     let backend_impl = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend_impl)
-        .map_err(|e| TuiError::new(TuiErrorKind::TerminalSetup(format!("Failed to create terminal: {}", e))))?;
+    let mut terminal = Terminal::new(backend_impl).map_err(|e| {
+        TuiError::new(TuiErrorKind::TerminalSetup(format!(
+            "Failed to create terminal: {}",
+            e
+        )))
+    })?;
 
     // Create app state
     let mut app = App::new(table_name.clone());
@@ -40,9 +53,9 @@ pub fn run_tui(backend: &mut dyn TuiBackend, table_name: String) -> TuiResult<()
 
     // Main loop
     while !app.should_quit {
-        terminal
-            .draw(|f| crate::ui::draw(f, &app))
-            .map_err(|e| TuiError::new(TuiErrorKind::Rendering(format!("Failed to draw: {}", e))))?;
+        terminal.draw(|f| crate::ui::draw(f, &app)).map_err(|e| {
+            TuiError::new(TuiErrorKind::Rendering(format!("Failed to draw: {}", e)))
+        })?;
 
         if let Ok(Some(event)) = events.next() {
             handle_event(&mut app, backend, &table_name, event)?;
@@ -50,16 +63,29 @@ pub fn run_tui(backend: &mut dyn TuiBackend, table_name: String) -> TuiResult<()
     }
 
     // Cleanup terminal
-    disable_raw_mode().map_err(|e| TuiError::new(TuiErrorKind::TerminalRestore(format!("Failed to disable raw mode: {}", e))))?;
+    disable_raw_mode().map_err(|e| {
+        TuiError::new(TuiErrorKind::TerminalRestore(format!(
+            "Failed to disable raw mode: {}",
+            e
+        )))
+    })?;
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
         DisableMouseCapture
     )
-    .map_err(|e| TuiError::new(TuiErrorKind::TerminalRestore(format!("Failed to cleanup terminal: {}", e))))?;
-    terminal
-        .show_cursor()
-        .map_err(|e| TuiError::new(TuiErrorKind::TerminalRestore(format!("Failed to show cursor: {}", e))))?;
+    .map_err(|e| {
+        TuiError::new(TuiErrorKind::TerminalRestore(format!(
+            "Failed to cleanup terminal: {}",
+            e
+        )))
+    })?;
+    terminal.show_cursor().map_err(|e| {
+        TuiError::new(TuiErrorKind::TerminalRestore(format!(
+            "Failed to show cursor: {}",
+            e
+        )))
+    })?;
 
     Ok(())
 }

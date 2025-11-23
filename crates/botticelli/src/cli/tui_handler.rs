@@ -5,10 +5,10 @@ use botticelli::BotticelliResult;
 /// Launch the terminal user interface for a table.
 #[cfg(all(feature = "tui", feature = "database"))]
 pub async fn launch_tui(table: &str) -> BotticelliResult<()> {
-    use botticelli_tui::{run_tui, DatabaseBackend};
+    use botticelli_tui::{DatabaseBackend, run_tui};
 
     tracing::info!(table = %table, "Launching TUI");
-    
+
     let mut backend = DatabaseBackend::new()?;
     run_tui(&mut backend, table.to_string())?;
 

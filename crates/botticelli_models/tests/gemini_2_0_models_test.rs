@@ -21,11 +21,9 @@ async fn test_gemini_2_0_flash() -> BotticelliResult<()> {
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let request = GenerateRequest::builder()
@@ -34,11 +32,9 @@ async fn test_gemini_2_0_flash() -> BotticelliResult<()> {
         .max_tokens(Some(10))
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let response = client.generate(&request).await?;
@@ -57,11 +53,9 @@ async fn test_gemini_2_0_flash_lite() -> BotticelliResult<()> {
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let request = GenerateRequest::builder()
@@ -70,11 +64,9 @@ async fn test_gemini_2_0_flash_lite() -> BotticelliResult<()> {
         .max_tokens(Some(10))
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let response = client.generate(&request).await?;
@@ -94,11 +86,9 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         .content(vec![Input::Text("Say 'one'".to_string())])
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let request1 = GenerateRequest::builder()
@@ -107,11 +97,9 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         .max_tokens(Some(10))
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let response1 = client.generate(&request1).await?;
@@ -123,11 +111,9 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         .content(vec![Input::Text("Say 'two'".to_string())])
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let request2 = GenerateRequest::builder()
@@ -136,11 +122,9 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         .max_tokens(Some(10))
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let response2 = client.generate(&request2).await?;
@@ -152,11 +136,9 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         .content(vec![Input::Text("Say 'three'".to_string())])
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let request3 = GenerateRequest::builder()
@@ -165,11 +147,9 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         .max_tokens(Some(10))
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let response3 = client.generate(&request3).await?;
@@ -188,11 +168,9 @@ async fn test_explicit_models_prefix() -> BotticelliResult<()> {
         .content(vec![Input::Text("Hello".to_string())])
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let request = GenerateRequest::builder()
@@ -201,11 +179,9 @@ async fn test_explicit_models_prefix() -> BotticelliResult<()> {
         .max_tokens(Some(10))
         .build()
         .map_err(|e| {
-            botticelli_error::BotticelliError::from(
-                botticelli_error::BotticelliErrorKind::Backend(
-                    botticelli_error::BackendError::new(format!("Builder error: {}", e)),
-                ),
-            )
+            botticelli_error::BotticelliError::from(botticelli_error::BotticelliErrorKind::Backend(
+                botticelli_error::BackendError::new(format!("Builder error: {}", e)),
+            ))
         })?;
 
     let response = client.generate(&request).await?;

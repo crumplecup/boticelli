@@ -282,5 +282,3 @@ fn draw_export_view(f: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
         .alignment(Alignment::Center);
     f.render_widget(export, area);
 }
-
-

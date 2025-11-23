@@ -69,7 +69,17 @@ pub enum Output {
 ///
 /// assert_eq!(*call.name(), "get_weather");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, derive_getters::Getters, derive_builder::Builder)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    derive_getters::Getters,
+    derive_builder::Builder,
+)]
 pub struct ToolCall {
     /// Unique identifier for this tool call
     id: String,
@@ -82,6 +92,10 @@ pub struct ToolCall {
 impl ToolCall {
     /// Creates a new tool call.
     pub fn new(id: String, name: String, arguments: serde_json::Value) -> Self {
-        Self { id, name, arguments }
+        Self {
+            id,
+            name,
+            arguments,
+        }
     }
 }

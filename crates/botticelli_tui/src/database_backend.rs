@@ -2,10 +2,10 @@
 //!
 //! This module implements the TuiBackend trait using PostgreSQL via Diesel.
 
-use crate::{backend::TuiBackend, ContentRow, TuiError, TuiErrorKind, TuiResult};
+use crate::{ContentRow, TuiError, TuiErrorKind, TuiResult, backend::TuiBackend};
 use botticelli_database::{
-    delete_content, establish_connection, get_content_by_id, list_content,
-    update_content_metadata, update_review_status,
+    delete_content, establish_connection, get_content_by_id, list_content, update_content_metadata,
+    update_review_status,
 };
 use diesel::PgConnection;
 
@@ -25,17 +25,21 @@ impl DatabaseBackend {
                 e
             )))
         })?;
-        
+
         Ok(Self { connection })
     }
 }
 
 impl TuiBackend for DatabaseBackend {
     fn list_content(&mut self, table_name: &str, limit: i64) -> TuiResult<Vec<ContentRow>> {
-        let rows = list_content(&mut self.connection, table_name, None, limit as usize).map_err(
-            |e| TuiError::new(TuiErrorKind::Database(format!("Failed to list content: {}", e))),
-        )?;
-        
+        let rows =
+            list_content(&mut self.connection, table_name, None, limit as usize).map_err(|e| {
+                TuiError::new(TuiErrorKind::Database(format!(
+                    "Failed to list content: {}",
+                    e
+                )))
+            })?;
+
         let content_rows = rows
             .into_iter()
             .map(|row| {
@@ -55,19 +59,25 @@ impl TuiBackend for DatabaseBackend {
                             .collect()
                     })
                     .unwrap_or_default();
-                
-                let content = row.get("content").cloned().unwrap_or(serde_json::Value::Null);
+
+                let content = row
+                    .get("content")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null);
                 let preview = content
                     .as_str()
                     .map(|s| s.chars().take(50).collect())
                     .unwrap_or_else(|| content.to_string().chars().take(50).collect());
-                
+
                 let source_narrative = row
                     .get("source_narrative")
                     .and_then(|v| v.as_str())
                     .map(String::from);
-                let source_act = row.get("source_act").and_then(|v| v.as_str()).map(String::from);
-                
+                let source_act = row
+                    .get("source_act")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+
                 ContentRow {
                     id,
                     review_status,
@@ -80,7 +90,7 @@ impl TuiBackend for DatabaseBackend {
                 }
             })
             .collect();
-        
+
         Ok(content_rows)
     }
 
@@ -101,7 +111,7 @@ impl TuiBackend for DatabaseBackend {
                 )))
             },
         )?;
-        
+
         // Update review status separately
         update_review_status(&mut self.connection, table_name, id, status).map_err(|e| {
             TuiError::new(TuiErrorKind::Database(format!(
@@ -109,15 +119,18 @@ impl TuiBackend for DatabaseBackend {
                 e
             )))
         })?;
-        
+
         Ok(())
     }
 
     fn delete_item(&mut self, table_name: &str, id: i64) -> TuiResult<()> {
         delete_content(&mut self.connection, table_name, id).map_err(|e| {
-            TuiError::new(TuiErrorKind::Database(format!("Failed to delete item: {}", e)))
+            TuiError::new(TuiErrorKind::Database(format!(
+                "Failed to delete item: {}",
+                e
+            )))
         })?;
-        
+
         Ok(())
     }
 
@@ -127,16 +140,19 @@ impl TuiBackend for DatabaseBackend {
             .iter()
             .map(|&id| get_content_by_id(&mut self.connection, table_name, id))
             .collect();
-        
+
         let items = items.map_err(|e| {
             TuiError::new(TuiErrorKind::Database(format!(
                 "Failed to fetch items for export: {}",
                 e
             )))
         })?;
-        
+
         serde_json::to_string_pretty(&items).map_err(|e| {
-            TuiError::new(TuiErrorKind::Database(format!("Failed to serialize items: {}", e)))
+            TuiError::new(TuiErrorKind::Database(format!(
+                "Failed to serialize items: {}",
+                e
+            )))
         })
     }
 }

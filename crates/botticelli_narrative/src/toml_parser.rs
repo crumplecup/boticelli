@@ -12,7 +12,9 @@ use tracing::{debug, error, instrument};
 /// Expand environment variables in string values within a HashMap.
 ///
 /// Supports `${VAR_NAME}` and `$VAR_NAME` syntax.
-fn expand_env_vars(args: &HashMap<String, serde_json::Value>) -> HashMap<String, serde_json::Value> {
+fn expand_env_vars(
+    args: &HashMap<String, serde_json::Value>,
+) -> HashMap<String, serde_json::Value> {
     args.iter()
         .map(|(k, v)| {
             let expanded_value = match v {
@@ -220,16 +222,13 @@ impl TomlInput {
         // Get input type, defaulting to "text" if not specified
         let input_type = self.input_type.as_deref().unwrap_or("text");
         debug!(input_type, "Converting TOML input to domain Input");
-        
+
         match input_type {
             "text" => {
-                let content = self
-                    .content
-                    .as_ref()
-                    .ok_or_else(|| {
-                        error!("Text input missing 'content' field");
-                        "Text input missing 'content' field".to_string()
-                    })?;
+                let content = self.content.as_ref().ok_or_else(|| {
+                    error!("Text input missing 'content' field");
+                    "Text input missing 'content' field".to_string()
+                })?;
                 debug!(content_len = content.len(), "Created text input");
                 Ok(Input::Text(content.clone()))
             }
@@ -263,20 +262,14 @@ impl TomlInput {
                 })
             }
             "bot_command" => {
-                let platform = self
-                    .platform
-                    .as_ref()
-                    .ok_or_else(|| {
-                        error!("Bot command missing 'platform' field");
-                        "Bot command missing 'platform' field".to_string()
-                    })?;
-                let command = self
-                    .command
-                    .as_ref()
-                    .ok_or_else(|| {
-                        error!("Bot command missing 'command' field");
-                        "Bot command missing 'command' field".to_string()
-                    })?;
+                let platform = self.platform.as_ref().ok_or_else(|| {
+                    error!("Bot command missing 'platform' field");
+                    "Bot command missing 'platform' field".to_string()
+                })?;
+                let command = self.command.as_ref().ok_or_else(|| {
+                    error!("Bot command missing 'command' field");
+                    "Bot command missing 'command' field".to_string()
+                })?;
                 debug!(%platform, %command, "Created bot command input");
                 let args = expand_env_vars(&self.args.clone().unwrap_or_default());
                 Ok(Input::BotCommand {
@@ -288,14 +281,11 @@ impl TomlInput {
                 })
             }
             "table" => {
-                let table_name = self
-                    .table_name
-                    .as_ref()
-                    .ok_or_else(|| {
-                        error!("Table input missing 'table_name' field");
-                        "Table input missing 'table_name' field".to_string()
-                    })?;
-                
+                let table_name = self.table_name.as_ref().ok_or_else(|| {
+                    error!("Table input missing 'table_name' field");
+                    "Table input missing 'table_name' field".to_string()
+                })?;
+
                 use botticelli_core::TableFormat;
                 let format = match self.format.as_deref() {
                     Some("json") | None => TableFormat::Json,
@@ -306,7 +296,7 @@ impl TomlInput {
                         return Err(format!("Unknown table format: {}", f));
                     }
                 };
-                
+
                 debug!(%table_name, ?format, ?self.limit, "Created table input");
                 Ok(Input::Table {
                     table_name: table_name.clone(),
@@ -315,7 +305,7 @@ impl TomlInput {
                     limit: self.limit,
                     offset: self.offset,
                     order_by: self.order_by.clone(),
-                    alias: None,  // Will be set during resolution
+                    alias: None, // Will be set during resolution
                     format,
                     sample: self.sample,
                 })
@@ -361,7 +351,10 @@ impl TomlActConfig {
             self.input.iter().map(|ti| ti.to_input()).collect();
 
         let inputs = inputs?;
-        debug!(inputs_converted = inputs.len(), "Successfully converted inputs");
+        debug!(
+            inputs_converted = inputs.len(),
+            "Successfully converted inputs"
+        );
         Ok(ActConfig::new(
             inputs,
             self.model.clone(),
@@ -374,7 +367,7 @@ impl TomlActConfig {
 
 impl TomlAct {
     /// Convert TOML act to domain ActConfig.
-    /// 
+    ///
     /// Requires the parent TomlNarrativeFile for resolving references.
     #[instrument(skip(self, narrative_file))]
     pub fn to_act_config(&self, narrative_file: &TomlNarrativeFile) -> Result<ActConfig, String> {
@@ -385,13 +378,7 @@ impl TomlAct {
                 if is_reference(text) {
                     debug!(reference = %text, "Resolving simple reference");
                     let input = narrative_file.resolve_reference(text)?;
-                    Ok(ActConfig::new(
-                        vec![input],
-                        None,
-                        None,
-                        None,
-                        None,
-                    ))
+                    Ok(ActConfig::new(vec![input], None, None, None, None))
                 } else {
                     // Validate that the text is not empty or just whitespace
                     if text.trim().is_empty() {
@@ -428,17 +415,17 @@ impl TomlAct {
                         }
                     }
                 }
-                debug!(input_count = inputs.len(), "Array act converted successfully");
-                Ok(ActConfig::new(
-                    inputs,
-                    None,
-                    None,
-                    None,
-                    None,
-                ))
+                debug!(
+                    input_count = inputs.len(),
+                    "Array act converted successfully"
+                );
+                Ok(ActConfig::new(inputs, None, None, None, None))
             }
             TomlAct::Structured(config) => {
-                debug!(input_count = config.input.len(), "Processing structured act");
+                debug!(
+                    input_count = config.input.len(),
+                    "Processing structured act"
+                );
                 // Handle references in structured inputs
                 let mut inputs = Vec::new();
                 for toml_input in &config.input {
@@ -450,7 +437,10 @@ impl TomlAct {
                         inputs.push(toml_input.to_input()?);
                     }
                 }
-                debug!(input_count = inputs.len(), "Structured act converted successfully");
+                debug!(
+                    input_count = inputs.len(),
+                    "Structured act converted successfully"
+                );
                 Ok(ActConfig::new(
                     inputs,
                     config.model.clone(),
@@ -465,7 +455,11 @@ impl TomlAct {
 
 /// Check if a string is a resource reference (bots.name, tables.name, media.name, narratives.name, narrative:name).
 fn is_reference(s: &str) -> bool {
-    s.starts_with("bots.") || s.starts_with("tables.") || s.starts_with("media.") || s.starts_with("narratives.") || s.starts_with("narrative:")
+    s.starts_with("bots.")
+        || s.starts_with("tables.")
+        || s.starts_with("media.")
+        || s.starts_with("narratives.")
+        || s.starts_with("narrative:")
 }
 
 impl TomlNarrativeFile {
@@ -473,25 +467,25 @@ impl TomlNarrativeFile {
     #[instrument(skip(self), fields(reference))]
     pub fn resolve_reference(&self, reference: &str) -> Result<Input, String> {
         debug!(%reference, "Resolving resource reference");
-        
+
         // Handle narrative: prefix specially
         if let Some(narrative_name) = reference.strip_prefix("narrative:") {
             debug!(narrative_name, "Resolved narrative reference");
             return Ok(Input::Narrative {
                 name: narrative_name.to_string(),
-                path: None,  // Will be resolved relative to calling narrative
+                path: None, // Will be resolved relative to calling narrative
             });
         }
-        
+
         let parts: Vec<&str> = reference.split('.').collect();
         if parts.len() != 2 {
             error!(%reference, "Invalid reference format (expected 'category.name')");
             return Err(format!("Invalid reference format: {}", reference));
         }
-        
+
         let (category, name) = (parts[0], parts[1]);
         debug!(category, name, "Parsed reference");
-        
+
         match category {
             "bots" => self.resolve_bot_reference(name),
             "tables" => self.resolve_table_reference(name),
@@ -503,16 +497,15 @@ impl TomlNarrativeFile {
             }
         }
     }
-    
+
     #[instrument(skip(self), fields(name))]
     fn resolve_bot_reference(&self, name: &str) -> Result<Input, String> {
         debug!(%name, "Resolving bot reference");
-        let bot_def = self.bots.get(name)
-            .ok_or_else(|| {
-                error!(%name, "Bot not found");
-                format!("Bot not found: {}", name)
-            })?;
-        
+        let bot_def = self.bots.get(name).ok_or_else(|| {
+            error!(%name, "Bot not found");
+            format!("Bot not found: {}", name)
+        })?;
+
         debug!(platform = %bot_def.platform, command = %bot_def.command, "Bot reference resolved");
         let args = expand_env_vars(&bot_def.args);
         Ok(Input::BotCommand {
@@ -523,16 +516,15 @@ impl TomlNarrativeFile {
             cache_duration: None,
         })
     }
-    
+
     #[instrument(skip(self), fields(name))]
     fn resolve_table_reference(&self, name: &str) -> Result<Input, String> {
         debug!(%name, "Resolving table reference");
-        let table_def = self.tables.get(name)
-            .ok_or_else(|| {
-                error!(%name, "Table not found");
-                format!("Table not found: {}", name)
-            })?;
-        
+        let table_def = self.tables.get(name).ok_or_else(|| {
+            error!(%name, "Table not found");
+            format!("Table not found: {}", name)
+        })?;
+
         use botticelli_core::TableFormat;
         let format = match table_def.format.as_deref() {
             Some("json") | None => TableFormat::Json,
@@ -543,11 +535,11 @@ impl TomlNarrativeFile {
                 return Err(format!("Unknown table format: {}", f));
             }
         };
-        
+
         debug!(
-            table_name = %table_def.table_name, 
-            ?format, 
-            ?table_def.limit, 
+            table_name = %table_def.table_name,
+            ?format,
+            ?table_def.limit,
             "Table reference resolved"
         );
         Ok(Input::Table {
@@ -562,16 +554,15 @@ impl TomlNarrativeFile {
             sample: table_def.sample,
         })
     }
-    
+
     #[instrument(skip(self), fields(name))]
     fn resolve_media_reference(&self, name: &str) -> Result<Input, String> {
         debug!(%name, "Resolving media reference");
-        let media_def = self.media.get(name)
-            .ok_or_else(|| {
-                error!(%name, "Media not found");
-                format!("Media not found: {}", name)
-            })?;
-        
+        let media_def = self.media.get(name).ok_or_else(|| {
+            error!(%name, "Media not found");
+            format!("Media not found: {}", name)
+        })?;
+
         // Detect media source
         let source = if let Some(url) = &media_def.url {
             debug!(%url, "Using URL source");
@@ -589,16 +580,21 @@ impl TomlNarrativeFile {
             MediaSource::Base64(base64.clone())
         } else {
             error!(%name, "Media definition missing source (url, file, or base64)");
-            return Err(format!("Media definition '{}' missing source (url, file, or base64)", name));
+            return Err(format!(
+                "Media definition '{}' missing source (url, file, or base64)",
+                name
+            ));
         };
-        
+
         // Infer MIME type if not provided
         let mime = media_def.mime.clone().or_else(|| {
-            media_def.file.as_ref()
+            media_def
+                .file
+                .as_ref()
                 .or(media_def.url.as_ref())
                 .and_then(|path| infer_mime_type(path))
         });
-        
+
         // Infer media type from MIME or extension
         let media_type = if let Some(mime_str) = &mime {
             match mime_str.split('/').next() {
@@ -608,20 +604,28 @@ impl TomlNarrativeFile {
                 Some("application") | Some("text") => "document",
                 _ => {
                     error!(mime = %mime_str, "Cannot determine media type from MIME");
-                    return Err(format!("Cannot determine media type from MIME: {}", mime_str));
+                    return Err(format!(
+                        "Cannot determine media type from MIME: {}",
+                        mime_str
+                    ));
                 }
             }
         } else {
             // Infer from file extension
-            let path = media_def.file.as_ref()
+            let path = media_def
+                .file
+                .as_ref()
                 .or(media_def.url.as_ref())
                 .ok_or_else(|| {
                     error!(%name, "Cannot infer media type without file path or MIME");
-                    format!("Cannot infer media type for '{}' without file path or MIME", name)
+                    format!(
+                        "Cannot infer media type for '{}' without file path or MIME",
+                        name
+                    )
                 })?;
             infer_media_type_from_extension(path)?
         };
-        
+
         debug!(media_type, ?mime, "Media reference resolved");
         match media_type {
             "image" => Ok(Input::Image { mime, source }),
@@ -638,16 +642,15 @@ impl TomlNarrativeFile {
             }
         }
     }
-    
+
     #[instrument(skip(self), fields(name))]
     fn resolve_narrative_reference(&self, name: &str) -> Result<Input, String> {
         debug!(%name, "Resolving narrative reference");
-        let narrative_def = self.narratives.get(name)
-            .ok_or_else(|| {
-                error!(%name, "Narrative not found");
-                format!("Narrative not found: {}", name)
-            })?;
-        
+        let narrative_def = self.narratives.get(name).ok_or_else(|| {
+            error!(%name, "Narrative not found");
+            format!("Narrative not found: {}", name)
+        })?;
+
         debug!(narrative_file = %narrative_def.narrative, "Narrative reference resolved");
         Ok(Input::Narrative {
             name: name.to_string(),
@@ -662,23 +665,26 @@ fn infer_mime_type(path: &str) -> Option<String> {
         .extension()?
         .to_str()?
         .to_lowercase();
-    
-    Some(match extension.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "mp3" => "audio/mp3",
-        "wav" => "audio/wav",
-        "ogg" => "audio/ogg",
-        "mp4" => "video/mp4",
-        "webm" => "video/webm",
-        "pdf" => "application/pdf",
-        "txt" => "text/plain",
-        "md" => "text/markdown",
-        "json" => "application/json",
-        _ => return None,
-    }.to_string())
+
+    Some(
+        match extension.as_str() {
+            "png" => "image/png",
+            "jpg" | "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "mp3" => "audio/mp3",
+            "wav" => "audio/wav",
+            "ogg" => "audio/ogg",
+            "mp4" => "video/mp4",
+            "webm" => "video/webm",
+            "pdf" => "application/pdf",
+            "txt" => "text/plain",
+            "md" => "text/markdown",
+            "json" => "application/json",
+            _ => return None,
+        }
+        .to_string(),
+    )
 }
 
 /// Infer media type category from extension.
@@ -688,7 +694,7 @@ fn infer_media_type_from_extension(path: &str) -> Result<&'static str, String> {
         .and_then(|e| e.to_str())
         .ok_or_else(|| format!("Cannot determine file extension from: {}", path))?
         .to_lowercase();
-    
+
     Ok(match extension.as_str() {
         "png" | "jpg" | "jpeg" | "gif" | "webp" => "image",
         "mp3" | "wav" | "ogg" => "audio",

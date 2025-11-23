@@ -147,13 +147,13 @@ impl<'a> ContentGenerationRepository for PostgresContentGenerationRepository<'a>
         use crate::schema::content_generations;
 
         debug!(table = %new_gen.table_name, narrative = ?new_gen.narrative_file, "Starting content generation");
-        
+
         // Check if generation already exists
         if let Some(existing) = self.get_by_table_name(&new_gen.table_name)? {
             debug!(table = %new_gen.table_name, existing_status = %existing.status(), "Generation already exists, returning existing record");
             return Ok(existing);
         }
-        
+
         diesel::insert_into(content_generations::table)
             .values(&new_gen)
             .get_result(self.conn)

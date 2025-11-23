@@ -1,6 +1,6 @@
 //! Implementation of TableQueryRegistry for narrative integration.
 
-use crate::{format_as_csv, format_as_json, format_as_markdown, TableQueryExecutor};
+use crate::{TableQueryExecutor, format_as_csv, format_as_json, format_as_markdown};
 use async_trait::async_trait;
 use botticelli_interface::{TableQueryRegistry, TableQueryViewBuilder};
 use tracing::{debug, error, instrument};

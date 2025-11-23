@@ -136,4 +136,3 @@ impl<V: CommandValidator> SecureExecutor<V> {
         &mut self.approval_workflow
     }
 }
-

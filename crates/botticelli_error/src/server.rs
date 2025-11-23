@@ -6,31 +6,31 @@ pub enum ServerErrorKind {
     /// HTTP request failed: {0}
     #[display("HTTP request failed: {}", _0)]
     Http(String),
-    
+
     /// API error: {0}
     #[display("API error: {}", _0)]
     Api(String),
-    
+
     /// Failed to deserialize response: {0}
     #[display("Failed to deserialize response: {}", _0)]
     Deserialization(String),
-    
+
     /// Stream error: {0}
     #[display("Stream error: {}", _0)]
     Stream(String),
-    
+
     /// Configuration error: {0}
     #[display("Configuration error: {}", _0)]
     Configuration(String),
-    
+
     /// Failed to start server: {0}
     #[display("Failed to start server: {}", _0)]
     ServerStartFailed(String),
-    
+
     /// Failed to stop server: {0}
     #[display("Failed to stop server: {}", _0)]
     ServerStopFailed(String),
-    
+
     /// Model download failed: {0}
     #[display("Model download failed: {}", _0)]
     ModelDownloadFailed(String),

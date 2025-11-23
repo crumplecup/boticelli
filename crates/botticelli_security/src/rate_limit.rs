@@ -124,7 +124,8 @@ impl RateLimiter {
     /// Add a rate limit for an operation.
     pub fn add_limit(&mut self, operation: impl Into<String>, limit: RateLimit) {
         let operation = operation.into();
-        self.buckets.insert(operation.clone(), TokenBucket::new(limit.clone()));
+        self.buckets
+            .insert(operation.clone(), TokenBucket::new(limit.clone()));
         self.limits.insert(operation, limit);
     }
 
@@ -146,7 +147,10 @@ impl RateLimiter {
                 Ok(())
             }
             Err(retry_after) => {
-                debug!(retry_after_secs = retry_after.as_secs(), "Rate limit exceeded");
+                debug!(
+                    retry_after_secs = retry_after.as_secs(),
+                    "Rate limit exceeded"
+                );
                 let limit = self.limits.get(operation).unwrap().clone();
                 Err(SecurityError::new(SecurityErrorKind::RateLimitExceeded {
                     operation: operation.to_string(),
@@ -163,7 +167,9 @@ impl RateLimiter {
 
     /// Get available tokens for an operation.
     pub fn available_tokens(&mut self, operation: &str) -> Option<u32> {
-        self.buckets.get_mut(operation).map(|b| b.available_tokens())
+        self.buckets
+            .get_mut(operation)
+            .map(|b| b.available_tokens())
     }
 
     /// Get rate limit configuration for an operation.
@@ -177,4 +183,3 @@ impl Default for RateLimiter {
         Self::new()
     }
 }
-

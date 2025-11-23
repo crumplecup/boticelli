@@ -38,7 +38,13 @@ pub enum SecurityErrorKind {
     },
 
     /// Rate limit exceeded
-    #[display("Rate limit exceeded for '{}': {} (limit: {} per {}s)", operation, reason, limit, window_secs)]
+    #[display(
+        "Rate limit exceeded for '{}': {} (limit: {} per {}s)",
+        operation,
+        reason,
+        limit,
+        window_secs
+    )]
     RateLimitExceeded {
         /// Operation that exceeded rate limit
         operation: String,

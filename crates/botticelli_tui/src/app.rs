@@ -179,7 +179,9 @@ impl App {
 
     /// Get selected item ID for deletion.
     pub fn get_selected_id(&self) -> Option<i64> {
-        self.content_items.get(self.selected_index).map(|item| item.id)
+        self.content_items
+            .get(self.selected_index)
+            .map(|item| item.id)
     }
 
     /// Quit the application.
@@ -187,5 +189,3 @@ impl App {
         self.should_quit = true;
     }
 }
-
-

@@ -15,7 +15,16 @@ use serde::{Deserialize, Serialize};
 ///
 /// assert_eq!(request.messages().len(), 1);
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, derive_getters::Getters, derive_setters::Setters)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    derive_getters::Getters,
+    derive_setters::Setters,
+)]
 #[setters(prefix = "with_")]
 pub struct GenerateRequest {
     /// The conversation messages to send

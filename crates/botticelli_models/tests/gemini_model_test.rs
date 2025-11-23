@@ -38,7 +38,7 @@ async fn test_mock_model_basic_generate() -> BotticelliResult<()> {
         .content(vec![Input::Text("Test".to_string())])
         .build()
         .map_err(|e| BuilderError::new(BuilderErrorKind::ValidationFailed(format!("{:?}", e))))?;
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))

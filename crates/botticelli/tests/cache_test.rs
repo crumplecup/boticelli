@@ -16,7 +16,13 @@ fn test_cache_insert_and_get() {
 
     let value = json!({"members": 100, "channels": 10});
 
-    cache.insert("discord", "server.get_stats", &args, value.clone(), Some(60));
+    cache.insert(
+        "discord",
+        "server.get_stats",
+        &args,
+        value.clone(),
+        Some(60),
+    );
 
     let entry = cache.get("discord", "server.get_stats", &args).unwrap();
     assert_eq!(entry.value(), &value);
@@ -67,11 +73,31 @@ fn test_cache_different_args() {
     let mut args2 = HashMap::new();
     args2.insert("guild_id".to_string(), json!("789012"));
 
-    cache.insert("discord", "server.get_stats", &args1, json!({"members": 100}), None);
-    cache.insert("discord", "server.get_stats", &args2, json!({"members": 200}), None);
+    cache.insert(
+        "discord",
+        "server.get_stats",
+        &args1,
+        json!({"members": 100}),
+        None,
+    );
+    cache.insert(
+        "discord",
+        "server.get_stats",
+        &args2,
+        json!({"members": 200}),
+        None,
+    );
 
-    let value1 = cache.get("discord", "server.get_stats", &args1).unwrap().value().clone();
-    let value2 = cache.get("discord", "server.get_stats", &args2).unwrap().value().clone();
+    let value1 = cache
+        .get("discord", "server.get_stats", &args1)
+        .unwrap()
+        .value()
+        .clone();
+    let value2 = cache
+        .get("discord", "server.get_stats", &args2)
+        .unwrap()
+        .value()
+        .clone();
 
     assert_eq!(value1["members"], 100);
     assert_eq!(value2["members"], 200);
@@ -86,7 +112,13 @@ fn test_cache_cleanup_expired() {
     args.insert("guild_id".to_string(), json!("123456"));
 
     // Insert with 1 second TTL
-    cache.insert("discord", "server.get_stats", &args, json!({"members": 100}), Some(1));
+    cache.insert(
+        "discord",
+        "server.get_stats",
+        &args,
+        json!({"members": 100}),
+        Some(1),
+    );
 
     assert_eq!(cache.len(), 1);
 
@@ -144,7 +176,13 @@ fn test_cache_disabled() {
     let mut args = HashMap::new();
     args.insert("guild_id".to_string(), json!("123456"));
 
-    cache.insert("discord", "server.get_stats", &args, json!({"members": 100}), None);
+    cache.insert(
+        "discord",
+        "server.get_stats",
+        &args,
+        json!({"members": 100}),
+        None,
+    );
 
     // Cache disabled, should return None
     assert!(cache.get("discord", "server.get_stats", &args).is_none());
@@ -159,7 +197,13 @@ fn test_cache_clear() {
     let mut args = HashMap::new();
     args.insert("guild_id".to_string(), json!("123456"));
 
-    cache.insert("discord", "server.get_stats", &args, json!({"members": 100}), None);
+    cache.insert(
+        "discord",
+        "server.get_stats",
+        &args,
+        json!({"members": 100}),
+        None,
+    );
 
     assert_eq!(cache.len(), 1);
 

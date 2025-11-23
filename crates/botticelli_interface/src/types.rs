@@ -15,7 +15,19 @@ pub struct StreamChunk {
 }
 
 /// Why generation stopped.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, strum::EnumIter)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    strum::EnumIter,
+)]
 pub enum FinishReason {
     /// Model completed naturally.
     Stop,

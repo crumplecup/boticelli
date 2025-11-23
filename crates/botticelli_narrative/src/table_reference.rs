@@ -15,11 +15,11 @@ use serde::{Deserialize, Serialize};
 pub struct TableReference {
     /// Name of the table to query
     table_name: String,
-    
+
     /// Optional filter by review status
     #[builder(default)]
     status_filter: Option<String>,
-    
+
     /// Maximum number of rows to retrieve
     #[builder(default = "10")]
     limit: usize,
@@ -30,18 +30,14 @@ impl TableReference {
     pub fn builder() -> TableReferenceBuilder {
         TableReferenceBuilder::default()
     }
-    
+
     /// Resolve this reference to actual content as JSON values.
     pub async fn resolve(
         &self,
         repository: &dyn ContentRepository,
     ) -> BotticelliResult<Vec<serde_json::Value>> {
         repository
-            .list_content(
-                &self.table_name,
-                self.status_filter.as_deref(),
-                self.limit,
-            )
+            .list_content(&self.table_name, self.status_filter.as_deref(), self.limit)
             .await
     }
 }

@@ -1,13 +1,13 @@
 //! Top-level error wrapper types.
 
-use crate::{
-    BackendError, BuilderError, ConfigError, GeminiError, HttpError, JsonError, NarrativeError,
-    NotImplementedError, ServerError, StorageError,
-};
 #[cfg(feature = "database")]
 use crate::DatabaseError;
 #[cfg(feature = "tui")]
 use crate::TuiError;
+use crate::{
+    BackendError, BuilderError, ConfigError, GeminiError, HttpError, JsonError, NarrativeError,
+    NotImplementedError, ServerError, StorageError,
+};
 
 /// This is the foundation error enum. Additional variants will be added
 /// by other botticelli crates during the workspace migration.

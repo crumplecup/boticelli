@@ -111,8 +111,8 @@ impl PermissionChecker {
         }
 
         // Check allow list or default policy
-        let allowed = self.config.allowed_commands.contains(command)
-            || self.config.allow_all_by_default;
+        let allowed =
+            self.config.allowed_commands.contains(command) || self.config.allow_all_by_default;
 
         if !allowed {
             debug!("Command not in allow list");
@@ -128,11 +128,7 @@ impl PermissionChecker {
 
     /// Check if a resource is accessible.
     #[instrument(skip(self), fields(resource_type, resource_id))]
-    pub fn check_resource(
-        &self,
-        resource_type: &str,
-        resource_id: &str,
-    ) -> SecurityResult<()> {
+    pub fn check_resource(&self, resource_type: &str, resource_id: &str) -> SecurityResult<()> {
         debug!("Checking resource permission");
 
         let resource_perm = self
@@ -154,8 +150,8 @@ impl PermissionChecker {
         }
 
         // Check allow list or default policy
-        let allowed = resource_perm.allowed_ids.contains(resource_id)
-            || resource_perm.allow_all_by_default;
+        let allowed =
+            resource_perm.allowed_ids.contains(resource_id) || resource_perm.allow_all_by_default;
 
         if !allowed {
             debug!("Resource not in allow list");
@@ -203,4 +199,3 @@ impl PermissionChecker {
         Ok(())
     }
 }
-

@@ -6,12 +6,14 @@
 #![cfg(feature = "database")]
 
 use botticelli::{
-    ActConfig, DatabaseTableQueryRegistry, Input, NarrativeExecutor, NarrativeMetadata, NarrativeProvider, Output,
-    TableFormat, TableQueryExecutor,
+    ActConfig, DatabaseTableQueryRegistry, Input, NarrativeExecutor, NarrativeMetadata,
+    NarrativeProvider, Output, TableFormat, TableQueryExecutor,
 };
 use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
-use std::{env, sync::{Arc, Mutex}};
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 
 /// Test narrative provider that queries a table.
 struct TableReferenceNarrative {
@@ -25,11 +27,14 @@ impl TableReferenceNarrative {
         // Create a simple test metadata - NarrativeMetadata is typically deserialized from TOML
         // For testing, we'll construct acts directly
         // Unwrap is acceptable here as this is test setup data that should always parse
-        let metadata = serde_json::from_str(r#"{
+        let metadata = serde_json::from_str(
+            r#"{
             "name": "table_reference_test",
             "description": "Test narrative with table references",
             "skip_content_generation": false
-        }"#).expect("Failed to parse test metadata");
+        }"#,
+        )
+        .expect("Failed to parse test metadata");
 
         let table_input = Input::Table {
             table_name: table_name.to_string(),
@@ -74,7 +79,10 @@ impl NarrativeProvider for TableReferenceNarrative {
     }
 
     fn get_act_config(&self, act_name: &str) -> Option<ActConfig> {
-        self.acts.iter().find(|(name, _)| name == act_name).map(|(_, config)| config.clone())
+        self.acts
+            .iter()
+            .find(|(name, _)| name == act_name)
+            .map(|(_, config)| config.clone())
     }
 }
 
@@ -95,13 +103,11 @@ impl botticelli::BotticelliDriver for MockDriver {
         // For testing, use unlimited rate limits
         use botticelli::RateLimitConfig;
         static RATE_LIMIT: std::sync::OnceLock<RateLimitConfig> = std::sync::OnceLock::new();
-        RATE_LIMIT.get_or_init(|| {
-            RateLimitConfig {
-                requests_per_minute: u64::MAX,
-                tokens_per_minute: u64::MAX,
-                requests_per_day: u64::MAX,
-                tokens_per_day: u64::MAX,
-            }
+        RATE_LIMIT.get_or_init(|| RateLimitConfig {
+            requests_per_minute: u64::MAX,
+            tokens_per_minute: u64::MAX,
+            requests_per_day: u64::MAX,
+            tokens_per_day: u64::MAX,
         })
     }
 
@@ -121,32 +127,27 @@ impl botticelli::BotticelliDriver for MockDriver {
         }
 
         Ok(botticelli::GenerateResponse {
-            outputs: vec![Output::Text(format!("Received table data: {}", table_content))],
+            outputs: vec![Output::Text(format!(
+                "Received table data: {}",
+                table_content
+            ))],
         })
     }
-}
-
-/// Establish database connection for tests.
-fn establish_connection() -> botticelli::BotticelliResult<Pool<ConnectionManager<PgConnection>>> {
-    use botticelli::{ConfigError, DatabaseError, DatabaseErrorKind};
-    
-    dotenvy::dotenv().ok();
-    let database_url = env::var("DATABASE_URL")
-        .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    Ok(Pool::builder().build(manager)
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to create connection pool: {}", e))))?)
 }
 
 #[tokio::test]
 async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
     use botticelli::{ConfigError, DatabaseError, DatabaseErrorKind};
-    
+
     dotenvy::dotenv().ok();
     let database_url = env::var("DATABASE_URL")
         .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
-    let mut conn = PgConnection::establish(&database_url)
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
+    let mut conn = PgConnection::establish(&database_url).map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Connection(format!(
+            "Failed to establish connection: {}",
+            e
+        )))
+    })?;
 
     // Create a test table
     diesel::sql_query(
@@ -158,7 +159,12 @@ async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
         )",
     )
     .execute(&mut conn)
-    .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(format!("Failed to create test table: {}", e))))?;
+    .map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to create test table: {}",
+            e
+        )))
+    })?;
 
     // Insert test data
     diesel::sql_query(
@@ -170,7 +176,12 @@ async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
             ('Whatsit', 7.99, 'Electronics')",
     )
     .execute(&mut conn)
-    .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(format!("Failed to insert test data: {}", e))))?;
+    .map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to insert test data: {}",
+            e
+        )))
+    })?;
 
     // Use the same connection for the query executor so it can see the temp table
     let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(conn)));
@@ -192,31 +203,46 @@ async fn test_table_reference_query() -> botticelli::BotticelliResult<()> {
 
     // Verify that table data was processed
     if execution.act_executions[0].inputs.is_empty() {
-        return Err(DatabaseError::new(DatabaseErrorKind::Query("No inputs found after table processing".to_string())).into());
+        return Err(DatabaseError::new(DatabaseErrorKind::Query(
+            "No inputs found after table processing".to_string(),
+        ))
+        .into());
     }
-    
+
     match &execution.act_executions[0].inputs[0] {
         Input::Text(text) => {
             // Should contain formatted table data
             if !text.contains("Widget") && !text.contains("Gadget") {
-                return Err(DatabaseError::new(DatabaseErrorKind::Query("Table data not found in processed input".to_string())).into());
+                return Err(DatabaseError::new(DatabaseErrorKind::Query(
+                    "Table data not found in processed input".to_string(),
+                ))
+                .into());
             }
         }
-        _ => return Err(DatabaseError::new(DatabaseErrorKind::Query("Expected Text input after table processing".to_string())).into()),
+        _ => {
+            return Err(DatabaseError::new(DatabaseErrorKind::Query(
+                "Expected Text input after table processing".to_string(),
+            ))
+            .into());
+        }
     }
-    
+
     Ok(())
 }
 
 #[tokio::test]
 async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> {
     use botticelli::{ConfigError, DatabaseError, DatabaseErrorKind};
-    
+
     dotenvy::dotenv().ok();
     let database_url = env::var("DATABASE_URL")
         .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
-    let mut conn = PgConnection::establish(&database_url)
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
+    let mut conn = PgConnection::establish(&database_url).map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Connection(format!(
+            "Failed to establish connection: {}",
+            e
+        )))
+    })?;
 
     // Create test table
     diesel::sql_query(
@@ -247,11 +273,14 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with WHERE clause
-    let metadata: NarrativeMetadata = serde_json::from_str(r#"{
+    let metadata: NarrativeMetadata = serde_json::from_str(
+        r#"{
         "name": "filtered_query_test",
         "description": "Test with WHERE clause filtering",
         "skip_content_generation": false
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let table_input = Input::Table {
         table_name: "test_orders".to_string(),
@@ -329,12 +358,16 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
 #[tokio::test]
 async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
     use botticelli::{ConfigError, DatabaseError, DatabaseErrorKind};
-    
+
     dotenvy::dotenv().ok();
     let database_url = env::var("DATABASE_URL")
         .map_err(|_| ConfigError::new("DATABASE_URL environment variable not set"))?;
-    let mut conn = PgConnection::establish(&database_url)
-        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(format!("Failed to establish connection: {}", e))))?;
+    let mut conn = PgConnection::establish(&database_url).map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Connection(format!(
+            "Failed to establish connection: {}",
+            e
+        )))
+    })?;
 
     // Create test table
     diesel::sql_query(
@@ -346,7 +379,12 @@ async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
         )",
     )
     .execute(&mut conn)
-    .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(format!("Failed to create test table: {}", e))))?;
+    .map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to create test table: {}",
+            e
+        )))
+    })?;
 
     // Insert test data
     diesel::sql_query(
@@ -356,18 +394,26 @@ async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
             ('Charlie', 'Engineering', 105000)",
     )
     .execute(&mut conn)
-    .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(format!("Failed to insert test data: {}", e))))?;
+    .map_err(|e| {
+        DatabaseError::new(DatabaseErrorKind::Query(format!(
+            "Failed to insert test data: {}",
+            e
+        )))
+    })?;
 
     // Use the same connection for the query executor so it can see the temp table
     let query_executor = TableQueryExecutor::new(Arc::new(Mutex::new(conn)));
     let table_registry = DatabaseTableQueryRegistry::new(query_executor);
 
     // Create narrative with CSV format
-    let metadata: NarrativeMetadata = serde_json::from_str(r#"{
+    let metadata: NarrativeMetadata = serde_json::from_str(
+        r#"{
         "name": "csv_format_test",
         "description": "Test CSV format output",
         "skip_content_generation": false
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let table_input = Input::Table {
         table_name: "test_employees".to_string(),

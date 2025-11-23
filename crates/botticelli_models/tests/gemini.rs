@@ -79,7 +79,7 @@ fn test_simple_text_request_structure() -> anyhow::Result<()> {
         .content(vec![Input::Text("Hello, world!".to_string())])
         .build()
         .expect("Valid message");
-        
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(100))
@@ -90,7 +90,7 @@ fn test_simple_text_request_structure() -> anyhow::Result<()> {
     assert_eq!(request.messages().len(), 1);
     assert_eq!(*request.max_tokens(), Some(100));
     assert_eq!(*request.temperature(), Some(0.7));
-    
+
     Ok(())
 }
 
@@ -98,16 +98,18 @@ fn test_simple_text_request_structure() -> anyhow::Result<()> {
 fn test_multi_message_request_structure() {
     let message1 = MessageBuilder::default()
         .role(Role::System)
-        .content(vec![Input::Text("You are a helpful assistant.".to_string())])
+        .content(vec![Input::Text(
+            "You are a helpful assistant.".to_string(),
+        )])
         .build()
         .expect("Failed to build message");
-    
+
     let message2 = MessageBuilder::default()
         .role(Role::User)
         .content(vec![Input::Text("What is Rust?".to_string())])
         .build()
         .expect("Failed to build message");
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message1, message2])
         .build()
@@ -172,7 +174,7 @@ fn test_real_api_call() {
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()
         .expect("Failed to build message");
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .max_tokens(Some(10))

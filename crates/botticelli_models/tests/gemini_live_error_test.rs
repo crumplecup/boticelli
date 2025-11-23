@@ -22,7 +22,6 @@ use botticelli_models::{GeminiClient, GeminiLiveClient, GenerationConfig, LiveRa
 use futures_util::StreamExt;
 use std::time::Instant;
 
-
 #[tokio::test]
 #[ignore = "TODO: Fix WebSocket handshake failure"]
 async fn test_live_api_invalid_model() {
@@ -36,7 +35,7 @@ async fn test_live_api_invalid_model() {
         .content(vec![Input::Text("Test".to_string())])
         .build()
         .expect("Failed to build message");
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .model(Some("models/nonexistent-live-model".to_string()))
@@ -197,7 +196,7 @@ async fn test_unified_client_handles_live_model_errors() {
         .content(vec![Input::Text("Test".to_string())])
         .build()
         .expect("Failed to build message");
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))
@@ -266,7 +265,7 @@ async fn test_streaming_error_recovery() {
         .content(vec![Input::Text("Count to 5".to_string())])
         .build()
         .expect("Failed to build message");
-    
+
     let request = GenerateRequest::builder()
         .messages(vec![message])
         .model(Some("models/gemini-2.0-flash-exp".to_string()))

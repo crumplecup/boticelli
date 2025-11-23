@@ -8,7 +8,7 @@ use crate::{ActProcessor, ProcessorContext, extraction::extract_json, extraction
 use async_trait::async_trait;
 use botticelli_database::{
     ContentGenerationRepository, NewContentGenerationRow, PostgresContentGenerationRepository,
-    UpdateContentGenerationRow, create_inferred_table, infer_schema, create_content_table,
+    UpdateContentGenerationRow, create_content_table, create_inferred_table, infer_schema,
     reflect_table_schema,
 };
 use botticelli_error::BotticelliResult;

@@ -19,20 +19,18 @@
 #![warn(missing_docs)]
 #![forbid(unsafe_code)]
 
-mod error;
-mod permission;
-mod validation;
-mod content;
-mod rate_limit;
 mod approval;
+mod content;
+mod error;
 mod executor;
+mod permission;
+mod rate_limit;
+mod validation;
 
-pub use error::{SecurityError, SecurityErrorKind, SecurityResult};
-pub use permission::{
-    CommandPermission, ResourcePermission, PermissionConfig, PermissionChecker,
-};
-pub use validation::{CommandValidator, ValidationError, DiscordValidator};
+pub use approval::{ApprovalDecision, ApprovalWorkflow, PendingAction};
 pub use content::{ContentFilter, ContentFilterConfig, ContentViolation};
-pub use rate_limit::{RateLimiter, RateLimit, RateLimitExceeded};
-pub use approval::{ApprovalWorkflow, PendingAction, ApprovalDecision};
+pub use error::{SecurityError, SecurityErrorKind, SecurityResult};
 pub use executor::SecureExecutor;
+pub use permission::{CommandPermission, PermissionChecker, PermissionConfig, ResourcePermission};
+pub use rate_limit::{RateLimit, RateLimitExceeded, RateLimiter};
+pub use validation::{CommandValidator, DiscordValidator, ValidationError};

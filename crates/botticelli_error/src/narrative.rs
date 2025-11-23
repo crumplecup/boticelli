@@ -45,7 +45,9 @@ pub enum NarrativeErrorKind {
     #[display("Serialization error: {}", _0)]
     SerializationError(String),
     /// Carousel budget exhausted
-    #[display("Carousel budget exhausted after {completed_iterations} of {max_iterations} iterations")]
+    #[display(
+        "Carousel budget exhausted after {completed_iterations} of {max_iterations} iterations"
+    )]
     CarouselBudgetExhausted {
         /// Completed iterations
         completed_iterations: u32,

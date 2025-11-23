@@ -15,7 +15,15 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(*message.role(), Role::User);
 /// assert_eq!(message.content().len(), 1);
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, derive_getters::Getters, derive_builder::Builder)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    derive_getters::Getters,
+    derive_builder::Builder,
+)]
 pub struct Message {
     /// The role of the message sender
     role: Role,

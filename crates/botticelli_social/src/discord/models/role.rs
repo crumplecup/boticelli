@@ -7,7 +7,9 @@ use serde_json::Value as JsonValue;
 /// Database row for discord_roles table.
 ///
 /// Represents a Discord role within a guild, defining permissions and visual display.
-#[derive(Debug, Clone, Queryable, Identifiable, Selectable, Associations, derive_getters::Getters)]
+#[derive(
+    Debug, Clone, Queryable, Identifiable, Selectable, Associations, derive_getters::Getters,
+)]
 #[diesel(belongs_to(super::guild::GuildRow, foreign_key = guild_id))]
 #[diesel(table_name = botticelli_database::schema::discord_roles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

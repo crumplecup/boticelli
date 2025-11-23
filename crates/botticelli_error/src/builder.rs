@@ -6,16 +6,16 @@ pub enum BuilderErrorKind {
     /// Missing required field
     #[display("Missing required field: {}", _0)]
     MissingField(String),
-    
+
     /// Invalid field value
     #[display("Invalid field value for '{}': {}", field, reason)]
     InvalidField {
         /// The field name
         field: String,
         /// Reason for invalidity
-        reason: String
+        reason: String,
     },
-    
+
     /// Validation failed
     #[display("Validation failed: {}", _0)]
     ValidationFailed(String),
@@ -41,7 +41,7 @@ impl BuilderError {
             file: location.file(),
         }
     }
-    
+
     /// Get the error kind.
     pub fn kind(&self) -> &BuilderErrorKind {
         &self.kind

@@ -34,14 +34,12 @@ use botticelli_security::PermissionChecker;
 use derive_getters::Getters;
 use derive_setters::Setters;
 use serde_json::Value as JsonValue;
-use serenity::builder::{
-    CreateForumPost, CreateMessage, CreateScheduledEvent, EditScheduledEvent,
-};
+use serenity::builder::{CreateForumPost, CreateMessage, CreateScheduledEvent, EditScheduledEvent};
 use serenity::http::Http;
+use serenity::model::Timestamp;
 use serenity::model::channel::{AutoArchiveDuration, Channel};
 use serenity::model::guild::ScheduledEventType;
 use serenity::model::id::GuildId;
-use serenity::model::Timestamp;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument, warn};
@@ -56,7 +54,7 @@ pub struct DiscordCommandExecutor {
     /// Serenity HTTP client for Discord API calls
     http: Arc<Http>,
     /// Optional security policy checker for command authorization
-    #[setters(skip)]  // Manual setter with custom logic
+    #[setters(skip)] // Manual setter with custom logic
     permission_checker: Option<Arc<PermissionChecker>>,
 }
 
@@ -167,12 +165,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "server.get_stats",
-            guild_id,
-            member_count,
-            channel_count
-        )
+        fields(command = "server.get_stats", guild_id, member_count, channel_count)
     )]
     async fn server_get_stats(
         &self,
@@ -185,17 +178,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching guild stats from Discord API");
 
         // Fetch guild data
-        let guild = self
-            .http
-            .get_guild(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch guild");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "server.get_stats".to_string(),
-                    reason: format!("Failed to fetch guild: {}", e),
-                })
-            })?;
+        let guild = self.http.get_guild(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch guild");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "server.get_stats".to_string(),
+                reason: format!("Failed to fetch guild: {}", e),
+            })
+        })?;
 
         // Fetch member count (guild.approximate_member_count is only available with partial guilds)
         // For now, we'll use the guild data we have
@@ -218,10 +207,7 @@ impl DiscordCommandExecutor {
             "premium_subscription_count": guild.premium_subscription_count.unwrap_or(0),
         });
 
-        info!(
-            member_count,
-            "Successfully retrieved guild stats"
-        );
+        info!(member_count, "Successfully retrieved guild stats");
 
         Ok(stats)
     }
@@ -233,11 +219,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "channels.list",
-            guild_id,
-            channel_count
-        )
+        fields(command = "channels.list", guild_id, channel_count)
     )]
     async fn channels_list(
         &self,
@@ -250,17 +232,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching channels from Discord API");
 
         // Fetch channels
-        let channels = self
-            .http
-            .get_channels(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch channels");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "channels.list".to_string(),
-                    reason: format!("Failed to fetch channels: {}", e),
-                })
-            })?;
+        let channels = self.http.get_channels(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch channels");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "channels.list".to_string(),
+                reason: format!("Failed to fetch channels: {}", e),
+            })
+        })?;
 
         let channel_count = channels.len();
         tracing::Span::current().record("channel_count", channel_count);
@@ -292,22 +270,18 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id, channel_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "channels.get",
-            guild_id,
-            channel_id
-        )
+        fields(command = "channels.get", guild_id, channel_id)
     )]
-    async fn channels_get(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn channels_get(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing arguments");
         let guild_id = Self::parse_guild_id("channels.get", args)?;
 
         // Parse channel_id
         let channel_id_value = args.get("channel_id").ok_or_else(|| {
-            error!(command = "channels.get", "Missing required argument: channel_id");
+            error!(
+                command = "channels.get",
+                "Missing required argument: channel_id"
+            );
             BotCommandError::new(BotCommandErrorKind::MissingArgument {
                 command: "channels.get".to_string(),
                 arg_name: "channel_id".to_string(),
@@ -315,7 +289,11 @@ impl DiscordCommandExecutor {
         })?;
 
         let channel_id_str = channel_id_value.as_str().ok_or_else(|| {
-            error!(command = "channels.get", ?channel_id_value, "channel_id must be a string");
+            error!(
+                command = "channels.get",
+                ?channel_id_value,
+                "channel_id must be a string"
+            );
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "channels.get".to_string(),
                 arg_name: "channel_id".to_string(),
@@ -324,7 +302,10 @@ impl DiscordCommandExecutor {
         })?;
 
         let channel_id_u64: u64 = channel_id_str.parse().map_err(|_| {
-            error!(command = "channels.get", channel_id_str, "Invalid channel_id format");
+            error!(
+                command = "channels.get",
+                channel_id_str, "Invalid channel_id format"
+            );
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "channels.get".to_string(),
                 arg_name: "channel_id".to_string(),
@@ -339,17 +320,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, channel_id = %channel_id, "Fetching channel from Discord API");
 
         // Fetch all channels and find the specific one
-        let channels = self
-            .http
-            .get_channels(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch channels");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "channels.get".to_string(),
-                    reason: format!("Failed to fetch channels: {}", e),
-                })
-            })?;
+        let channels = self.http.get_channels(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch channels");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "channels.get".to_string(),
+                reason: format!("Failed to fetch channels: {}", e),
+            })
+        })?;
 
         // Find the specific channel
         let channel = channels
@@ -388,17 +365,9 @@ impl DiscordCommandExecutor {
     /// Optional args: limit (default 100, max 1000)
     #[instrument(
         skip(self, args),
-        fields(
-            command = "members.list",
-            guild_id,
-            limit,
-            member_count
-        )
+        fields(command = "members.list", guild_id, limit, member_count)
     )]
-    async fn members_list(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn members_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing guild_id argument");
         let guild_id = Self::parse_guild_id("members.list", args)?;
 
@@ -464,24 +433,17 @@ impl DiscordCommandExecutor {
     /// Get specific member details.
     ///
     /// Required args: guild_id, user_id
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "members.get",
-            guild_id,
-            user_id
-        )
-    )]
-    async fn members_get(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    #[instrument(skip(self, args), fields(command = "members.get", guild_id, user_id))]
+    async fn members_get(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing arguments");
         let guild_id = Self::parse_guild_id("members.get", args)?;
 
         // Parse user_id
         let user_id_value = args.get("user_id").ok_or_else(|| {
-            error!(command = "members.get", "Missing required argument: user_id");
+            error!(
+                command = "members.get",
+                "Missing required argument: user_id"
+            );
             BotCommandError::new(BotCommandErrorKind::MissingArgument {
                 command: "members.get".to_string(),
                 arg_name: "user_id".to_string(),
@@ -489,7 +451,11 @@ impl DiscordCommandExecutor {
         })?;
 
         let user_id_str = user_id_value.as_str().ok_or_else(|| {
-            error!(command = "members.get", ?user_id_value, "user_id must be a string");
+            error!(
+                command = "members.get",
+                ?user_id_value,
+                "user_id must be a string"
+            );
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "members.get".to_string(),
                 arg_name: "user_id".to_string(),
@@ -498,7 +464,10 @@ impl DiscordCommandExecutor {
         })?;
 
         let user_id_u64: u64 = user_id_str.parse().map_err(|_| {
-            error!(command = "members.get", user_id_str, "Invalid user_id format");
+            error!(
+                command = "members.get",
+                user_id_str, "Invalid user_id format"
+            );
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "members.get".to_string(),
                 arg_name: "user_id".to_string(),
@@ -513,17 +482,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, user_id = %user_id, "Fetching member from Discord API");
 
         // Fetch member
-        let member = self
-            .http
-            .get_member(guild_id, user_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, user_id = %user_id, error = %e, "Failed to fetch member");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "members.get".to_string(),
-                    reason: format!("Failed to fetch member: {}", e),
-                })
-            })?;
+        let member = self.http.get_member(guild_id, user_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, user_id = %user_id, error = %e, "Failed to fetch member");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "members.get".to_string(),
+                reason: format!("Failed to fetch member: {}", e),
+            })
+        })?;
 
         let roles: Vec<String> = member
             .roles
@@ -556,14 +521,7 @@ impl DiscordCommandExecutor {
     /// List all roles in a server.
     ///
     /// Required args: guild_id
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "roles.list",
-            guild_id,
-            role_count
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "roles.list", guild_id, role_count))]
     async fn roles_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing guild_id argument");
         let guild_id = Self::parse_guild_id("roles.list", args)?;
@@ -572,17 +530,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching roles from Discord API");
 
         // Fetch roles
-        let roles = self
-            .http
-            .get_guild_roles(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch roles");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "roles.list".to_string(),
-                    reason: format!("Failed to fetch roles: {}", e),
-                })
-            })?;
+        let roles = self.http.get_guild_roles(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch roles");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "roles.list".to_string(),
+                reason: format!("Failed to fetch roles: {}", e),
+            })
+        })?;
 
         let role_count = roles.len();
         tracing::Span::current().record("role_count", role_count);
@@ -613,18 +567,8 @@ impl DiscordCommandExecutor {
     /// Get specific role details.
     ///
     /// Required args: guild_id, role_id
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "roles.get",
-            guild_id,
-            role_id
-        )
-    )]
-    async fn roles_get(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    #[instrument(skip(self, args), fields(command = "roles.get", guild_id, role_id))]
+    async fn roles_get(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing arguments");
         let guild_id = Self::parse_guild_id("roles.get", args)?;
 
@@ -638,7 +582,11 @@ impl DiscordCommandExecutor {
         })?;
 
         let role_id_str = role_id_value.as_str().ok_or_else(|| {
-            error!(command = "roles.get", ?role_id_value, "role_id must be a string");
+            error!(
+                command = "roles.get",
+                ?role_id_value,
+                "role_id must be a string"
+            );
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "roles.get".to_string(),
                 arg_name: "role_id".to_string(),
@@ -662,29 +610,22 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, role_id = %role_id, "Fetching role from Discord API");
 
         // Fetch all roles and find the specific one
-        let roles = self
-            .http
-            .get_guild_roles(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch roles");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "roles.get".to_string(),
-                    reason: format!("Failed to fetch roles: {}", e),
-                })
-            })?;
+        let roles = self.http.get_guild_roles(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch roles");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "roles.get".to_string(),
+                reason: format!("Failed to fetch roles: {}", e),
+            })
+        })?;
 
         // Find the specific role
-        let role = roles
-            .into_iter()
-            .find(|r| r.id == role_id)
-            .ok_or_else(|| {
-                error!(guild_id = %guild_id, role_id = %role_id, "Role not found in guild");
-                BotCommandError::new(BotCommandErrorKind::ResourceNotFound {
-                    command: "roles.get".to_string(),
-                    resource_type: "role".to_string(),
-                })
-            })?;
+        let role = roles.into_iter().find(|r| r.id == role_id).ok_or_else(|| {
+            error!(guild_id = %guild_id, role_id = %role_id, "Role not found in guild");
+            BotCommandError::new(BotCommandErrorKind::ResourceNotFound {
+                command: "roles.get".to_string(),
+                resource_type: "role".to_string(),
+            })
+        })?;
 
         let role_json = serde_json::json!({
             "id": role.id.to_string(),
@@ -711,16 +652,9 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "emojis.list",
-            guild_id,
-            emoji_count
-        )
+        fields(command = "emojis.list", guild_id, emoji_count)
     )]
-    async fn emojis_list(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn emojis_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing guild_id argument");
         let guild_id = Self::parse_guild_id("emojis.list", args)?;
 
@@ -728,17 +662,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching emojis from Discord API");
 
         // Fetch emojis
-        let emojis = self
-            .http
-            .get_emojis(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch emojis");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "emojis.list".to_string(),
-                    reason: format!("Failed to fetch emojis: {}", e),
-                })
-            })?;
+        let emojis = self.http.get_emojis(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch emojis");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "emojis.list".to_string(),
+                reason: format!("Failed to fetch emojis: {}", e),
+            })
+        })?;
 
         let emoji_count = emojis.len();
         tracing::Span::current().record("emoji_count", emoji_count);
@@ -769,16 +699,9 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "events.list",
-            guild_id,
-            event_count
-        )
+        fields(command = "events.list", guild_id, event_count)
     )]
-    async fn events_list(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn events_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing guild_id argument");
         let guild_id = Self::parse_guild_id("events.list", args)?;
 
@@ -829,11 +752,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "stickers.list",
-            guild_id,
-            sticker_count
-        )
+        fields(command = "stickers.list", guild_id, sticker_count)
     )]
     async fn stickers_list(
         &self,
@@ -846,17 +765,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching stickers from Discord API");
 
         // Fetch stickers
-        let stickers = self
-            .http
-            .get_guild_stickers(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch stickers");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "stickers.list".to_string(),
-                    reason: format!("Failed to fetch stickers: {}", e),
-                })
-            })?;
+        let stickers = self.http.get_guild_stickers(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch stickers");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "stickers.list".to_string(),
+                reason: format!("Failed to fetch stickers: {}", e),
+            })
+        })?;
 
         let sticker_count = stickers.len();
         tracing::Span::current().record("sticker_count", sticker_count);
@@ -887,16 +802,9 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "invites.list",
-            guild_id,
-            invite_count
-        )
+        fields(command = "invites.list", guild_id, invite_count)
     )]
-    async fn invites_list(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn invites_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing guild_id argument");
         let guild_id = Self::parse_guild_id("invites.list", args)?;
 
@@ -904,17 +812,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching invites from Discord API");
 
         // Fetch invites
-        let invites = self
-            .http
-            .get_guild_invites(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch invites");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "invites.list".to_string(),
-                    reason: format!("Failed to fetch invites: {}", e),
-                })
-            })?;
+        let invites = self.http.get_guild_invites(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch invites");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "invites.list".to_string(),
+                reason: format!("Failed to fetch invites: {}", e),
+            })
+        })?;
 
         let invite_count = invites.len();
         tracing::Span::current().record("invite_count", invite_count);
@@ -950,11 +854,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "webhooks.list",
-            guild_id,
-            webhook_count
-        )
+        fields(command = "webhooks.list", guild_id, webhook_count)
     )]
     async fn webhooks_list(
         &self,
@@ -967,17 +867,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching webhooks from Discord API");
 
         // Fetch webhooks
-        let webhooks = self
-            .http
-            .get_guild_webhooks(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch webhooks");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "webhooks.list".to_string(),
-                    reason: format!("Failed to fetch webhooks: {}", e),
-                })
-            })?;
+        let webhooks = self.http.get_guild_webhooks(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch webhooks");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "webhooks.list".to_string(),
+                reason: format!("Failed to fetch webhooks: {}", e),
+            })
+        })?;
 
         let webhook_count = webhooks.len();
         tracing::Span::current().record("webhook_count", webhook_count);
@@ -1008,17 +904,9 @@ impl DiscordCommandExecutor {
     /// Optional args: limit (default 100, max 1000)
     #[instrument(
         skip(self, args),
-        fields(
-            command = "bans.list",
-            guild_id,
-            limit,
-            ban_count
-        )
+        fields(command = "bans.list", guild_id, limit, ban_count)
     )]
-    async fn bans_list(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn bans_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         debug!("Parsing guild_id argument");
         let guild_id = Self::parse_guild_id("bans.list", args)?;
 
@@ -1073,11 +961,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "integrations.list",
-            guild_id,
-            integration_count
-        )
+        fields(command = "integrations.list", guild_id, integration_count)
     )]
     async fn integrations_list(
         &self,
@@ -1134,11 +1018,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "voice_regions.list",
-            guild_id,
-            region_count
-        )
+        fields(command = "voice_regions.list", guild_id, region_count)
     )]
     async fn voice_regions_list(
         &self,
@@ -1151,17 +1031,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, "Fetching voice regions from Discord API");
 
         // Fetch voice regions
-        let regions = self
-            .http
-            .get_guild_regions(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch voice regions");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "voice_regions.list".to_string(),
-                    reason: format!("Failed to fetch voice regions: {}", e),
-                })
-            })?;
+        let regions = self.http.get_guild_regions(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch voice regions");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "voice_regions.list".to_string(),
+                reason: format!("Failed to fetch voice regions: {}", e),
+            })
+        })?;
 
         let region_count = regions.len();
         tracing::Span::current().record("region_count", region_count);
@@ -1195,19 +1071,15 @@ impl DiscordCommandExecutor {
     /// Required args: channel_id, message_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.get",
-            channel_id,
-            message_id
-        )
+        fields(command = "messages.get", channel_id, message_id)
     )]
-    async fn messages_get(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn messages_get(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         // Parse channel_id
         let channel_id_value = args.get("channel_id").ok_or_else(|| {
-            error!(command = "messages.get", "Missing required argument: channel_id");
+            error!(
+                command = "messages.get",
+                "Missing required argument: channel_id"
+            );
             BotCommandError::new(BotCommandErrorKind::MissingArgument {
                 command: "messages.get".to_string(),
                 arg_name: "channel_id".to_string(),
@@ -1232,7 +1104,10 @@ impl DiscordCommandExecutor {
 
         // Parse message_id
         let message_id_value = args.get("message_id").ok_or_else(|| {
-            error!(command = "messages.get", "Missing required argument: message_id");
+            error!(
+                command = "messages.get",
+                "Missing required argument: message_id"
+            );
             BotCommandError::new(BotCommandErrorKind::MissingArgument {
                 command: "messages.get".to_string(),
                 arg_name: "message_id".to_string(),
@@ -1306,12 +1181,7 @@ impl DiscordCommandExecutor {
     /// Optional args: limit (default: 50, max: 100)
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.list",
-            channel_id,
-            limit,
-            message_count
-        )
+        fields(command = "messages.list", channel_id, limit, message_count)
     )]
     async fn messages_list(
         &self,
@@ -1319,7 +1189,10 @@ impl DiscordCommandExecutor {
     ) -> BotCommandResult<JsonValue> {
         // Parse channel_id
         let channel_id_value = args.get("channel_id").ok_or_else(|| {
-            error!(command = "messages.list", "Missing required argument: channel_id");
+            error!(
+                command = "messages.list",
+                "Missing required argument: channel_id"
+            );
             BotCommandError::new(BotCommandErrorKind::MissingArgument {
                 command: "messages.list".to_string(),
                 arg_name: "channel_id".to_string(),
@@ -1399,11 +1272,7 @@ impl DiscordCommandExecutor {
     /// Required args: channel_id, message_id, content
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.edit",
-            channel_id,
-            message_id
-        )
+        fields(command = "messages.edit", channel_id, message_id)
     )]
     async fn messages_edit(
         &self,
@@ -1509,11 +1378,7 @@ impl DiscordCommandExecutor {
     /// Optional args: reason (audit log reason)
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.delete",
-            channel_id,
-            message_id
-        )
+        fields(command = "messages.delete", channel_id, message_id)
     )]
     async fn messages_delete(
         &self,
@@ -1575,7 +1440,12 @@ impl DiscordCommandExecutor {
 
         tracing::Span::current().record("channel_id", channel_id);
         tracing::Span::current().record("message_id", message_id);
-        info!(channel_id, message_id, ?reason, "Deleting message via Discord API");
+        info!(
+            channel_id,
+            message_id,
+            ?reason,
+            "Deleting message via Discord API"
+        );
 
         self.http
             .delete_message(channel_id.into(), message_id.into(), reason)
@@ -1606,11 +1476,7 @@ impl DiscordCommandExecutor {
     /// Optional args: limit (default: 100, max: 100)
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.clear",
-            channel_id,
-            limit
-        )
+        fields(command = "messages.clear", channel_id, limit)
     )]
     async fn messages_clear(
         &self,
@@ -1623,7 +1489,10 @@ impl DiscordCommandExecutor {
             .get("channel_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                error!(command = "messages.clear", "Missing required argument: channel_id");
+                error!(
+                    command = "messages.clear",
+                    "Missing required argument: channel_id"
+                );
                 BotCommandError::new(BotCommandErrorKind::MissingArgument {
                     command: "messages.clear".to_string(),
                     arg_name: "channel_id".to_string(),
@@ -1700,11 +1569,7 @@ impl DiscordCommandExecutor {
     /// Required args: channel_id, message_id, emoji
     #[instrument(
         skip(self, args),
-        fields(
-            command = "reactions.add",
-            channel_id,
-            message_id
-        )
+        fields(command = "reactions.add", channel_id, message_id)
     )]
     async fn reactions_add(
         &self,
@@ -1751,20 +1616,22 @@ impl DiscordCommandExecutor {
         })?;
 
         // Parse emoji (can be Unicode emoji or custom emoji ID)
-        let emoji_str = args
-            .get("emoji")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::MissingArgument {
-                    command: "reactions.add".to_string(),
-                    arg_name: "emoji".to_string(),
-                })
-            })?;
+        let emoji_str = args.get("emoji").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                command: "reactions.add".to_string(),
+                arg_name: "emoji".to_string(),
+            })
+        })?;
 
         tracing::Span::current().record("channel_id", channel_id);
         tracing::Span::current().record("message_id", message_id);
 
-        info!(channel_id, message_id, emoji = emoji_str, "Adding reaction via Discord API");
+        info!(
+            channel_id,
+            message_id,
+            emoji = emoji_str,
+            "Adding reaction via Discord API"
+        );
 
         use serenity::model::channel::ReactionType;
         use serenity::model::id::{ChannelId, MessageId};
@@ -1791,7 +1658,11 @@ impl DiscordCommandExecutor {
         };
 
         self.http
-            .create_reaction(ChannelId::new(channel_id), MessageId::new(message_id), &reaction)
+            .create_reaction(
+                ChannelId::new(channel_id),
+                MessageId::new(message_id),
+                &reaction,
+            )
             .await
             .map_err(|e| {
                 error!(channel_id, message_id, error = %e, "Failed to add reaction");
@@ -1820,11 +1691,7 @@ impl DiscordCommandExecutor {
     /// Optional args: user_id (remove specific user's reaction, requires manage messages permission)
     #[instrument(
         skip(self, args),
-        fields(
-            command = "reactions.remove",
-            channel_id,
-            message_id
-        )
+        fields(command = "reactions.remove", channel_id, message_id)
     )]
     async fn reactions_remove(
         &self,
@@ -1871,20 +1738,22 @@ impl DiscordCommandExecutor {
         })?;
 
         // Parse emoji
-        let emoji_str = args
-            .get("emoji")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::MissingArgument {
-                    command: "reactions.remove".to_string(),
-                    arg_name: "emoji".to_string(),
-                })
-            })?;
+        let emoji_str = args.get("emoji").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                command: "reactions.remove".to_string(),
+                arg_name: "emoji".to_string(),
+            })
+        })?;
 
         tracing::Span::current().record("channel_id", channel_id);
         tracing::Span::current().record("message_id", message_id);
 
-        info!(channel_id, message_id, emoji = emoji_str, "Removing reaction via Discord API");
+        info!(
+            channel_id,
+            message_id,
+            emoji = emoji_str,
+            "Removing reaction via Discord API"
+        );
 
         use serenity::model::channel::ReactionType;
         use serenity::model::id::{ChannelId, MessageId};
@@ -1911,13 +1780,16 @@ impl DiscordCommandExecutor {
         };
 
         // Parse user_id (required for removal)
-        let user_id_str = args.get("user_id").and_then(|v| v.as_str()).ok_or_else(|| {
-            BotCommandError::new(BotCommandErrorKind::MissingArgument {
-                command: "reactions.remove".to_string(),
-                arg_name: "user_id".to_string(),
-            })
-        })?;
-        
+        let user_id_str = args
+            .get("user_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                    command: "reactions.remove".to_string(),
+                    arg_name: "user_id".to_string(),
+                })
+            })?;
+
         let user_id: u64 = user_id_str.parse().map_err(|_| {
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "reactions.remove".to_string(),
@@ -1960,13 +1832,7 @@ impl DiscordCommandExecutor {
     ///
     /// Required args: channel_id
     /// Optional args: name, topic, nsfw, position, bitrate (voice), user_limit (voice)
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "channels.edit",
-            channel_id
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "channels.edit", channel_id))]
     async fn channels_edit(
         &self,
         args: &HashMap<String, JsonValue>,
@@ -2052,18 +1918,8 @@ impl DiscordCommandExecutor {
     ///
     /// Required args: guild_id, user_id
     /// Optional args: reason (audit log reason)
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "members.kick",
-            guild_id,
-            user_id
-        )
-    )]
-    async fn members_kick(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    #[instrument(skip(self, args), fields(command = "members.kick", guild_id, user_id))]
+    async fn members_kick(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("members.kick", args)?;
 
         // Parse user_id
@@ -2127,19 +1983,14 @@ impl DiscordCommandExecutor {
     /// Optional args: reason
     #[instrument(
         skip(self, args),
-        fields(
-            command = "members.timeout",
-            guild_id,
-            user_id,
-            duration_seconds
-        )
+        fields(command = "members.timeout", guild_id, user_id, duration_seconds)
     )]
     async fn members_timeout(
         &self,
         args: &HashMap<String, JsonValue>,
     ) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("members.timeout", args)?;
-        
+
         // Check permission
 
         // Parse user_id
@@ -2187,20 +2038,19 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, user_id, duration_seconds, "Timing out member via Discord API");
 
         use serenity::builder::EditMember;
-        use serenity::model::id::UserId;
         use serenity::model::Timestamp;
+        use serenity::model::id::UserId;
 
         // Calculate timeout end time
         let timeout_until = Timestamp::now().unix_timestamp() + duration_seconds as i64;
-        let timeout_timestamp = Timestamp::from_unix_timestamp(timeout_until)
-            .map_err(|e| {
-                error!("Failed to create timeout timestamp: {}", e);
-                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
-                    command: "members.timeout".to_string(),
-                    arg_name: "duration_seconds".to_string(),
-                    reason: format!("Invalid duration: {}", e),
-                })
-            })?;
+        let timeout_timestamp = Timestamp::from_unix_timestamp(timeout_until).map_err(|e| {
+            error!("Failed to create timeout timestamp: {}", e);
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                command: "members.timeout".to_string(),
+                arg_name: "duration_seconds".to_string(),
+                reason: format!("Invalid duration: {}", e),
+            })
+        })?;
 
         let builder = EditMember::new().disable_communication_until(timeout_timestamp.to_string());
 
@@ -2232,20 +2082,13 @@ impl DiscordCommandExecutor {
     /// **Security**: This command MUST go through the security framework.
     ///
     /// Required args: guild_id, user_id
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "members.unban",
-            guild_id,
-            user_id
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "members.unban", guild_id, user_id))]
     async fn members_unban(
         &self,
         args: &HashMap<String, JsonValue>,
     ) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("members.unban", args)?;
-        
+
         // Check permission
 
         // Parse user_id
@@ -2300,19 +2143,11 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id, user_id, role_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "roles.assign",
-            guild_id,
-            user_id,
-            role_id
-        )
+        fields(command = "roles.assign", guild_id, user_id, role_id)
     )]
-    async fn roles_assign(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn roles_assign(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("roles.assign", args)?;
-        
+
         // Check permission
 
         // Parse user_id
@@ -2357,7 +2192,7 @@ impl DiscordCommandExecutor {
 
         info!(guild_id = %guild_id, user_id, role_id, "Assigning role to member via Discord API");
 
-        use serenity::model::id::{UserId, RoleId};
+        use serenity::model::id::{RoleId, UserId};
         self.http
             .add_member_role(guild_id, UserId::new(user_id), RoleId::new(role_id), None)
             .await
@@ -2387,19 +2222,11 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id, user_id, role_id
     #[instrument(
         skip(self, args),
-        fields(
-            command = "roles.remove",
-            guild_id,
-            user_id,
-            role_id
-        )
+        fields(command = "roles.remove", guild_id, user_id, role_id)
     )]
-    async fn roles_remove(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn roles_remove(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("roles.remove", args)?;
-        
+
         // Check permission
 
         // Parse user_id
@@ -2444,7 +2271,7 @@ impl DiscordCommandExecutor {
 
         info!(guild_id = %guild_id, user_id, role_id, "Removing role from member via Discord API");
 
-        use serenity::model::id::{UserId, RoleId};
+        use serenity::model::id::{RoleId, UserId};
         self.http
             .remove_member_role(guild_id, UserId::new(user_id), RoleId::new(role_id), None)
             .await
@@ -2473,20 +2300,10 @@ impl DiscordCommandExecutor {
     ///
     /// Required args: guild_id, role_id
     /// Optional args: name, color, hoist, mentionable, permissions
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "roles.edit",
-            guild_id,
-            role_id
-        )
-    )]
-    async fn roles_edit(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    #[instrument(skip(self, args), fields(command = "roles.edit", guild_id, role_id))]
+    async fn roles_edit(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("roles.edit", args)?;
-        
+
         // Check permission
 
         // Parse role_id
@@ -2514,9 +2331,9 @@ impl DiscordCommandExecutor {
 
         use serenity::builder::EditRole;
         use serenity::model::id::RoleId;
-        
+
         let mut builder = EditRole::new();
-        
+
         if let Some(name) = args.get("name").and_then(|v| v.as_str()) {
             builder = builder.name(name);
         }
@@ -2561,20 +2378,10 @@ impl DiscordCommandExecutor {
     /// **Security**: This command MUST go through the security framework.
     ///
     /// Required args: guild_id, role_id
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "roles.delete",
-            guild_id,
-            role_id
-        )
-    )]
-    async fn roles_delete(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    #[instrument(skip(self, args), fields(command = "roles.delete", guild_id, role_id))]
+    async fn roles_delete(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("roles.delete", args)?;
-        
+
         // Check permission
 
         // Parse role_id
@@ -2630,28 +2437,18 @@ impl DiscordCommandExecutor {
     /// Optional args: color (hex), hoist (bool), mentionable (bool), permissions (u64)
     #[instrument(
         skip(self, args),
-        fields(
-            command = "roles.create",
-            guild_id,
-            role_name
-        )
+        fields(command = "roles.create", guild_id, role_name)
     )]
-    async fn roles_create(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn roles_create(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         let guild_id = Self::parse_guild_id("roles.create", args)?;
 
         // Parse name
-        let name = args
-            .get("name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::MissingArgument {
-                    command: "roles.create".to_string(),
-                    arg_name: "name".to_string(),
-                })
-            })?;
+        let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                command: "roles.create".to_string(),
+                arg_name: "name".to_string(),
+            })
+        })?;
 
         tracing::Span::current().record("guild_id", guild_id.get());
         tracing::Span::current().record("role_name", name);
@@ -2659,13 +2456,19 @@ impl DiscordCommandExecutor {
         // Parse optional parameters
         let color = args.get("color").and_then(|v| v.as_u64()).map(|c| c as u32);
         let hoist = args.get("hoist").and_then(|v| v.as_bool()).unwrap_or(false);
-        let mentionable = args.get("mentionable").and_then(|v| v.as_bool()).unwrap_or(false);
+        let mentionable = args
+            .get("mentionable")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
         info!(guild_id = %guild_id, name, color, hoist, mentionable, "Creating role via Discord API");
 
         use serenity::builder::EditRole;
-        let mut builder = EditRole::new().name(name).hoist(hoist).mentionable(mentionable);
-        
+        let mut builder = EditRole::new()
+            .name(name)
+            .hoist(hoist)
+            .mentionable(mentionable);
+
         if let Some(c) = color {
             builder = builder.colour(c);
         }
@@ -2722,23 +2525,18 @@ impl DiscordCommandExecutor {
     /// ```
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.send",
-            guild_id,
-            channel_id,
-            content_len
-        )
+        fields(command = "messages.send", guild_id, channel_id, content_len)
     )]
     async fn messages_send(
         &self,
         args: &HashMap<String, JsonValue>,
     ) -> BotCommandResult<JsonValue> {
-        use serenity::model::id::ChannelId;
         use serenity::builder::CreateMessage;
+        use serenity::model::id::ChannelId;
 
         debug!("Parsing arguments for messages.send");
         let _guild_id = Self::parse_guild_id("messages.send", args)?;
-        
+
         let channel_id_str = args
             .get("channel_id")
             .and_then(|v| v.as_str())
@@ -2748,7 +2546,7 @@ impl DiscordCommandExecutor {
                     arg_name: "channel_id".to_string(),
                 })
             })?;
-        
+
         let channel_id = channel_id_str.parse::<u64>().map_err(|e| {
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "messages.send".to_string(),
@@ -2757,7 +2555,7 @@ impl DiscordCommandExecutor {
             })
         })?;
         let channel_id = ChannelId::new(channel_id);
-        
+
         // Security check: require permission to send messages to this channel
         // TODO: Security check
         // self.check_permission("messages.send", channel_id_str)?;
@@ -2773,10 +2571,7 @@ impl DiscordCommandExecutor {
             })?
             .to_string();
 
-        let tts = args
-            .get("tts")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let tts = args.get("tts").and_then(|v| v.as_bool()).unwrap_or(false);
 
         tracing::Span::current().record("channel_id", channel_id.get());
         tracing::Span::current().record("content_len", content.len());
@@ -2790,7 +2585,7 @@ impl DiscordCommandExecutor {
 
         // Discord has a 2000 character limit for messages
         const MAX_MESSAGE_LENGTH: usize = 2000;
-        
+
         if content.len() <= MAX_MESSAGE_LENGTH {
             // Send single message
             let message = channel_id
@@ -2820,14 +2615,14 @@ impl DiscordCommandExecutor {
                 max_len = MAX_MESSAGE_LENGTH,
                 "Message too long, splitting into multiple messages"
             );
-            
+
             let mut messages = Vec::new();
             let mut current_pos = 0;
-            
+
             while current_pos < content.len() {
                 let end_pos = (current_pos + MAX_MESSAGE_LENGTH).min(content.len());
                 let chunk = &content[current_pos..end_pos];
-                
+
                 let message = channel_id
                     .send_message(&self.http, CreateMessage::new().content(chunk).tts(tts))
                     .await
@@ -2838,12 +2633,12 @@ impl DiscordCommandExecutor {
                             reason: format!("Failed to send message chunk: {}", e),
                         })
                     })?;
-                
+
                 info!(message_id = %message.id, chunk_num = messages.len() + 1, "Successfully sent message chunk");
                 messages.push(message);
                 current_pos = end_pos;
             }
-            
+
             // Return info about the first message
             let first_message = &messages[0];
             Ok(serde_json::json!({
@@ -2887,12 +2682,7 @@ impl DiscordCommandExecutor {
     /// ```
     #[instrument(
         skip(self, args),
-        fields(
-            command = "channels.create",
-            guild_id,
-            name,
-            kind
-        )
+        fields(command = "channels.create", guild_id, name, kind)
     )]
     async fn channels_create(
         &self,
@@ -2903,28 +2693,22 @@ impl DiscordCommandExecutor {
 
         debug!("Parsing arguments for channels.create");
         let guild_id = Self::parse_guild_id("channels.create", args)?;
-        
+
         // Security check: require permission to create channels in this guild
 
-        let name = args
-            .get("name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::MissingArgument {
-                    command: "channels.create".to_string(),
-                    arg_name: "name".to_string(),
-                })
-            })?;
+        let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                command: "channels.create".to_string(),
+                arg_name: "name".to_string(),
+            })
+        })?;
 
-        let kind_str = args
-            .get("kind")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::MissingArgument {
-                    command: "channels.create".to_string(),
-                    arg_name: "kind".to_string(),
-                })
-            })?;
+        let kind_str = args.get("kind").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                command: "channels.create".to_string(),
+                arg_name: "kind".to_string(),
+            })
+        })?;
 
         let kind = match kind_str {
             "text" => ChannelType::Text,
@@ -2998,11 +2782,7 @@ impl DiscordCommandExecutor {
     /// Optional args: topic, position, nsfw
     #[instrument(
         skip(self, args),
-        fields(
-            command = "channels.get_or_create",
-            guild_id,
-            name
-        )
+        fields(command = "channels.get_or_create", guild_id, name)
     )]
     async fn channels_get_or_create(
         &self,
@@ -3013,16 +2793,13 @@ impl DiscordCommandExecutor {
 
         debug!("Parsing arguments for channels.get_or_create");
         let guild_id = Self::parse_guild_id("channels.get_or_create", args)?;
-        
-        let name = args
-            .get("name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::MissingArgument {
-                    command: "channels.get_or_create".to_string(),
-                    arg_name: "name".to_string(),
-                })
-            })?;
+
+        let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::MissingArgument {
+                command: "channels.get_or_create".to_string(),
+                arg_name: "name".to_string(),
+            })
+        })?;
 
         tracing::Span::current().record("guild_id", guild_id.get());
         tracing::Span::current().record("name", name);
@@ -3030,17 +2807,13 @@ impl DiscordCommandExecutor {
         info!(guild_id = %guild_id, name, "Checking if channel exists");
 
         // Fetch all channels to check if one with this name exists
-        let channels = self
-            .http
-            .get_channels(guild_id)
-            .await
-            .map_err(|e| {
-                error!(guild_id = %guild_id, error = %e, "Failed to fetch channels");
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "channels.get_or_create".to_string(),
-                    reason: format!("Failed to fetch channels: {}", e),
-                })
-            })?;
+        let channels = self.http.get_channels(guild_id).await.map_err(|e| {
+            error!(guild_id = %guild_id, error = %e, "Failed to fetch channels");
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "channels.get_or_create".to_string(),
+                reason: format!("Failed to fetch channels: {}", e),
+            })
+        })?;
 
         // Check if channel already exists
         if let Some(existing) = channels.iter().find(|c| c.name == name) {
@@ -3140,11 +2913,7 @@ impl DiscordCommandExecutor {
     /// ```
     #[instrument(
         skip(self, args),
-        fields(
-            command = "channels.delete",
-            guild_id,
-            channel_id
-        )
+        fields(command = "channels.delete", guild_id, channel_id)
     )]
     async fn channels_delete(
         &self,
@@ -3173,7 +2942,7 @@ impl DiscordCommandExecutor {
             })
         })?;
         let channel_id = ChannelId::new(channel_id);
-        
+
         // Security check: require permission to delete this channel
         // TODO: Security check
         // self.check_permission("channels.delete", channel_id_str)?;
@@ -3188,21 +2957,18 @@ impl DiscordCommandExecutor {
         );
 
         // Delete the channel
-        channel_id
-            .delete(&self.http)
-            .await
-            .map_err(|e| {
-                error!(
-                    guild_id = %guild_id,
-                    channel_id = %channel_id,
-                    error = %e,
-                    "Failed to delete channel"
-                );
-                BotCommandError::new(BotCommandErrorKind::ApiError {
-                    command: "channels.delete".to_string(),
-                    reason: format!("Failed to delete channel: {}", e),
-                })
-            })?;
+        channel_id.delete(&self.http).await.map_err(|e| {
+            error!(
+                guild_id = %guild_id,
+                channel_id = %channel_id,
+                error = %e,
+                "Failed to delete channel"
+            );
+            BotCommandError::new(BotCommandErrorKind::ApiError {
+                command: "channels.delete".to_string(),
+                reason: format!("Failed to delete channel: {}", e),
+            })
+        })?;
 
         info!(channel_id = %channel_id, "Successfully deleted channel");
 
@@ -3235,18 +3001,8 @@ impl DiscordCommandExecutor {
     ///     "banned": true
     /// }
     /// ```
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "members.ban",
-            guild_id,
-            user_id
-        )
-    )]
-    async fn members_ban(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    #[instrument(skip(self, args), fields(command = "members.ban", guild_id, user_id))]
+    async fn members_ban(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         use serenity::model::id::UserId;
 
         debug!("Parsing arguments for members.ban");
@@ -3270,7 +3026,7 @@ impl DiscordCommandExecutor {
             })
         })?;
         let user_id = UserId::new(user_id);
-        
+
         // Security check: require permission to ban members in this guild
 
         let delete_message_days = args
@@ -3322,16 +3078,9 @@ impl DiscordCommandExecutor {
     /// Security: Requires Write permission on Channel
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.pin",
-            channel_id,
-            message_id
-        )
+        fields(command = "messages.pin", channel_id, message_id)
     )]
-    async fn messages_pin(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    async fn messages_pin(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         use serenity::model::id::{ChannelId, MessageId};
 
         let channel_id_str = args
@@ -3403,11 +3152,7 @@ impl DiscordCommandExecutor {
     /// Security: Requires Write permission on Channel
     #[instrument(
         skip(self, args),
-        fields(
-            command = "messages.unpin",
-            channel_id,
-            message_id
-        )
+        fields(command = "messages.unpin", channel_id, message_id)
     )]
     async fn messages_unpin(
         &self,
@@ -3483,18 +3228,8 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id, user_id
     /// Optional args: nickname, mute, deafen, roles (array of role IDs)
     /// Security: Requires Write permission on Member
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "members.edit",
-            guild_id,
-            user_id
-        )
-    )]
-    async fn members_edit(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue> {
+    #[instrument(skip(self, args), fields(command = "members.edit", guild_id, user_id))]
+    async fn members_edit(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
         use serenity::builder::EditMember;
         use serenity::model::id::{RoleId, UserId};
 
@@ -3596,11 +3331,7 @@ impl DiscordCommandExecutor {
     /// Security: Requires Write permission on Member
     #[instrument(
         skip(self, args),
-        fields(
-            command = "members.remove_timeout",
-            guild_id,
-            user_id
-        )
+        fields(command = "members.remove_timeout", guild_id, user_id)
     )]
     async fn members_remove_timeout(
         &self,
@@ -3636,7 +3367,8 @@ impl DiscordCommandExecutor {
 
         info!(guild_id = %guild_id, user_id = %user_id, "Removing member timeout");
 
-        let builder = EditMember::new().disable_communication_until_datetime(serenity::model::Timestamp::now());
+        let builder = EditMember::new()
+            .disable_communication_until_datetime(serenity::model::Timestamp::now());
 
         guild_id
             .edit_member(&self.http, user_id, builder)
@@ -3667,10 +3399,7 @@ impl DiscordCommandExecutor {
     /// Security: Requires Write permission on Channel
     #[instrument(
         skip(self, args),
-        fields(
-            command = "channels.create_invite",
-            channel_id
-        )
+        fields(command = "channels.create_invite", channel_id)
     )]
     async fn channels_create_invite(
         &self,
@@ -3747,13 +3476,7 @@ impl DiscordCommandExecutor {
     ///
     /// Required args: channel_id
     /// Security: Low-risk write operation (typing indicator)
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "channels.typing",
-            channel_id
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "channels.typing", channel_id))]
     async fn channels_typing(
         &self,
         args: &HashMap<String, JsonValue>,
@@ -3811,11 +3534,7 @@ impl DiscordCommandExecutor {
     /// Security: Requires ManageThreads permission
     #[instrument(
         skip(self, args),
-        fields(
-            command = "forum.create_post",
-            channel_id,
-            name
-        )
+        fields(command = "forum.create_post", channel_id, name)
     )]
     async fn forum_create_post(
         &self,
@@ -3837,7 +3556,6 @@ impl DiscordCommandExecutor {
         let channel_id = parse_channel_id(channel_id_str)?;
 
         info!(name, "Creating forum post");
-
 
         let mut builder = CreateForumPost::new(name, CreateMessage::new().content(content));
 
@@ -3877,13 +3595,7 @@ impl DiscordCommandExecutor {
     ///
     /// Required args: channel_id
     /// Security: Read operation
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "forum.list_posts",
-            channel_id
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "forum.list_posts", channel_id))]
     async fn forum_list_posts(
         &self,
         args: &HashMap<String, serde_json::Value>,
@@ -3910,13 +3622,7 @@ impl DiscordCommandExecutor {
     ///
     /// Required args: thread_id
     /// Security: Read operation
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "forum.get_post",
-            thread_id
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "forum.get_post", thread_id))]
     async fn forum_get_post(
         &self,
         args: &HashMap<String, serde_json::Value>,
@@ -3962,14 +3668,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id, name, start_time
     /// Optional args: description, end_time, location
     /// Security: Requires ManageEvents permission
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "events.create",
-            guild_id,
-            name
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "events.create", guild_id, name))]
     async fn events_create(
         &self,
         args: &HashMap<String, serde_json::Value>,
@@ -3991,7 +3690,6 @@ impl DiscordCommandExecutor {
 
         info!(name, "Creating scheduled event");
 
-
         let start_time = Timestamp::parse(start_time_str).map_err(|_| {
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
                 command: "events.create".to_string(),
@@ -4000,8 +3698,7 @@ impl DiscordCommandExecutor {
             })
         })?;
 
-        let mut builder =
-            CreateScheduledEvent::new(ScheduledEventType::External, name, start_time);
+        let mut builder = CreateScheduledEvent::new(ScheduledEventType::External, name, start_time);
 
         if let Some(description) = args.get("description").and_then(|v| v.as_str()) {
             builder = builder.description(description);
@@ -4049,14 +3746,7 @@ impl DiscordCommandExecutor {
     /// Required args: guild_id, event_id
     /// Optional args: name, description, start_time, location
     /// Security: Requires ManageEvents permission
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "events.edit",
-            guild_id,
-            event_id
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "events.edit", guild_id, event_id))]
     async fn events_edit(
         &self,
         args: &HashMap<String, serde_json::Value>,
@@ -4074,7 +3764,6 @@ impl DiscordCommandExecutor {
         let event_id = parse_event_id(event_id_str)?;
 
         info!("Editing scheduled event");
-
 
         let mut builder = EditScheduledEvent::new();
 
@@ -4125,11 +3814,7 @@ impl DiscordCommandExecutor {
     /// Security: Requires ManageEvents permission
     #[instrument(
         skip(self, args),
-        fields(
-            command = "events.delete",
-            guild_id,
-            event_id
-        )
+        fields(command = "events.delete", guild_id, event_id)
     )]
     async fn events_delete(
         &self,
@@ -4148,7 +3833,6 @@ impl DiscordCommandExecutor {
         let event_id = parse_event_id(event_id_str)?;
 
         info!("Deleting scheduled event");
-
 
         self.http
             .delete_scheduled_event(guild_id, event_id)
@@ -4172,14 +3856,7 @@ impl DiscordCommandExecutor {
     ///
     /// Required args: guild_id, event_id
     /// Security: Read operation
-    #[instrument(
-        skip(self, args),
-        fields(
-            command = "events.get",
-            guild_id,
-            event_id
-        )
-    )]
+    #[instrument(skip(self, args), fields(command = "events.get", guild_id, event_id))]
     async fn events_get(
         &self,
         args: &HashMap<String, serde_json::Value>,
@@ -4324,16 +4001,13 @@ impl BotCommandExecutor for DiscordCommandExecutor {
         };
 
         let duration_ms = start.elapsed().as_millis();
-        let result_size = serde_json::to_string(&result)
-            .map(|s| s.len())
-            .unwrap_or(0);
+        let result_size = serde_json::to_string(&result).map(|s| s.len()).unwrap_or(0);
 
         tracing::Span::current().record("duration_ms", duration_ms);
         tracing::Span::current().record("result_size", result_size);
         info!(
             duration_ms,
-            result_size,
-            "Discord command executed successfully"
+            result_size, "Discord command executed successfully"
         );
 
         Ok(result)
@@ -4743,8 +4417,14 @@ impl BotCommandExecutor for DiscordCommandExecutor {
     }
 
     /// Execute: messages.bulk_delete
-    #[instrument(skip(self, args), fields(command = "messages.bulk_delete", channel_id, message_count))]
-    async fn messages_bulk_delete(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    #[instrument(
+        skip(self, args),
+        fields(command = "messages.bulk_delete", channel_id, message_count)
+    )]
+    async fn messages_bulk_delete(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let channel_id_str = args
             .get("channel_id")
             .and_then(|v| v.as_str())
@@ -4782,13 +4462,15 @@ impl BotCommandExecutor for DiscordCommandExecutor {
 
         let message_ids_u64: Vec<u64> = message_ids
             .iter()
-            .map(|id| id.parse().map_err(|e| {
-                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
-                    arg_name: "message_ids".to_string(),
-                    command: "messages.bulk_delete".to_string(),
-                    reason: format!("Invalid message ID format: {}", e),
+            .map(|id| {
+                id.parse().map_err(|e| {
+                    BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                        arg_name: "message_ids".to_string(),
+                        command: "messages.bulk_delete".to_string(),
+                        reason: format!("Invalid message ID format: {}", e),
+                    })
                 })
-            }))
+            })
             .collect::<Result<Vec<_>, _>>()?;
 
         let message_ids_json = serde_json::to_value(&message_ids_u64).map_err(|e| {
@@ -4817,7 +4499,10 @@ impl BotCommandExecutor for DiscordCommandExecutor {
 
     /// Execute: threads.create
     #[instrument(skip(self, args), fields(command = "threads.create", channel_id, name))]
-    async fn threads_create(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    async fn threads_create(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let channel_id_str = args
             .get("channel_id")
             .and_then(|v| v.as_str())
@@ -4829,16 +4514,13 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                 })
             })?;
 
-        let name = args
-            .get("name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
-                    arg_name: "name".to_string(),
-                    command: "threads.create".to_string(),
-                    reason: "Missing required argument".to_string(),
-                })
-            })?;
+        let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg_name: "name".to_string(),
+                command: "threads.create".to_string(),
+                reason: "Missing required argument".to_string(),
+            })
+        })?;
 
         let channel_id = channel_id_str.parse().map_err(|e| {
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
@@ -4851,11 +4533,11 @@ impl BotCommandExecutor for DiscordCommandExecutor {
         // Create thread using serenity's API
         use serenity::builder::CreateThread;
         use serenity::model::channel::ChannelType;
-        
-        let builder = CreateThread::new(name.to_string())
-            .kind(ChannelType::PublicThread);
 
-        let thread = self.http
+        let builder = CreateThread::new(name.to_string()).kind(ChannelType::PublicThread);
+
+        let thread = self
+            .http
             .create_thread(channel_id, &builder, None)
             .await
             .map_err(|e| {
@@ -4894,12 +4576,16 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             })
         })?;
 
-        let threads = self.http.get_guild_active_threads(guild_id).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "threads.list".to_string(),
-                reason: format!("Failed to list threads: {}", e),
-            })
-        })?;
+        let threads = self
+            .http
+            .get_guild_active_threads(guild_id)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "threads.list".to_string(),
+                    reason: format!("Failed to list threads: {}", e),
+                })
+            })?;
 
         let thread_list: Vec<JsonValue> = threads
             .threads
@@ -5001,19 +4687,25 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             builder = builder.locked(locked);
         }
 
-        self.http.edit_thread(thread_id, &builder, None).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "threads.edit".to_string(),
-                reason: format!("Failed to edit thread: {}", e),
-            })
-        })?;
+        self.http
+            .edit_thread(thread_id, &builder, None)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "threads.edit".to_string(),
+                    reason: format!("Failed to edit thread: {}", e),
+                })
+            })?;
 
         Ok(serde_json::json!({ "success": true }))
     }
 
     /// Execute: threads.delete
     #[instrument(skip(self, args), fields(command = "threads.delete", thread_id))]
-    async fn threads_delete(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    async fn threads_delete(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let thread_id_str = args
             .get("thread_id")
             .and_then(|v| v.as_str())
@@ -5033,12 +4725,15 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             })
         })?;
 
-        self.http.delete_channel(thread_id, None).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "threads.delete".to_string(),
-                reason: format!("Failed to delete thread: {}", e),
-            })
-        })?;
+        self.http
+            .delete_channel(thread_id, None)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "threads.delete".to_string(),
+                    reason: format!("Failed to delete thread: {}", e),
+                })
+            })?;
 
         Ok(serde_json::json!({ "success": true }))
     }
@@ -5065,19 +4760,25 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             })
         })?;
 
-        self.http.join_thread_channel(thread_id).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "threads.join".to_string(),
-                reason: format!("Failed to join thread: {}", e),
-            })
-        })?;
+        self.http
+            .join_thread_channel(thread_id)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "threads.join".to_string(),
+                    reason: format!("Failed to join thread: {}", e),
+                })
+            })?;
 
         Ok(serde_json::json!({ "success": true }))
     }
 
     /// Execute: threads.leave
     #[instrument(skip(self, args), fields(command = "threads.leave", thread_id))]
-    async fn threads_leave(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    async fn threads_leave(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let thread_id_str = args
             .get("thread_id")
             .and_then(|v| v.as_str())
@@ -5097,19 +4798,28 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             })
         })?;
 
-        self.http.leave_thread_channel(thread_id).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "threads.leave".to_string(),
-                reason: format!("Failed to leave thread: {}", e),
-            })
-        })?;
+        self.http
+            .leave_thread_channel(thread_id)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "threads.leave".to_string(),
+                    reason: format!("Failed to leave thread: {}", e),
+                })
+            })?;
 
         Ok(serde_json::json!({ "success": true }))
     }
 
     /// Execute: threads.add_member
-    #[instrument(skip(self, args), fields(command = "threads.add_member", thread_id, user_id))]
-    async fn threads_add_member(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    #[instrument(
+        skip(self, args),
+        fields(command = "threads.add_member", thread_id, user_id)
+    )]
+    async fn threads_add_member(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let thread_id_str = args
             .get("thread_id")
             .and_then(|v| v.as_str())
@@ -5148,19 +4858,28 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             })
         })?;
 
-        self.http.add_thread_channel_member(thread_id, user_id).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "threads.add_member".to_string(),
-                reason: format!("Failed to add member to thread: {}", e),
-            })
-        })?;
+        self.http
+            .add_thread_channel_member(thread_id, user_id)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "threads.add_member".to_string(),
+                    reason: format!("Failed to add member to thread: {}", e),
+                })
+            })?;
 
         Ok(serde_json::json!({ "success": true }))
     }
 
     /// Execute: threads.remove_member
-    #[instrument(skip(self, args), fields(command = "threads.remove_member", thread_id, user_id))]
-    async fn threads_remove_member(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    #[instrument(
+        skip(self, args),
+        fields(command = "threads.remove_member", thread_id, user_id)
+    )]
+    async fn threads_remove_member(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let thread_id_str = args
             .get("thread_id")
             .and_then(|v| v.as_str())
@@ -5199,19 +4918,28 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             })
         })?;
 
-        self.http.remove_thread_channel_member(thread_id, user_id).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "threads.remove_member".to_string(),
-                reason: format!("Failed to remove member from thread: {}", e),
-            })
-        })?;
+        self.http
+            .remove_thread_channel_member(thread_id, user_id)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "threads.remove_member".to_string(),
+                    reason: format!("Failed to remove member from thread: {}", e),
+                })
+            })?;
 
         Ok(serde_json::json!({ "success": true }))
     }
 
     /// Execute: reactions.list
-    #[instrument(skip(self, args), fields(command = "reactions.list", channel_id, message_id, emoji))]
-    async fn reactions_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    #[instrument(
+        skip(self, args),
+        fields(command = "reactions.list", channel_id, message_id, emoji)
+    )]
+    async fn reactions_list(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let channel_id_str = args
             .get("channel_id")
             .and_then(|v| v.as_str())
@@ -5234,16 +4962,13 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                 })
             })?;
 
-        let emoji = args
-            .get("emoji")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
-                    arg_name: "emoji".to_string(),
-                    command: "reactions.list".to_string(),
-                    reason: "Missing required argument".to_string(),
-                })
-            })?;
+        let emoji = args.get("emoji").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg_name: "emoji".to_string(),
+                command: "reactions.list".to_string(),
+                reason: "Missing required argument".to_string(),
+            })
+        })?;
 
         let channel_id = channel_id_str.parse().map_err(|e| {
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
@@ -5265,8 +4990,9 @@ impl BotCommandExecutor for DiscordCommandExecutor {
         let reaction_type = ReactionType::Unicode(emoji.to_string());
 
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(25) as u8;
-        
-        let users = self.http
+
+        let users = self
+            .http
             .get_reaction_users(channel_id, message_id, &reaction_type, limit, None)
             .await
             .map_err(|e| {
@@ -5295,8 +5021,14 @@ impl BotCommandExecutor for DiscordCommandExecutor {
     }
 
     /// Execute: reactions.clear
-    #[instrument(skip(self, args), fields(command = "reactions.clear", channel_id, message_id))]
-    async fn reactions_clear(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    #[instrument(
+        skip(self, args),
+        fields(command = "reactions.clear", channel_id, message_id)
+    )]
+    async fn reactions_clear(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let channel_id_str = args
             .get("channel_id")
             .and_then(|v| v.as_str())
@@ -5335,19 +5067,28 @@ impl BotCommandExecutor for DiscordCommandExecutor {
             })
         })?;
 
-        self.http.delete_message_reactions(channel_id, message_id).await.map_err(|e| {
-            BotCommandError::new(BotCommandErrorKind::ApiError {
-                command: "reactions.clear".to_string(),
-                reason: format!("Failed to clear reactions: {}", e),
-            })
-        })?;
+        self.http
+            .delete_message_reactions(channel_id, message_id)
+            .await
+            .map_err(|e| {
+                BotCommandError::new(BotCommandErrorKind::ApiError {
+                    command: "reactions.clear".to_string(),
+                    reason: format!("Failed to clear reactions: {}", e),
+                })
+            })?;
 
         Ok(serde_json::json!({ "success": true }))
     }
 
     /// Execute: reactions.clear_emoji
-    #[instrument(skip(self, args), fields(command = "reactions.clear_emoji", channel_id, message_id, emoji))]
-    async fn reactions_clear_emoji(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+    #[instrument(
+        skip(self, args),
+        fields(command = "reactions.clear_emoji", channel_id, message_id, emoji)
+    )]
+    async fn reactions_clear_emoji(
+        &self,
+        args: &HashMap<String, JsonValue>,
+    ) -> BotCommandResult<JsonValue> {
         let channel_id_str = args
             .get("channel_id")
             .and_then(|v| v.as_str())
@@ -5370,16 +5111,13 @@ impl BotCommandExecutor for DiscordCommandExecutor {
                 })
             })?;
 
-        let emoji = args
-            .get("emoji")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                BotCommandError::new(BotCommandErrorKind::InvalidArgument {
-                    arg_name: "emoji".to_string(),
-                    command: "reactions.clear_emoji".to_string(),
-                    reason: "Missing required argument".to_string(),
-                })
-            })?;
+        let emoji = args.get("emoji").and_then(|v| v.as_str()).ok_or_else(|| {
+            BotCommandError::new(BotCommandErrorKind::InvalidArgument {
+                arg_name: "emoji".to_string(),
+                command: "reactions.clear_emoji".to_string(),
+                reason: "Missing required argument".to_string(),
+            })
+        })?;
 
         let channel_id = channel_id_str.parse().map_err(|e| {
             BotCommandError::new(BotCommandErrorKind::InvalidArgument {
@@ -5491,16 +5229,20 @@ mod tests {
         let executor = DiscordCommandExecutor::new(token);
 
         let commands = executor.supported_commands();
-        
+
         // Print all commands for debugging
         println!("Supported commands ({} total):", commands.len());
         for cmd in &commands {
             println!("  - {}", cmd);
         }
-        
+
         // We now have 62+ commands after implementing full API coverage
-        assert!(commands.len() >= 60, "Expected at least 60 commands, got {}", commands.len());
-        
+        assert!(
+            commands.len() >= 60,
+            "Expected at least 60 commands, got {}",
+            commands.len()
+        );
+
         // Verify key commands exist (using actual command names from our implementation)
         assert!(commands.contains(&"server.get_stats".to_string()));
         assert!(commands.contains(&"channels.list".to_string()));

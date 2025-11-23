@@ -58,7 +58,12 @@ pub enum BotCommandErrorKind {
     },
 
     /// Invalid argument type or value.
-    #[display("Invalid argument '{}' for command '{}': {}", arg_name, command, reason)]
+    #[display(
+        "Invalid argument '{}' for command '{}': {}",
+        arg_name,
+        command,
+        reason
+    )]
     InvalidArgument {
         /// Command that received invalid argument
         command: String,
@@ -87,7 +92,11 @@ pub enum BotCommandErrorKind {
     },
 
     /// Rate limit exceeded.
-    #[display("Rate limit exceeded for '{}': retry after {} seconds", command, retry_after)]
+    #[display(
+        "Rate limit exceeded for '{}': retry after {} seconds",
+        command,
+        retry_after
+    )]
     RateLimitExceeded {
         /// Command that was rate limited
         command: String,
@@ -263,22 +272,13 @@ pub trait BotCommandExecutor: Send + Sync {
     ) -> BotCommandResult<JsonValue>;
 
     /// List threads in a guild or channel.
-    async fn threads_list(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue>;
+    async fn threads_list(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue>;
 
     /// Get thread information.
-    async fn threads_get(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue>;
+    async fn threads_get(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue>;
 
     /// Edit a thread.
-    async fn threads_edit(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue>;
+    async fn threads_edit(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue>;
 
     /// Delete a thread.
     async fn threads_delete(
@@ -287,16 +287,11 @@ pub trait BotCommandExecutor: Send + Sync {
     ) -> BotCommandResult<JsonValue>;
 
     /// Join a thread.
-    async fn threads_join(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue>;
+    async fn threads_join(&self, args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue>;
 
     /// Leave a thread.
-    async fn threads_leave(
-        &self,
-        args: &HashMap<String, JsonValue>,
-    ) -> BotCommandResult<JsonValue>;
+    async fn threads_leave(&self, args: &HashMap<String, JsonValue>)
+    -> BotCommandResult<JsonValue>;
 
     /// Add a member to a thread.
     async fn threads_add_member(
@@ -453,17 +448,13 @@ impl BotCommandRegistryImpl {
                 available_platforms = ?self.platforms(),
                 "Platform not found in registry"
             );
-            BotCommandError::new(BotCommandErrorKind::PlatformNotFound(
-                platform.to_string(),
-            ))
+            BotCommandError::new(BotCommandErrorKind::PlatformNotFound(platform.to_string()))
         })?;
 
         let result = executor.execute(command, args).await?;
 
         // Cache the result
-        let cache_duration = args
-            .get("cache_duration")
-            .and_then(|v| v.as_u64());
+        let cache_duration = args.get("cache_duration").and_then(|v| v.as_u64());
 
         {
             let mut cache = self.cache.lock().unwrap();
@@ -548,14 +539,9 @@ mod tests {
             command: &str,
             _args: &HashMap<String, JsonValue>,
         ) -> BotCommandResult<JsonValue> {
-            self.responses
-                .get(command)
-                .cloned()
-                .ok_or_else(|| {
-                    BotCommandError::new(BotCommandErrorKind::CommandNotFound(
-                        command.to_string(),
-                    ))
-                })
+            self.responses.get(command).cloned().ok_or_else(|| {
+                BotCommandError::new(BotCommandErrorKind::CommandNotFound(command.to_string()))
+            })
         }
 
         fn supports_command(&self, command: &str) -> bool {
@@ -570,55 +556,94 @@ mod tests {
             None
         }
 
-        async fn messages_bulk_delete(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn messages_bulk_delete(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"deleted": 5}))
         }
 
-        async fn threads_create(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_create(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"thread_id": "123456"}))
         }
 
-        async fn threads_list(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_list(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"threads": []}))
         }
 
-        async fn threads_get(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_get(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"thread_id": "123456"}))
         }
 
-        async fn threads_edit(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_edit(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
 
-        async fn threads_delete(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_delete(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
 
-        async fn threads_join(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_join(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
 
-        async fn threads_leave(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_leave(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
 
-        async fn threads_add_member(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_add_member(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
 
-        async fn threads_remove_member(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn threads_remove_member(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
 
-        async fn reactions_list(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn reactions_list(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"reactions": []}))
         }
 
-        async fn reactions_clear(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn reactions_clear(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
 
-        async fn reactions_clear_emoji(&self, _args: &HashMap<String, JsonValue>) -> BotCommandResult<JsonValue> {
+        async fn reactions_clear_emoji(
+            &self,
+            _args: &HashMap<String, JsonValue>,
+        ) -> BotCommandResult<JsonValue> {
             Ok(serde_json::json!({"success": true}))
         }
     }

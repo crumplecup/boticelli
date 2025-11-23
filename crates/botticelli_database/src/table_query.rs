@@ -74,12 +74,9 @@ impl TableQueryExecutor {
     /// Builds a SELECT query from the provided view.
     fn build_query(&self, view: &TableQueryView) -> DatabaseResult<String> {
         let table_name = view.table_name();
-        
+
         // Sanitize table name (alphanumeric and underscores only)
-        if !table_name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_')
-        {
+        if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
             return Err(DatabaseError::new(DatabaseErrorKind::InvalidQuery(
                 "Table name contains invalid characters".into(),
             )));
@@ -108,7 +105,10 @@ impl TableQueryExecutor {
 
         if let Some(order) = view.order_by() {
             // Basic sanitization for ORDER BY
-            if !order.chars().all(|c| c.is_alphanumeric() || c == '_' || c == ' ' || c == ',') {
+            if !order
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == ' ' || c == ',')
+            {
                 return Err(DatabaseError::new(DatabaseErrorKind::InvalidQuery(
                     "ORDER BY contains invalid characters".into(),
                 )));
@@ -175,7 +175,7 @@ impl TableQueryExecutor {
             .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(e.to_string())))?;
 
         let table_name = view.table_name();
-        
+
         // Validate table exists
         if !self.table_exists(&mut conn, table_name)? {
             return Err(DatabaseError::new(DatabaseErrorKind::TableNotFound(
@@ -324,5 +324,3 @@ pub fn format_as_csv(rows: &[JsonValue]) -> String {
 
     output
 }
-
-

@@ -22,9 +22,7 @@ async fn test_streaming_basic() -> botticelli_error::BotticelliResult<()> {
 
     let request = create_test_request("Say 'ok'", None, Some(10))?;
 
-    let mut stream = client
-        .generate_stream(&request)
-        .await?;
+    let mut stream = client.generate_stream(&request).await?;
 
     let mut chunks = Vec::new();
     let mut saw_final = false;
@@ -59,7 +57,7 @@ async fn test_streaming_basic() -> botticelli_error::BotticelliResult<()> {
 
     // Should have generated some text
     assert!(!full_text.is_empty(), "Response should contain text");
-    
+
     Ok(())
 }
 
@@ -73,9 +71,7 @@ async fn test_streaming_with_standard_model() -> botticelli_error::BotticelliRes
     // Explicitly use standard flash model
     let request = create_test_request("Say 'ok'", Some("gemini-2.0-flash".to_string()), Some(10))?;
 
-    let mut stream = client
-        .generate_stream(&request)
-        .await?;
+    let mut stream = client.generate_stream(&request).await?;
 
     let mut chunks = Vec::new();
 
@@ -100,7 +96,7 @@ async fn test_streaming_with_standard_model() -> botticelli_error::BotticelliRes
 
     println!("Standard model result: {}", full_text);
     assert!(!full_text.is_empty(), "Should have generated text");
-    
+
     Ok(())
 }
 
@@ -112,11 +108,13 @@ async fn test_streaming_with_live_model() -> botticelli_error::BotticelliResult<
     let client = GeminiClient::new()?;
 
     // CRITICAL TEST: Use live model for better rate limits
-    let request = create_test_request("Say 'ok'", Some("gemini-2.5-flash-live".to_string()), Some(10))?;
+    let request = create_test_request(
+        "Say 'ok'",
+        Some("gemini-2.5-flash-live".to_string()),
+        Some(10),
+    )?;
 
-    let mut stream = client
-        .generate_stream(&request)
-        .await?;
+    let mut stream = client.generate_stream(&request).await?;
 
     let mut chunks = Vec::new();
 
@@ -141,7 +139,7 @@ async fn test_streaming_with_live_model() -> botticelli_error::BotticelliResult<
 
     println!("Live model result: {}", full_text);
     assert!(!full_text.is_empty(), "Live model should generate text");
-    
+
     Ok(())
 }
 
@@ -154,9 +152,7 @@ async fn test_streaming_finish_reasons() -> botticelli_error::BotticelliResult<(
 
     let request = create_test_request("Say 'ok'", None, Some(10))?;
 
-    let mut stream = client
-        .generate_stream(&request)
-        .await?;
+    let mut stream = client.generate_stream(&request).await?;
 
     let mut final_chunk = None;
 
@@ -191,9 +187,7 @@ async fn test_streaming_vs_non_streaming_consistency() -> botticelli_error::Bott
     let request = create_test_request("Say 'ok'", None, Some(10))?;
 
     // Get streaming response
-    let mut stream = client
-        .generate_stream(&request)
-        .await?;
+    let mut stream = client.generate_stream(&request).await?;
 
     let mut streaming_text = String::new();
     while let Some(chunk_result) = stream.next().await {
@@ -229,7 +223,7 @@ async fn test_streaming_vs_non_streaming_consistency() -> botticelli_error::Bott
 
     // Note: Content might differ slightly due to randomness,
     // but both should have generated something meaningful
-    
+
     Ok(())
 }
 
@@ -279,7 +273,8 @@ async fn test_rate_limit_comparison() -> botticelli_error::BotticelliResult<()> 
     // Try 3 requests to live model
     let mut live_success = 0;
     for i in 0..3 {
-        let request = create_test_request("ok", Some("gemini-2.0-flash-live".to_string()), Some(10))?;
+        let request =
+            create_test_request("ok", Some("gemini-2.0-flash-live".to_string()), Some(10))?;
 
         match client.generate_stream(&request).await {
             Ok(mut stream) => {
@@ -303,6 +298,6 @@ async fn test_rate_limit_comparison() -> botticelli_error::BotticelliResult<()> 
         standard_success,
         live_success
     );
-    
+
     Ok(())
 }

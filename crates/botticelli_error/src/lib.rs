@@ -27,34 +27,34 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-mod http;
-mod json;
-mod config;
 mod backend;
 mod builder;
-mod not_implemented;
-mod storage;
-mod gemini;
+mod config;
 #[cfg(feature = "database")]
 mod database;
+mod error;
+mod gemini;
+mod http;
+mod json;
 mod narrative;
+mod not_implemented;
 mod server;
+mod storage;
 #[cfg(feature = "tui")]
 mod tui;
-mod error;
 
-pub use http::HttpError;
-pub use json::JsonError;
-pub use config::ConfigError;
 pub use backend::BackendError;
 pub use builder::{BuilderError, BuilderErrorKind};
-pub use not_implemented::NotImplementedError;
-pub use storage::{StorageError, StorageErrorKind};
-pub use gemini::{GeminiError, GeminiErrorKind, RetryableError};
+pub use config::ConfigError;
 #[cfg(feature = "database")]
 pub use database::{DatabaseError, DatabaseErrorKind};
+pub use error::{BotticelliError, BotticelliErrorKind, BotticelliResult};
+pub use gemini::{GeminiError, GeminiErrorKind, RetryableError};
+pub use http::HttpError;
+pub use json::JsonError;
 pub use narrative::{NarrativeError, NarrativeErrorKind};
+pub use not_implemented::NotImplementedError;
 pub use server::{ServerError, ServerErrorKind};
+pub use storage::{StorageError, StorageErrorKind};
 #[cfg(feature = "tui")]
 pub use tui::{TuiError, TuiErrorKind, TuiResult};
-pub use error::{BotticelliError, BotticelliErrorKind, BotticelliResult};

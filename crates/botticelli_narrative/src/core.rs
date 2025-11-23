@@ -1,6 +1,6 @@
 //! Core data structures for narratives.
 
-use crate::{toml_parser, ActConfig, CarouselConfig, NarrativeProvider};
+use crate::{ActConfig, CarouselConfig, NarrativeProvider, toml_parser};
 use botticelli_error::{NarrativeError, NarrativeErrorKind};
 use std::collections::HashMap;
 use std::path::Path;
@@ -14,7 +14,9 @@ use botticelli_database::{assemble_prompt, is_content_focus};
 use diesel::pg::PgConnection;
 
 /// Narrative metadata from the `[narrative]` section.
-#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, derive_getters::Getters)]
+#[derive(
+    Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, derive_getters::Getters,
+)]
 pub struct NarrativeMetadata {
     /// Unique identifier for this narrative
     name: String,
@@ -57,7 +59,9 @@ impl NarrativeMetadata {
 }
 
 /// Table of contents from the `[toc]` section.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, derive_getters::Getters)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, derive_getters::Getters,
+)]
 pub struct NarrativeToc {
     /// Ordered list of act names to execute
     order: Vec<String>,

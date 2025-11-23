@@ -94,13 +94,17 @@ impl StateManager {
     #[instrument(skip(state_dir), fields(path = %state_dir.as_ref().display()))]
     pub fn new(state_dir: impl AsRef<Path>) -> BotticelliResult<Self> {
         let state_dir = state_dir.as_ref().to_path_buf();
-        
+
         // Ensure the state directory exists
         if !state_dir.exists() {
             debug!("Creating state directory");
             std::fs::create_dir_all(&state_dir).map_err(|e| {
                 error!(path = %state_dir.display(), error = %e, "Failed to create state directory");
-                ConfigError::new(format!("Failed to create state directory '{}': {}", state_dir.display(), e))
+                ConfigError::new(format!(
+                    "Failed to create state directory '{}': {}",
+                    state_dir.display(),
+                    e
+                ))
             })?;
         }
 
@@ -123,7 +127,7 @@ impl StateManager {
     pub fn load(&self, scope: &StateScope) -> BotticelliResult<NarrativeState> {
         let path = self.scope_path(scope);
         debug!(path = %path.display(), "Loading state from file");
-        
+
         if !path.exists() {
             debug!("No existing state file, returning empty state");
             return Ok(NarrativeState::new());
@@ -131,12 +135,20 @@ impl StateManager {
 
         let contents = std::fs::read_to_string(&path).map_err(|e| {
             error!(path = %path.display(), error = %e, "Failed to read state file");
-            ConfigError::new(format!("Failed to read state file '{}': {}", path.display(), e))
+            ConfigError::new(format!(
+                "Failed to read state file '{}': {}",
+                path.display(),
+                e
+            ))
         })?;
 
         let state: NarrativeState = serde_json::from_str(&contents).map_err(|e| {
             error!(path = %path.display(), error = %e, "Failed to parse state JSON");
-            JsonError::new(format!("Failed to parse state file '{}': {}", path.display(), e))
+            JsonError::new(format!(
+                "Failed to parse state file '{}': {}",
+                path.display(),
+                e
+            ))
         })?;
 
         info!(keys = state.data.len(), "Loaded state successfully");
@@ -148,7 +160,7 @@ impl StateManager {
     pub fn save(&self, scope: &StateScope, state: &NarrativeState) -> BotticelliResult<()> {
         let path = self.scope_path(scope);
         debug!(path = %path.display(), "Saving state to file");
-        
+
         let contents = serde_json::to_string_pretty(state).map_err(|e| {
             error!(error = %e, "Failed to serialize state");
             JsonError::new(format!("Failed to serialize state: {}", e))
@@ -156,7 +168,11 @@ impl StateManager {
 
         std::fs::write(&path, contents).map_err(|e| {
             error!(path = %path.display(), error = %e, "Failed to write state file");
-            ConfigError::new(format!("Failed to write state file '{}': {}", path.display(), e))
+            ConfigError::new(format!(
+                "Failed to write state file '{}': {}",
+                path.display(),
+                e
+            ))
         })?;
 
         info!("Saved state successfully");
@@ -168,11 +184,15 @@ impl StateManager {
     pub fn delete(&self, scope: &StateScope) -> BotticelliResult<()> {
         let path = self.scope_path(scope);
         debug!(path = %path.display(), "Deleting state file");
-        
+
         if path.exists() {
             std::fs::remove_file(&path).map_err(|e| {
                 error!(path = %path.display(), error = %e, "Failed to delete state file");
-                ConfigError::new(format!("Failed to delete state file '{}': {}", path.display(), e))
+                ConfigError::new(format!(
+                    "Failed to delete state file '{}': {}",
+                    path.display(),
+                    e
+                ))
             })?;
             info!("Deleted state successfully");
         } else {
@@ -191,19 +211,19 @@ mod tests {
     #[test]
     fn test_narrative_state() {
         let mut state = NarrativeState::new();
-        
+
         // Test set and get
         state.set("channel_id", "123456");
         assert_eq!(state.get("channel_id"), Some("123456"));
-        
+
         // Test contains_key
         assert!(state.contains_key("channel_id"));
         assert!(!state.contains_key("nonexistent"));
-        
+
         // Test remove
         assert_eq!(state.remove("channel_id"), Some("123456".to_string()));
         assert_eq!(state.get("channel_id"), None);
-        
+
         // Test clear
         state.set("key1", "value1");
         state.set("key2", "value2");
@@ -216,22 +236,22 @@ mod tests {
     fn test_state_manager() {
         let temp_dir = env::temp_dir().join("botticelli_state_test");
         let manager = StateManager::new(&temp_dir).unwrap();
-        
+
         // Test save and load
         let mut state = NarrativeState::new();
         state.set("test_key", "test_value");
-        
+
         let scope = StateScope::Narrative("test_narrative".to_string());
         manager.save(&scope, &state).unwrap();
-        
+
         let loaded = manager.load(&scope).unwrap();
         assert_eq!(loaded.get("test_key"), Some("test_value"));
-        
+
         // Test delete
         manager.delete(&scope).unwrap();
         let loaded = manager.load(&scope).unwrap();
         assert_eq!(loaded.get("test_key"), None);
-        
+
         // Cleanup
         std::fs::remove_dir_all(&temp_dir).ok();
     }

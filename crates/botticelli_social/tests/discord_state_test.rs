@@ -50,7 +50,7 @@ fn test_state_persistence_across_narratives() -> Result<(), Box<dyn std::error::
 
     // Run setup narrative to create and store channel ID
     let setup_output = Command::new("just")
-        .args(&[
+        .args([
             "narrate",
             "crates/botticelli_social/tests/narratives/discord/state_test_create.toml",
         ])
@@ -82,7 +82,7 @@ fn test_state_persistence_across_narratives() -> Result<(), Box<dyn std::error::
 
     // Run use narrative that reads the channel ID from state
     let use_output = Command::new("just")
-        .args(&[
+        .args([
             "narrate",
             "crates/botticelli_social/tests/narratives/discord/state_test_use.toml",
         ])
@@ -105,7 +105,7 @@ fn test_state_persistence_across_narratives() -> Result<(), Box<dyn std::error::
 
     // Run cleanup narrative
     let cleanup_output = Command::new("just")
-        .args(&[
+        .args([
             "narrate",
             "crates/botticelli_social/tests/narratives/discord/state_test_cleanup.toml",
         ])

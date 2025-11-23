@@ -8,7 +8,7 @@ fn run_narrative_with_just(narrative_name: &str) -> Result<(), String> {
     );
 
     let output = std::process::Command::new("just")
-        .args(&["narrate", &narrative_path])
+        .args(["narrate", &narrative_path])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .map_err(|e| format!("Failed to execute just narrate: {}", e))?;

@@ -90,7 +90,7 @@ async fn run_test_narrative(name: &str) -> Result<(), Box<dyn std::error::Error>
 
     // Use botticelli CLI to run the narrative
     let output = tokio::process::Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-p",
             "botticelli",

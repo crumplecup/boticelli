@@ -40,17 +40,17 @@ impl WriteOperationTest {
         let test_result = self.run_narrative(&self.test_narrative, "Test");
 
         // Run teardown if specified
-        if let Some(teardown) = &self.teardown_narrative {
-            if let Err(e) = self.run_narrative(teardown, "Teardown") {
-                eprintln!("Warning: Teardown failed: {}", e);
-            }
+        if let Some(teardown) = &self.teardown_narrative
+            && let Err(e) = self.run_narrative(teardown, "Teardown")
+        {
+            eprintln!("Warning: Teardown failed: {}", e);
         }
 
         test_result
     }
 
     /// Run a single narrative using just command
-    fn run_narrative(&self, path: &PathBuf, stage: &str) -> TestResult {
+    fn run_narrative(&self, path: &std::path::Path, stage: &str) -> TestResult {
         println!("\n=== Running {} narrative: {} ===", stage, path.display());
 
         // Extract just the narrative name from the path

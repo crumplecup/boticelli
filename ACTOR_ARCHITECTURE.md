@@ -345,24 +345,23 @@ pub struct ActorSettings {
 
 - `tests/skills_test.rs` - Each skill independently (5 tests passing)
 
-### Phase 6: Discord Implementation ✓
+### Phase 6: Discord Implementation ✅
 
-**Crate**: `crates/botticelli_discord` (extend existing)
+**Crate**: `crates/botticelli_actor/src/platforms/`
 
-1. [ ] Implement `SocialMediaPlatform` for Discord
-2. [ ] Map Discord API to platform trait
-3. [ ] Handle Discord-specific constraints
-4. [ ] Add Discord configuration
+1. [x] Implement `SocialMediaPlatform` for Discord
+2. [x] Map Discord API to platform trait
+3. [x] Handle Discord-specific constraints
+4. [x] Add Discord configuration
 
 **Files**:
 
-- `src/platform.rs` - Discord platform implementation
-- `src/adapter.rs` - API mapping logic
+- `src/platforms/mod.rs` - Platform module organization
+- `src/platforms/discord.rs` - Discord platform implementation
 
 **Tests**:
 
-- `tests/discord_platform_test.rs` - Discord platform impl
-- Integration tests with mock Discord API
+- `tests/discord_platform_test.rs` - Discord platform impl (12 tests passing)
 
 ### Phase 7: Integration & Examples ✓
 

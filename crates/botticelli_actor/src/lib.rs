@@ -35,6 +35,7 @@ mod content;
 mod error;
 mod knowledge;
 mod platform;
+pub mod platforms;
 mod skill;
 pub mod skills;
 

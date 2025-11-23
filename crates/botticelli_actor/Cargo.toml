@@ -24,3 +24,8 @@ tracing = "0.1"
 
 botticelli_database = { path = "../botticelli_database" }
 botticelli_error = { path = "../botticelli_error" }
+
+[features]
+default = []
+discord = []
+local = ["discord"]

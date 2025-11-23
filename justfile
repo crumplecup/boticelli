@@ -109,7 +109,16 @@ test-one name:
 
 # Run tests for a specific package
 test-package package:
-    cargo test -p {{package}} --lib --tests
+    #!/usr/bin/env bash
+    # Check if package has a 'local' feature, use it if available
+    if cargo metadata --format-version 1 --no-deps 2>/dev/null | \
+       jq -e ".packages[] | select(.name == \"{{package}}\") | .features | has(\"local\")" >/dev/null 2>&1; then
+        echo "📦 Testing {{package}} with local features"
+        cargo test -p {{package}} --features local --lib --tests
+    else
+        echo "📦 Testing {{package}} without features"
+        cargo test -p {{package}} --lib --tests
+    fi
 
 # Run API tests for Gemini (requires GEMINI_API_KEY)
 test-api-gemini:

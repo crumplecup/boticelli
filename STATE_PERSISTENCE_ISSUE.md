@@ -259,3 +259,35 @@ Create end-to-end integration test:
 4. Verify state was loaded correctly
 5. Run teardown to clean up
 
+
+## Investigation Cycle 7 - State File Isolation Issue (2025-11-23)
+
+Test failed with:
+```
+Error: State key 'channel_id' not found. Available keys: none
+```
+
+**Root Cause Discovered**: Each narrative uses its own state file based on narrative name!
+
+State file naming pattern: `.narrative_state/{narrative_name}.json`
+
+Example of the problem:
+- `state_test_create.toml` → `.narrative_state/state_test_create.json`
+- `state_test_use.toml` → `.narrative_state/state_test_use.json` ← Can't see create's state!
+
+The narratives are isolated from each other by design, but tests need shared state.
+
+## Solution: Add --state-name Flag
+
+Add `--state-name` CLI flag to specify custom state file name:
+- Default: Use narrative name for state file (current behavior)
+- With flag: Use specified name for state file
+- Tests use: `--state-name test_state` to share state
+
+Implementation:
+1. Add `--state-name` to CLI args
+2. Pass state_name to StateManager  
+3. Update StateManager to use custom name if provided
+4. Update justfile to support state-name parameter
+5. Update test narratives to use shared state name
+

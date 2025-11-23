@@ -14,6 +14,10 @@ fn run_narrative_with_state(narrative_name: &str) -> Result<(), String> {
     let output = std::process::Command::new("cargo")
         .args(&[
             "run",
+            "-p",
+            "botticelli",
+            "--features",
+            "gemini,discord,database",
             "--bin",
             "botticelli",
             "--",
@@ -40,7 +44,6 @@ fn run_narrative_with_state(narrative_name: &str) -> Result<(), String> {
 }
 
 #[test]
-#[ignore] // Run with: cargo test --features discord state_integration -- --ignored
 fn test_state_integration_lifecycle() {
     // This test requires DISCORD_TOKEN and TEST_GUILD_ID environment variables
     dotenvy::dotenv().ok();

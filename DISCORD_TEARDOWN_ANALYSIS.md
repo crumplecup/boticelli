@@ -2,13 +2,27 @@
 
 ## Current Issue
 
-The `test_write_operations_with_teardown` test is failing, but we need to understand exactly what's happening.
+The `test_write_operations_with_teardown` test is failing because teardown narratives cannot find dynamically created resource IDs.
+
+## Environment Variable Support
+
+**Botticelli DOES support environment variable expansion:**
+- Uses `shellexpand` crate for `${VAR_NAME}` and `$VAR_NAME` syntax
+- Variables loaded from `.env` file or shell environment
+- Expansion happens at narrative parse time
+- Works for bot command arguments
+
+**However, for test resources we need state management:**
+- Test resources (channels, threads, roles) are created dynamically
+- Their IDs don't exist until runtime
+- IDs change between test runs
+- Environment variables are static and not suitable for dynamic values
 
 ## Test Flow
 
-1. **Setup** - Create test channel and store ID in state
-2. **Operations** - Perform write operations (send message, create thread, etc.)
-3. **Teardown** - Delete created resources using stored IDs
+1. **Setup** - Create test channel and store ID in **state management**
+2. **Operations** - Perform write operations using IDs from state
+3. **Teardown** - Delete created resources using IDs retrieved from state
 
 ## Potential Problems
 

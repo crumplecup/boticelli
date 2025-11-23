@@ -125,6 +125,14 @@ guild_id = "${TEST_GUILD_ID}"
 channel_id = "${test_channel_id}"  # ✅ From state management
 ```
 
+### How Environment Variable Expansion Works
+
+Botticelli automatically expands environment variables in bot command arguments using the `shellexpand` crate:
+- Supports `${VAR_NAME}` and `$VAR_NAME` syntax
+- Variables are loaded from `.env` file or exported in shell
+- Expansion happens at parse time when loading the narrative
+- If a variable doesn't exist, the expansion fails silently (keeps original string)
+
 ### Environment Variables That Actually Exist
 - `${TEST_GUILD_ID}` - ✅ Real, defined in `.env`
 - `${DISCORD_TOKEN}` - ✅ Real, defined in `.env`
@@ -132,7 +140,7 @@ channel_id = "${test_channel_id}"  # ✅ From state management
 
 **Everything else must be:**
 - A literal value: `"test-channel"`
-- Created and cached via state management: `${cached_key_name}`
+- Created and cached via state management: `${cached_key_name}` (retrieved from state, NOT env vars)
 
 ---
 

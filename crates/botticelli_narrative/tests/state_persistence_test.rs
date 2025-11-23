@@ -62,3 +62,37 @@ fn test_state_manager_persistence_across_runs() -> BotticelliResult<()> {
     
     Ok(())
 }
+
+#[test]
+fn test_cli_workflow_simulation() -> BotticelliResult<()> {
+    let temp_dir = TempDir::new().map_err(|e| ConfigError::new(e.to_string()))?;
+    let state_dir = temp_dir.path();
+    
+    // Simulate first CLI run with --save flag
+    {
+        let manager = StateManager::new(state_dir)?;
+        let scope = StateScope::Narrative("test_narrative".to_string());
+        
+        let mut state = NarrativeState::new();
+        state.set("TEST_CHANNEL_ID", "1234567890");
+        state.set("TEST_MESSAGE_ID", "0987654321");
+        
+        manager.save(&scope, &state)?;
+        
+        // Verify it was saved
+        let loaded = manager.load(&scope)?;
+        assert_eq!(loaded.get("TEST_CHANNEL_ID"), Some("1234567890"));
+    }
+    
+    // Simulate second CLI run loading state
+    {
+        let manager = StateManager::new(state_dir)?;
+        let scope = StateScope::Narrative("test_narrative".to_string());
+        
+        let state = manager.load(&scope)?;
+        assert_eq!(state.get("TEST_CHANNEL_ID"), Some("1234567890"));
+        assert_eq!(state.get("TEST_MESSAGE_ID"), Some("0987654321"));
+    }
+    
+    Ok(())
+}

@@ -58,12 +58,12 @@ fn default_cache_max_entries() -> usize {
 
 impl Default for ActorCacheConfig {
     fn default() -> Self {
-        Self {
-            strategy: default_cache_strategy(),
-            ttl_seconds: default_cache_ttl(),
-            max_entries: default_cache_max_entries(),
-            disk_path: None,
-        }
+        ActorCacheConfigBuilder::default()
+            .strategy(default_cache_strategy())
+            .ttl_seconds(default_cache_ttl())
+            .max_entries(default_cache_max_entries())
+            .build()
+            .expect("ActorCacheConfig with valid defaults")
     }
 }
 
@@ -100,11 +100,12 @@ fn default_continue_on_error() -> bool {
 
 impl Default for ExecutionConfig {
     fn default() -> Self {
-        Self {
-            stop_on_unrecoverable: default_stop_on_unrecoverable(),
-            max_retries: default_max_retries(),
-            continue_on_error: default_continue_on_error(),
-        }
+        ExecutionConfigBuilder::default()
+            .stop_on_unrecoverable(default_stop_on_unrecoverable())
+            .max_retries(default_max_retries())
+            .continue_on_error(default_continue_on_error())
+            .build()
+            .expect("ExecutionConfig with valid defaults")
     }
 }
 
@@ -150,12 +151,13 @@ fn default_timezone() -> String {
 
 impl Default for ActorSettings {
     fn default() -> Self {
-        Self {
-            max_posts_per_day: default_max_posts(),
-            min_interval_minutes: default_min_interval(),
-            retry_attempts: default_retry_attempts(),
-            timezone: default_timezone(),
-        }
+        ActorSettingsBuilder::default()
+            .max_posts_per_day(default_max_posts())
+            .min_interval_minutes(default_min_interval())
+            .retry_attempts(default_retry_attempts())
+            .timezone(default_timezone())
+            .build()
+            .expect("ActorSettings with valid defaults")
     }
 }
 
@@ -180,10 +182,10 @@ fn default_skill_enabled() -> bool {
 
 impl Default for SkillConfig {
     fn default() -> Self {
-        Self {
-            enabled: default_skill_enabled(),
-            settings: HashMap::new(),
-        }
+        SkillConfigBuilder::default()
+            .enabled(default_skill_enabled())
+            .build()
+            .expect("SkillConfig with valid defaults")
     }
 }
 

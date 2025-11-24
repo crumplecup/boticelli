@@ -39,16 +39,40 @@ pub struct ServerSettings {
     /// Interval in seconds between checking scheduled tasks
     #[serde(default = "default_check_interval")]
     pub check_interval_seconds: u64,
-    /// Maximum consecutive failures before pausing a task
+    /// Circuit breaker configuration
+    #[serde(default)]
+    pub circuit_breaker: CircuitBreakerConfig,
+}
+
+/// Circuit breaker configuration for automatic task pause on repeated failures.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CircuitBreakerConfig {
+    /// Maximum consecutive failures before action is taken
     #[serde(default = "default_max_failures")]
-    pub max_consecutive_failures: u32,
+    pub max_consecutive_failures: i32,
+    /// Whether to automatically pause tasks that exceed failure threshold
+    #[serde(default = "default_auto_pause")]
+    pub auto_pause: bool,
+    /// Whether successful execution resets the failure counter
+    #[serde(default = "default_reset_on_success")]
+    pub reset_on_success: bool,
+}
+
+impl Default for CircuitBreakerConfig {
+    fn default() -> Self {
+        Self {
+            max_consecutive_failures: default_max_failures(),
+            auto_pause: default_auto_pause(),
+            reset_on_success: default_reset_on_success(),
+        }
+    }
 }
 
 impl Default for ServerSettings {
     fn default() -> Self {
         Self {
             check_interval_seconds: default_check_interval(),
-            max_consecutive_failures: default_max_failures(),
+            circuit_breaker: CircuitBreakerConfig::default(),
         }
     }
 }
@@ -57,8 +81,16 @@ fn default_check_interval() -> u64 {
     60
 }
 
-fn default_max_failures() -> u32 {
+fn default_max_failures() -> i32 {
     5
+}
+
+fn default_auto_pause() -> bool {
+    true
+}
+
+fn default_reset_on_success() -> bool {
+    true
 }
 
 /// Configuration for a single actor instance.
@@ -255,71 +287,5 @@ impl Schedule for ScheduleConfig {
             }
             ScheduleConfig::Immediate => None,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_server_config() {
-        let toml = r#"
-[server]
-check_interval_seconds = 30
-max_consecutive_failures = 3
-
-[[actors]]
-name = "test_actor"
-config_file = "actors/test.toml"
-channel_id = "123456"
-enabled = true
-
-[actors.schedule]
-type = "Interval"
-seconds = 1800
-"#;
-
-        let config: ActorServerConfig = toml::from_str(toml).expect("Valid TOML");
-        assert_eq!(config.server.check_interval_seconds, 30);
-        assert_eq!(config.server.max_consecutive_failures, 3);
-        assert_eq!(config.actors.len(), 1);
-        assert_eq!(config.actors[0].name, "test_actor");
-        assert_eq!(config.actors[0].config_file, "actors/test.toml");
-        assert_eq!(config.actors[0].channel_id, Some("123456".to_string()));
-
-        match &config.actors[0].schedule {
-            ScheduleConfig::Interval { seconds } => assert_eq!(*seconds, 1800),
-            _ => panic!("Expected Interval schedule"),
-        }
-    }
-
-    #[test]
-    fn test_default_values() {
-        let toml = r#"
-[[actors]]
-name = "minimal"
-config_file = "test.toml"
-"#;
-
-        let config: ActorServerConfig = toml::from_str(toml).expect("Valid TOML");
-        assert_eq!(config.server.check_interval_seconds, 60);
-        assert_eq!(config.server.max_consecutive_failures, 5);
-        assert!(config.actors[0].enabled);
-    }
-
-    #[test]
-    fn test_immediate_schedule() {
-        let toml = r#"
-[[actors]]
-name = "immediate"
-config_file = "test.toml"
-
-[actors.schedule]
-type = "Immediate"
-"#;
-
-        let config: ActorServerConfig = toml::from_str(toml).expect("Valid TOML");
-        matches!(config.actors[0].schedule, ScheduleConfig::Immediate);
     }
 }

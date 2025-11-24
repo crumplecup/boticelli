@@ -6,16 +6,23 @@
 #[cfg(feature = "discord")]
 use botticelli_actor::{Actor, ActorConfig, ScheduleConfig, SkillRegistry};
 use botticelli_actor::{ActorServerConfig, DatabaseStatePersistence};
+#[cfg(feature = "discord")]
 use botticelli_database::establish_connection;
 #[cfg(feature = "discord")]
 use botticelli_server::ActorServer;
-use botticelli_server::{Schedule, StatePersistence};
+#[cfg(feature = "discord")]
+use botticelli_server::Schedule;
+use botticelli_server::StatePersistence;
 use clap::Parser;
+#[cfg(feature = "discord")]
 use std::collections::HashMap;
 use std::path::PathBuf;
 #[cfg(feature = "discord")]
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::info;
+use tracing::warn;
+#[cfg(feature = "discord")]
+use tracing::{debug, error};
 use tracing_subscriber::EnvFilter;
 
 #[cfg(feature = "discord")]
@@ -90,7 +97,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set up database state persistence if DATABASE_URL is set
     if args.database_url.is_some() || std::env::var("DATABASE_URL").is_ok() {
         info!("Database state persistence enabled");
-        let persistence = DatabaseStatePersistence::new();
+        let persistence = DatabaseStatePersistence::new()
+            .map_err(|e| format!("Failed to create persistence: {}", e))?;
 
         // Attempt to load previous state
         match persistence.load_state().await {

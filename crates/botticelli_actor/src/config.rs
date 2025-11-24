@@ -335,6 +335,44 @@ impl ActorConfig {
             }
         }
 
+        // Validate retry attempts range
+        if *self.config.retry_attempts() > 50 {
+            warnings.push(format!(
+                "retry_attempts ({}) is very high, may cause long delays",
+                self.config.retry_attempts()
+            ));
+        }
+
+        if *self.execution.max_retries() > 50 {
+            warnings.push(format!(
+                "execution.max_retries ({}) is very high, may cause long delays",
+                self.execution.max_retries()
+            ));
+        }
+
+        // Validate cache configuration ranges
+        if *self.cache.ttl_seconds() == 0 {
+            warnings.push("cache.ttl_seconds is 0, cache entries expire immediately".to_string());
+        }
+
+        if *self.cache.ttl_seconds() > 86400 {
+            warnings.push(format!(
+                "cache.ttl_seconds ({}) exceeds 24 hours, entries may become stale",
+                self.cache.ttl_seconds()
+            ));
+        }
+
+        if *self.cache.max_entries() == 0 {
+            warnings.push("cache.max_entries is 0, cache is effectively disabled".to_string());
+        }
+
+        if *self.cache.max_entries() > 100000 {
+            warnings.push(format!(
+                "cache.max_entries ({}) is very large, may consume excessive memory",
+                self.cache.max_entries()
+            ));
+        }
+
         tracing::debug!(warnings = warnings.len(), "Configuration validated");
         warnings
     }

@@ -6,6 +6,12 @@ use crate::{
 };
 use async_trait::async_trait;
 
+/// Discord maximum message length in characters.
+const DISCORD_MAX_MESSAGE_LENGTH: usize = 2000;
+
+/// Discord maximum number of attachments per message.
+const DISCORD_MAX_ATTACHMENTS: usize = 10;
+
 /// Discord platform implementation.
 ///
 /// Integrates with Discord API for posting content to channels.
@@ -76,18 +82,20 @@ impl Platform for DiscordPlatform {
         }
 
         // Check text length limit
-        if message.text.len() > 2000 {
+        if message.text.len() > DISCORD_MAX_MESSAGE_LENGTH {
             return Err(ActorError::new(ActorErrorKind::ValidationFailed(format!(
-                "Text exceeds Discord limit of 2000 characters ({})",
+                "Text exceeds Discord limit of {} characters ({})",
+                DISCORD_MAX_MESSAGE_LENGTH,
                 message.text.len()
             ))));
         }
 
         // Check media attachment limit
-        if message.media_urls.len() > 10 {
+        if message.media_urls.len() > DISCORD_MAX_ATTACHMENTS {
             return Err(ActorError::new(ActorErrorKind::ValidationFailed(format!(
-                "Too many media attachments ({}, max 10)",
-                message.media_urls.len()
+                "Too many media attachments ({}, max {})",
+                message.media_urls.len(),
+                DISCORD_MAX_ATTACHMENTS
             ))));
         }
 

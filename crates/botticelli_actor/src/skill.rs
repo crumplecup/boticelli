@@ -81,13 +81,21 @@ impl SkillRegistry {
 
     /// Register a skill.
     ///
+    /// If a skill with the same name already exists, it will be replaced and a warning logged.
+    ///
     /// # Arguments
     ///
     /// * `skill` - Skill to register
     #[tracing::instrument(skip(self, skill), fields(skill_name = skill.name()))]
     pub fn register(&mut self, skill: Arc<dyn Skill>) {
         let name = skill.name().to_string();
-        tracing::debug!("Registering skill");
+
+        if self.skills.contains_key(&name) {
+            tracing::warn!(skill = %name, "Skill already registered, overwriting previous registration");
+        } else {
+            tracing::debug!("Registering skill");
+        }
+
         self.skills.insert(name, skill);
     }
 

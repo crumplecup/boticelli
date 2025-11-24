@@ -34,10 +34,10 @@ template = "potential_posts"
 
 [narratives.feature.carousel]
 iterations = 10
-
-[narratives.feature.carousel.budget]
-rpm_multiplier = 0.8  # Use 80% of requests per minute
-rpd_multiplier = 0.5  # Use 50% of requests per day
+# Budget defaults to botticelli.toml [budget] section (80% of all limits)
+# Override here if needed:
+# [narratives.feature.carousel.budget]
+# rpm_multiplier = 0.5  # Even more conservative
 
 [narratives.feature.toc]
 order = ["generate", "critique", "refine"]

@@ -243,3 +243,33 @@ rpm_multiplier = 0.9
 - Apply budget multipliers to rate limiter initialization in executor
 - Integrate with RateLimiter::new() to scale tier limits
 - Add metrics/logging for actual vs theoretical rate usage
+
+---
+
+## Default Budget Configuration
+
+Added `[budget]` section to `botticelli.toml` to set system-wide defaults at 80%:
+
+```toml
+[budget]
+rpm_multiplier = 0.8  # Use 80% of requests per minute
+tpm_multiplier = 0.8  # Use 80% of tokens per minute  
+rpd_multiplier = 0.8  # Use 80% of requests per day
+```
+
+### Priority Order (Updated)
+
+1. **CLI flags** (--rpm-multiplier, etc.) - Temporary override
+2. **Carousel config** ([narratives.name.carousel.budget]) - Per-narrative file
+3. **Narrative metadata** ([narrative.budget]) - Per-narrative
+4. **Config file** ([budget] in botticelli.toml) - **NEW: System default**
+5. **Default** (1.0) - No throttling
+
+This means users only need to override when they want different behavior from the 80% default.
+
+### Implementation
+
+- Added `budget` field to `BotticelliConfig` struct
+- Added `botticelli_core` dependency to `botticelli_rate_limit`
+- Updated `run.rs` to load config file budget as lowest priority (after hardcoded default)
+- Removed example budget from `generation_carousel.toml` (now uses default)

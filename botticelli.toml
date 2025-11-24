@@ -10,6 +10,21 @@
 # 4. Default: boticelli.toml (this file)
 
 # ============================================================================
+# Default Budget Multipliers
+# ============================================================================
+# Apply conservative multipliers to all rate limits by default to avoid
+# hitting quota edges. Set at 80% to provide safety margin.
+#
+# Override in narrative TOML or via CLI flags:
+# - Narrative: [narrative.budget] or [narratives.name.carousel.budget]
+# - CLI: --rpm-multiplier 0.9 --rpd-multiplier 0.5
+
+[budget]
+rpm_multiplier = 0.8  # Use 80% of requests per minute
+tpm_multiplier = 0.8  # Use 80% of tokens per minute  
+rpd_multiplier = 0.8  # Use 80% of requests per day
+
+# ============================================================================
 # Gemini (Google AI)
 # ============================================================================
 # Last updated: 2025-01-15

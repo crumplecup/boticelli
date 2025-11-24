@@ -74,12 +74,26 @@ pub async fn run_narrative(
         "Narrative loaded"
     );
 
-    // Build budget config from CLI args, carousel config, and narrative metadata
-    // Priority: CLI > Carousel > Narrative > Default (1.0)
+    // Build budget config from CLI args, carousel config, narrative metadata, and config file
+    // Priority: CLI > Carousel > Narrative > Config File > Default (1.0)
     let budget = {
         use botticelli_core::BudgetConfig;
+        use botticelli_rate_limit::BotticelliConfig;
         
         let mut budget = BudgetConfig::default();
+        
+        // Apply config file default budget if present (lowest priority after default)
+        if let Ok(config) = BotticelliConfig::load() {
+            if let Some(config_budget) = config.budget {
+                budget = budget.merge(&config_budget);
+                tracing::debug!(
+                    rpm = config_budget.rpm_multiplier(),
+                    tpm = config_budget.tpm_multiplier(),
+                    rpd = config_budget.rpd_multiplier(),
+                    "Loaded default budget from botticelli.toml"
+                );
+            }
+        }
         
         // Apply narrative-level budget if present
         if let Some(narrative_budget) = narrative.metadata().budget() {

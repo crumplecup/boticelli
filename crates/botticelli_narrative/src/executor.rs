@@ -496,7 +496,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// - Budget cannot be created from rate limits
     /// - Any iteration fails (if continue_on_error is false)
     #[tracing::instrument(skip(self, narrative), fields(narrative_name = narrative.name()))]
-    pub async fn execute_carousel<N: NarrativeProvider>(
+    pub async fn execute_carousel<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
     ) -> BotticelliResult<CarouselResult> {

@@ -67,6 +67,7 @@ pub use botticelli_narrative::{
     ActConfig,
     ActProcessor,
     InMemoryNarrativeRepository,
+    MultiNarrative,
     Narrative,
     NarrativeExecutor,
     NarrativeMetadata,

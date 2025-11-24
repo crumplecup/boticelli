@@ -145,7 +145,7 @@ pub async fn run_narrative(
     options: &ExecutionOptions,
     budget_overrides: Option<&BudgetConfig>,
 ) -> BotticelliResult<()> {
-    use botticelli::{GeminiClient, NarrativeExecutor, NarrativeProvider};
+    use botticelli::{GeminiClient, NarrativeExecutor};
 
     #[cfg(not(feature = "database"))]
     use botticelli::Narrative;
@@ -157,39 +157,61 @@ pub async fn run_narrative(
     );
 
     // Load and parse the narrative TOML file
-    // If database feature is enabled, use from_file_with_db to inject schema docs
+    // Use MultiNarrative if a name is provided (enables composition), otherwise single Narrative
     #[cfg(feature = "database")]
-    let narrative = {
+    let narrative: Box<dyn botticelli::NarrativeProvider> = {
         let mut conn = botticelli::establish_connection()?;
 
-        // Read file and parse with optional narrative name
-        let content = std::fs::read_to_string(source.path()).map_err(|e| {
-            botticelli::NarrativeError::new(botticelli::NarrativeErrorKind::FileRead(e.to_string()))
-        })?;
-        let mut narrative = botticelli::Narrative::from_toml_str(&content, source.name())?;
-        narrative.set_source_path(Some(source.path().to_path_buf()));
+        if let Some(name) = source.name() {
+            // Load as MultiNarrative for composition support
+            Box::new(botticelli::MultiNarrative::from_file_with_db(
+                source.path(),
+                name,
+                &mut conn,
+            )?)
+        } else {
+            // Load as single Narrative for backwards compatibility
+            let content = std::fs::read_to_string(source.path()).map_err(|e| {
+                botticelli::NarrativeError::new(botticelli::NarrativeErrorKind::FileRead(
+                    e.to_string(),
+                ))
+            })?;
+            let mut narrative = botticelli::Narrative::from_toml_str(&content, None)?;
+            narrative.set_source_path(Some(source.path().to_path_buf()));
 
-        // Assemble prompts if template specified
-        if narrative.metadata().template().is_some() {
-            narrative.assemble_act_prompts(&mut conn)?;
+            // Assemble prompts if template specified
+            if narrative.metadata().template().is_some() {
+                narrative.assemble_act_prompts(&mut conn)?;
+            }
+
+            Box::new(narrative)
         }
-
-        narrative
     };
 
     #[cfg(not(feature = "database"))]
-    let narrative = {
-        let content = std::fs::read_to_string(source.path()).map_err(|e| {
-            botticelli::NarrativeError::new(botticelli::NarrativeErrorKind::FileRead(e.to_string()))
-        })?;
-        let mut narrative = Narrative::from_toml_str(&content, source.name())?;
-        narrative.set_source_path(Some(source.path().to_path_buf()));
-        narrative
+    let narrative: Box<dyn botticelli::NarrativeProvider> = {
+        if let Some(name) = source.name() {
+            // Load as MultiNarrative for composition support
+            Box::new(botticelli::MultiNarrative::from_file(
+                source.path(),
+                name,
+            )?)
+        } else {
+            // Load as single Narrative for backwards compatibility
+            let content = std::fs::read_to_string(source.path()).map_err(|e| {
+                botticelli::NarrativeError::new(botticelli::NarrativeErrorKind::FileRead(
+                    e.to_string(),
+                ))
+            })?;
+            let mut narrative = botticelli::Narrative::from_toml_str(&content, None)?;
+            narrative.set_source_path(Some(source.path().to_path_buf()));
+            Box::new(narrative)
+        }
     };
 
     tracing::info!(
         name = %narrative.metadata().name(),
-        acts = narrative.toc().order().len(),
+        acts = narrative.act_names().len(),
         "Narrative loaded"
     );
 
@@ -379,7 +401,7 @@ pub async fn run_narrative(
 
     if narrative.carousel_config().is_some() {
         tracing::info!("Executing narrative in carousel mode");
-        let carousel_result = executor.execute_carousel(&narrative).await?;
+        let carousel_result = executor.execute_carousel(narrative.as_ref()).await?;
 
         tracing::info!(
             iterations_attempted = carousel_result.iterations_attempted(),
@@ -408,7 +430,7 @@ pub async fn run_narrative(
         return Ok(());
     }
 
-    let execution = executor.execute(&narrative).await?;
+    let execution = executor.execute(narrative.as_ref()).await?;
 
     tracing::info!(
         acts_completed = execution.act_executions.len(),

@@ -1,0 +1,22 @@
+# Welcome Message Actor
+#
+# Posts a welcome message immediately on server startup
+
+[actor]
+name = "Welcome Bot"
+description = "Posts a welcome message when the server starts"
+
+[knowledge]
+table_name = "static_messages"
+query = "SELECT * FROM static_messages WHERE message_type = 'welcome' LIMIT 1"
+
+[[skills]]
+name = "content_formatter"
+config = { max_length = 500, add_hashtags = false }
+
+[execution]
+max_retries = 1
+timeout_seconds = 15
+
+[cache]
+strategy = "none"

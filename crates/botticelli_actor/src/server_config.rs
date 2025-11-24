@@ -166,7 +166,7 @@ impl Schedule for ScheduleConfig {
                             ScheduleCheck::wait_until(next_time)
                         }
                     }
-                    (Some(last), Some(next_time)) => {
+                    (Some(last), Some(_next_time)) => {
                         // Find next occurrence after last run
                         let next_after_last = schedule.after(&last).next();
 

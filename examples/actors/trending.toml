@@ -1,0 +1,31 @@
+# Hourly Trending Topics Actor
+#
+# Posts trending topics every hour
+
+[actor]
+name = "Trending Topics"
+description = "Posts hourly trending topics from the content database"
+
+[knowledge]
+table_name = "trending_topics"
+query = "SELECT * FROM trending_topics WHERE score > 0.8 ORDER BY score DESC LIMIT 3"
+
+[[skills]]
+name = "content_selection"
+config = { strategy = "top_scored", limit = 3 }
+
+[[skills]]
+name = "duplicate_check"
+config = { lookback_days = 1 }
+
+[[skills]]
+name = "content_formatter"
+config = { max_length = 500, add_hashtags = true }
+
+[execution]
+max_retries = 2
+timeout_seconds = 30
+
+[cache]
+strategy = "disk"
+ttl_seconds = 1800

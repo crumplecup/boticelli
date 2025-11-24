@@ -83,7 +83,7 @@ skills = []
 
     let result = ActorConfig::from_file(&config_path);
     assert!(result.is_ok());
-    
+
     let config = result.unwrap();
     assert_eq!(config.name(), "minimal_actor");
     assert_eq!(config.description(), "Minimal test");

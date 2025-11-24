@@ -79,7 +79,7 @@ impl ActConfig {
             carousel,
         }
     }
-    
+
     /// Create an act that references another narrative.
     pub fn from_narrative_ref<S: Into<String>>(
         narrative_name: S,
@@ -116,7 +116,7 @@ impl ActConfig {
     pub fn is_narrative_ref(&self) -> bool {
         self.narrative_ref.is_some()
     }
-    
+
     /// Create an act configuration with multimodal inputs.
     pub fn from_inputs(inputs: Vec<Input>) -> Self {
         Self {
@@ -193,6 +193,22 @@ pub trait NarrativeProvider {
     /// - Optional model override
     /// - Optional temperature/max_tokens overrides
     fn get_act_config(&self, act_name: &str) -> Option<ActConfig>;
+
+    /// Resolve a referenced narrative by name for narrative composition.
+    ///
+    /// For multi-narrative files, this returns the referenced narrative.
+    /// For single-narrative files, this returns `None`.
+    ///
+    /// # Arguments
+    ///
+    /// * `narrative_name` - Name of the narrative to resolve
+    ///
+    /// # Returns
+    ///
+    /// Returns the referenced narrative if it exists, `None` otherwise.
+    fn resolve_narrative(&self, _narrative_name: &str) -> Option<&dyn NarrativeProvider> {
+        None // Default implementation for single narratives
+    }
 
     /// Get the carousel configuration if present.
     ///

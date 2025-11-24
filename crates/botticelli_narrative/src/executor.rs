@@ -269,7 +269,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// - Any LLM API call fails
     /// - The response format is unexpected
     #[tracing::instrument(skip(self, narrative), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]
-    pub async fn execute<N: NarrativeProvider>(
+    pub async fn execute<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
     ) -> BotticelliResult<NarrativeExecution> {
@@ -288,28 +288,66 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 tracing::info!(
                     act = %act_name,
                     referenced_narrative = %narrative_ref_name,
-                    "Executing narrative reference"
+                    "Executing narrative composition"
                 );
-                
-                // Get the referenced narrative from the provider
-                // For multi-narrative files, the provider should have all narratives loaded
-                // This is a simplified approach - in reality we'd need to pass the multi-narrative context
-                tracing::warn!(
-                    "Narrative composition not yet fully implemented - referenced narrative {} would be executed here",
-                    narrative_ref_name
-                );
-                
-                // TODO: Implement recursive narrative execution
-                // For now, record a placeholder execution
-                act_executions.push(ActExecution {
-                    act_name: act_name.clone(),
-                    inputs: Vec::new(),
-                    model: config.model().clone(),
-                    temperature: *config.temperature(),
-                    max_tokens: *config.max_tokens(),
-                    response: format!("[Narrative reference to: {}]", narrative_ref_name),
-                    sequence_number,
-                });
+
+                // Try to resolve the referenced narrative
+                // This requires the narrative to be a MultiNarrative
+                let resolved_narrative = narrative.resolve_narrative(narrative_ref_name);
+
+                if let Some(ref_narrative) = resolved_narrative {
+                    // Recursively execute the referenced narrative
+                    tracing::debug!("Recursively executing referenced narrative");
+                    let nested_execution = Box::pin(self.execute(ref_narrative)).await?;
+
+                    // Collect all responses from the nested execution
+                    let nested_responses: Vec<String> = nested_execution
+                        .act_executions
+                        .iter()
+                        .map(|e| e.response.clone())
+                        .collect();
+
+                    let combined_response = nested_responses.join("\n\n");
+
+                    tracing::info!(
+                        act_count = nested_execution.act_executions.len(),
+                        response_len = combined_response.len(),
+                        "Completed nested narrative execution"
+                    );
+
+                    // Record the composition as a single act
+                    act_executions.push(ActExecution {
+                        act_name: act_name.clone(),
+                        inputs: Vec::new(),
+                        model: config.model().clone(),
+                        temperature: *config.temperature(),
+                        max_tokens: *config.max_tokens(),
+                        response: combined_response.clone(),
+                        sequence_number,
+                    });
+
+                    // Add the combined response to conversation history
+                    conversation_history.push(
+                        MessageBuilder::default()
+                            .role(Role::Assistant)
+                            .content(vec![Input::Text(combined_response)])
+                            .build()
+                            .map_err(|e| {
+                                NarrativeError::new(NarrativeErrorKind::ConfigurationError(
+                                    format!("Failed to build message: {}", e),
+                                ))
+                            })?,
+                    );
+                } else {
+                    // Narrative not found - this is an error
+                    return Err(NarrativeError::new(
+                        NarrativeErrorKind::ConfigurationError(format!(
+                            "Referenced narrative '{}' not found. Narrative composition requires MultiNarrative.",
+                            narrative_ref_name
+                        ))
+                    ).into());
+                }
+
                 continue;
             }
 
@@ -566,7 +604,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             tables = 0
         )
     )]
-    async fn process_inputs<N: NarrativeProvider>(
+    async fn process_inputs<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
         inputs: &[Input],

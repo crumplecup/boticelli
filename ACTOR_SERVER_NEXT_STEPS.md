@@ -266,12 +266,12 @@ impl StatePersistence for DatabaseStatePersistence {
 
 ---
 
-## Phase 4: Advanced Scheduling
+## Phase 4: Advanced Scheduling ✅ COMPLETE
 
 ### Objective
 Support cron expressions, sophisticated timing, and task lifecycle management.
 
-### 4.1: Schedule Types
+### 4.1: Schedule Types ✅
 
 **Location**: `crates/botticelli_server/src/schedule.rs`
 
@@ -306,48 +306,28 @@ pub trait Schedule {
 }
 ```
 
-### 4.2: ScheduledServer Trait
+### 4.2: ScheduledServer Trait ⏸️ DEFERRED
 
-**Location**: `crates/botticelli_server/src/scheduled.rs`
+**Status**: DEFERRED - Not needed for initial implementation
 
-```rust
-use async_trait::async_trait;
+**Rationale**: The existing `ActorServer` trait provides sufficient interface for Phase 5 binary. The `ScheduledServer` trait adds operational control (pause/resume/status) which can be added later when needed for Phase 7 HTTP API.
 
-#[derive(Debug, Clone)]
-pub struct TaskStatus {
-    pub id: String,
-    pub name: String,
-    pub is_paused: bool,
-    pub last_run: Option<DateTime<Utc>>,
-    pub next_run: DateTime<Utc>,
-    pub consecutive_failures: u32,
-}
+### 4.3: Cron Implementation ✅
 
-#[async_trait]
-pub trait ScheduledServer: Send + Sync {
-    async fn execute_task(&mut self, task_id: &str) -> ActorServerResult<ExecutionResult>;
-    async fn task_status(&self, task_id: &str) -> ActorServerResult<TaskStatus>;
-    async fn list_tasks(&self) -> ActorServerResult<Vec<TaskStatus>>;
-    async fn pause_task(&mut self, task_id: &str) -> ActorServerResult<()>;
-    async fn resume_task(&mut self, task_id: &str) -> ActorServerResult<()>;
-    async fn run_forever(&mut self) -> ActorServerResult<()>;
-    async fn shutdown(&mut self) -> ActorServerResult<()>;
-}
-```
+**Status**: COMPLETE - `ScheduleType` enum implemented with full `Schedule` trait
 
-### 4.3: Cron Implementation
-
-**Dependencies**: Add `cron = "0.12"` to Cargo.toml
-
-**Location**: `crates/botticelli_actor/src/schedule_impl.rs`
-
-Implement `Schedule` trait for `ScheduleType` using `cron` crate for expression parsing.
+**Implementation Notes**:
+- `cron = "0.12"` dependency added
+- 7-field cron format: `sec min hour day month weekday year`
+- Example: `"0 0 9 * * * *"` = 9 AM daily
+- Full test coverage for all schedule types
+- Implements `Schedule` trait for all variants (Immediate, Once, Interval, Cron)
 
 **Benefits**:
 - Human-readable scheduling ("every day at 9am")
 - Complex recurrence patterns
 - Consistent interface for all schedule types
-- Pause/resume for operational control
+- Serialization support via serde
 
 ---
 

@@ -50,6 +50,7 @@ mod config;
 mod convert;
 mod request;
 mod response;
+mod schedule;
 mod traits;
 
 pub use actor_traits::{
@@ -62,4 +63,5 @@ pub use request::{ChatCompletionRequest, Message};
 pub use response::{
     ChatCompletionChunk, ChatCompletionResponse, Choice, ChoiceMessage, ChunkChoice, Delta, Usage,
 };
+pub use schedule::{Schedule, ScheduleCheck, ScheduleType};
 pub use traits::{InferenceServer, ModelManager as ModelManagerTrait, ServerLauncher};

@@ -70,7 +70,6 @@ pub use server::{
     SimpleTaskScheduler,
 };
 pub use server_config::{ActorInstanceConfig, ActorServerConfig, ScheduleConfig, ServerSettings};
-pub use state_persistence::DatabaseStatePersistence;
 pub use skill::{
     Skill, SkillContext, SkillContextBuilder, SkillInfo, SkillInfoBuilder, SkillOutput,
     SkillOutputBuilder, SkillRegistry, SkillResult,
@@ -79,6 +78,7 @@ pub use skills::{
     ContentFormatterSkill, ContentSchedulingSkill, ContentSelectionSkill, DuplicateCheckSkill,
     RateLimitingSkill,
 };
+pub use state_persistence::DatabaseStatePersistence;
 
 #[cfg(feature = "discord")]
 pub use discord_server::{

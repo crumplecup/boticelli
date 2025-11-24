@@ -4,8 +4,7 @@
 //! platforms like Discord, posting content based on narratives and knowledge tables.
 
 use botticelli_actor::{
-    Actor, ActorConfig, ActorServerConfig, DatabaseStatePersistence, ScheduleConfig,
-    SkillRegistry,
+    Actor, ActorConfig, ActorServerConfig, DatabaseStatePersistence, ScheduleConfig, SkillRegistry,
 };
 use botticelli_server::{ActorServer, StatePersistence};
 use clap::Parser;

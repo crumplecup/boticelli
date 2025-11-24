@@ -1,9 +1,7 @@
 //! Database-backed state persistence for actor servers.
 
 use async_trait::async_trait;
-use botticelli_database::{
-    establish_connection, ActorServerStateRow, NewActorServerStateBuilder,
-};
+use botticelli_database::{ActorServerStateRow, NewActorServerStateBuilder, establish_connection};
 use botticelli_server::{ActorServerResult, StatePersistence};
 use diesel::prelude::*;
 use tracing::{debug, info, instrument};
@@ -53,22 +51,26 @@ impl StatePersistence for DatabaseStatePersistence {
         let state = state.clone();
 
         tokio::task::spawn_blocking(move || -> ActorServerResult<()> {
-            let mut conn = establish_connection().map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
-                format!("Failed to establish database connection: {}", e).into()
-            })?;
+            let mut conn = establish_connection().map_err(
+                |e| -> Box<dyn std::error::Error + Send + Sync> {
+                    format!("Failed to establish database connection: {}", e).into()
+                },
+            )?;
 
             // Use INSERT ... ON CONFLICT to upsert state
             diesel::insert_into(botticelli_database::schema::actor_server_state::table)
-                .values(&NewActorServerStateBuilder::default()
-                    .task_id(&state.task_id)
-                    .actor_name(&state.actor_name)
-                    .last_run(state.last_run)
-                    .next_run(state.next_run)
-                    .consecutive_failures(state.consecutive_failures.unwrap_or(0))
-                    .is_paused(state.is_paused.unwrap_or(false))
-                    .metadata(state.metadata.clone().unwrap_or_default())
-                    .build()
-                    .expect("NewActorServerState with valid fields"))
+                .values(
+                    &NewActorServerStateBuilder::default()
+                        .task_id(&state.task_id)
+                        .actor_name(&state.actor_name)
+                        .last_run(state.last_run)
+                        .next_run(state.next_run)
+                        .consecutive_failures(state.consecutive_failures.unwrap_or(0))
+                        .is_paused(state.is_paused.unwrap_or(false))
+                        .metadata(state.metadata.clone().unwrap_or_default())
+                        .build()
+                        .expect("NewActorServerState with valid fields"),
+                )
                 .on_conflict(botticelli_database::schema::actor_server_state::task_id)
                 .do_update()
                 .set((
@@ -100,18 +102,19 @@ impl StatePersistence for DatabaseStatePersistence {
         debug!("Loading actor server state from database");
 
         tokio::task::spawn_blocking(move || -> ActorServerResult<Option<ActorServerStateRow>> {
-            let mut conn = establish_connection().map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
-                format!("Failed to establish database connection: {}", e).into()
-            })?;
+            let mut conn = establish_connection().map_err(
+                |e| -> Box<dyn std::error::Error + Send + Sync> {
+                    format!("Failed to establish database connection: {}", e).into()
+                },
+            )?;
 
             // Load all state rows (for now, just get the first one)
-            let states =
-                botticelli_database::schema::actor_server_state::table
-                    .load::<ActorServerStateRow>(&mut conn)
-                    .optional()
-                    .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
-                        format!("Failed to load state: {}", e).into()
-                    })?;
+            let states = botticelli_database::schema::actor_server_state::table
+                .load::<ActorServerStateRow>(&mut conn)
+                .optional()
+                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
+                    format!("Failed to load state: {}", e).into()
+                })?;
 
             if let Some(states_vec) = states {
                 if !states_vec.is_empty() {
@@ -135,9 +138,11 @@ impl StatePersistence for DatabaseStatePersistence {
         debug!("Clearing all actor server state from database");
 
         tokio::task::spawn_blocking(move || -> ActorServerResult<()> {
-            let mut conn = establish_connection().map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
-                format!("Failed to establish database connection: {}", e).into()
-            })?;
+            let mut conn = establish_connection().map_err(
+                |e| -> Box<dyn std::error::Error + Send + Sync> {
+                    format!("Failed to establish database connection: {}", e).into()
+                },
+            )?;
 
             diesel::delete(botticelli_database::schema::actor_server_state::table)
                 .execute(&mut conn)

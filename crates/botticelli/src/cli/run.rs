@@ -148,7 +148,7 @@ pub async fn run_narrative(
     use botticelli::{GeminiClient, NarrativeExecutor};
 
     #[cfg(not(feature = "database"))]
-    use botticelli::Narrative;
+
 
     tracing::info!(
         path = %source.path().display(),

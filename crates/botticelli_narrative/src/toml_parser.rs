@@ -97,17 +97,14 @@ fn search_directory_recursive(dir: &Path, filename: &str) -> Result<PathBuf, ()>
             }
 
             // Recurse into subdirectories (skip hidden dirs and common ignore patterns)
-            if path.is_dir() {
-                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if !dir_name.starts_with('.')
-                        && dir_name != "target"
-                        && dir_name != "node_modules"
-                    {
-                        if let Ok(found) = search_directory_recursive(&path, filename) {
-                            return Ok(found);
-                        }
-                    }
-                }
+            if path.is_dir()
+                && let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                && !dir_name.starts_with('.')
+                && dir_name != "target"
+                && dir_name != "node_modules"
+                && let Ok(found) = search_directory_recursive(&path, filename)
+            {
+                return Ok(found);
             }
         }
     }

@@ -54,6 +54,40 @@ diesel::table! {
 }
 
 diesel::table! {
+    actor_server_executions (id) {
+        id -> Int8,
+        #[max_length = 255]
+        task_id -> Varchar,
+        #[max_length = 255]
+        actor_name -> Varchar,
+        started_at -> Timestamptz,
+        completed_at -> Nullable<Timestamptz>,
+        success -> Nullable<Bool>,
+        error_message -> Nullable<Text>,
+        skills_succeeded -> Nullable<Int4>,
+        skills_failed -> Nullable<Int4>,
+        skills_skipped -> Nullable<Int4>,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    actor_server_state (task_id) {
+        #[max_length = 255]
+        task_id -> Varchar,
+        #[max_length = 255]
+        actor_name -> Varchar,
+        last_run -> Nullable<Timestamptz>,
+        next_run -> Timestamptz,
+        consecutive_failures -> Nullable<Int4>,
+        is_paused -> Nullable<Bool>,
+        metadata -> Nullable<Jsonb>,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     content (id) {
         id -> Int4,
         #[max_length = 50]
@@ -347,6 +381,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     act_executions,
     act_inputs,
     actor_preferences,
+    actor_server_executions,
+    actor_server_state,
     content,
     content_generation_tables,
     content_generations,

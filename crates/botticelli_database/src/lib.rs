@@ -24,6 +24,7 @@
 //! # }
 //! ```
 
+mod actor_server_models;
 mod connection;
 mod content_generation_models;
 mod content_generation_repository;
@@ -41,6 +42,12 @@ mod table_query_registry;
 
 // Schema module must be public for Diesel's #[diesel(table_name = ...)] attributes
 pub mod schema;
+
+// Re-export actor server state management types
+pub use actor_server_models::{
+    ActorServerExecutionRow, ActorServerStateRow, NewActorServerExecution,
+    NewActorServerExecutionBuilder, NewActorServerState, NewActorServerStateBuilder,
+};
 
 // Re-export connection utilities
 pub use connection::establish_connection;

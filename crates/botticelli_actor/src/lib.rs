@@ -49,6 +49,7 @@ pub mod platforms;
 mod server;
 mod skill;
 pub mod skills;
+mod state_persistence;
 
 pub use actor::{Actor, ActorBuilder, ExecutionResult, ExecutionResultBuilder};
 pub use config::{
@@ -67,6 +68,7 @@ pub use server::{
     BasicActorServer, GenericActorManager, GenericContentPoster, JsonStatePersistence,
     SimpleTaskScheduler,
 };
+pub use state_persistence::DatabaseStatePersistence;
 pub use skill::{
     Skill, SkillContext, SkillContextBuilder, SkillInfo, SkillInfoBuilder, SkillOutput,
     SkillOutputBuilder, SkillRegistry, SkillResult,

@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod budget;
 mod input;
 mod media;
 mod message;
@@ -12,6 +13,7 @@ mod output;
 mod request;
 mod role;
 
+pub use budget::{BudgetConfig, BudgetConfigBuilder};
 pub use input::{Input, TableFormat};
 pub use media::MediaSource;
 pub use message::{Message, MessageBuilder};

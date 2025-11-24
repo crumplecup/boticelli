@@ -42,6 +42,18 @@ pub enum Commands {
         /// Directory for persistent state storage
         #[arg(long)]
         state_dir: Option<PathBuf>,
+
+        /// Budget multiplier for requests per minute (0.0 < x ≤ 1.0)
+        #[arg(long)]
+        rpm_multiplier: Option<f64>,
+
+        /// Budget multiplier for tokens per minute (0.0 < x ≤ 1.0)
+        #[arg(long)]
+        tpm_multiplier: Option<f64>,
+
+        /// Budget multiplier for requests per day (0.0 < x ≤ 1.0)
+        #[arg(long)]
+        rpd_multiplier: Option<f64>,
     },
 
     /// Launch the terminal user interface for a table

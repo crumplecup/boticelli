@@ -53,6 +53,9 @@ pub struct TomlNarrative {
     /// Optional default max_tokens for all acts
     #[serde(default)]
     pub max_tokens: Option<u32>,
+    /// Optional budget multipliers
+    #[serde(default)]
+    pub budget: Option<botticelli_core::BudgetConfig>,
 }
 
 /// Intermediate structure for deserializing individual [narratives.name] sections.
@@ -77,6 +80,9 @@ pub struct TomlNarrativeDefinition {
     /// Optional default max_tokens
     #[serde(default)]
     pub max_tokens: Option<u32>,
+    /// Optional budget multipliers
+    #[serde(default)]
+    pub budget: Option<botticelli_core::BudgetConfig>,
     /// Table of contents for this narrative
     pub toc: TomlToc,
     /// Optional narrative-specific acts (override shared acts)
@@ -301,6 +307,7 @@ impl TomlNarrativeFile {
                             model: def.model.clone(),
                             temperature: def.temperature,
                             max_tokens: def.max_tokens,
+                            budget: def.budget.clone(),
                         };
 
                         // Merge shared acts with definition-specific acts

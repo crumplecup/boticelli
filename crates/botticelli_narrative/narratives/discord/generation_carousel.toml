@@ -35,6 +35,10 @@ template = "potential_posts"
 [narratives.feature.carousel]
 iterations = 10
 
+[narratives.feature.carousel.budget]
+rpm_multiplier = 0.8  # Use 80% of requests per minute
+rpd_multiplier = 0.5  # Use 50% of requests per day
+
 [narratives.feature.toc]
 order = ["generate", "critique", "refine"]
 

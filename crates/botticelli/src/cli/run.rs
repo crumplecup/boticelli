@@ -12,6 +12,9 @@ use std::path::Path;
 /// * `save` - Whether to save execution results to the database
 /// * `process_discord` - Whether to process Discord infrastructure
 /// * `state_dir` - Optional directory for persistent state storage
+/// * `rpm_multiplier` - Optional RPM budget multiplier
+/// * `tpm_multiplier` - Optional TPM budget multiplier
+/// * `rpd_multiplier` - Optional RPD budget multiplier
 #[cfg(feature = "gemini")]
 pub async fn run_narrative(
     narrative_path: &Path,
@@ -19,6 +22,9 @@ pub async fn run_narrative(
     save: bool,
     process_discord: bool,
     #[cfg(feature = "database")] state_dir: Option<&Path>,
+    rpm_multiplier: Option<f64>,
+    tpm_multiplier: Option<f64>,
+    rpd_multiplier: Option<f64>,
 ) -> BotticelliResult<()> {
     use botticelli::{GeminiClient, NarrativeExecutor, NarrativeProvider};
 
@@ -67,6 +73,56 @@ pub async fn run_narrative(
         acts = narrative.toc().order().len(),
         "Narrative loaded"
     );
+
+    // Build budget config from CLI args, carousel config, and narrative metadata
+    // Priority: CLI > Carousel > Narrative > Default (1.0)
+    let budget = {
+        use botticelli_core::BudgetConfig;
+        
+        let mut budget = BudgetConfig::default();
+        
+        // Apply narrative-level budget if present
+        if let Some(narrative_budget) = narrative.metadata().budget() {
+            budget = budget.merge(narrative_budget);
+        }
+        
+        // Apply carousel-level budget if present
+        if let Some(carousel) = narrative.metadata().carousel() {
+            if let Some(carousel_budget) = carousel.budget() {
+                budget = budget.merge(carousel_budget);
+            }
+        }
+        
+        // Apply CLI overrides if present (highest priority)
+        if rpm_multiplier.is_some() || tpm_multiplier.is_some() || rpd_multiplier.is_some() {
+            let cli_budget = BudgetConfig::builder()
+                .rpm_multiplier(rpm_multiplier.unwrap_or(1.0))
+                .tpm_multiplier(tpm_multiplier.unwrap_or(1.0))
+                .rpd_multiplier(rpd_multiplier.unwrap_or(1.0))
+                .build();
+            budget = budget.merge(&cli_budget);
+        }
+        
+        // Validate the final budget
+        budget.validate().map_err(|e| {
+            botticelli::NarrativeError::new(botticelli::NarrativeErrorKind::ConfigurationError(e))
+        })?;
+        
+        // Log if throttling is active
+        if budget.rpm_multiplier() < &1.0 
+            || budget.tpm_multiplier() < &1.0 
+            || budget.rpd_multiplier() < &1.0 
+        {
+            tracing::info!(
+                rpm = budget.rpm_multiplier(),
+                tpm = budget.tpm_multiplier(),
+                rpd = budget.rpd_multiplier(),
+                "Applying budget multipliers"
+            );
+        }
+        
+        budget
+    };
 
     // Create Gemini client (reads API key from GEMINI_API_KEY environment variable)
     let client = GeminiClient::new()?;
@@ -237,6 +293,9 @@ pub async fn run_narrative(
     _save: bool,
     _process_discord: bool,
     #[cfg(feature = "database")] _state_dir: Option<&Path>,
+    _rpm_multiplier: Option<f64>,
+    _tpm_multiplier: Option<f64>,
+    _rpd_multiplier: Option<f64>,
 ) -> BotticelliResult<()> {
     eprintln!("Error: Gemini feature not enabled. Rebuild with --features gemini");
     std::process::exit(1);

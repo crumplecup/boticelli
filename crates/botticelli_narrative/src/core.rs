@@ -39,6 +39,11 @@ pub struct NarrativeMetadata {
     /// Optional default max_tokens for all acts in this narrative
     #[serde(default)]
     max_tokens: Option<u32>,
+    /// Optional budget multipliers to throttle API usage.
+    ///
+    /// Available with the`budget`feature.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    budget: Option<botticelli_core::BudgetConfig>,
 }
 
 impl NarrativeMetadata {
@@ -54,6 +59,7 @@ impl NarrativeMetadata {
             model: None,
             temperature: None,
             max_tokens: None,
+            budget: None,
         }
     }
 }
@@ -317,6 +323,7 @@ impl Narrative {
             model: narrative_meta.model.clone(),
             temperature: narrative_meta.temperature,
             max_tokens: narrative_meta.max_tokens,
+            budget: narrative_meta.budget.clone(),
         };
 
         let toc = NarrativeToc {

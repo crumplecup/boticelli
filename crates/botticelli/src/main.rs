@@ -39,6 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             save,
             process_discord,
             state_dir,
+            rpm_multiplier,
+            tpm_multiplier,
+            rpd_multiplier,
         } => {
             #[cfg(feature = "database")]
             {
@@ -48,13 +51,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     save,
                     process_discord,
                     state_dir.as_deref(),
+                    rpm_multiplier,
+                    tpm_multiplier,
+                    rpd_multiplier,
                 )
                 .await?;
             }
             #[cfg(not(feature = "database"))]
             {
                 let _ = state_dir; // Suppress unused warning
-                run_narrative(&narrative, narrative_name.as_deref(), save, process_discord).await?;
+                run_narrative(
+                    &narrative, 
+                    narrative_name.as_deref(), 
+                    save, 
+                    process_discord,
+                    rpm_multiplier,
+                    tpm_multiplier,
+                    rpd_multiplier,
+                )
+                .await?;
             }
         }
 

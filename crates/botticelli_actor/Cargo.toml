@@ -38,4 +38,5 @@ discord = ["serenity"]
 local = ["discord"]
 
 [dev-dependencies]
+tempfile = "3"
 tracing-subscriber = "0.3"

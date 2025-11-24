@@ -3,14 +3,19 @@
 //! This binary runs actor servers that execute scheduled tasks for social media
 //! platforms like Discord, posting content based on narratives and knowledge tables.
 
-use botticelli_actor::{
-    Actor, ActorConfig, ActorServerConfig, DatabaseStatePersistence, ScheduleConfig, SkillRegistry,
-};
-use botticelli_server::{ActorServer, StatePersistence};
+#[cfg(feature = "discord")]
+use botticelli_actor::{Actor, ActorConfig, ScheduleConfig, SkillRegistry};
+use botticelli_actor::{ActorServerConfig, DatabaseStatePersistence};
+use botticelli_database::establish_connection;
+#[cfg(feature = "discord")]
+use botticelli_server::ActorServer;
+use botticelli_server::{Schedule, StatePersistence};
 use clap::Parser;
+use std::collections::HashMap;
 use std::path::PathBuf;
+#[cfg(feature = "discord")]
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
 
 #[cfg(feature = "discord")]
@@ -18,6 +23,9 @@ use botticelli_actor::{DiscordActorServer, DiscordPlatform};
 
 #[cfg(feature = "discord")]
 use serenity::http::Http;
+
+#[cfg(feature = "discord")]
+use chrono::{DateTime, Utc};
 
 /// Command-line arguments for the actor server.
 #[derive(Parser, Debug)]
@@ -119,6 +127,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let state_path = PathBuf::from(".actor_server_state.json");
         let mut server = DiscordActorServer::new(http.clone(), state_path);
 
+        // Track actors and their schedules
+        let mut actors: HashMap<String, (Actor, ScheduleConfig, Option<DateTime<Utc>>)> =
+            HashMap::new();
+
         // Load and register actors from configuration
         for actor_instance in &server_config.actors {
             if !actor_instance.enabled {
@@ -140,7 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let platform = DiscordPlatform::new(&discord_token, channel_id)?;
 
                 // Build actor with platform
-                let _actor = Actor::builder()
+                let actor = Actor::builder()
                     .config(actor_config)
                     .skills(SkillRegistry::new())
                     .platform(std::sync::Arc::new(platform))
@@ -148,34 +160,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 info!(actor = %actor_instance.name, "Actor created successfully");
 
-                // For now, we'll just validate the actor was created
-                // In Phase 4, we'll add scheduling support
+                // Store actor with schedule
+                actors.insert(
+                    actor_instance.name.clone(),
+                    (actor, actor_instance.schedule.clone(), None),
+                );
+
                 match &actor_instance.schedule {
                     ScheduleConfig::Interval { seconds } => {
                         info!(
                             actor = %actor_instance.name,
                             interval_seconds = seconds,
-                            "Scheduled with interval (Phase 4 not yet implemented)"
+                            "Scheduled with interval"
                         );
                     }
                     ScheduleConfig::Immediate => {
                         info!(
                             actor = %actor_instance.name,
-                            "Scheduled for immediate execution (Phase 4 not yet implemented)"
+                            "Scheduled for immediate execution"
                         );
                     }
                     ScheduleConfig::Cron { expression } => {
                         info!(
                             actor = %actor_instance.name,
                             cron = expression,
-                            "Scheduled with cron (Phase 4 not yet implemented)"
+                            "Scheduled with cron"
                         );
                     }
                     ScheduleConfig::Once { at } => {
                         info!(
                             actor = %actor_instance.name,
                             scheduled_at = at,
-                            "Scheduled for one-time execution (Phase 4 not yet implemented)"
+                            "Scheduled for one-time execution"
                         );
                     }
                 }
@@ -188,11 +204,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Set up graceful shutdown signal handler
-        let shutdown = async {
+        let shutdown_flag = Arc::new(tokio::sync::Notify::new());
+        let shutdown_flag_clone = shutdown_flag.clone();
+
+        tokio::spawn(async move {
             tokio::signal::ctrl_c()
                 .await
                 .expect("Failed to install CTRL+C signal handler");
-        };
+            shutdown_flag_clone.notify_one();
+        });
 
         info!("Actor server starting");
 
@@ -204,10 +224,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         info!("Actor server running. Press CTRL+C to shutdown.");
 
-        // Wait for shutdown signal
-        shutdown.await;
+        // Main execution loop
+        let check_interval =
+            std::time::Duration::from_secs(server_config.server.check_interval_seconds);
+        let mut interval = tokio::time::interval(check_interval);
 
-        info!("Shutdown signal received, stopping gracefully...");
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    debug!("Checking for ready actors");
+
+                    // Check each actor's schedule
+                    for (name, (actor, schedule, last_run)) in actors.iter_mut() {
+                        let check = schedule.check(*last_run);
+
+                        if check.should_run {
+                            info!(actor = %name, "Executing scheduled actor");
+
+                            // Get database connection
+                            match establish_connection() {
+                                Ok(mut conn) => {
+                                    // Execute the actor
+                                    match actor.execute(&mut conn).await {
+                                        Ok(_) => {
+                                            info!(actor = %name, "Actor executed successfully");
+                                            *last_run = Some(Utc::now());
+                                        }
+                                        Err(e) => {
+                                            error!(actor = %name, error = ?e, "Actor execution failed");
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    error!(actor = %name, error = ?e, "Failed to establish database connection");
+                                }
+                            }
+
+                            if let Some(next) = check.next_run {
+                                debug!(actor = %name, next_run = %next, "Next execution scheduled");
+                            }
+                        }
+                    }
+                }
+                _ = shutdown_flag.notified() => {
+                    info!("Shutdown signal received, stopping gracefully...");
+                    break;
+                }
+            }
+        }
 
         // Graceful shutdown
         server
@@ -216,13 +280,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| format!("Failed to stop server: {}", e))?;
 
         info!("Actor server stopped successfully");
+        Ok(())
     }
 
     #[cfg(not(feature = "discord"))]
     {
         eprintln!("Discord feature not enabled. Rebuild with --features discord");
-        return Err("Discord feature required".into());
+        Err("Discord feature required".into())
     }
-
-    Ok(())
 }

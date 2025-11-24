@@ -124,8 +124,53 @@ pub async fn run_narrative(
         budget
     };
 
-    // Create Gemini client (reads API key from GEMINI_API_KEY environment variable)
-    let client = GeminiClient::new()?;
+    // Create Gemini client with budget-adjusted rate limits
+    let client = {
+        use botticelli_rate_limit::{BotticelliConfig, TierConfig};
+        
+        // Load base tier from config
+        let tier_config = BotticelliConfig::load()
+            .ok()
+            .and_then(|config| config.get_tier("gemini", None))
+            .unwrap_or_else(|| {
+                // Default Free tier if no config
+                TierConfig {
+                    name: "Free".to_string(),
+                    rpm: Some(10),
+                    tpm: Some(250_000),
+                    rpd: Some(250),
+                    max_concurrent: Some(1),
+                    daily_quota_usd: None,
+                    cost_per_million_input_tokens: Some(0.0),
+                    cost_per_million_output_tokens: Some(0.0),
+                    models: std::collections::HashMap::new(),
+                }
+            });
+        
+        // Apply budget multipliers to create adjusted tier
+        let adjusted_tier = if budget.rpm_multiplier() < &1.0 
+            || budget.tpm_multiplier() < &1.0 
+            || budget.rpd_multiplier() < &1.0 
+        {
+            // Apply multipliers to rate limits
+            let adjusted = TierConfig {
+                name: format!("{} ({}x)", tier_config.name, budget.rpm_multiplier().min(*budget.rpd_multiplier())),
+                rpm: tier_config.rpm.map(|r| budget.apply_rpm(r as u64) as u32),
+                tpm: tier_config.tpm.map(|t| budget.apply_tpm(t)),
+                rpd: tier_config.rpd.map(|r| budget.apply_rpd(r as u64) as u32),
+                max_concurrent: tier_config.max_concurrent,
+                daily_quota_usd: tier_config.daily_quota_usd,
+                cost_per_million_input_tokens: tier_config.cost_per_million_input_tokens,
+                cost_per_million_output_tokens: tier_config.cost_per_million_output_tokens,
+                models: tier_config.models.clone(),
+            };
+            adjusted
+        } else {
+            tier_config
+        };
+        
+        GeminiClient::new_with_tier(Some(Box::new(adjusted_tier)))?
+    };
 
     // Create executor with content generation processor and table registry
     let executor = {

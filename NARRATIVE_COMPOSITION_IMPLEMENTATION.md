@@ -1,200 +1,127 @@
 # Narrative Composition Implementation
 
-## Current State
+## Status: ✅ COMPLETED
 
-The infrastructure for narrative composition already exists:
+Successfully implemented narrative composition, allowing narratives to reference and execute other narratives within the same TOML file.
 
-1. **ActConfig** has `narrative_ref: Option<String>` field
-2. **TomlActConfig** supports `narrative` field for TOML parsing  
-3. **Executor** has skeleton code (lines 285-314) that detects narrative refs but doesn't execute them
+## Implementation Summary
 
-## Agreed Design: Shared Acts
+### Core Components
 
-**Key principle**: Acts defined in `[acts.*]` are **shared** across ALL narratives in the file. 
+**MultiNarrative Container** (`multi_narrative.rs`):
+- Loads all narratives from a TOML file into a HashMap
+- Implements `NarrativeProvider` trait
+- Provides `resolve_narrative()` to access sibling narratives
+- Supports both with and without database features
+
+**NarrativeProvider Trait** (`provider.rs`):
+- Added `resolve_narrative(&self, name: &str) -> Option<&dyn NarrativeProvider>`
+- Default implementation returns `None` for single narratives
+- MultiNarrative overrides to return sibling narratives
+
+**ActConfig** (`provider.rs`):
+- Already had `narrative_ref: Option<String>` field
+- Already had `from_narrative_ref()` constructor
+- Already had `is_narrative_ref()` check method
+
+**TOML Parsing** (`toml_parser.rs`):
+- `TomlActConfig` already supported `narrative: Option<String>` field
+- Updated `TomlAct::Structured` branch to handle narrative references
+- Checks for mutual exclusivity between `narrative` and `input` fields
+
+**Executor** (`executor.rs`):
+- Updated `execute()` to accept `N: NarrativeProvider + ?Sized`
+- Updated `execute_carousel()` to accept `?Sized`
+- Updated `process_inputs()` to accept `?Sized`
+- Implemented recursive execution for narrative references
+- Resolves references via `narrative.resolve_narrative()`
+- Executes nested narrative and collects all responses
+- Adds combined response to conversation history
+
+**CLI** (`cli/run.rs`):
+- Conditionally loads `MultiNarrative` when `--narrative-name` provided
+- Falls back to single `Narrative` for backwards compatibility
+- Uses `Box<dyn NarrativeProvider>` to handle both types
+- Passes trait object references to executor methods
+
+### TOML Syntax
 
 ```toml
-# Shared act definitions (available to ALL narratives)
-[acts.critique]
-model = "gemini-2.0-flash-exp"
-[[acts.critique.input]]
+# Shared acts available to all narratives
+[acts]
+critique = "Analyze this content critically..."
+refine = "Improve based on critique..."
+
+# Multiple narrative definitions
+[narratives.community]
+name = "potential_posts_community"
+description = "Generate community-focused posts"
+template = "potential_posts"
+
+[narratives.community.toc]
+order = ["generate", "critique", "refine"]
+
+[[narratives.community.acts.generate.input]]
 type = "text"
-content = "Analyze and provide improvements..."
+content = "Generate a community-building post about Botticelli..."
 
-[acts.refine]
-model = "gemini-2.0-flash-exp"
-[[acts.refine.input]]
-type = "text"
-content = "Improve based on critique..."
+# Wrapper narrative using composition
+[narratives.batch_generate]
+name = "generation_batch_50"
+description = "Generate 50 posts across all categories"
 
-# Narratives reference shared acts by name
-[[narrative]]
-name = "tech_topic"
-toc = ["critique", "refine"]  # Uses shared acts
+[narratives.batch_generate.toc]
+order = ["community", "problem", "tutorial", "usecase", "feature"]
 
-[[narrative]]
-name = "feature_topic"  
-toc = ["critique", "refine"]  # Uses SAME shared acts
+[narratives.batch_generate.acts.community]
+narrative = "community"  # References another narrative
+
+[narratives.batch_generate.acts.problem]
+narrative = "problem"
 ```
 
-## Implementation Steps
+## Testing
 
-### Step 1: Multi-Narrative File Structure
+Successfully tested with `generation_carousel.toml`:
+- Loads 6 narratives from single file (batch_generate + 5 topic-specific)
+- Executes wrapper narrative with 5 composition references
+- Recursively executes each referenced narrative (3 acts each)
+- Generates content into separate tables per topic
+- Rate limiting applies correctly across all nested calls
+- Budget multipliers work as expected (80% RPM/TPM/RPD)
 
-Create a type to represent the parsed multi-narrative TOML:
+## Architecture Benefits
 
-```rust
-pub struct MultiNarrativeFile {
-    acts: HashMap<String, ActConfig>,  // Shared acts
-    narratives: HashMap<String, NarrativeData>,  // Individual narratives
-}
+1. **Modularity**: Reusable narrative components
+2. **Composition**: Build complex workflows from simple parts
+3. **DRY**: Share acts (critique, refine) across narratives
+4. **Scalability**: Easy to add new topic narratives
+5. **Testing**: Test individual narratives in isolation
+6. **Maintenance**: Single file for related narratives
 
-struct NarrativeData {
-    toc: Vec<String>,  // Act names to execute
-    mode: Option<Mode>,
-    // ... other narrative fields
-}
+## Usage
+
+Load multi-narrative file:
+```bash
+just narrate generation_carousel.batch_generate
 ```
 
-### Step 2: Update from_file to Load Shared Acts
+The CLI detects the narrative name and loads `MultiNarrative` instead of single `Narrative`, enabling composition features automatically.
 
-When loading a narrative from file:
+## Related Files
 
-```rust
-pub fn from_file(path: &Path, name: Option<&str>) -> Result<Self> {
-    // 1. Parse file
-    let file_content = MultiNarrativeFile::parse(path)?;
-    
-    // 2. Get requested narrative (or single if only one)
-    let narrative_data = file_content.get_narrative(name)?;
-    
-    // 3. Build Narrative with shared acts
-    let mut acts = Vec::new();
-    for act_name in &narrative_data.toc {
-        let act_config = file_content.acts.get(act_name)
-            .ok_or_else(|| error!("Act '{}' not found", act_name))?
-            .clone();
-        acts.push(act_config);
-    }
-    
-    // 4. Create Narrative with resolved acts
-    Narrative::new(narrative_data.name, acts, narrative_data.mode)
-}
-```
+- `crates/botticelli_narrative/src/multi_narrative.rs` - Container
+- `crates/botticelli_narrative/src/executor.rs` - Recursive execution
+- `crates/botticelli_narrative/src/toml_parser.rs` - Parse narrative refs
+- `crates/botticelli_narrative/src/provider.rs` - Trait definition
+- `crates/botticelli/src/cli/run.rs` - CLI integration
+- `crates/botticelli_narrative/narratives/discord/generation_carousel.toml` - Example
 
-### Step 3: Update TOML Parsing
+## Future Enhancements
 
-Parse `[acts.*]` section separately from `[[narrative]]` sections:
-
-```rust
-#[derive(Deserialize)]
-struct TomlMultiNarrativeFile {
-    #[serde(default)]
-    acts: HashMap<String, TomlActConfig>,
-    
-    #[serde(default)]
-    narrative: Vec<TomlNarrativeData>,
-}
-
-#[derive(Deserialize)]
-struct TomlNarrativeData {
-    name: String,
-    toc: Vec<String>,  // Act names only
-    mode: Option<String>,
-    // ... other fields
-}
-```
-
-### Step 4: Narrative References (Composition)
-
-For narrative-as-act (one narrative calling another):
-
-```rust
-if config.is_narrative_ref() {
-    let ref_name = config.narrative_ref().as_ref().unwrap();
-    
-    // Get referenced narrative from provider
-    let child_narrative = narrative.get_narrative(ref_name)
-        .ok_or_else(|| NarrativeError::new(
-            NarrativeErrorKind::ConfigurationError(
-                format!("Referenced narrative '{}' not found", ref_name)
-            )
-        ))?;
-    
-    // Execute recursively
-    let child_execution = self.execute(child_narrative).await?;
-    
-    // Extract final response from child
-    let response = child_execution.final_response()
-        .unwrap_or_else(|| "[Empty narrative response]".to_string());
-    
-    // Record as act execution
-    act_executions.push(ActExecution {
-        act_name: act_name.clone(),
-        inputs: Vec::new(), // Child narrative's inputs are internal
-        model: config.model().clone(),
-        temperature: *config.temperature(),
-        max_tokens: *config.max_tokens(),
-        response,
-        sequence_number,
-    });
-    
-    continue;
-}
-```
-
-### Step 5: Update from_file Methods
-
-Update `Narrative::from_file` to support multi-narrative files:
-
-```rust
-pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-    // Detect if file has [narratives] section
-    // If yes, load as multi-narrative with first narrative as primary
-    // If no, load as single narrative (backward compatible)
-}
-
-pub fn from_file_named<P: AsRef<Path>>(path: P, name: &str) -> Result<Self> {
-    // Load specific narrative from multi-narrative file
-}
-```
-
-### Step 6: CLI Integration
-
-Update CLI to pass narrative name to loader:
-
-```rust
-// Already done - CLI supports --narrative-name
-let narrative = if let Some(name) = &args.narrative_name {
-    Narrative::from_file_named(&path, name)?
-} else {
-    Narrative::from_file(&path)?
-};
-```
-
-## Testing Strategy
-
-1. **Unit Tests**: Test multi-narrative loading, child resolution
-2. **Integration Tests**: Test carousel with 5 sub-narratives  
-3. **API Test**: Run `generation_carousel.toml` with actual API
-
-## Files to Modify
-
-1. `crates/botticelli_narrative/src/core.rs` - Add multi-narrative loading
-2. `crates/botticelli_narrative/src/executor.rs` - Implement recursive execution
-3. `crates/botticelli_narrative/src/provider.rs` - Add get_narrative method
-4. `tests/narrative_composition_test.rs` - Add tests
-
-## Success Criteria
-
-✅ Can load multi-narrative TOML files  
-✅ Can execute narratives that reference other narratives  
-✅ Works with carousel mode  
-✅ Proper error handling for missing references  
-✅ Tests pass
-
-## Notes
-
-- Keep backward compatibility with single-narrative files
-- Prevent infinite recursion (detect cycles)
-- Clear error messages for missing references
-- Consider depth limits for safety
+Potential improvements:
+- Cross-file narrative references
+- Parameterized narratives (pass arguments)
+- Conditional narrative execution
+- Parallel narrative execution (when independent)
+- Narrative recursion limits (prevent infinite loops)

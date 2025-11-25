@@ -1,0 +1,25 @@
+# Test WITH skip_content_generation AND table input
+[narrative]
+name = "test_with_skip_and_table"
+description = "Test skip flag with table input"
+skip_content_generation = true
+
+[toc]
+order = ["analyze"]
+
+[acts.analyze]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 100
+
+[[acts.analyze.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 1
+order_by = "generated_at DESC"
+required = false
+
+[[acts.analyze.input]]
+type = "text"
+content = "Say 'Table test completed' and nothing else."

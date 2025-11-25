@@ -224,16 +224,21 @@ where
     T: serde::de::DeserializeOwned,
 {
     serde_json::from_str(json_str).map_err(|e| {
+        let preview = json_str
+            .chars()
+            .take(100)
+            .collect::<String>();
+        
         tracing::error!(
             error = %e,
-            json_preview = &json_str[..json_str.len().min(100)],
+            json_preview = %preview,
             "JSON parsing failed"
         );
 
         botticelli_error::BackendError::new(format!(
             "Failed to parse JSON: {} (JSON: {}...). Hint: Ensure the LLM outputs valid JSON without syntax errors.",
             e,
-            &json_str[..json_str.len().min(100)]
+            preview
         ))
         .into()
     })

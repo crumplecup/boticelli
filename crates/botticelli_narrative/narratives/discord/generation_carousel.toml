@@ -1,6 +1,6 @@
 # Discord Post Generation Carousel
 # Five narratives that each generate-critique-refine a single post
-# Each narrative auto-stores to potential_posts table at completion
+# Each narrative auto-stores to potential_discord_posts table at completion
 #
 # Usage:
 #   Single post:  just narrate generation_carousel.feature
@@ -12,7 +12,7 @@ name = "generation_batch_50"
 description = "Run all five generation narratives 10 times using carousel mode"
 
 [narratives.batch_generate.carousel]
-iterations = 10
+iterations = 3
 
 [narratives.batch_generate.toc]
 order = ["feature", "usecase", "tutorial", "community", "problem"]
@@ -95,8 +95,7 @@ Output the refined post as JSON (preserve the exact format):
 [narratives.feature]
 name = "feature_showcase"
 description = "Generate Discord post showcasing a Botticelli feature"
-template = "potential_posts"
-target = "potential_posts"
+target = "potential_discord_posts"
 
 [narratives.feature.toc]
 order = ["generate", "critique", "refine"]
@@ -137,8 +136,7 @@ Output only the post text as JSON:
 [narratives.usecase]
 name = "usecase_showcase"
 description = "Generate Discord post about real-world Botticelli use cases"
-template = "potential_posts"
-target = "potential_posts"
+target = "potential_discord_posts"
 
 [narratives.usecase.toc]
 order = ["generate", "critique", "refine"]
@@ -179,8 +177,7 @@ Output only the post text as JSON:
 [narratives.tutorial]
 name = "tutorial_guide"
 description = "Generate Discord post with tutorial or how-to content"
-template = "potential_posts"
-target = "potential_posts"
+target = "potential_discord_posts"
 
 [narratives.tutorial.toc]
 order = ["generate", "critique", "refine"]
@@ -221,8 +218,7 @@ Output only the post text as JSON:
 [narratives.community]
 name = "community_engagement"
 description = "Generate Discord post for community engagement"
-template = "potential_posts"
-target = "potential_posts"
+target = "potential_discord_posts"
 
 [narratives.community.toc]
 order = ["generate", "critique", "refine"]
@@ -263,8 +259,7 @@ Output only the post text as JSON:
 [narratives.problem]
 name = "problem_solution"
 description = "Generate Discord post about problems Botticelli solves"
-template = "potential_posts"
-target = "potential_posts"
+target = "potential_discord_posts"
 
 [narratives.problem.toc]
 order = ["generate", "critique", "refine"]

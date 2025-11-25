@@ -219,6 +219,7 @@ impl ActProcessor for ContentGenerationProcessor {
                             "Inferred schema from JSON"
                         );
 
+                        tracing::debug!(table = %table_name, "Creating inferred table");
                         create_inferred_table(
                             &mut conn,
                             table_name,
@@ -226,11 +227,16 @@ impl ActProcessor for ContentGenerationProcessor {
                             Some(context.narrative_name),
                             Some(context.narrative_metadata.description()),
                         )?;
+                        tracing::debug!(table = %table_name, "Inferred table created successfully");
                     }
                 }
             }
 
-            tracing::info!(count = items.len(), "Parsed JSON items for insertion");
+            tracing::info!(
+                count = items.len(),
+                table = %table_name,
+                "Parsed JSON items for insertion"
+            );
 
             // Insert each item
             for (idx, item) in items.iter().enumerate() {

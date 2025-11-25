@@ -276,13 +276,21 @@ pub fn create_inferred_table(
     }
 
     // Add metadata columns (same as template-based tables)
+    // Only add if not already present in schema
     columns.push("generated_at TIMESTAMP NOT NULL DEFAULT NOW()".to_string());
     columns.push("source_narrative TEXT".to_string());
     columns.push("source_act TEXT".to_string());
     columns.push("generation_model TEXT".to_string());
-    columns.push("review_status TEXT DEFAULT 'pending'".to_string());
-    columns.push("tags TEXT[]".to_string());
-    columns.push("rating INTEGER".to_string());
+    
+    if !schema.fields.contains_key("review_status") {
+        columns.push("review_status TEXT DEFAULT 'pending'".to_string());
+    }
+    if !schema.fields.contains_key("tags") {
+        columns.push("tags TEXT[]".to_string());
+    }
+    if !schema.fields.contains_key("rating") {
+        columns.push("rating INTEGER".to_string());
+    }
 
     let create_sql = format!(
         "CREATE TABLE IF NOT EXISTS {} ({})",

@@ -96,6 +96,7 @@ Output the refined post as JSON (preserve the exact format):
 name = "feature_showcase"
 description = "Generate Discord post showcasing a Botticelli feature"
 template = "potential_posts"
+target = "potential_posts"
 
 [narratives.feature.toc]
 order = ["generate", "critique", "refine"]
@@ -137,6 +138,7 @@ Output only the post text as JSON:
 name = "usecase_showcase"
 description = "Generate Discord post about real-world Botticelli use cases"
 template = "potential_posts"
+target = "potential_posts"
 
 [narratives.usecase.toc]
 order = ["generate", "critique", "refine"]
@@ -178,6 +180,7 @@ Output only the post text as JSON:
 name = "tutorial_guide"
 description = "Generate Discord post with tutorial or how-to content"
 template = "potential_posts"
+target = "potential_posts"
 
 [narratives.tutorial.toc]
 order = ["generate", "critique", "refine"]
@@ -219,6 +222,7 @@ Output only the post text as JSON:
 name = "community_engagement"
 description = "Generate Discord post for community engagement"
 template = "potential_posts"
+target = "potential_posts"
 
 [narratives.community.toc]
 order = ["generate", "critique", "refine"]
@@ -260,6 +264,7 @@ Output only the post text as JSON:
 name = "problem_solution"
 description = "Generate Discord post about problems Botticelli solves"
 template = "potential_posts"
+target = "potential_posts"
 
 [narratives.problem.toc]
 order = ["generate", "critique", "refine"]

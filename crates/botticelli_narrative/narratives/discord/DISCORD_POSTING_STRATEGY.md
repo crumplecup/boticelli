@@ -143,7 +143,8 @@ Generate multiple post variants using five independent narratives that each foll
 **Multiple narratives in one TOML:**
 
 - Five separate `[narrative.X]` sections in one file
-- Each narrative has `template = "potential_posts"` for auto-storage
+- Each narrative has `template = "potential_posts"` for schema inference
+- Each narrative has `target = "potential_posts"` to write to shared table
 - Each has `toc = ["generate", "critique", "refine"]` - storage triggers after refine
 - **Batch generator** with `carousel.iterations = 10` runs all five narratives 10 times
 - Carousel mode loops through `toc` entries for specified iterations

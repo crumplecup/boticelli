@@ -127,10 +127,14 @@ impl ActProcessor for ContentGenerationProcessor {
             ProcessingMode::Inference
         };
 
-        // Use template name as table name, or fallback to narrative name for inference
-        let table_name = match &processing_mode {
-            ProcessingMode::Template(template) => template.as_str(),
-            ProcessingMode::Inference => context.narrative_metadata.name(),
+        // Use target if specified, otherwise template name or narrative name
+        let table_name = if let Some(target) = context.narrative_metadata.target() {
+            target
+        } else {
+            match &processing_mode {
+                ProcessingMode::Template(template) => template.as_str(),
+                ProcessingMode::Inference => context.narrative_metadata.name(),
+            }
         };
 
         tracing::info!(

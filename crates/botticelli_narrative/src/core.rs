@@ -24,6 +24,8 @@ pub struct NarrativeMetadata {
     description: String,
     /// Optional template table to use as schema source for content generation
     template: Option<String>,
+    /// Optional target table name for content generation (overrides narrative name)
+    target: Option<String>,
     /// Skip content generation (both template and inference modes)
     #[serde(default)]
     skip_content_generation: bool,
@@ -54,6 +56,7 @@ impl NarrativeMetadata {
             name: name.into(),
             description: "Test narrative".to_string(),
             template: None,
+            target: None,
             skip_content_generation: false,
             carousel: None,
             model: None,
@@ -318,6 +321,7 @@ impl Narrative {
             name: narrative_meta.name.clone(),
             description: narrative_meta.description.clone(),
             template: narrative_meta.template.clone(),
+            target: narrative_meta.target.clone(),
             skip_content_generation: narrative_meta.skip_content_generation,
             carousel: narrative_meta.carousel.clone(),
             model: narrative_meta.model.clone(),

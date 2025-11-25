@@ -141,6 +141,8 @@ pub struct TomlNarrative {
     pub description: String,
     /// Optional template table to use as schema source for content generation
     pub template: Option<String>,
+    /// Optional target table name for content generation (overrides narrative name)
+    pub target: Option<String>,
     /// Optional flag to skip content generation (both template and inference modes)
     #[serde(default)]
     pub skip_content_generation: bool,
@@ -168,6 +170,8 @@ pub struct TomlNarrativeDefinition {
     pub description: String,
     /// Optional template table to use as schema source for content generation
     pub template: Option<String>,
+    /// Optional target table name for content generation (overrides narrative name)
+    pub target: Option<String>,
     /// Optional flag to skip content generation
     #[serde(default)]
     pub skip_content_generation: bool,
@@ -409,6 +413,7 @@ impl TomlNarrativeFile {
                             name: def.name.clone(),
                             description: def.description.clone(),
                             template: def.template.clone(),
+                            target: def.target.clone(),
                             skip_content_generation: def.skip_content_generation,
                             carousel: def.carousel.clone(),
                             model: def.model.clone(),

@@ -54,7 +54,7 @@ max_tokens = 400
 [[acts.critique.input]]
 type = "text"
 content = """
-Critique this Discord post:
+Critique this Discord post for content quality:
 
 {{generate}}
 
@@ -65,7 +65,7 @@ Evaluate:
 4. Discord formatting (markdown, emojis)
 5. Length (under 1800 chars)
 
-Provide specific improvements.
+Provide specific, actionable improvements.
 """
 
 [acts.refine]
@@ -76,19 +76,62 @@ max_tokens = 600
 [[acts.refine.input]]
 type = "text"
 content = """
-Improve the post based on critique:
+Improve the post based on critique. Focus on content quality, not JSON formatting.
 
 Original: {{generate}}
 
 Critique: {{critique}}
 
-Output the refined post as JSON (preserve the exact format):
+Output the improved post text (plain text, no JSON yet):
+"""
+
+[acts.format_json]
+model = "gemini-2.5-flash-lite"
+temperature = 0.1
+max_tokens = 700
+
+[[acts.format_json.input]]
+type = "text"
+content = """
+Format this content as valid JSON matching this schema:
+
+Schema:
 {
-  "text_content": "Improved post here...",
+  "text_content": "string (required)",
+  "content_type": "discord_post",
+  "source": "generation_carousel", 
+  "tags": ["array of strings"]
+}
+
+Content to format:
+{{refine}}
+
+Output ONLY valid JSON. No markdown blocks, no explanations.
+"""
+
+[acts.audit_json]
+model = "gemini-2.5-flash-lite"
+temperature = 0.1
+max_tokens = 700
+
+[[acts.audit_json.input]]
+type = "text"
+content = """
+Audit this JSON for schema compliance and fix any issues:
+
+Required schema:
+{
+  "text_content": "string (required)",
   "content_type": "discord_post",
   "source": "generation_carousel",
-  "tags": ["potential", "TAG_FROM_ORIGINAL"]
+  "tags": ["array of strings"]
 }
+
+JSON to audit:
+{{format_json}}
+
+If valid, output it unchanged. If invalid, output the corrected JSON.
+Output ONLY valid JSON. No markdown blocks, no explanations.
 """
 
 # === Narrative 1: Feature Showcase ===
@@ -98,7 +141,7 @@ description = "Generate Discord post showcasing a Botticelli feature"
 target = "potential_discord_posts"
 
 [narratives.feature.toc]
-order = ["generate", "critique", "refine"]
+order = ["generate", "critique", "refine", "format_json", "audit_json"]
 
 [narratives.feature.acts.generate]
 model = "gemini-2.5-flash-lite"
@@ -122,14 +165,9 @@ Requirements:
 - Format: Discord markdown (**, *, __, ~~, ||) with emojis
 - Structure: Hook, explanation, example, call-to-action
 - Tone: Enthusiastic but professional
+- Tags: Include "feature" plus relevant feature names
 
-Output only the post text as JSON:
-{
-  "text_content": "Your post here...",
-  "content_type": "discord_post",
-  "source": "generation_carousel",
-  "tags": ["potential", "feature"]
-}
+Write the post text (plain text, we'll format as JSON later):
 """
 
 # === Narrative 2: Use Cases ===
@@ -139,7 +177,7 @@ description = "Generate Discord post about real-world Botticelli use cases"
 target = "potential_discord_posts"
 
 [narratives.usecase.toc]
-order = ["generate", "critique", "refine"]
+order = ["generate", "critique", "refine", "format_json", "audit_json"]
 
 [narratives.usecase.acts.generate]
 model = "gemini-2.5-flash-lite"
@@ -163,14 +201,9 @@ Requirements:
 - Format: Discord markdown (**, *, __, ~~, ||) with emojis
 - Structure: Hook, explanation, example, call-to-action
 - Tone: Enthusiastic but professional
+- Tags: Include "usecase" plus relevant application domains
 
-Output only the post text as JSON:
-{
-  "text_content": "Your post here...",
-  "content_type": "discord_post",
-  "source": "generation_carousel",
-  "tags": ["potential", "usecase"]
-}
+Write the post text (plain text, we'll format as JSON later):
 """
 
 # === Narrative 3: Tutorial ===
@@ -180,7 +213,7 @@ description = "Generate Discord post with tutorial or how-to content"
 target = "potential_discord_posts"
 
 [narratives.tutorial.toc]
-order = ["generate", "critique", "refine"]
+order = ["generate", "critique", "refine", "format_json", "audit_json"]
 
 [narratives.tutorial.acts.generate]
 model = "gemini-2.5-flash-lite"
@@ -204,14 +237,9 @@ Requirements:
 - Format: Discord markdown (**, *, __, ~~, ||) with emojis
 - Structure: Hook, explanation, example, call-to-action
 - Tone: Enthusiastic but professional
+- Tags: Include "tutorial" plus relevant topics
 
-Output only the post text as JSON:
-{
-  "text_content": "Your post here...",
-  "content_type": "discord_post",
-  "source": "generation_carousel",
-  "tags": ["potential", "tutorial"]
-}
+Write the post text (plain text, we'll format as JSON later):
 """
 
 # === Narrative 4: Community ===
@@ -221,7 +249,7 @@ description = "Generate Discord post for community engagement"
 target = "potential_discord_posts"
 
 [narratives.community.toc]
-order = ["generate", "critique", "refine"]
+order = ["generate", "critique", "refine", "format_json", "audit_json"]
 
 [narratives.community.acts.generate]
 model = "gemini-2.5-flash-lite"
@@ -245,14 +273,9 @@ Requirements:
 - Format: Discord markdown (**, *, __, ~~, ||) with emojis
 - Structure: Hook, explanation, example, call-to-action
 - Tone: Enthusiastic but professional
+- Tags: Include "community" plus engagement type
 
-Output only the post text as JSON:
-{
-  "text_content": "Your post here...",
-  "content_type": "discord_post",
-  "source": "generation_carousel",
-  "tags": ["potential", "community"]
-}
+Write the post text (plain text, we'll format as JSON later):
 """
 
 # === Narrative 5: Problem-Solution ===
@@ -262,6 +285,9 @@ description = "Generate Discord post about problems Botticelli solves"
 target = "potential_discord_posts"
 
 [narratives.problem.toc]
+order = ["generate", "critique", "refine", "format_json", "audit_json"]
+
+[narratives.problem.acts.generate]
 order = ["generate", "critique", "refine"]
 
 [narratives.problem.acts.generate]
@@ -286,12 +312,7 @@ Requirements:
 - Format: Discord markdown (**, *, __, ~~, ||) with emojis
 - Structure: Hook, explanation, example, call-to-action
 - Tone: Enthusiastic but professional
+- Tags: Include "problem_solution" plus relevant problem domains
 
-Output only the post text as JSON:
-{
-  "text_content": "Your post here...",
-  "content_type": "discord_post",
-  "source": "generation_carousel",
-  "tags": ["potential", "problem_solution"]
-}
+Write the post text (plain text, we'll format as JSON later):
 """

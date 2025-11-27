@@ -18,16 +18,17 @@ This document outlines a three-stage pipeline for autonomous Discord content pos
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Stage 1: Generation                          │
 │                                                                   │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │  Generate    │───>│   Critique   │───>│   Refine     │      │
-│  │   (Act 1)    │    │   (Act 2)    │    │   (Act 3)    │      │
-│  └──────────────┘    └──────────────┘    └──────────────┘      │
-│         │                                         │              │
-│         └─────────────────────────────────────────┘              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  ┌──────┐│
+│  │Generate  │─>│ Critique │─>│  Refine  │─>│ Format │─>│Audit ││
+│  │ (Act 1)  │  │ (Act 2)  │  │ (Act 3)  │  │  JSON  │  │ JSON ││
+│  │          │  │          │  │          │  │(Act 4) │  │(Act5)││
+│  └──────────┘  └──────────┘  └──────────┘  └────────┘  └──────┘│
+│      │              │              │            │          │     │
+│      └──────────────┴──────────────┴────────────┴──────────┘     │
 │                           │                                      │
 │                           v                                      │
 │                  ┌─────────────────┐                             │
-│                  │ potential_posts │ <── Carousel (5-10 variants)│
+│                  │ potential_posts │ <── Carousel (5 types × N)  │
 │                  └─────────────────┘                             │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -146,13 +147,14 @@ Generate multiple post variants using five independent narratives that each foll
 
 **Multiple narratives in one TOML:**
 
-- Five separate `[narrative.X]` sections in one file
-- Each narrative has `template = "potential_posts"` for schema inference
-- Each narrative has `target = "potential_posts"` to write to shared table
-- Each has `toc = ["generate", "critique", "refine"]` - storage triggers after refine
+- Five separate `[narratives.X]` sections in one file
+- Each narrative has `target = "potential_discord_posts"` to write to shared table
+- Each has `toc = ["generate", "critique", "refine", "format_json", "audit_json"]`
+  - Content improvement (generate/critique/refine) separated from JSON compliance (format/audit)
+  - Storage triggers after final act (audit_json) completes
 - **Batch generator** with `carousel.iterations = 10` runs all five narratives 10 times
 - Carousel mode loops through `toc` entries for specified iterations
-- Shared resource definitions (`[media]`, `[acts]`) reduce duplication
+- Shared act definitions (`[acts]`) reduce duplication - all narratives reuse same critique/refine/format/audit acts
 
 **Context injection:**
 
@@ -163,9 +165,13 @@ Generate multiple post variants using five independent narratives that each foll
 **Model selection:**
 
 - **gemini-2.5-flash-lite** for highest daily request limit
-- Critical for batch generation (50 posts = 150 API calls: 50 generate + 50 critique + 50 refine)
-- Temperature 0.8 for creative variety across iterations
-- Max tokens 600 (Discord limit is 2000, but posts target ~1800)
+- Critical for batch generation (50 posts = 250 API calls: 50×5 acts per post)
+- Temperature varies by act:
+  - 0.8 for generate (creative variety)
+  - 0.3 for critique (focused analysis)
+  - 0.7 for refine (balanced improvement)
+  - 0.1 for format/audit (strict JSON compliance)
+- Max tokens 600-700 (Discord limit is 2000, but posts target ~1800)
 
 **Five focus angles:**
 
@@ -199,23 +205,36 @@ model = "gemini-2.5-flash-lite"
 temperature = 0.8
 max_tokens = 600
 
-# === Narrative 1: Feature Showcase ===
-[narrative.feature_showcase]
-name = "potential_posts_feature"
-description = "Generate Discord post showcasing a Botticelli feature"
-template = "potential_posts"
+# === Shared Act Definitions (reused by all narratives) ===
+[acts.critique]
+# Content quality critique (not JSON formatting)
 
-[narrative.feature_showcase.toc]
-order = ["generate", "critique", "refine"]
+[acts.refine]
+# Content improvement based on critique
+
+[acts.format_json]
+# First pass: Format content as valid JSON matching schema
+
+[acts.audit_json]
+# Second pass: Validate JSON compliance and fix issues
+
+# === Narrative 1: Feature Showcase ===
+[narratives.feature]
+name = "feature_showcase"
+description = "Generate Discord post showcasing a Botticelli feature"
+target = "potential_discord_posts"
+
+[narratives.feature.toc]
+order = ["generate", "critique", "refine", "format_json", "audit_json"]
 
 # === Narrative 2: Use Cases ===
-[narrative.use_cases]
-name = "potential_posts_usecase"
+[narratives.usecase]
+name = "usecase_showcase"
 description = "Generate Discord post about real-world Botticelli use cases"
-template = "potential_posts"
+target = "potential_discord_posts"
 
-[narrative.use_cases.toc]
-order = ["generate", "critique", "refine"]
+[narratives.usecase.toc]
+order = ["generate", "critique", "refine", "format_json", "audit_json"]
 
 # === Narrative 3: Tutorial ===
 [narrative.tutorial]

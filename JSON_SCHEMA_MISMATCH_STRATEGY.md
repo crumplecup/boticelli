@@ -255,11 +255,17 @@ Agreed.
    - Type checking reminders
    - Common error prevention (markdown blocks, nested objects)
 
-### Phase 4: Advanced Features (Future)
+### Phase 4: Advanced Features (Partially Complete)
 
-1. Fuzzy field name matching (Issue #5, Option A)
-2. JSONB support for complex types (Issue #6, Option A)
-3. Field mapping configuration (Issue #5, Option C)
+1. ✅ Fuzzy field name matching (Issue #5, Option A)
+   - Implemented in Phase 1
+   - Converts between snake_case, camelCase, lowercase
+2. ✅ JSONB support for complex types (Issue #6, Option A)
+   - Implemented in Phase 1
+   - Stores arrays and objects as JSONB
+3. ⏸️ Field mapping configuration (Issue #5, Option C)
+   - Deferred: Fuzzy matching handles most cases
+   - Can add TOML configuration if needed later
 
 ---
 

@@ -1,7 +1,7 @@
 # Actor Integration Progress
 
 **Date**: 2025-11-27
-**Status**: In Progress (Phase 1 Complete)
+**Status**: In Progress (Phase 1 & Storage Actor Complete)
 
 ---
 
@@ -30,6 +30,49 @@
 **Result**: Actors can now run without a Discord channel_id. Perfect for narrative-only execution.
 
 **Verified**: `cargo check --package botticelli_actor` passes
+
+### Storage Actor Implementation
+
+**Files Created**:
+1. `crates/botticelli_narrative/src/storage_actor.rs` (NEW)
+   - Implemented actor-based storage system using actix
+   - Message handlers for all table operations
+   - Connection pooling for better resource management
+   - Non-blocking database operations
+
+**Files Modified**:
+1. `crates/botticelli_narrative/src/content_generation.rs`
+   - Converted from synchronous to async actor-based storage
+   - Removed direct database connection usage
+   - Uses message passing for all storage operations
+
+2. `crates/botticelli_database/src/connection.rs`
+   - Added `create_pool()` function for connection pooling
+   - Supports r2d2 connection pool with configurable size
+
+3. `crates/botticelli/src/cli/run.rs`
+   - Starts actix system during narrative execution
+   - Creates storage actor with connection pool
+   - Passes actor address to ContentGenerationProcessor
+
+4. `Cargo.toml` and `crates/botticelli_narrative/Cargo.toml`
+   - Added actix dependency to workspace and narrative crate
+
+**Storage Actor Messages**:
+- `StartGeneration`: Initialize content generation tracking
+- `CreateTableFromTemplate`: Create table from schema template
+- `CreateTableFromInference`: Infer schema and create table
+- `InsertContent`: Insert generated content with metadata
+- `CompleteGeneration`: Update generation status and metrics
+
+**Benefits**:
+- Non-blocking database operations for better throughput
+- Connection pooling reduces connection overhead
+- Isolated storage concerns from business logic
+- Better scalability for concurrent narrative execution
+- Cleaner separation of concerns following actor model
+
+**Verified**: `just check botticelli` and `just check botticelli_narrative` pass
 
 ---
 
@@ -182,15 +225,27 @@ actors/
 ## Files Modified Summary
 
 ```
-Modified:
-  crates/botticelli_actor/src/bin/actor-server.rs
-  crates/botticelli_actor/src/lib.rs
-  crates/botticelli_actor/src/platforms/mod.rs
+Phase 1:
+  Modified:
+    crates/botticelli_actor/src/bin/actor-server.rs
+    crates/botticelli_actor/src/lib.rs
+    crates/botticelli_actor/src/platforms/mod.rs
+  Created:
+    crates/botticelli_actor/src/platforms/noop.rs
+    crates/botticelli_narrative/narratives/discord/ACTOR_INTEGRATION_STRATEGY.md
+    ACTOR_INTEGRATION_PROGRESS.md
 
-Created:
-  crates/botticelli_actor/src/platforms/noop.rs
-  crates/botticelli_narrative/narratives/discord/ACTOR_INTEGRATION_STRATEGY.md
-  ACTOR_INTEGRATION_PROGRESS.md
+Storage Actor:
+  Modified:
+    crates/botticelli_narrative/src/content_generation.rs
+    crates/botticelli_narrative/src/lib.rs
+    crates/botticelli_database/src/connection.rs
+    crates/botticelli_database/src/lib.rs
+    crates/botticelli/src/cli/run.rs
+    Cargo.toml
+    crates/botticelli_narrative/Cargo.toml
+  Created:
+    crates/botticelli_narrative/src/storage_actor.rs
 ```
 
 ---

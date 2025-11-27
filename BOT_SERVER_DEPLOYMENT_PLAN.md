@@ -748,3 +748,49 @@ The `botticelli_server` crate exists but has compilation errors:
 2. Update bot constructors to match current requirements
 3. Wire configuration from `botticelli.toml` to bot creation
 4. Test end-to-end pipeline
+
+---
+
+## Implementation Attempt 2 (2025-11-27 Late Evening)
+
+### Created New `botticelli_bot` Crate
+
+Attempted to create standalone bot actors in `crates/botticelli_bot/`:
+- Generic over `BotticelliDriver` type
+- Uses tokio channels instead of Ractor
+- Direct narrative execution instead of CLI subprocess
+
+### Blocked on Executor API
+
+Cannot complete implementation because `NarrativeExecutor` doesn't support:
+1. Loading narratives from file paths
+2. Selecting specific narrative by name from multi-narrative file  
+3. The API only accepts `NarrativeProvider` trait objects
+
+### Decision Point
+
+**Option A**: Complete `botticelli_bot` crate (NEW approach)
+- Pros: Clean async design, type-safe
+- Cons: Need to extend executor API first
+
+**Option B**: Fix existing `botticelli_server` crate (EXISTING approach)
+- Pros: Already partially implemented
+- Cons: Uses CLI subprocess, Ractor complications
+
+**Recommendation**: Fix `botticelli_server` first (simpler, already exists), then migrate to `botticelli_bot` later if needed.
+
+### Files Created (Uncommitted)
+
+```
+crates/botticelli_bot/
+├── Cargo.toml
+└── src/
+    ├── lib.rs
+    ├── config.rs
+    ├── generation.rs
+    ├── curation.rs
+    ├── posting.rs
+    └── server.rs
+```
+
+**Status**: Incomplete, does not compile, blocked on executor API

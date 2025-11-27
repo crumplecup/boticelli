@@ -343,3 +343,25 @@ pub trait ContentRepository: Send + Sync {
     /// * `id` - ID of the content item
     async fn delete_content(&self, table_name: &str, id: i64) -> BotticelliResult<()>;
 }
+
+// Blanket implementations for Arc<T> where T implements the trait
+// This allows Arc-wrapped drivers to be used directly
+
+#[async_trait]
+impl<T: BotticelliDriver + ?Sized> BotticelliDriver for std::sync::Arc<T> {
+    async fn generate(&self, req: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
+        (**self).generate(req).await
+    }
+
+    fn provider_name(&self) -> &'static str {
+        (**self).provider_name()
+    }
+
+    fn model_name(&self) -> &str {
+        (**self).model_name()
+    }
+
+    fn rate_limits(&self) -> &botticelli_rate_limit::RateLimitConfig {
+        (**self).rate_limits()
+    }
+}

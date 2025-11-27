@@ -87,7 +87,7 @@ regex = "1"
 anyhow = "1"
 
 # Actor system
-actix = "0.13"
+ractor = "0.12"
 
 # Configuration and HTTP
 config = { version = "0.15", features = ["toml"] }

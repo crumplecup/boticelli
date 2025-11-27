@@ -18,6 +18,7 @@
 //! use botticelli_models::GeminiClient;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+#![recursion_limit = "2048"]
 //! // Load narrative from TOML
 //! let narrative = Narrative::from_file("narrative.toml")?;
 //!
@@ -76,7 +77,4 @@ pub use content_generation::ContentGenerationProcessor;
 pub use extraction::{extract_json, extract_toml, parse_json, parse_toml};
 
 #[cfg(feature = "database")]
-pub use storage_actor::{
-    CompleteGeneration, CreateTableFromInference, CreateTableFromTemplate, InsertContent,
-    StartGeneration, StorageActor,
-};
+pub use storage_actor::{StorageActor, StorageActorState, StorageMessage};

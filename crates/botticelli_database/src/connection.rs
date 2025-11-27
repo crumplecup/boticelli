@@ -52,12 +52,9 @@ pub fn create_pool() -> DatabaseResult<Pool<ConnectionManager<PgConnection>>> {
 
     tracing::debug!("Creating PostgreSQL connection pool");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
-    
-    Pool::builder()
-        .max_size(10)
-        .build(manager)
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to create connection pool");
-            DatabaseError::new(DatabaseErrorKind::Connection(e.to_string()))
-        })
+
+    Pool::builder().max_size(10).build(manager).map_err(|e| {
+        tracing::error!(error = %e, "Failed to create connection pool");
+        DatabaseError::new(DatabaseErrorKind::Connection(e.to_string()))
+    })
 }

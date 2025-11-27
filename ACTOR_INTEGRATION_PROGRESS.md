@@ -138,11 +138,56 @@ posted_at = "NOW()"
 
 ---
 
+## Completed ✅
+
+### Phase 3: Migrate from Actix to Ractor ✅
+
+**Status**: COMPLETE - Successfully migrated from actix to ractor framework
+
+**Decision**: After evaluating tokio channels vs actor frameworks, chose Ractor for:
+- Tokio-native (no runtime conflicts)
+- Supervision trees for fault tolerance
+- Remote actor support for future distributed deployment
+- Better async/await integration
+- No nested runtime issues in tests
+
+**Implementation**:
+1. ✅ Replaced actix dependencies with ractor in workspace Cargo.toml
+2. ✅ Converted StorageActor from actix Actor to ractor Actor
+3. ✅ Updated message types to use ractor RpcReplyPort
+4. ✅ Migrated ContentGenerationProcessor to use ractor RPC calls
+5. ✅ Updated CLI to spawn ractor actors instead of actix system
+6. ✅ Fixed all tests - no more nested runtime issues
+7. ✅ Added documentation to all message fields
+
+**Files Modified**:
+- `Cargo.toml` - Replaced actix with ractor v0.12
+- `crates/botticelli/Cargo.toml` - Updated feature dependencies
+- `crates/botticelli_narrative/Cargo.toml` - Updated feature dependencies
+- `crates/botticelli_narrative/src/storage_actor.rs` - Complete rewrite for ractor
+- `crates/botticelli_narrative/src/content_generation.rs` - Updated to use ractor RPC
+- `crates/botticelli_narrative/src/lib.rs` - Updated exports
+- `crates/botticelli/src/cli/run.rs` - Spawn ractor actor
+
+**Key Changes**:
+- StorageActor now implements `ractor::Actor` trait
+- Messages now use `StorageMessage` enum with reply ports
+- RPC calls use `ActorRef::call()` with reply port closure
+- Added `unwrap_call_result()` helper to handle CallResult
+- Removed all actix system and runtime management
+
+**Verification**: 
+- ✅ All 39 Discord command tests pass
+- ✅ No nested runtime errors
+- ✅ Zero compiler warnings
+- ✅ `just check botticelli_narrative` passes
+- ✅ `just check botticelli` passes
+
 ## In Progress 🚧
 
-### Phase 3: Create NarrativeExecutionSkill ⏳
+### Phase 4: Create NarrativeExecutionSkill ⏳
 
-**Status**: Partially Complete - Narrative loading works, execution pending database connection
+**Status**: Partially Complete - Narrative loading works, execution pending ractor migration
 
 **Files Created**:
 1. `crates/botticelli_actor/src/skills/narrative_execution.rs`
@@ -185,7 +230,7 @@ narrative_name = "poster"  # Optional for multi-narrative files
 
 ## Pending ⏳
 
-### Phase 4: Update discord_poster Narrative
+### Phase 5: Update discord_poster Narrative
 
 **File to Modify**:
 - `crates/botticelli_narrative/narratives/discord/discord_poster.toml`
@@ -195,7 +240,7 @@ narrative_name = "poster"  # Optional for multi-narrative files
 2. Use database.update_table bot command
 3. Mark posted content as 'posted' to prevent duplicates
 
-### Phase 5: Create Actor Configurations
+### Phase 6: Create Actor Configurations
 
 **Files to Create**:
 ```
@@ -205,7 +250,7 @@ actors/
 └── posting_actor.toml          # Runs every 2 hours, with channel_id
 ```
 
-### Phase 6: Create Server Configuration
+### Phase 7: Create Server Configuration
 
 **File to Create**:
 - `actor_server.toml`
@@ -214,7 +259,7 @@ actors/
 - Server settings (check_interval, circuit_breaker)
 - Three actor instances with schedules
 
-### Phase 7: Testing
+### Phase 8: Testing
 
 **Test Plan**:
 1. Dry-run validation
@@ -228,29 +273,35 @@ actors/
 
 1. ~~**Implement database.update_table command**~~ ✅ COMPLETE
 
-2. **Create NarrativeExecutionSkill** (1 hour)
-   - Implement skill that executes narratives
+2. **Migrate to Ractor** (2-3 hours) ⏳ IN PROGRESS
+   - Replace actix with ractor framework
+   - Fix nested runtime issues in tests
+   - Rewrite StorageActor for ractor
+   - Update all actor communication code
+
+3. **Complete NarrativeExecutionSkill** (1 hour)
+   - Update to use ractor
    - Handle database connection passing
    - Test with discord_poster.toml
 
-3. **Update discord_poster narrative** (15 min)
+4. **Update discord_poster narrative** (15 min)
    - Add mark_posted act
    - Use database.update_table command
 
-4. **Create actor configs** (30 min)
+5. **Create actor configs** (30 min)
    - Three TOML files for actors
    - Configure skills and schedules
 
-5. **Create server config** (15 min)
+6. **Create server config** (15 min)
    - Single TOML file
    - Register all three actors
 
-6. **Test everything** (1 hour)
+7. **Test everything** (1 hour)
    - Validation testing
    - Single execution testing
    - Full integration testing
 
-**Total Estimated Time Remaining**: 2-3 hours
+**Total Estimated Time Remaining**: 4-6 hours
 
 ---
 

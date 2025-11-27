@@ -5,14 +5,35 @@
 //! schema automatically from JSON responses when no template is provided.
 
 use crate::{
-    ActProcessor, CompleteGeneration, CreateTableFromInference, CreateTableFromTemplate,
-    InsertContent, ProcessorContext, StartGeneration, extraction::extract_json,
+    ActProcessor, ProcessorContext, StorageMessage, extraction::extract_json,
     extraction::parse_json,
 };
-use actix::Addr;
 use async_trait::async_trait;
 use botticelli_error::BotticelliResult;
+use ractor::{ActorRef, MessagingErr, rpc::CallResult};
 use serde_json::Value as JsonValue;
+
+/// Helper to unwrap Ractor's CallResult into a standard Result
+fn unwrap_call_result<T>(
+    result: Result<CallResult<BotticelliResult<T>>, MessagingErr<StorageMessage>>,
+) -> BotticelliResult<T> {
+    match result {
+        Ok(CallResult::Success(inner)) => inner,
+        Ok(CallResult::Timeout) => Err(botticelli_error::BackendError::new(
+            "Storage actor call timed out",
+        )
+        .into()),
+        Ok(CallResult::SenderError) => Err(botticelli_error::BackendError::new(
+            "Storage actor sender error",
+        )
+        .into()),
+        Err(e) => Err(botticelli_error::BackendError::new(format!(
+            "Failed to send message to storage actor: {}",
+            e
+        ))
+        .into()),
+    }
+}
 
 /// Content generation processing mode
 #[derive(Debug, Clone, PartialEq)]
@@ -32,8 +53,8 @@ enum ProcessingMode {
 /// 4. Inserts generated content with metadata columns
 /// 5. Updates tracking record with success/failure
 pub struct ContentGenerationProcessor {
-    /// Storage actor address for asynchronous database operations
-    storage_actor: Addr<crate::StorageActor>,
+    /// Storage actor reference for asynchronous database operations
+    storage_actor: ActorRef<StorageMessage>,
 }
 
 impl ContentGenerationProcessor {
@@ -41,8 +62,8 @@ impl ContentGenerationProcessor {
     ///
     /// # Arguments
     ///
-    /// * `storage_actor` - Address of the storage actor for database operations
-    pub fn new(storage_actor: Addr<crate::StorageActor>) -> Self {
+    /// * `storage_actor` - Reference to the storage actor for database operations
+    pub fn new(storage_actor: ActorRef<StorageMessage>) -> Self {
         Self { storage_actor }
     }
 }
@@ -50,7 +71,6 @@ impl ContentGenerationProcessor {
 #[async_trait]
 impl ActProcessor for ContentGenerationProcessor {
     async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
-
         // Determine processing mode: Template or Inference
         let processing_mode = if let Some(template) = &context.narrative_metadata.template() {
             ProcessingMode::Template(template.clone())
@@ -80,11 +100,15 @@ impl ActProcessor for ContentGenerationProcessor {
         // Track generation start (fire and forget - don't block on tracking failures)
         let _ = self
             .storage_actor
-            .send(StartGeneration {
-                table_name: table_name.clone(),
-                narrative_file: format!("{} (from processor)", context.narrative_name),
-                narrative_name: context.narrative_name.to_string(),
-            })
+            .call(
+                |reply| StorageMessage::StartGeneration {
+                    table_name: table_name.clone(),
+                    narrative_file: format!("{} (from processor)", context.narrative_name),
+                    narrative_name: context.narrative_name.to_string(),
+                    reply,
+                },
+                None,
+            )
             .await;
 
         // Execute content generation
@@ -106,48 +130,36 @@ impl ActProcessor for ContentGenerationProcessor {
             // Create table based on processing mode
             match &processing_mode {
                 ProcessingMode::Template(template) => {
-                    self.storage_actor
-                        .send(CreateTableFromTemplate {
-                            table_name: table_name.clone(),
-                            template: template.clone(),
-                            narrative_name: Some(context.narrative_name.to_string()),
-                            description: Some(context.narrative_metadata.description().to_string()),
-                        })
-                        .await
-                        .map_err(|e| {
-                            botticelli_error::BackendError::new(format!(
-                                "Failed to send create table message: {}",
-                                e
-                            ))
-                        })?
-                        .map_err(|e| {
-                            botticelli_error::BackendError::new(format!(
-                                "Failed to create table from template: {}",
-                                e
-                            ))
-                        })?;
+                    unwrap_call_result(
+                        self.storage_actor
+                            .call(
+                                |reply| StorageMessage::CreateTableFromTemplate {
+                                    table_name: table_name.clone(),
+                                    template: template.clone(),
+                                    narrative_name: Some(context.narrative_name.to_string()),
+                                    description: Some(context.narrative_metadata.description().to_string()),
+                                    reply,
+                                },
+                                None,
+                            )
+                            .await,
+                    )?;
                 }
                 ProcessingMode::Inference => {
-                    self.storage_actor
-                        .send(CreateTableFromInference {
-                            table_name: table_name.clone(),
-                            json_sample: parsed_json.clone(),
-                            narrative_name: Some(context.narrative_name.to_string()),
-                            description: Some(context.narrative_metadata.description().to_string()),
-                        })
-                        .await
-                        .map_err(|e| {
-                            botticelli_error::BackendError::new(format!(
-                                "Failed to send create table message: {}",
-                                e
-                            ))
-                        })?
-                        .map_err(|e| {
-                            botticelli_error::BackendError::new(format!(
-                                "Failed to create table from inference: {}",
-                                e
-                            ))
-                        })?;
+                    unwrap_call_result(
+                        self.storage_actor
+                            .call(
+                                |reply| StorageMessage::CreateTableFromInference {
+                                    table_name: table_name.clone(),
+                                    json_sample: parsed_json.clone(),
+                                    narrative_name: Some(context.narrative_name.to_string()),
+                                    description: Some(context.narrative_metadata.description().to_string()),
+                                    reply,
+                                },
+                                None,
+                            )
+                            .await,
+                    )?;
                 }
             }
 
@@ -165,24 +177,21 @@ impl ActProcessor for ContentGenerationProcessor {
                     "Inserting content item"
                 );
 
-                self.storage_actor
-                    .send(InsertContent {
-                        table_name: table_name.clone(),
-                        json_data: item.clone(),
-                        narrative_name: context.narrative_name.to_string(),
-                        act_name: context.execution.act_name.clone(),
-                        model: context.execution.model.clone(),
-                    })
-                    .await
-                    .map_err(|e| {
-                        botticelli_error::BackendError::new(format!(
-                            "Failed to send insert message: {}",
-                            e
-                        ))
-                    })?
-                    .map_err(|e| {
-                        botticelli_error::BackendError::new(format!("Failed to insert content: {}", e))
-                    })?;
+                unwrap_call_result(
+                    self.storage_actor
+                        .call(
+                            |reply| StorageMessage::InsertContent {
+                                table_name: table_name.clone(),
+                                json_data: item.clone(),
+                                narrative_name: context.narrative_name.to_string(),
+                                act_name: context.execution.act_name.clone(),
+                                model: context.execution.model.clone(),
+                                reply,
+                            },
+                            None,
+                        )
+                        .await,
+                )?;
             }
 
             Ok(items.len())
@@ -192,25 +201,26 @@ impl ActProcessor for ContentGenerationProcessor {
         // Update tracking record with result
         let duration_ms = start_time.elapsed().as_millis() as i32;
 
-        let complete_msg = match &generation_result {
-            Ok(row_count) => CompleteGeneration {
-                table_name: table_name.clone(),
-                row_count: Some(*row_count as i32),
-                duration_ms,
-                status: "success".to_string(),
-                error_message: None,
-            },
-            Err(e) => CompleteGeneration {
-                table_name: table_name.clone(),
-                row_count: None,
-                duration_ms,
-                status: "failed".to_string(),
-                error_message: Some(e.to_string()),
-            },
+        let (row_count, status, error_message) = match &generation_result {
+            Ok(count) => (Some(*count as i32), "success".to_string(), None),
+            Err(e) => (None, "failed".to_string(), Some(e.to_string())),
         };
 
         // Fire and forget - don't block on tracking update
-        let _ = self.storage_actor.send(complete_msg).await;
+        let _ = self
+            .storage_actor
+            .call(
+                |reply| StorageMessage::CompleteGeneration {
+                    table_name: table_name.clone(),
+                    row_count,
+                    duration_ms,
+                    status,
+                    error_message,
+                    reply,
+                },
+                None,
+            )
+            .await;
 
         // Return the original result
         generation_result.map(|row_count| {

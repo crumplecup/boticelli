@@ -2,6 +2,8 @@
 //!
 //! This crate provides the core abstractions for building automated social media
 //! actors that can work across multiple platforms (Discord, Twitter, Bluesky, etc.).
+
+#![recursion_limit = "512"]
 //!
 //! # Architecture
 //!

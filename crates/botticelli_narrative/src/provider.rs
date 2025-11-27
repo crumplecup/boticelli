@@ -172,7 +172,7 @@ impl ActConfig {
 /// - Reduced coupling (config changes don't ripple through executor)
 /// - Multimodal support (acts can use text, images, audio, video, documents)
 /// - Per-act model selection (different acts can use different LLMs)
-pub trait NarrativeProvider {
+pub trait NarrativeProvider: Send + Sync {
     /// Name of the narrative for tracking and identification.
     fn name(&self) -> &str;
 

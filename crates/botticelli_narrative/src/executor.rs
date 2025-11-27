@@ -14,6 +14,8 @@ use botticelli_interface::{
 };
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Trait for executing bot commands (platform-agnostic).
 ///
@@ -268,8 +270,18 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     /// Returns an error if:
     /// - Any LLM API call fails
     /// - The response format is unexpected
+    pub fn execute<'a, N>(
+        &'a self,
+        narrative: &'a N,
+    ) -> Pin<Box<dyn Future<Output = BotticelliResult<NarrativeExecution>> + Send + 'a>>
+    where
+        N: NarrativeProvider + ?Sized,
+    {
+        Box::pin(async move { self.execute_impl(narrative).await })
+    }
+
     #[tracing::instrument(skip(self, narrative), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]
-    pub async fn execute<N: NarrativeProvider + ?Sized>(
+    async fn execute_impl<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
     ) -> BotticelliResult<NarrativeExecution> {
@@ -298,7 +310,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 if let Some(ref_narrative) = resolved_narrative {
                     // Recursively execute the referenced narrative
                     tracing::debug!("Recursively executing referenced narrative");
-                    let nested_execution = Box::pin(self.execute(ref_narrative)).await?;
+                    let nested_execution = self.execute(ref_narrative).await?;
 
                     // Collect all responses from the nested execution
                     let nested_responses: Vec<String> = nested_execution

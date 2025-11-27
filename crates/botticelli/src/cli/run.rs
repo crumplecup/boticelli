@@ -325,9 +325,10 @@ pub async fn run_narrative(
     let executor = {
         #[cfg(feature = "database")]
         {
-            use actix::Actor;
             use botticelli::ProcessorRegistry;
-            use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, create_pool};
+            use botticelli_database::{
+                DatabaseTableQueryRegistry, TableQueryExecutor, create_pool,
+            };
             use botticelli_narrative::{ContentGenerationProcessor, StorageActor};
             use std::sync::{Arc, Mutex};
 
@@ -336,17 +337,21 @@ pub async fn run_narrative(
             let table_executor = TableQueryExecutor::new(Arc::new(Mutex::new(table_conn)));
             let table_registry = DatabaseTableQueryRegistry::new(table_executor);
 
-            // Start actor system and create storage actor
-            tracing::info!("Starting actor system for storage operations");
-            let system = actix::System::new();
+            // Start storage actor with Ractor
+            tracing::info!("Starting storage actor");
             let pool = create_pool()?;
-            let storage_actor = system.block_on(async {
-                StorageActor::new(pool).start()
-            });
+            
+            let actor = StorageActor::new(pool.clone());
+            let (actor_ref, _handle) = ractor::Actor::spawn(None, actor, pool)
+                .await
+                .map_err(|e| {
+                    botticelli_error::BackendError::new(format!("Failed to spawn storage actor: {}", e))
+                })?;
+            
             tracing::info!("Storage actor started");
 
             // Create content generation processor with storage actor
-            let processor = ContentGenerationProcessor::new(storage_actor);
+            let processor = ContentGenerationProcessor::new(actor_ref);
 
             let mut registry = ProcessorRegistry::new();
             registry.register(Box::new(processor));

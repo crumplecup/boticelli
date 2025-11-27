@@ -66,6 +66,14 @@ pub enum ActorErrorKind {
     /// JSON serialization error.
     #[display("JSON error: {}", _0)]
     JsonError(String),
+
+    /// Database operation error.
+    #[display("Database error: {}", _0)]
+    Database(String),
+
+    /// Narrative execution error.
+    #[display("Narrative error: {}", _0)]
+    Narrative(String),
 }
 
 impl ActorErrorKind {

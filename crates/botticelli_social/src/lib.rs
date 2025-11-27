@@ -30,6 +30,8 @@
 #[cfg(feature = "database")]
 mod bot_commands;
 #[cfg(feature = "database")]
+mod database;
+#[cfg(feature = "database")]
 mod secure_bot_executor;
 #[cfg(feature = "database")]
 mod secure_executor;
@@ -43,6 +45,8 @@ pub use bot_commands::{
     BotCommandError, BotCommandErrorKind, BotCommandExecutor, BotCommandRegistryImpl,
     BotCommandResult,
 };
+#[cfg(feature = "database")]
+pub use database::DatabaseCommandExecutor;
 
 // Export secure executor (requires database feature)
 #[cfg(feature = "database")]

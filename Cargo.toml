@@ -86,6 +86,9 @@ tracing = "0.1"
 regex = "1"
 anyhow = "1"
 
+# Actor system
+actix = "0.13"
+
 # Configuration and HTTP
 config = { version = "0.15", features = ["toml"] }
 reqwest = { version = "0.12", features = [

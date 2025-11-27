@@ -1,0 +1,26 @@
+# Isolation Test 2.2: Table AFTER text prompt (reversed order)
+# Goal: Determine if table input order affects response capture
+
+[narrative]
+name = "isolation_2_2"
+description = "Text prompt first, then table (reversed order)"
+target = "test_isolation_output"
+
+[toc]
+order = ["test"]
+
+[acts.test]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 100
+
+[[acts.test.input]]
+type = "text"
+content = "Output JSON: {\"test\": \"value\"}"
+
+[[acts.test.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 1
+order_by = "generated_at DESC"

@@ -609,6 +609,11 @@ impl GeminiClient {
                 }
             }
         }
+        tracing::debug!(
+            combined_text_length = combined_text.len(),
+            combined_text_preview = &combined_text[..combined_text.len().min(200)],
+            "Combined messages for Gemini Live API"
+        );
         combined_text
     }
 

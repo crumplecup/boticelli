@@ -1,0 +1,17 @@
+# Simple test narrative
+[narrative]
+name = "test_simple"
+description = "Simple test to check if responses work"
+skip_content_generation = true
+
+[toc]
+order = ["test_act"]
+
+[acts.test_act]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 100
+
+[[acts.test_act.input]]
+type = "text"
+content = "Say 'Hello World' and nothing else."

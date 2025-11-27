@@ -46,6 +46,7 @@ impl TableReferenceNarrative {
             alias: Some("test_data".to_string()),
             format: TableFormat::Markdown,
             sample: None,
+            history_retention: Default::default(),
         };
 
         let act_config = ActConfig::new(
@@ -292,6 +293,7 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
         alias: Some("completed_orders".to_string()),
         format: TableFormat::Json,
         sample: None,
+        history_retention: Default::default(),
     };
 
     let act_config = ActConfig::new(
@@ -425,6 +427,7 @@ async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
         alias: Some("employees".to_string()),
         format: TableFormat::Csv,
         sample: None,
+        history_retention: Default::default(),
     };
 
     let act_config = ActConfig::new(

@@ -182,83 +182,83 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             info!(actor = %actor_instance.name, "Actor created successfully");
 
-                // Load previous state from database if available
-                let mut loaded_last_run = None;
-                if let Some(ref persistence) = persistence {
-                    match persistence.load_task_state(&actor_instance.name).await {
-                        Ok(Some(state)) => {
-                            info!(
-                                actor = %actor_instance.name,
-                                consecutive_failures = ?state.consecutive_failures,
-                                is_paused = ?state.is_paused,
-                                "Loaded previous task state from database"
-                            );
-                            loaded_last_run = state
-                                .last_run
-                                .map(|dt| DateTime::from_naive_utc_and_offset(dt, Utc));
-                        }
-                        Ok(None) => {
-                            debug!(actor = %actor_instance.name, "No previous state found");
-                        }
-                        Err(e) => {
-                            warn!(
-                                actor = %actor_instance.name,
-                                error = ?e,
-                                "Failed to load previous state"
-                            );
-                        }
+            // Load previous state from database if available
+            let mut loaded_last_run = None;
+            if let Some(ref persistence) = persistence {
+                match persistence.load_task_state(&actor_instance.name).await {
+                    Ok(Some(state)) => {
+                        info!(
+                            actor = %actor_instance.name,
+                            consecutive_failures = ?state.consecutive_failures,
+                            is_paused = ?state.is_paused,
+                            "Loaded previous task state from database"
+                        );
+                        loaded_last_run = state
+                            .last_run
+                            .map(|dt| DateTime::from_naive_utc_and_offset(dt, Utc));
+                    }
+                    Ok(None) => {
+                        debug!(actor = %actor_instance.name, "No previous state found");
+                    }
+                    Err(e) => {
+                        warn!(
+                            actor = %actor_instance.name,
+                            error = ?e,
+                            "Failed to load previous state"
+                        );
                     }
                 }
+            }
 
-                // Create execution tracker if persistence is enabled
-                let tracker = persistence.as_ref().map(|p| {
-                    ActorExecutionTracker::new(
-                        p.clone(),
-                        actor_instance.name.clone(),
-                        actor_instance.name.clone(),
-                    )
-                });
-
-                // Store actor with schedule, last run, and tracker
-                actors.insert(
+            // Create execution tracker if persistence is enabled
+            let tracker = persistence.as_ref().map(|p| {
+                ActorExecutionTracker::new(
+                    p.clone(),
                     actor_instance.name.clone(),
-                    (
-                        actor,
-                        actor_instance.schedule.clone(),
-                        loaded_last_run,
-                        tracker,
-                    ),
-                );
+                    actor_instance.name.clone(),
+                )
+            });
 
-                match &actor_instance.schedule {
-                    ScheduleConfig::Interval { seconds } => {
-                        info!(
-                            actor = %actor_instance.name,
-                            interval_seconds = seconds,
-                            "Scheduled with interval"
-                        );
-                    }
-                    ScheduleConfig::Immediate => {
-                        info!(
-                            actor = %actor_instance.name,
-                            "Scheduled for immediate execution"
-                        );
-                    }
-                    ScheduleConfig::Cron { expression } => {
-                        info!(
-                            actor = %actor_instance.name,
-                            cron = expression,
-                            "Scheduled with cron"
-                        );
-                    }
-                    ScheduleConfig::Once { at } => {
-                        info!(
-                            actor = %actor_instance.name,
-                            scheduled_at = at,
-                            "Scheduled for one-time execution"
-                        );
-                    }
+            // Store actor with schedule, last run, and tracker
+            actors.insert(
+                actor_instance.name.clone(),
+                (
+                    actor,
+                    actor_instance.schedule.clone(),
+                    loaded_last_run,
+                    tracker,
+                ),
+            );
+
+            match &actor_instance.schedule {
+                ScheduleConfig::Interval { seconds } => {
+                    info!(
+                        actor = %actor_instance.name,
+                        interval_seconds = seconds,
+                        "Scheduled with interval"
+                    );
                 }
+                ScheduleConfig::Immediate => {
+                    info!(
+                        actor = %actor_instance.name,
+                        "Scheduled for immediate execution"
+                    );
+                }
+                ScheduleConfig::Cron { expression } => {
+                    info!(
+                        actor = %actor_instance.name,
+                        cron = expression,
+                        "Scheduled with cron"
+                    );
+                }
+                ScheduleConfig::Once { at } => {
+                    info!(
+                        actor = %actor_instance.name,
+                        scheduled_at = at,
+                        "Scheduled for one-time execution"
+                    );
+                }
+            }
         }
 
         // Set up graceful shutdown signal handler

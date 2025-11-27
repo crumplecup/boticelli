@@ -20,6 +20,7 @@ shellexpand = "3"
 botticelli_database = { workspace = true, optional = true }
 diesel = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
+actix = { workspace = true, optional = true }
 
 # Async
 async-trait = { workspace = true }
@@ -40,7 +41,7 @@ derive_setters.workspace = true
 
 [features]
 default = []
-database = ["dep:botticelli_database", "dep:diesel", "dep:chrono"]
+database = ["dep:botticelli_database", "dep:diesel", "dep:chrono", "dep:actix"]
 api = []  # Marker feature for tests that make real API calls
 gemini = []  # Marker feature for Gemini-specific tests
 

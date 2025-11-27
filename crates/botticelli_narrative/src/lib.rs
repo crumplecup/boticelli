@@ -53,6 +53,9 @@ mod content_generation;
 #[cfg(feature = "database")]
 mod extraction;
 
+#[cfg(feature = "database")]
+mod storage_actor;
+
 pub use carousel::{CarouselConfig, CarouselResult, CarouselState};
 pub use core::{Narrative, NarrativeMetadata, NarrativeToc};
 pub use executor::{BotCommandRegistry, NarrativeExecutor};
@@ -71,3 +74,9 @@ pub use content_generation::ContentGenerationProcessor;
 
 #[cfg(feature = "database")]
 pub use extraction::{extract_json, extract_toml, parse_json, parse_toml};
+
+#[cfg(feature = "database")]
+pub use storage_actor::{
+    CompleteGeneration, CreateTableFromInference, CreateTableFromTemplate, InsertContent,
+    StartGeneration, StorageActor,
+};

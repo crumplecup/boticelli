@@ -281,7 +281,7 @@ pub fn create_inferred_table(
     columns.push("source_narrative TEXT".to_string());
     columns.push("source_act TEXT".to_string());
     columns.push("generation_model TEXT".to_string());
-    
+
     if !schema.fields.contains_key("review_status") {
         columns.push("review_status TEXT DEFAULT 'pending'".to_string());
     }

@@ -228,7 +228,7 @@ where
             .chars()
             .take(100)
             .collect::<String>();
-        
+
         tracing::error!(
             error = %e,
             json_preview = %preview,

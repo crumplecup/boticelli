@@ -1,0 +1,41 @@
+# Curation Test V3: Bullet points like generation_carousel
+[narrative]
+name = "curate_v3"
+description = "Test with bullet point requirements"
+target = "approved_discord_posts"
+
+[toc]
+order = ["select"]
+
+[acts.select]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 600
+
+[[acts.select.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 10
+order_by = "generated_at DESC"
+
+[[acts.select.input]]
+type = "text"
+content = """
+Read the posts in the table above.
+
+Task: Select the best post
+
+Requirements:
+- Choose highest quality
+- Consider engagement and clarity
+- Select only ONE post
+
+Output only the selected post as JSON:
+{
+  "text_content": "Post text...",
+  "content_type": "discord_post",
+  "source": "curation_v3",
+  "tags": ["approved"]
+}
+"""

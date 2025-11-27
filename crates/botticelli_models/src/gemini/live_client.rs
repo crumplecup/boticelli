@@ -391,6 +391,11 @@ impl LiveSession {
 
                 // Extract text from response
                 if let Some(text) = server_msg.extract_text() {
+                    debug!(
+                        chunk_length = text.len(),
+                        chunk_text = &text[..text.len().min(100)],
+                        "Extracted text chunk from server message"
+                    );
                     full_response.push_str(&text);
                 }
 

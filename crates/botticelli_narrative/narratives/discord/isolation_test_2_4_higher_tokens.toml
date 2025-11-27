@@ -1,0 +1,26 @@
+# Isolation Test 2.4: Same as 2.3 but with higher max_tokens
+# Goal: Determine if max_tokens affects truncation
+
+[narrative]
+name = "isolation_2_4"
+description = "Table query with higher max_tokens (1000)"
+target = "test_isolation_output"
+
+[toc]
+order = ["test"]
+
+[acts.test]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 1000
+
+[[acts.test.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+where_clause = "1=0"
+limit = 1
+
+[[acts.test.input]]
+type = "text"
+content = "Output JSON: {\"test\": \"value\"}"

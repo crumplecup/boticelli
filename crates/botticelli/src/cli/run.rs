@@ -326,8 +326,8 @@ pub async fn run_narrative(
         #[cfg(feature = "database")]
         {
             use botticelli::ProcessorRegistry;
-            use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor};
-            use botticelli_narrative::ContentGenerationProcessor;
+            use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, create_pool};
+            use botticelli_narrative::{ContentGenerationProcessor, StorageActor};
             use std::sync::{Arc, Mutex};
 
             // Create database connection for table queries
@@ -335,9 +335,17 @@ pub async fn run_narrative(
             let table_executor = TableQueryExecutor::new(Arc::new(Mutex::new(table_conn)));
             let table_registry = DatabaseTableQueryRegistry::new(table_executor);
 
-            // Create content generation processor
-            let proc_conn = botticelli::establish_connection()?;
-            let processor = ContentGenerationProcessor::new(Arc::new(Mutex::new(proc_conn)));
+            // Start actor system and create storage actor
+            tracing::info!("Starting actor system for storage operations");
+            let system = actix::System::new();
+            let pool = create_pool()?;
+            let storage_actor = system.block_on(async {
+                StorageActor::new(pool).start()
+            });
+            tracing::info!("Storage actor started");
+
+            // Create content generation processor with storage actor
+            let processor = ContentGenerationProcessor::new(storage_actor);
 
             let mut registry = ProcessorRegistry::new();
             registry.register(Box::new(processor));
@@ -348,27 +356,42 @@ pub async fn run_narrative(
             executor = executor.with_table_registry(Box::new(table_registry));
             tracing::info!("Table registry configured");
 
-            // Configure Discord bot registry if feature enabled and requested
-            #[cfg(feature = "discord")]
-            if options.process_discord() {
-                use botticelli_social::{BotCommandRegistryImpl, DiscordCommandExecutor};
-                use std::env;
+            // Configure bot command registry (always create with database executor)
+            #[cfg(feature = "database")]
+            {
+                use botticelli_social::{BotCommandRegistryImpl, DatabaseCommandExecutor};
 
-                if let Ok(token) = env::var("DISCORD_TOKEN") {
-                    tracing::info!("Configuring Discord bot registry");
-                    let discord_executor = DiscordCommandExecutor::new(token);
-                    let mut bot_registry = BotCommandRegistryImpl::new();
-                    bot_registry.register(discord_executor);
-                    executor = executor.with_bot_registry(Box::new(bot_registry));
-                    tracing::info!("Discord bot registry configured");
-                } else {
-                    tracing::warn!("DISCORD_TOKEN not set, Discord commands will fail");
+                tracing::info!("Configuring bot command registry");
+                let mut bot_registry = BotCommandRegistryImpl::new();
+
+                // Always register database executor
+                let database_executor = DatabaseCommandExecutor::new();
+                bot_registry.register(database_executor);
+                tracing::info!("Database command executor registered");
+
+                // Configure Discord bot executor if feature enabled and requested
+                #[cfg(feature = "discord")]
+                if options.process_discord() {
+                    use botticelli_social::DiscordCommandExecutor;
+                    use std::env;
+
+                    if let Ok(token) = env::var("DISCORD_TOKEN") {
+                        tracing::info!("Configuring Discord bot executor");
+                        let discord_executor = DiscordCommandExecutor::new(token);
+                        bot_registry.register(discord_executor);
+                        tracing::info!("Discord bot executor registered");
+                    } else {
+                        tracing::warn!("DISCORD_TOKEN not set, Discord commands will fail");
+                    }
                 }
-            }
 
-            #[cfg(not(feature = "discord"))]
-            if options.process_discord() {
-                tracing::warn!("Discord feature not enabled, Discord commands will fail");
+                #[cfg(not(feature = "discord"))]
+                if options.process_discord() {
+                    tracing::warn!("Discord feature not enabled, Discord commands will fail");
+                }
+
+                executor = executor.with_bot_registry(Box::new(bot_registry));
+                tracing::info!("Bot command registry configured");
             }
 
             // Configure state manager if state_dir provided

@@ -325,12 +325,20 @@ impl StorageActor {
     ) -> BotticelliResult<()> {
         let mut conn = self.get_conn()?;
 
-        // Query schema to get column types
+        // Query schema to get column types and constraints
         let schema = reflect_table_schema(&mut conn, &table_name)?;
         let column_types: std::collections::HashMap<_, _> = schema
             .columns
             .iter()
             .map(|col| (col.name.as_str(), col.data_type.as_str()))
+            .collect();
+        
+        // Track required (NOT NULL) columns, excluding auto-generated ones
+        let required_columns: Vec<&str> = schema
+            .columns
+            .iter()
+            .filter(|col| !col.is_nullable && col.column_default.is_none())
+            .map(|col| col.name.as_str())
             .collect();
 
         // Build INSERT statement dynamically
@@ -342,10 +350,12 @@ impl StorageActor {
         let mut values = Vec::new();
 
         // Add content fields from JSON (with fuzzy matching)
+        let mut provided_columns = std::collections::HashSet::new();
         for (key, value) in obj {
             if let Some((col_name, col_type)) = find_column_match(key, &column_types) {
                 columns.push(col_name.to_string());
                 values.push(json_value_to_sql(value, col_type));
+                provided_columns.insert(col_name);
             } else {
                 tracing::debug!(
                     field = %key,
@@ -353,6 +363,26 @@ impl StorageActor {
                     "Ignoring extra JSON field not in table schema"
                 );
             }
+        }
+        
+        // Validate required fields before INSERT
+        let missing_required: Vec<&str> = required_columns
+            .iter()
+            .filter(|&&col| !provided_columns.contains(col) && col != "source_narrative" && col != "source_act" && col != "model")
+            .copied()
+            .collect();
+        
+        if !missing_required.is_empty() {
+            tracing::error!(
+                table = %table_name,
+                missing_fields = ?missing_required,
+                provided_fields = ?provided_columns,
+                "JSON missing required NOT NULL fields"
+            );
+            return Err(botticelli_error::BackendError::new(format!(
+                "JSON missing required fields for table '{}': {:?}",
+                table_name, missing_required
+            )).into());
         }
 
         // Add metadata columns

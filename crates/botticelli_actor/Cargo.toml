@@ -28,6 +28,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 botticelli_database = { path = "../botticelli_database" }
 botticelli_error = { path = "../botticelli_error" }
+botticelli_narrative = { path = "../botticelli_narrative", features = ["database"] }
 botticelli_server = { path = "../botticelli_server" }
 
 # Optional Discord platform support

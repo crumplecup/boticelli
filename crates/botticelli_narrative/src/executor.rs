@@ -367,6 +367,31 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             let (response_text, model, temperature, max_tokens) = if has_text_prompt {
                 // This act needs an LLM response
                 // Build the request with conversation history + processed inputs
+                tracing::debug!(
+                    processed_inputs_count = processed_inputs.len(),
+                    "Building LLM request with processed inputs"
+                );
+
+                for (idx, input) in processed_inputs.iter().enumerate() {
+                    match input {
+                        Input::Text(text) => {
+                            tracing::debug!(
+                                input_index = idx,
+                                text_length = text.len(),
+                                text_preview = &text[..text.len().min(100)],
+                                "Processed input is Text"
+                            );
+                        }
+                        other => {
+                            tracing::debug!(
+                                input_index = idx,
+                                input_type = ?other,
+                                "Processed input is non-Text"
+                            );
+                        }
+                    }
+                }
+
                 conversation_history.push(
                     MessageBuilder::default()
                         .role(Role::User)
@@ -401,8 +426,40 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 // Call the LLM
                 let response = self.driver.generate(&request).await?;
 
+                tracing::debug!(
+                    outputs_count = response.outputs.len(),
+                    "LLM response received"
+                );
+
+                // Debug log the output types
+                for (idx, output) in response.outputs.iter().enumerate() {
+                    match output {
+                        botticelli_core::Output::Text(text) => {
+                            tracing::debug!(
+                                output_index = idx,
+                                text_length = text.len(),
+                                text_preview = &text[..text.len().min(100)],
+                                "Output is Text variant"
+                            );
+                        }
+                        other => {
+                            tracing::debug!(
+                                output_index = idx,
+                                output_type = ?other,
+                                "Output is non-Text variant"
+                            );
+                        }
+                    }
+                }
+
                 // Extract text from response
                 let response_text = extract_text_from_outputs(&response.outputs)?;
+
+                tracing::debug!(
+                    response_length = response_text.len(),
+                    response_preview = &response_text[..response_text.len().min(200)],
+                    "Response text extracted from LLM outputs"
+                );
 
                 (response_text, model, temperature, max_tokens)
             } else {
@@ -431,6 +488,12 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 response: response_text.clone(),
                 sequence_number,
             };
+
+            tracing::debug!(
+                act = %act_name,
+                act_execution_response_length = act_execution.response.len(),
+                "ActExecution created with response"
+            );
 
             // Process with registered processors
             if let Some(registry) = &self.processor_registry {
@@ -475,6 +538,48 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                             )))
                         })?,
                 );
+
+                // Apply history retention policies to the user message we just processed
+                // The user message is at conversation_history.len() - 2 (assistant message was just pushed)
+                if conversation_history.len() >= 2 {
+                    let user_msg_idx = conversation_history.len() - 2;
+                    if let Some(user_message) = conversation_history.get(user_msg_idx) {
+                        // Apply retention policies to the message content
+                        let updated_content = crate::history_retention::apply_retention_to_inputs(
+                            user_message.content(),
+                        );
+
+                        // Only replace if content changed
+                        if updated_content.len() != user_message.content().len()
+                            || updated_content
+                                .iter()
+                                .zip(user_message.content().iter())
+                                .any(|(a, b)| a != b)
+                        {
+                            // Create new message with updated content
+                            let updated_message = MessageBuilder::default()
+                                .role(*user_message.role())
+                                .content(updated_content)
+                                .build()
+                                .map_err(|e| {
+                                    NarrativeError::new(NarrativeErrorKind::ConfigurationError(
+                                        format!(
+                                            "Failed to build message with retention policy: {}",
+                                            e
+                                        ),
+                                    ))
+                                })?;
+
+                            // Replace the old message
+                            conversation_history[user_msg_idx] = updated_message;
+
+                            tracing::debug!(
+                                act = %act_name,
+                                "Applied history retention policies to user message"
+                            );
+                        }
+                    }
+                }
             }
         }
 
@@ -623,7 +728,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     command,
                     args,
                     required,
-                    cache_duration: _,
+                    ..
                 } => {
                     bot_command_count += 1;
                     tracing::debug!(
@@ -724,9 +829,8 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     limit,
                     offset,
                     order_by,
-                    alias: _,
                     format,
-                    sample: _,
+                    ..
                 } => {
                     table_count += 1;
 
@@ -801,7 +905,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     }
                 }
 
-                Input::Narrative { name, path } => {
+                Input::Narrative { name, path, .. } => {
                     tracing::debug!(
                         name = %name,
                         path = ?path,

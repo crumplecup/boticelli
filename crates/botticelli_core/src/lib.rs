@@ -14,7 +14,7 @@ mod request;
 mod role;
 
 pub use budget::{BudgetConfig, BudgetConfigBuilder};
-pub use input::{Input, TableFormat};
+pub use input::{HistoryRetention, Input, TableFormat};
 pub use media::MediaSource;
 pub use message::{Message, MessageBuilder};
 pub use output::{Output, ToolCall, ToolCallBuilder};

@@ -3,6 +3,60 @@
 use crate::MediaSource;
 use serde::{Deserialize, Serialize};
 
+/// Controls how an input is retained in conversation history.
+///
+/// In multi-act narratives, large inputs (especially table queries) can cause
+/// token explosion as they're re-sent with every subsequent act. This enum
+/// allows controlling retention behavior per input.
+///
+/// # Examples
+///
+/// ```
+/// use botticelli_core::HistoryRetention;
+///
+/// // Retain full input (default)
+/// let full = HistoryRetention::Full;
+///
+/// // Replace with summary after processing
+/// let summary = HistoryRetention::Summary;
+///
+/// // Remove from history after processing
+/// let drop = HistoryRetention::Drop;
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum HistoryRetention {
+    /// Retain the entire input in conversation history (default).
+    ///
+    /// Use when:
+    /// - Single-act narratives
+    /// - Small inputs (< 5KB)
+    /// - Subsequent acts need to re-examine the data
+    #[default]
+    Full,
+
+    /// Replace with a concise summary after processing.
+    ///
+    /// The input is sent to the LLM, but after the response is received,
+    /// it's replaced with a summary like `[Table: name, 10 rows, ~18KB]`.
+    ///
+    /// Use when:
+    /// - Multi-act narratives
+    /// - Large inputs (> 5KB)
+    /// - Subsequent acts only need the decision/result
+    Summary,
+
+    /// Remove from conversation history after processing.
+    ///
+    /// The input is sent to the LLM, but completely removed from history
+    /// after the response. Use with caution.
+    ///
+    /// Use when:
+    /// - Maximum token savings needed
+    /// - Input is truly one-time (never referenced again)
+    Drop,
+}
+
 /// Supported input types to LLMs.
 ///
 /// # Examples
@@ -79,6 +133,11 @@ pub enum Input {
         required: bool,
         /// Cache duration in seconds
         cache_duration: Option<u64>,
+        /// How to retain this input in conversation history (default: Full)
+        ///
+        /// Available with the `history-retention` feature.
+        #[serde(default)]
+        history_retention: HistoryRetention,
     },
 
     /// Table reference for querying database tables.
@@ -101,6 +160,11 @@ pub enum Input {
         format: TableFormat,
         /// Random sample N rows
         sample: Option<u32>,
+        /// How to retain this input in conversation history (default: Full)
+        ///
+        /// Available with the `history-retention` feature.
+        #[serde(default)]
+        history_retention: HistoryRetention,
     },
 
     /// Narrative reference for composing narratives.
@@ -112,7 +176,53 @@ pub enum Input {
         name: String,
         /// Optional path relative to calling narrative (defaults to same directory)
         path: Option<String>,
+        /// How to retain this input in conversation history (default: Full)
+        ///
+        /// Available with the `history-retention` feature.
+        #[serde(default)]
+        history_retention: HistoryRetention,
     },
+}
+
+impl Input {
+    /// Get the history retention policy for this input.
+    ///
+    /// Returns `HistoryRetention::Full` for input types that don't support
+    /// retention configuration.
+    pub fn history_retention(&self) -> HistoryRetention {
+        match self {
+            Input::BotCommand {
+                history_retention, ..
+            } => *history_retention,
+            Input::Table {
+                history_retention, ..
+            } => *history_retention,
+            Input::Narrative {
+                history_retention, ..
+            } => *history_retention,
+            _ => HistoryRetention::Full,
+        }
+    }
+
+    /// Set the history retention policy for this input (if applicable).
+    ///
+    /// Only applies to BotCommand, Table, and Narrative inputs.
+    /// Other input types are unaffected.
+    pub fn with_history_retention(mut self, retention: HistoryRetention) -> Self {
+        match &mut self {
+            Input::BotCommand {
+                history_retention, ..
+            } => *history_retention = retention,
+            Input::Table {
+                history_retention, ..
+            } => *history_retention = retention,
+            Input::Narrative {
+                history_retention, ..
+            } => *history_retention = retention,
+            _ => {}
+        }
+        self
+    }
 }
 
 /// Output format for table data.

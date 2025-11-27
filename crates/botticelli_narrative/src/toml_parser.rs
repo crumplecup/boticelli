@@ -4,7 +4,7 @@
 //! into our domain types (ActConfig, Input, etc.).
 
 use crate::ActConfig;
-use botticelli_core::{Input, MediaSource};
+use botticelli_core::{HistoryRetention, Input, MediaSource};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -339,6 +339,9 @@ pub struct TomlInput {
     pub order_by: Option<String>,
     pub format: Option<String>,
     pub sample: Option<u32>,
+
+    // History retention field (applies to bot_command, table, narrative)
+    pub history_retention: Option<String>,
 }
 
 /// Root TOML structure supporting both single and multi-narrative files.
@@ -459,6 +462,26 @@ impl TomlNarrativeFile {
     }
 }
 
+/// Parse history retention string to HistoryRetention enum.
+///
+/// Accepts: "full", "summary", "drop"
+/// Returns HistoryRetention::Full if None or invalid value.
+fn parse_history_retention(value: Option<&String>) -> HistoryRetention {
+    match value.map(|s| s.as_str()) {
+        Some("full") => HistoryRetention::Full,
+        Some("summary") => HistoryRetention::Summary,
+        Some("drop") => HistoryRetention::Drop,
+        Some(invalid) => {
+            warn!(
+                value = invalid,
+                "Invalid history_retention value, defaulting to 'full'"
+            );
+            HistoryRetention::Full
+        }
+        None => HistoryRetention::Full,
+    }
+}
+
 impl TomlInput {
     /// Convert TOML input to domain Input type.
     #[instrument(skip(self), fields(input_type = ?self.input_type))]
@@ -546,12 +569,14 @@ impl TomlInput {
                 })?;
                 debug!(%platform, %command, "Created bot command input");
                 let args = expand_env_vars(&self.args.clone().unwrap_or_default());
+                let history_retention = parse_history_retention(self.history_retention.as_ref());
                 Ok(Input::BotCommand {
                     platform: platform.clone(),
                     command: command.clone(),
                     args,
                     required: self.required.unwrap_or(false),
                     cache_duration: self.cache_duration,
+                    history_retention,
                 })
             }
             "table" => {
@@ -572,6 +597,7 @@ impl TomlInput {
                 };
 
                 debug!(%table_name, ?format, ?self.limit, "Created table input");
+                let history_retention = parse_history_retention(self.history_retention.as_ref());
                 Ok(Input::Table {
                     table_name: table_name.clone(),
                     columns: self.columns.clone(),
@@ -582,6 +608,7 @@ impl TomlInput {
                     alias: None, // Will be set during resolution
                     format,
                     sample: self.sample,
+                    history_retention,
                 })
             }
             unknown => {
@@ -802,6 +829,7 @@ impl TomlNarrativeFile {
             return Ok(Input::Narrative {
                 name: narrative_name.to_string(),
                 path: None, // Will be resolved relative to calling narrative
+                history_retention: HistoryRetention::Full,
             });
         }
 
@@ -842,6 +870,7 @@ impl TomlNarrativeFile {
             args,
             required: false,
             cache_duration: None,
+            history_retention: HistoryRetention::Full,
         })
     }
 
@@ -880,6 +909,7 @@ impl TomlNarrativeFile {
             alias: Some(name.to_string()),
             format,
             sample: table_def.sample,
+            history_retention: HistoryRetention::Full,
         })
     }
 
@@ -985,6 +1015,7 @@ impl TomlNarrativeFile {
                 Ok(Input::Narrative {
                     name: name.to_string(),
                     path: Some(ref_def.narrative.clone()),
+                    history_retention: HistoryRetention::Full,
                 })
             }
             TomlNarrativeEntry::Definition(_) => {

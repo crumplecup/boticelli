@@ -38,6 +38,7 @@
 mod carousel;
 mod core;
 mod executor;
+mod history_retention;
 mod in_memory_repository;
 mod multi_narrative;
 mod processor;
@@ -55,6 +56,9 @@ mod extraction;
 pub use carousel::{CarouselConfig, CarouselResult, CarouselState};
 pub use core::{Narrative, NarrativeMetadata, NarrativeToc};
 pub use executor::{BotCommandRegistry, NarrativeExecutor};
+pub use history_retention::{
+    AUTO_SUMMARY_THRESHOLD, apply_retention_to_inputs, should_auto_summarize, summarize_input,
+};
 pub use in_memory_repository::InMemoryNarrativeRepository;
 pub use multi_narrative::MultiNarrative;
 pub use processor::{ActProcessor, ProcessorContext, ProcessorRegistry};

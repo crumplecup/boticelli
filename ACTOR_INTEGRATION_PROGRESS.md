@@ -160,16 +160,14 @@ posted_at = "NOW()"
    - Added botticelli_narrative dependency with database feature
 
 **Remaining Work**:
-- [ ] Add database connection to SkillContext or pass through config
-- [ ] Create NarrativeExecutor with connection
+- [x] Add database connection to SkillContext (using connection pool)
+- [ ] Update NarrativeExecutionSkill to use db_pool from context
+- [ ] Create NarrativeExecutor with connection from pool
 - [ ] Execute narrative and capture results  
 - [ ] Return execution metadata in SkillOutput
 - [ ] Add tests
 
-**Current Blocker**: SkillContext doesn't provide database connection access. Need to either:
-- Add `conn: &mut PgConnection` field to SkillContext
-- Pass connection string through config and establish connection in skill
-- Use storage actor pattern instead of direct connection
+**Resolved**: Added `db_pool: Pool<ConnectionManager<PgConnection>>` to SkillContext. Skills can now obtain connections from the pool for database operations.
 
 **Configuration**:
 ```toml

@@ -2,6 +2,8 @@
 
 use crate::{ActorError, ActorErrorKind, Platform};
 use async_trait::async_trait;
+use diesel::pg::PgConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -29,6 +31,8 @@ pub struct SkillContext {
     pub config: HashMap<String, String>,
     /// Platform interface.
     pub platform: Arc<dyn Platform>,
+    /// Database connection pool for table operations.
+    pub db_pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 /// Information about a skill.

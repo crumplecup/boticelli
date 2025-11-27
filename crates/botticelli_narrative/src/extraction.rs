@@ -270,10 +270,16 @@ where
     T: serde::de::DeserializeOwned,
 {
     toml::from_str(toml_str).map_err(|e| {
+        let preview = toml_str
+            .char_indices()
+            .take(100)
+            .last()
+            .map(|(idx, _)| &toml_str[..=idx])
+            .unwrap_or(&toml_str);
         botticelli_error::BackendError::new(format!(
             "Failed to parse TOML: {} (TOML: {}...)",
             e,
-            &toml_str[..toml_str.len().min(100)]
+            preview
         ))
         .into()
     })

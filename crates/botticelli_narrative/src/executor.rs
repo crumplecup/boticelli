@@ -387,10 +387,16 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 for (idx, input) in processed_inputs.iter().enumerate() {
                     match input {
                         Input::Text(text) => {
+                            let preview = text
+                                .char_indices()
+                                .take(100)
+                                .last()
+                                .map(|(idx, _)| &text[..=idx])
+                                .unwrap_or(text);
                             tracing::debug!(
                                 input_index = idx,
                                 text_length = text.len(),
-                                text_preview = &text[..text.len().min(100)],
+                                text_preview = preview,
                                 "Processed input is Text"
                             );
                         }
@@ -447,10 +453,16 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 for (idx, output) in response.outputs.iter().enumerate() {
                     match output {
                         botticelli_core::Output::Text(text) => {
+                            let preview = text
+                                .char_indices()
+                                .take(100)
+                                .last()
+                                .map(|(idx, _)| &text[..=idx])
+                                .unwrap_or(text);
                             tracing::debug!(
                                 output_index = idx,
                                 text_length = text.len(),
-                                text_preview = &text[..text.len().min(100)],
+                                text_preview = preview,
                                 "Output is Text variant"
                             );
                         }
@@ -467,9 +479,15 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 // Extract text from response
                 let response_text = extract_text_from_outputs(&response.outputs)?;
 
+                let preview = response_text
+                    .char_indices()
+                    .take(200)
+                    .last()
+                    .map(|(idx, _)| &response_text[..=idx])
+                    .unwrap_or(&response_text);
                 tracing::debug!(
                     response_length = response_text.len(),
-                    response_preview = &response_text[..response_text.len().min(200)],
+                    response_preview = preview,
                     "Response text extracted from LLM outputs"
                 );
 

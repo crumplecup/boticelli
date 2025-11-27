@@ -652,8 +652,8 @@ fn json_value_to_sql(value: &JsonValue, col_type: &str) -> String {
                 }
             }
         }
-        "text" | "varchar" | "char" | _ => {
-            // Default: convert to text
+        "text" | "varchar" | "char" => {
+            // Text types: convert to text
             match value {
                 Value::Null => "NULL".to_string(),
                 Value::String(s) => format!("'{}'", s.replace('\'', "''")),
@@ -662,6 +662,19 @@ fn json_value_to_sql(value: &JsonValue, col_type: &str) -> String {
                 Value::Array(_) | Value::Object(_) => {
                     // Serialize complex types to JSON string for text columns
                     tracing::debug!("Storing complex type as JSON string in text column");
+                    format!("'{}'", value.to_string().replace('\'', "''"))
+                }
+            }
+        }
+        _ => {
+            // Unknown types: default to text conversion
+            match value {
+                Value::Null => "NULL".to_string(),
+                Value::String(s) => format!("'{}'", s.replace('\'', "''")),
+                Value::Bool(b) => format!("'{}'", b),
+                Value::Number(n) => format!("'{}'", n),
+                Value::Array(_) | Value::Object(_) => {
+                    tracing::debug!(col_type, "Unknown column type, storing as JSON string");
                     format!("'{}'", value.to_string().replace('\'', "''"))
                 }
             }

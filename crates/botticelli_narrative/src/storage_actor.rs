@@ -10,12 +10,11 @@ use botticelli_database::{
     UpdateContentGenerationRow, create_content_table, create_inferred_table, infer_schema,
     reflect_table_schema,
 };
-use botticelli_error::{BotticelliError, BotticelliResult};
+use botticelli_error::BotticelliResult;
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use serde_json::Value as JsonValue;
-use std::time::Instant;
 
 /// Storage actor handling all database operations for content generation.
 pub struct StorageActor {
@@ -30,9 +29,9 @@ impl StorageActor {
 
     /// Get a connection from the pool.
     fn get_conn(&self) -> BotticelliResult<diesel::r2d2::PooledConnection<ConnectionManager<PgConnection>>> {
-        self.pool.get().map_err(|e| {
+        Ok(self.pool.get().map_err(|e| {
             botticelli_error::BackendError::new(format!("Failed to get connection from pool: {}", e))
-        })
+        })?)
     }
 }
 
@@ -52,8 +51,11 @@ impl Actor for StorageActor {
 #[derive(Debug, Message)]
 #[rtype(result = "BotticelliResult<()>")]
 pub struct StartGeneration {
+    /// Target table name for content storage.
     pub table_name: String,
+    /// Path to the narrative file.
     pub narrative_file: String,
+    /// Name of the narrative being executed.
     pub narrative_name: String,
 }
 
@@ -90,9 +92,13 @@ impl Handler<StartGeneration> for StorageActor {
 #[derive(Debug, Message)]
 #[rtype(result = "BotticelliResult<()>")]
 pub struct CreateTableFromTemplate {
+    /// Target table name to create.
     pub table_name: String,
+    /// Template table name to copy schema from.
     pub template: String,
+    /// Optional narrative name for metadata.
     pub narrative_name: Option<String>,
+    /// Optional description for the table.
     pub description: Option<String>,
 }
 
@@ -125,9 +131,13 @@ impl Handler<CreateTableFromTemplate> for StorageActor {
 #[derive(Debug, Message)]
 #[rtype(result = "BotticelliResult<()>")]
 pub struct CreateTableFromInference {
+    /// Target table name to create.
     pub table_name: String,
+    /// Sample JSON data for schema inference.
     pub json_sample: JsonValue,
+    /// Optional narrative name for metadata.
     pub narrative_name: Option<String>,
+    /// Optional description for the table.
     pub description: Option<String>,
 }
 
@@ -164,10 +174,15 @@ impl Handler<CreateTableFromInference> for StorageActor {
 #[derive(Debug, Message)]
 #[rtype(result = "BotticelliResult<()>")]
 pub struct InsertContent {
+    /// Target table name for insertion.
     pub table_name: String,
+    /// JSON data to insert.
     pub json_data: JsonValue,
+    /// Name of the narrative generating content.
     pub narrative_name: String,
+    /// Name of the act generating content.
     pub act_name: String,
+    /// Optional model name used for generation.
     pub model: Option<String>,
 }
 
@@ -243,10 +258,15 @@ impl Handler<InsertContent> for StorageActor {
 #[derive(Debug, Message)]
 #[rtype(result = "BotticelliResult<()>")]
 pub struct CompleteGeneration {
+    /// Target table name.
     pub table_name: String,
+    /// Number of rows generated.
     pub row_count: Option<i32>,
+    /// Duration in milliseconds.
     pub duration_ms: i32,
+    /// Final status (success/failed).
     pub status: String,
+    /// Optional error message if failed.
     pub error_message: Option<String>,
 }
 

@@ -325,6 +325,7 @@ pub async fn run_narrative(
     let executor = {
         #[cfg(feature = "database")]
         {
+            use actix::Actor;
             use botticelli::ProcessorRegistry;
             use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, create_pool};
             use botticelli_narrative::{ContentGenerationProcessor, StorageActor};
@@ -356,8 +357,8 @@ pub async fn run_narrative(
             executor = executor.with_table_registry(Box::new(table_registry));
             tracing::info!("Table registry configured");
 
-            // Configure bot command registry (always create with database executor)
-            #[cfg(feature = "database")]
+            // Configure bot command registry (requires discord feature for social integration)
+            #[cfg(all(feature = "database", feature = "discord"))]
             {
                 use botticelli_social::{BotCommandRegistryImpl, DatabaseCommandExecutor};
 

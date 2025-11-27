@@ -50,7 +50,6 @@ impl ContentGenerationProcessor {
 #[async_trait]
 impl ActProcessor for ContentGenerationProcessor {
     async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
-        use actix::prelude::*;
 
         // Determine processing mode: Template or Inference
         let processing_mode = if let Some(template) = &context.narrative_metadata.template() {

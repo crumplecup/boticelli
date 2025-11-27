@@ -687,3 +687,41 @@ tpd = 0.8   # 80% of tokens per day
 - [Discord Posting Strategy](crates/botticelli_narrative/narratives/discord/DISCORD_POSTING_STRATEGY.md)
 - [Actor Architecture](ACTOR_ARCHITECTURE.md)
 - [Actor Server Observability](ACTOR_SERVER_OBSERVABILITY.md)
+
+---
+
+## Implementation Update (2025-11-27)
+
+### Discovery: Bot Actors Already Exist!
+
+All three bot actors are already implemented in `botticelli_server/src/bots/`:
+
+1. **GenerationBot** (`generation.rs`):
+   - Ractor actor with Start/Stop/RunCycle messages
+   - Spawns CLI process to execute narrative
+   - Uses `Duration` for interval configuration
+
+2. **CurationBot** (`curation.rs`):
+   - Takes `narrative_path`, `state_dir`, `botticelli_bin`
+   - Processes queue until empty (correct behavior!)
+   - Executes `curate_and_approve` narrative
+
+3. **PostingBot** (`posting.rs`):
+   - Takes `base_interval` and `jitter_percent`
+   - Already implements randomized jitter
+   - TODO: Needs actual Discord posting logic
+
+### Next Steps
+
+1. **Update BotServer** - Fix `server.rs` to use correct bot constructors
+2. **Configuration** - Add narrative paths and intervals to config
+3. **Testing** - Verify end-to-end pipeline with actual narratives
+4. **Deployment** - Create systemd service or Docker container
+
+### Key Insight
+
+The bots run narratives **via CLI subprocess** rather than direct narrative execution. This means:
+- ✅ No runtime conflicts (each narrative runs in its own process)
+- ✅ State isolation between runs
+- ✅ Can use `just narrate` commands
+- ⚠️ Need proper error handling for subprocess failures

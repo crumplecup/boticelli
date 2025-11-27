@@ -480,11 +480,9 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 let response_text = extract_text_from_outputs(&response.outputs)?;
 
                 let preview = response_text
-                    .char_indices()
+                    .chars()
                     .take(200)
-                    .last()
-                    .map(|(idx, _)| &response_text[..=idx])
-                    .unwrap_or(&response_text);
+                    .collect::<String>();
                 tracing::debug!(
                     response_length = response_text.len(),
                     response_preview = preview,

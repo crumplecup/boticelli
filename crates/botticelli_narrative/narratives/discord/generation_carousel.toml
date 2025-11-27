@@ -288,9 +288,6 @@ target = "potential_discord_posts"
 order = ["generate", "critique", "refine", "format_json", "audit_json"]
 
 [narratives.problem.acts.generate]
-order = ["generate", "critique", "refine"]
-
-[narratives.problem.acts.generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
 max_tokens = 600

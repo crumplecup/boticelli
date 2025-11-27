@@ -45,6 +45,7 @@
 #![warn(missing_docs)]
 
 mod actor_traits;
+mod bots;
 mod client;
 mod config;
 mod convert;
@@ -55,6 +56,9 @@ mod traits;
 
 pub use actor_traits::{
     ActorManager, ActorServer, ActorServerResult, ContentPoster, StatePersistence, TaskScheduler,
+};
+pub use bots::{
+    CurationBot, CurationMessage, GenerationBot, GenerationMessage, PostingBot, PostingMessage,
 };
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;

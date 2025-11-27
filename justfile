@@ -756,6 +756,34 @@ dist-generate:
 bench:
     cargo bench --features local
 
+# Bot Server Management
+# ======================
+
+# Start the bot server with all three bots (generation, curation, posting)
+bot-server:
+    @echo "🤖 Starting Botticelli bot server..."
+    @echo "📝 Generation bot: Every 6 hours"
+    @echo "🎯 Curation bot: Every 12 hours, processes until queue empty"
+    @echo "📤 Posting bot: Every 2-4 hours with jitter"
+    cargo run --release --features local --bin botticelli -- server
+
+# Start only the generation bot (for testing)
+bot-generate:
+    @echo "📝 Starting generation bot only..."
+    cargo run --release --features local --bin botticelli -- server --only generation
+
+# Start only the curation bot (for testing)
+bot-curate:
+    @echo "🎯 Starting curation bot only..."
+    cargo run --release --features local --bin botticelli -- server --only curation
+
+# Start only the posting bot (for testing)
+bot-post:
+    @echo "📤 Starting posting bot only..."
+    cargo run --release --features local --bin botticelli -- server \
+        --posting-narrative ./crates/botticelli_narrative/narratives/discord/posting.toml \
+        --posting-name scheduled_post
+
 # Aliases for common tasks
 # ========================
 

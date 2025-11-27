@@ -1,6 +1,7 @@
 use crate::{CurationBot, CurationMessage, GenerationBot, GenerationMessage, PostingBot, PostingMessage};
-use botticelli_error::BotticelliResult;
+use botticelli_error::{BotticelliError, BotticelliResult, ServerError, ServerErrorKind};
 use ractor::{Actor, ActorRef};
+use std::path::PathBuf;
 use std::time::Duration;
 use tracing::{error, info, instrument};
 
@@ -40,7 +41,7 @@ impl BotServer {
         .await
         .map_err(|e| {
             error!(error = ?e, "Failed to spawn generation bot");
-            botticelli_error::BotticelliError::new_server("Failed to spawn generation bot")
+            BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed("Failed to spawn generation bot".to_string())))
         })?;
 
         self.generation_ref = Some(generation_ref.clone());
@@ -48,19 +49,21 @@ impl BotServer {
             .send_message(GenerationMessage::Start)
             .map_err(|e| {
                 error!(error = ?e, "Failed to start generation bot");
-                botticelli_error::BotticelliError::new_server("Failed to start generation bot")
+                BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed("Failed to start generation bot".to_string())))
             })?;
 
         // Spawn curation bot
+        let narrative_path = PathBuf::from("./crates/botticelli_narrative/narratives/discord/curation.toml");
+        let state_dir = PathBuf::from(".narrative_state");
         let (curation_ref, _) = Actor::spawn(
             Some("curation_bot".to_string()),
-            CurationBot::new(curation_interval),
+            CurationBot::new(narrative_path, state_dir, None),
             curation_interval,
         )
         .await
         .map_err(|e| {
             error!(error = ?e, "Failed to spawn curation bot");
-            botticelli_error::BotticelliError::new_server("Failed to spawn curation bot")
+            BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed("Failed to spawn curation bot".to_string())))
         })?;
 
         self.curation_ref = Some(curation_ref.clone());
@@ -68,19 +71,19 @@ impl BotServer {
             .send_message(CurationMessage::Start)
             .map_err(|e| {
                 error!(error = ?e, "Failed to start curation bot");
-                botticelli_error::BotticelliError::new_server("Failed to start curation bot")
+                BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed("Failed to start curation bot".to_string())))
             })?;
 
         // Spawn posting bot
         let (posting_ref, _) = Actor::spawn(
             Some("posting_bot".to_string()),
-            PostingBot::new(posting_interval),
-            posting_interval,
+            PostingBot::new(posting_interval, 0.2),
+            (posting_interval, 0.2),
         )
         .await
         .map_err(|e| {
             error!(error = ?e, "Failed to spawn posting bot");
-            botticelli_error::BotticelliError::new_server("Failed to spawn posting bot")
+            BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed("Failed to spawn posting bot".to_string())))
         })?;
 
         self.posting_ref = Some(posting_ref.clone());
@@ -88,7 +91,7 @@ impl BotServer {
             .send_message(PostingMessage::Start)
             .map_err(|e| {
                 error!(error = ?e, "Failed to start posting bot");
-                botticelli_error::BotticelliError::new_server("Failed to start posting bot")
+                BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed("Failed to start posting bot".to_string())))
             })?;
 
         info!("All bots started");
@@ -100,9 +103,9 @@ impl BotServer {
     pub async fn stop(&mut self) -> BotticelliResult<()> {
         info!("Stopping bot server");
 
-        if let Some(ref gen) = self.generation_ref {
-            let _ = gen.send_message(GenerationMessage::Stop);
-            gen.stop(None);
+        if let Some(ref generation) = self.generation_ref {
+            let _ = generation.send_message(GenerationMessage::Stop);
+            generation.stop(None);
         }
 
         if let Some(ref cur) = self.curation_ref {

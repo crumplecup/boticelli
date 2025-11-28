@@ -1,198 +1,174 @@
-# Bot Server Next Steps
+# Bot Server - Next Steps
 
-**Status**: Implementation Roadmap  
-**Created**: 2025-11-28  
-**Updated**: 2025-11-28  
+**Status**: Ready for Testing  
+**Date**: 2025-11-28
 
----
+## What We Built
 
-## Current Situation
+A complete three-phase content pipeline bot server that:
 
-The `botticelli_bot` crate exists with driver-generic implementations but is **disabled in the workspace** due to missing functionality:
+1. **Generation Bot** - Creates diverse Discord posts using carousel narratives
+2. **Curation Bot** - Reviews and approves quality content (simulating human selection)
+3. **Posting Bot** - Publishes approved content with human-like timing jitter
 
-```toml
-# Cargo.toml line 17:
-# "crates/botticelli_bot",  # TODO: Re-enable after implementing execute_narrative_by_name
-```
+## Architecture Highlights
 
-### What Exists
+### Driver-Agnostic Design
+- All bots generic over `BotticelliDriver` trait
+- Works with any LLM backend (Gemini, Claude, etc.)
+- Clean separation between bot logic and LLM implementation
 
-- ✅ `botticelli_interface::bot_server` - Driver-generic traits (`BotActor<D>`, `BotServer<D>`)
-- ✅ `botticelli_bot/src/` - Concrete bot implementations (generation, curation, posting)
-- ✅ All bots are generic over `D: BotticelliDriver`
-- ✅ Narratives tested: generation_carousel, curate_and_approve, discord_poster
+### Narrative-Driven
+- Each bot executes pre-configured narratives
+- No hardcoded prompts in bot code
+- Easy to modify behavior by editing TOML files
 
-### What's Blocking
+### JSON Compliance Workflow
+- Integrated JSON extraction with schema validation
+- Type coercion for common mismatches
+- Fuzzy field name matching
+- JSONB support for complex types
 
-The bot implementations call `executor.execute_narrative_by_name()` which **doesn't exist**:
+### Schema Inference
+- Tables created automatically from JSON output
+- No manual schema definition required
+- Target table name support for shared tables
 
-```rust
-// From botticelli_bot/src/generation.rs:
-let result = self
-    .executor
-    .execute_narrative_by_name(&self.config.narrative_name)  // ❌ Method missing
-    .await?;
-```
+## Configuration
 
----
-
-## Implementation Phases
-
-### Phase 1: Add `execute_narrative_by_name` to NarrativeExecutor ⭐ **START HERE**
-
-**Goal**: Allow executing a named narrative from a multi-narrative TOML file
-
-**Why**: Bots need to load a TOML once, then execute specific narratives by name repeatedly
-
-**Changes in `botticelli_narrative/src/executor.rs`**:
-
-1. Store loaded narratives:
-```rust
-pub struct NarrativeExecutor<D: BotticelliDriver> {
-    driver: Arc<D>,
-    database: Arc<DatabaseRepository>,
-    narratives: HashMap<String, Narrative>,  // New
-}
-```
-
-2. Add loading method:
-```rust
-/// Load all narratives from a multi-narrative TOML file
-pub async fn load_narratives(&mut self, path: impl AsRef<Path>) -> NarrativeResult<Vec<String>> {
-    let content = fs::read_to_string(path)?;
-    let parsed = toml::from_str::<TomlNarratives>(&content)?;
-    
-    for (name, toml_narrative) in parsed.narratives {
-        let narrative = convert_toml_narrative(toml_narrative, &parsed.acts)?;
-        self.narratives.insert(name, narrative);
-    }
-    
-    Ok(self.narratives.keys().cloned().collect())
-}
-```
-
-3. Add execution method:
-```rust
-/// Execute a previously loaded narrative by name
-pub async fn execute_narrative_by_name(&self, name: &str) -> NarrativeResult<NarrativeOutput> {
-    let narrative = self.narratives
-        .get(name)
-        .ok_or_else(|| NarrativeError::not_found(name))?;
-    
-    self.execute_narrative_internal(narrative).await
-}
-```
-
-**Testing**:
-```bash
-# Manual test - should work identically to current behavior
-just narrate generation_carousel.batch_generate
-```
-
-### Phase 2: Re-enable botticelli_bot in Workspace
-
-**Changes**:
-
-1. Uncomment in `Cargo.toml`:
-```toml
-members = [
-    # ...
-    "crates/botticelli_bot",
-]
-```
-
-2. Verify compilation:
-```bash
-just check -p botticelli_bot
-```
-
-### Phase 3: Implement Bot Server Orchestration
-
-**Create `botticelli_server/src/discord_bot_server.rs`**:
-
-```rust
-use botticelli_bot::{GenerationBot, CurationBot, PostingBot};
-use botticelli_interface::{BotServer, BotticelliDriver};
-use tokio::sync::mpsc;
-
-pub struct DiscordBotServer<D: BotticelliDriver> {
-    config: BotServerConfig,
-    generation_tx: mpsc::Sender<GenerationMessage>,
-    curation_tx: mpsc::Sender<CurationMessage>,
-    posting_tx: mpsc::Sender<PostingMessage>,
-}
-
-impl<D: BotticelliDriver + Clone + 'static> BotServer<D> for DiscordBotServer<D> {
-    async fn start(&mut self, driver: D) -> BotResult<()> {
-        // Load narratives once
-        let executor = NarrativeExecutor::new(driver, database);
-        executor.load_narratives("generation_carousel.toml").await?;
-        
-        // Spawn bots with shared executor
-        let (gen_tx, gen_rx) = mpsc::channel(10);
-        let gen_bot = GenerationBot::new(config, Arc::new(executor), gen_rx);
-        tokio::spawn(gen_bot.run());
-        
-        // Similar for curation and posting...
-        
-        Ok(())
-    }
-}
-```
-
-### Phase 4: Configuration
-
-**Create `actor_server.toml`**:
+All bots configured via `bot_server.toml`:
 
 ```toml
 [generation]
-narrative_file = "crates/botticelli_narrative/narratives/discord/generation_carousel.toml"
+narrative_path = "crates/botticelli_narrative/narratives/discord/generation_carousel.toml"
 narrative_name = "batch_generate"
-schedule_hours = 24
+interval_hours = 24  # Once per day
 
 [curation]
-narrative_file = "crates/botticelli_narrative/narratives/discord/curate_and_approve.toml"
-narrative_name = "select_and_approve"
-schedule_hours = 12
-drain_queue = true
+narrative_path = "crates/botticelli_narrative/narratives/discord/curate_and_approve.toml"
+narrative_name = "curate"
+check_interval_hours = 12  # Check twice per day
+batch_size = 10  # Process until queue empty
 
 [posting]
-narrative_file = "crates/botticelli_narrative/narratives/discord/discord_poster.toml"
-narrative_name = "post_next"
-base_interval_seconds = 7200  # 2 hours
-jitter_seconds = 1800  # ±30 min
+narrative_path = "crates/botticelli_narrative/narratives/discord/discord_poster.toml"
+narrative_name = "post"
+base_interval_hours = 2  # Post every ~2 hours
+jitter_minutes = 30  # ±30 min for natural rhythm
 ```
 
-### Phase 5: CLI Integration
+## Testing Plan
 
-**Update justfile**:
+### Phase 1: Individual Bot Testing
 
-```just
-# Start bot server with all actors
-bot-server config="actor_server.toml":
-    cargo run --release --features local -- bot-server --config {{config}}
+**Test Generation Bot:**
+```bash
+just narrate generation_carousel.batch_generate
+```
+Expected: 15 posts (5 narratives × 3 iterations) in `potential_discord_posts`
+
+**Test Curation Bot:**
+```bash
+just narrate curate_and_approve.curate
+```
+Expected: Process pending posts, move best to `approved_discord_posts`
+
+**Test Posting Bot:**
+```bash
+just narrate discord_poster.post
+```
+Expected: Post one approved post to Discord, mark as posted
+
+### Phase 2: Server Integration
+
+**Start bot server:**
+```bash
+just bot-server
 ```
 
----
+**Monitor:**
+- Check logs for schedule execution
+- Verify database table updates
+- Confirm Discord posts appear
+- Validate timing jitter working
 
-## Success Criteria
+### Phase 3: Production Readiness
 
-- [ ] `execute_narrative_by_name` implemented
-- [ ] `botticelli_bot` compiles
-- [ ] `just bot-server` starts all bots
-- [ ] Bots run on schedule
-- [ ] Structured logging works
-- [ ] 48-hour stability test passes
+**Observability:**
+- [ ] All actors properly instrumented with `#[instrument]`
+- [ ] Structured logging at key decision points
+- [ ] Error tracking and recovery
+- [ ] Metrics collection (posts generated, approved, posted)
 
----
+**Reliability:**
+- [ ] Graceful shutdown handling
+- [ ] Database connection pool management
+- [ ] Rate limit budget enforcement
+- [ ] Retry logic for transient failures
 
-## Timeline
+**Deployment:**
+- [ ] Systemd service file
+- [ ] Environment variable configuration
+- [ ] Secret management for API keys
+- [ ] Log rotation and monitoring alerts
 
-- Phase 1: 2-3 hours
-- Phase 2: 30 minutes  
-- Phase 3: 2-3 hours
-- Phase 4: 1 hour
-- Phase 5: 1 hour
-- Testing: 3-4 hours
+## Key Achievements
 
-**Total**: ~10-12 hours
+1. **Multi-narrative TOML support** - Multiple narratives per file
+2. **Carousel mode** - Iterate through narrative sequences
+3. **JSON compliance workflow** - Robust extraction and validation
+4. **Schema inference** - Automatic table creation
+5. **Budget multipliers** - Voluntary rate limiting
+6. **Driver-agnostic bots** - Works with any LLM backend
+
+## Known Issues
+
+### Narratives Still TODO:
+- `curate_and_approve.toml` - Needs implementation
+- `discord_poster.toml` - Needs implementation
+
+Both should follow the pattern established in `generation_carousel.toml`:
+- Use JSON compliance workflow for final act
+- Target appropriate tables (approved → posting)
+- Include proper instrumentation
+
+### Testing Gaps:
+- No unit tests for bot actors yet
+- Need integration tests for full pipeline
+- Manual testing only so far
+
+## Next Actions
+
+### Immediate (Before Running Server):
+1. Implement `curate_and_approve.toml` narrative
+2. Implement `discord_poster.toml` narrative
+3. Test each narrative individually
+4. Verify table schemas match expectations
+
+### Short Term (This Week):
+1. Run bot server in development mode
+2. Monitor for errors and edge cases
+3. Add missing instrumentation
+4. Write integration tests
+
+### Medium Term (Next Sprint):
+1. Deploy to production environment
+2. Set up monitoring and alerting
+3. Tune scheduling parameters
+4. Collect metrics on success rates
+
+## Questions to Answer
+
+1. **Curation selection criteria** - How should the LLM decide which posts are "best"?
+2. **Posting strategy** - Should we post to specific channels? Time of day optimization?
+3. **Content diversity** - How to ensure variety in generated content?
+4. **Failure handling** - What happens if generation produces no valid JSON?
+5. **Queue management** - Should we limit pending post accumulation?
+
+## Resources
+
+- **Planning**: `BOT_SERVER_DEPLOYMENT_PLAN.md`
+- **JSON Strategy**: `JSON_SCHEMA_MISMATCH_STRATEGY.md`
+- **Extraction**: `JSON_EXTRACTION_STRATEGY.md`
+- **Config**: `bot_server.toml`
+- **Code**: `crates/botticelli_bot/`

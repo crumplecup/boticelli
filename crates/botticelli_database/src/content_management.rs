@@ -122,6 +122,16 @@ pub fn get_content_by_id(
         .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())).into())
 }
 
+/// Pull and delete content items in a single transaction (destructive read).
+///
+/// Retrieves up to `limit` items from the table and immediately deletes them.
+/// This ensures items are only processed once and prevents duplicate processing.
+///
+/// # Arguments
+///
+/// * `conn` - Database connection
+/// * `table_name` - Name of the content table
+/// * `limit` - Maximum number of items to pull and delete
 /// Update tags and rating for a content item.
 ///
 /// # Arguments
@@ -239,6 +249,123 @@ pub fn delete_content(conn: &mut PgConnection, table_name: &str, id: i64) -> Bot
         .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))?;
 
     Ok(())
+}
+
+/// Pull content items and delete them from the source table (destructive read).
+///
+/// This is useful for pipeline workflows where content moves between tables.
+/// Atomically retrieves N items and removes them from the source table.
+///
+/// # Arguments
+///
+/// * `conn` - Database connection
+/// * `table_name` - Name of the content table
+/// * `limit` - Maximum number of items to pull
+///
+/// # Returns
+///
+/// Vector of JSON objects representing the pulled (and deleted) rows
+#[instrument(name = "content_management.pull_and_delete", skip(conn), fields(table = %table_name, limit = %limit))]
+pub fn pull_and_delete(
+    conn: &mut PgConnection,
+    table_name: &str,
+    limit: usize,
+) -> BotticelliResult<Vec<JsonValue>> {
+    use diesel::connection::TransactionManager;
+
+    // Reflect table schema to build appropriate query
+    let schema = reflect_table_schema(conn, table_name)?;
+    let columns: std::collections::HashSet<_> =
+        schema.columns.iter().map(|c| c.name.as_str()).collect();
+
+    let has_generated_at = columns.contains("generated_at");
+    let has_id = columns.contains("id");
+
+    // Start transaction for atomic pull-and-delete
+    <PgConnection as diesel::connection::Connection>::TransactionManager::begin_transaction(conn)
+        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))?;
+
+    // Build SELECT query with ORDER BY
+    let mut select_query = format!("SELECT row_to_json(t) FROM (SELECT * FROM {}", table_name);
+
+    // Order by generated_at if it exists, otherwise by id if it exists
+    if has_generated_at {
+        select_query.push_str(" ORDER BY generated_at ASC");
+    } else if has_id {
+        select_query.push_str(" ORDER BY id ASC");
+    }
+
+    select_query.push_str(&format!(" LIMIT {}", limit));
+    select_query.push_str(") t");
+
+    tracing::debug!(sql = %select_query, "Pulling content for destructive read");
+
+    // Execute SELECT
+    let results: Vec<String> = diesel::sql_query(&select_query)
+        .load::<StringRow>(conn)
+        .map_err(|e| {
+            let _ = <PgConnection as diesel::connection::Connection>::TransactionManager::rollback_transaction(conn);
+            DatabaseError::new(DatabaseErrorKind::Query(e.to_string()))
+        })?
+        .into_iter()
+        .map(|row| row.row_to_json)
+        .collect();
+
+    // Parse JSON to extract IDs for deletion
+    let json_results: Vec<JsonValue> = results
+        .iter()
+        .map(|s| serde_json::from_str(s))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| {
+            let _ = <PgConnection as diesel::connection::Connection>::TransactionManager::rollback_transaction(conn);
+            DatabaseError::new(DatabaseErrorKind::Query(e.to_string()))
+        })?;
+
+    if json_results.is_empty() {
+        // No records to delete, commit empty transaction
+        <PgConnection as diesel::connection::Connection>::TransactionManager::commit_transaction(
+            conn,
+        )
+        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))?;
+        tracing::debug!("No content found to pull");
+        return Ok(vec![]);
+    }
+
+    // Extract IDs for deletion
+    let ids: Vec<i64> = json_results
+        .iter()
+        .filter_map(|obj| obj.get("id").and_then(|v| v.as_i64()))
+        .collect();
+
+    if !ids.is_empty() {
+        let delete_query = format!(
+            "DELETE FROM {} WHERE id IN ({})",
+            table_name,
+            ids.iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+
+        tracing::debug!(sql = %delete_query, count = ids.len(), "Deleting pulled content");
+
+        diesel::sql_query(&delete_query)
+            .execute(conn)
+            .map_err(|e| {
+                let _ = <PgConnection as diesel::connection::Connection>::TransactionManager::rollback_transaction(conn);
+                DatabaseError::new(DatabaseErrorKind::Query(e.to_string()))
+            })?;
+    }
+
+    // Commit transaction
+    <PgConnection as diesel::connection::Connection>::TransactionManager::commit_transaction(conn)
+        .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))?;
+
+    tracing::info!(
+        count = json_results.len(),
+        "Pulled and deleted content items"
+    );
+    Ok(json_results)
 }
 
 /// Promote content to a production table.

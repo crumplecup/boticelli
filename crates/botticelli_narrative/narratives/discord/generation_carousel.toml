@@ -103,7 +103,8 @@ Required Schema:
   "text_content": string (required, 10-2000 characters),
   "content_type": string (optional, defaults to "discord_post"),
   "source": string (optional, e.g., "generation_carousel"),
-  "tags": array of strings (optional, relevant keywords)
+  "tags": array of strings (optional, relevant keywords),
+  "status": string (required, always set to "pending")
 }
 
 CRITICAL RULES:

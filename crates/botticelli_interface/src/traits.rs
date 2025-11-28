@@ -283,16 +283,32 @@ pub trait TableQueryRegistry: Send + Sync {
     /// # Returns
     ///
     /// Formatted query results as a string, ready for LLM consumption.
-    #[allow(clippy::too_many_arguments)]
     async fn query_table(
         &self,
-        table_name: &str,
-        columns: Option<&[String]>,
-        where_clause: Option<&str>,
-        limit: Option<u32>,
-        offset: Option<u32>,
-        order_by: Option<&str>,
-        format: &str,
+        query: &crate::TableQueryView,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>;
+
+    /// Query a table and atomically delete the returned rows (destructive read).
+    ///
+    /// This is useful for workflows where content should be processed once and removed,
+    /// such as pulling posts from a queue for curation.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table to query
+    /// * `columns` - Optional list of specific columns to select
+    /// * `where_clause` - Optional WHERE clause for filtering
+    /// * `limit` - Optional maximum number of rows
+    /// * `offset` - Optional offset for pagination
+    /// * `order_by` - Optional ORDER BY clause
+    /// * `format` - Output format: "json", "markdown", or "csv"
+    ///
+    /// # Returns
+    ///
+    /// Formatted query results as a string, with those rows deleted from the table.
+    async fn query_and_delete_table(
+        &self,
+        query: &crate::TableQueryView,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>;
 }
 
@@ -342,6 +358,25 @@ pub trait ContentRepository: Send + Sync {
     /// * `table_name` - Name of the content table
     /// * `id` - ID of the content item
     async fn delete_content(&self, table_name: &str, id: i64) -> BotticelliResult<()>;
+
+    /// Pull content items and delete them from the source table (destructive read).
+    ///
+    /// This is useful for pipeline workflows where content moves between tables.
+    /// Atomically retrieves N items and removes them from the source table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the content table
+    /// * `limit` - Maximum number of items to pull
+    ///
+    /// # Returns
+    ///
+    /// Vector of JSON objects representing the pulled (and deleted) rows
+    async fn pull_and_delete(
+        &self,
+        table_name: &str,
+        limit: usize,
+    ) -> BotticelliResult<Vec<serde_json::Value>>;
 }
 
 // Blanket implementations for Arc<T> where T implements the trait

@@ -46,6 +46,7 @@ impl TableReferenceNarrative {
             alias: Some("test_data".to_string()),
             format: TableFormat::Markdown,
             sample: None,
+            destructive_read: false,
             history_retention: Default::default(),
         };
 
@@ -54,6 +55,7 @@ impl TableReferenceNarrative {
             Some("gemini-2.0-flash-lite".to_string()),
             Some(0.7),
             Some(100),
+            None,
             None,
         );
 
@@ -293,6 +295,7 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
         alias: Some("completed_orders".to_string()),
         format: TableFormat::Json,
         sample: None,
+        destructive_read: false,
         history_retention: Default::default(),
     };
 
@@ -301,6 +304,7 @@ async fn test_table_reference_with_filter() -> botticelli::BotticelliResult<()> 
         Some("gemini-2.0-flash-lite".to_string()),
         Some(0.7),
         Some(100),
+        None,
         None,
     );
 
@@ -427,6 +431,7 @@ async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
         alias: Some("employees".to_string()),
         format: TableFormat::Csv,
         sample: None,
+        destructive_read: false,
         history_retention: Default::default(),
     };
 
@@ -435,6 +440,7 @@ async fn test_table_reference_format_csv() -> botticelli::BotticelliResult<()> {
         Some("gemini-2.0-flash-lite".to_string()),
         Some(0.7),
         Some(100),
+        None,
         None,
     );
 

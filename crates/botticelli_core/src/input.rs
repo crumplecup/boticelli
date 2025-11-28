@@ -160,6 +160,12 @@ pub enum Input {
         format: TableFormat,
         /// Random sample N rows
         sample: Option<u32>,
+        /// Pull rows and delete them from table (default: false)
+        ///
+        /// When enabled, performs an atomic pull-and-delete operation.
+        /// Useful for pipeline workflows where content moves between tables.
+        #[serde(default)]
+        destructive_read: bool,
         /// How to retain this input in conversation history (default: Full)
         ///
         /// Available with the `history-retention` feature.

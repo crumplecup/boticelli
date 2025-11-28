@@ -16,9 +16,11 @@ interval_hours = 24
 # Path to curation narrative
 narrative_path = "crates/botticelli_narrative/narratives/discord/curate_and_approve.toml"
 # Which narrative to run
-narrative_name = "curate"
-# Check for new content every 12 hours
+narrative_name = "curate_content"
+# Check for new content every 12 hours (for production)
 check_interval_hours = 12
+# For testing, override with minutes (3 minutes)
+check_interval_minutes = 3
 # Process posts in batches (curation narrative handles this)
 batch_size = 10
 

@@ -283,7 +283,8 @@ mod tests {
             execution,
             narrative_metadata: metadata,
             narrative_name,
-            is_last_act: true, // Default to true for tests
+            is_last_act: true,           // Default to true for tests
+            should_extract_output: true, // Extract output for last act
         }
     }
 

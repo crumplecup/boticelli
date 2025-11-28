@@ -1,41 +1,74 @@
 //! Bot server command handler.
 
-use botticelli::GeminiClient;
 use botticelli_bot::{BotConfig, BotServer};
-use botticelli_database::create_pool;
-use botticelli_error::{BackendError, BotticelliResult};
-use botticelli_narrative::NarrativeExecutor;
+use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, create_pool};
+use botticelli_error::{BotticelliResult, ServerError, ServerErrorKind};
+use botticelli_models::GeminiClient;
+use botticelli_narrative::{ContentGenerationProcessor, NarrativeExecutor, ProcessorRegistry, StorageActor};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use tracing::info;
 
 /// Handle the `server` command
 pub async fn handle_server_command(
-    config_path: Option<PathBuf>,
+    _config_path: Option<PathBuf>,
     _only_bots: Option<String>,
 ) -> BotticelliResult<()> {
-    tracing::info!("Starting bot server");
+    info!("Starting bot server");
 
-    // Load bot configuration
-    let config_path = config_path.unwrap_or_else(|| PathBuf::from("bot_server.toml"));
-    let bot_config = BotConfig::from_file(&config_path)?;
+    // Load configuration
+    let config = BotConfig::from_file("bot_server.toml")?;
 
-    // Create Gemini client using config from botticelli.toml
-    let client = GeminiClient::new_with_tier(None)?;
-
-    // Create database connection pool
+    // Establish database connection pool
     let pool = create_pool()?;
 
-    // Create narrative executor
-    let executor = NarrativeExecutor::new(client);
+    // Create Gemini client
+    let client = GeminiClient::new()?;
+
+    // Create database connection for table queries
+    let table_conn = botticelli::establish_connection()?;
+    let table_executor = TableQueryExecutor::new(Arc::new(Mutex::new(table_conn)));
+    let table_registry = DatabaseTableQueryRegistry::new(table_executor);
+
+    // Start storage actor with Ractor
+    info!("Starting storage actor");
+    let actor = StorageActor::new(pool.clone());
+    let (actor_ref, _handle) =
+        ractor::Actor::spawn(None, actor, pool.clone()).await.map_err(|e| {
+            ServerError::new(ServerErrorKind::ServerStartFailed(format!(
+                "Failed to spawn storage actor: {}",
+                e
+            )))
+        })?;
+    info!("Storage actor started");
+
+    // Create content generation processor with storage actor
+    let processor = ContentGenerationProcessor::new(actor_ref);
+    let mut registry = ProcessorRegistry::new();
+    registry.register(Box::new(processor));
+
+    // Create narrative executor with processors and table registry
+    let mut executor = NarrativeExecutor::with_processors(client, registry);
+    executor = executor.with_table_registry(Box::new(table_registry));
 
     // Create and start server
-    let server = BotServer::new(bot_config, executor, pool);
+    let server = BotServer::new(config, executor, pool);
 
-    tracing::info!("Bot server starting. Press Ctrl+C to stop.");
+    info!("Starting bot server with configured intervals");
 
     server
         .start()
         .await
-        .map_err(|e| BackendError::new(e.to_string()))?;
+        .map_err(|e| ServerError::new(ServerErrorKind::ServerStartFailed(e.to_string())))?;
+
+    info!("Bot server running. Press Ctrl+C to stop.");
+
+    // Keep server running
+    tokio::signal::ctrl_c()
+        .await
+        .map_err(|e| ServerError::new(ServerErrorKind::ServerStopFailed(e.to_string())))?;
+
+    info!("Bot server shutdown complete");
 
     Ok(())
 }

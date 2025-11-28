@@ -225,6 +225,7 @@ pub struct TomlTableDefinition {
     pub order_by: Option<String>,
     pub format: Option<String>,
     pub sample: Option<u32>,
+    pub pull_and_delete: Option<bool>,
 }
 
 /// Media source definition from [media.name] section.
@@ -346,6 +347,9 @@ pub struct TomlInput {
 
     // History retention field (applies to bot_command, table, narrative)
     pub history_retention: Option<String>,
+
+    // Pull and delete flag for destructive reads (table only)
+    pub pull_and_delete: Option<bool>,
 }
 
 /// Root TOML structure supporting both single and multi-narrative files.
@@ -612,6 +616,7 @@ impl TomlInput {
                     alias: None, // Will be set during resolution
                     format,
                     sample: self.sample,
+                    destructive_read: self.pull_and_delete.unwrap_or(true),
                     history_retention,
                 })
             }
@@ -875,6 +880,7 @@ impl TomlNarrativeFile {
             alias: Some(name.to_string()),
             format,
             sample: table_def.sample,
+            destructive_read: table_def.pull_and_delete.unwrap_or(true),
             history_retention: HistoryRetention::Full,
         })
     }

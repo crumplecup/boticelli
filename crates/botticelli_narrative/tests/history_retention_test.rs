@@ -15,6 +15,7 @@ fn test_summarize_table_input() {
         alias: None,
         format: TableFormat::Json,
         sample: None,
+        destructive_read: false,
         history_retention: HistoryRetention::Summary,
     };
 
@@ -36,6 +37,7 @@ fn test_summarize_table_with_offset() {
         alias: None,
         format: TableFormat::Json,
         sample: None,
+        destructive_read: false,
         history_retention: HistoryRetention::Summary,
     };
 
@@ -57,6 +59,7 @@ fn test_summarize_table_no_limit() {
         alias: None,
         format: TableFormat::Json,
         sample: None,
+        destructive_read: false,
         history_retention: HistoryRetention::Summary,
     };
 
@@ -150,6 +153,7 @@ fn test_apply_retention_summary_replaces_large_input() {
         alias: None,
         format: TableFormat::Json,
         sample: None,
+        destructive_read: false,
         history_retention: HistoryRetention::Summary,
     };
     let inputs = vec![input];
@@ -178,6 +182,7 @@ fn test_apply_retention_drop_removes_input() {
         alias: None,
         format: TableFormat::Json,
         sample: None,
+        destructive_read: false,
         history_retention: HistoryRetention::Drop,
     };
     let inputs = vec![input];
@@ -201,6 +206,7 @@ fn test_apply_retention_mixed_policies() {
             alias: None,
             format: TableFormat::Json,
             sample: None,
+            destructive_read: false,
             history_retention: HistoryRetention::Summary,
         },
         Input::Table {
@@ -213,6 +219,7 @@ fn test_apply_retention_mixed_policies() {
             alias: None,
             format: TableFormat::Json,
             sample: None,
+            destructive_read: false,
             history_retention: HistoryRetention::Drop,
         },
     ];
@@ -275,6 +282,7 @@ fn test_with_history_retention_modifies_table() {
         alias: None,
         format: TableFormat::Json,
         sample: None,
+        destructive_read: false,
         history_retention: HistoryRetention::Full,
     };
 

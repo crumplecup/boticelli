@@ -51,7 +51,11 @@ pub struct CurationConfig {
     /// Name of narrative within file
     pub narrative_name: String,
     /// How often to check for new content (hours)
-    pub check_interval_hours: u64,
+    #[serde(default)]
+    pub check_interval_hours: Option<u64>,
+    /// How often to check for new content (minutes, for testing)
+    #[serde(default)]
+    pub check_interval_minutes: Option<u64>,
     /// Batch size for processing
     pub batch_size: usize,
 }
@@ -84,13 +88,20 @@ pub struct BotSchedule {
 
 impl From<&BotConfig> for BotSchedule {
     fn from(config: &BotConfig) -> Self {
+        // Prefer minutes over hours for curation if specified
+        let curation_secs = if let Some(mins) = config.curation.check_interval_minutes {
+            mins * 60
+        } else if let Some(hours) = config.curation.check_interval_hours {
+            hours * 3600
+        } else {
+            12 * 3600 // Default to 12 hours
+        };
+
         Self {
             generation_interval: std::time::Duration::from_secs(
                 config.generation.interval_hours * 3600,
             ),
-            curation_interval: std::time::Duration::from_secs(
-                config.curation.check_interval_hours * 3600,
-            ),
+            curation_interval: std::time::Duration::from_secs(curation_secs),
             posting_base_interval: std::time::Duration::from_secs(
                 config.posting.base_interval_hours * 3600,
             ),

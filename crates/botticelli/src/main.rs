@@ -62,8 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Build execution options
                 #[cfg(feature = "database")]
                 let options = {
-                    let builder = ExecutionOptions::builder()
-                        .save(save);
+                    let builder = ExecutionOptions::builder().save(save);
                     #[cfg(feature = "discord")]
                     let builder = builder.process_discord(process_discord);
                     builder.state_dir(state_dir).build()
@@ -71,8 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 #[cfg(not(feature = "database"))]
                 let options = {
-                    let builder = ExecutionOptions::builder()
-                        .save(save);
+                    let builder = ExecutionOptions::builder().save(save);
                     #[cfg(feature = "discord")]
                     let builder = builder.process_discord(process_discord);
                     builder.build()

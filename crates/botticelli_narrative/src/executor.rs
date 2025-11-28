@@ -950,18 +950,37 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                         )
                     })?;
 
-                    match registry
-                        .query_table(
-                            table_name,
-                            columns.as_deref(),
-                            where_clause.as_deref(),
-                            *limit,
-                            *offset,
-                            order_by.as_deref(),
-                            format_str,
+                    // Build query view
+                    let mut query_builder = botticelli_interface::TableQueryViewBuilder::default();
+                    query_builder.table_name(table_name.to_string());
+
+                    if let Some(cols) = columns.as_ref() {
+                        query_builder.columns(cols.clone());
+                    }
+                    if let Some(where_str) = where_clause.as_ref() {
+                        query_builder.filter(where_str.clone());
+                    }
+                    if let Some(lim) = limit {
+                        query_builder.limit(*lim as i64);
+                    }
+                    if let Some(off) = offset {
+                        query_builder.offset(*off as i64);
+                    }
+                    if let Some(order) = order_by.as_ref() {
+                        query_builder.order_by(order.clone());
+                    }
+                    query_builder.format(format_str.to_string());
+
+                    let query_view = query_builder.build().map_err(|e| {
+                        botticelli_error::NarrativeError::new(
+                            botticelli_error::NarrativeErrorKind::TableQueryNotConfigured(format!(
+                                "Failed to build query: {}",
+                                e
+                            )),
                         )
-                        .await
-                    {
+                    })?;
+
+                    match registry.query_table(&query_view).await {
                         Ok(result) => {
                             tracing::info!(
                                 table_name = %table_name,

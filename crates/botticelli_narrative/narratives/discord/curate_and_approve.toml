@@ -14,6 +14,7 @@ target = "approved_discord_posts"
 order = ["analyze", "select", "format_json", "audit_json"]
 
 # Act 1: Analyze all posts (plain text output)
+# Uses pull_and_delete to atomically fetch and remove posts from potential table
 [acts.analyze]
 model = "gemini-2.5-flash-lite"
 temperature = 0.3
@@ -27,6 +28,7 @@ limit = 10
 order_by = "generated_at DESC"
 required = false
 history_retention = "drop"
+pull_and_delete = true  # Destructive read: fetch and remove from source table
 
 [[acts.analyze.input]]
 type = "text"

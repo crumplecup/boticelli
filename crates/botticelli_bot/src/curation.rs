@@ -72,9 +72,9 @@ impl<D: BotticelliDriver> CurationBot<D> {
                 break;
             }
 
-            debug!(pending_count, "Found pending content");
+            debug!(pending_count, "Found pending content, processing batch");
 
-            // Process batch
+            // Process batch - the narrative will pull and delete content atomically
             self.executor
                 .execute_narrative_by_name(
                     &self.config.narrative_path.to_string_lossy(),
@@ -89,18 +89,16 @@ impl<D: BotticelliDriver> CurationBot<D> {
     }
 
     async fn check_pending_count(&self) -> Result<usize, Box<dyn std::error::Error>> {
-        // Query potential_discord_posts for records with status = "pending"
+        // Check if potential_discord_posts table has any content
         let mut conn = self.database.get()?;
 
         use diesel::dsl::sql;
         use diesel::prelude::*;
         use diesel::sql_types::BigInt;
 
-        let count: i64 = diesel::select(sql::<BigInt>(
-            "COUNT(*) FROM potential_discord_posts WHERE status = 'pending'",
-        ))
-        .get_result(&mut conn)
-        .unwrap_or(0);
+        let count: i64 = diesel::select(sql::<BigInt>("COUNT(*) FROM potential_discord_posts"))
+            .get_result(&mut conn)
+            .unwrap_or(0);
 
         Ok(count as usize)
     }

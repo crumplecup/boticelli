@@ -101,4 +101,28 @@ impl ContentRepository for DatabaseContentRepository {
             ))
         })?
     }
+
+    async fn pull_and_delete(
+        &self,
+        table_name: &str,
+        limit: usize,
+    ) -> BotticelliResult<Vec<JsonValue>> {
+        let table_name = table_name.to_string();
+        let pool = self.pool.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let mut conn = pool.get().map_err(|e| {
+                botticelli_error::DatabaseError::new(
+                    botticelli_error::DatabaseErrorKind::Connection(e.to_string()),
+                )
+            })?;
+            crate::content_management::pull_and_delete(&mut conn, &table_name, limit)
+        })
+        .await
+        .map_err(|e| {
+            botticelli_error::DatabaseError::new(botticelli_error::DatabaseErrorKind::Query(
+                e.to_string(),
+            ))
+        })?
+    }
 }

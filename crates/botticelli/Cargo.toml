@@ -23,7 +23,6 @@ botticelli_models = { workspace = true, optional = true }
 botticelli_database = { workspace = true, optional = true }
 botticelli_social = { workspace = true, optional = true }
 botticelli_tui = { workspace = true, optional = true }
-botticelli_server = { workspace = true, optional = true }
 botticelli_bot = { workspace = true, optional = true }
 
 # Binary dependencies
@@ -56,9 +55,6 @@ discord = ["botticelli_social", "botticelli_social/discord", "botticelli_social/
 # TUI feature
 tui = ["botticelli_tui", "botticelli_database", "dep:ratatui", "dep:crossterm"]
 
-# Local model server feature (mistral.rs)
-server = ["botticelli_server"]
-
 # Bot server feature (generation/curation/posting actors)
 bots = ["botticelli_bot", "gemini", "database", "discord", "dep:diesel"]
 
@@ -72,12 +68,11 @@ local = [
   "database",
   "discord",
   "tui",
-  "server",
   "bots",
 ] # All features except api
 
 # Convenience feature for all optional features
-all = ["gemini", "database", "discord", "tui", "server", "bots"]
+all = ["gemini", "database", "discord", "tui", "bots"]
 
 [dev-dependencies]
 dotenvy = { workspace = true }

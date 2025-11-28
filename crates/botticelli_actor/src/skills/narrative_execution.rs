@@ -119,8 +119,9 @@ impl Skill for NarrativeExecutionSkill {
 
         // Create Gemini client for narrative execution
         // TODO: Make this configurable to support other LLM providers
-        // GeminiClient::new() reads GEMINI_API_KEY from environment
-        let client = GeminiClient::new().map_err(|e| {
+        // GeminiClient::new_with_config() reads GEMINI_API_KEY from environment
+        // and loads tier config + budget multipliers from botticelli.toml
+        let client = GeminiClient::new_with_config(None).map_err(|e| {
             ActorError::new(ActorErrorKind::InvalidConfiguration(format!(
                 "Failed to create Gemini client: {}",
                 e

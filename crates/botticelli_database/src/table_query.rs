@@ -49,6 +49,33 @@ impl TableQueryExecutor {
         Ok(results)
     }
 
+    /// Queries a table, returns results, and deletes those rows (destructive read).
+    #[instrument(skip(self), fields(table_name = %view.table_name(), limit = ?view.limit(), offset = ?view.offset()))]
+    pub fn query_and_delete_table(&self, view: &TableQueryView) -> DatabaseResult<Vec<JsonValue>> {
+        debug!("Querying and deleting from table");
+
+        let mut conn = self
+            .connection
+            .lock()
+            .map_err(|e| DatabaseError::new(DatabaseErrorKind::Connection(e.to_string())))?;
+
+        // Validate table exists
+        if !self.table_exists(&mut conn, view.table_name())? {
+            return Err(DatabaseError::new(DatabaseErrorKind::TableNotFound(
+                view.table_name().to_string(),
+            )));
+        }
+
+        // Call pull_and_delete from content_management
+        let limit = view.limit().unwrap_or(10) as usize;
+        let results =
+            crate::content_management::pull_and_delete(&mut conn, view.table_name(), limit)
+                .map_err(|e| DatabaseError::new(DatabaseErrorKind::Query(e.to_string())))?;
+
+        debug!(count = results.len(), "Retrieved and deleted rows");
+        Ok(results)
+    }
+
     /// Checks if a table exists in the database.
     #[instrument(skip(self, conn))]
     fn table_exists(&self, conn: &mut PgConnection, table_name: &str) -> DatabaseResult<bool> {

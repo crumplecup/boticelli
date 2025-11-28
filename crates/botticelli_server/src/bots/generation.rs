@@ -1,6 +1,6 @@
 use botticelli_database::establish_connection;
 use botticelli_models::GeminiClient;
-use botticelli_narrative::{MultiNarrative, NarrativeExecutor};
+use botticelli_narrative::{MultiNarrative, NarrativeExecutor, NarrativeProvider};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -46,18 +46,24 @@ impl GenerationBot {
         
         // Load narrative with database connection
         let mut conn = establish_connection()?;
-        let narrative = MultiNarrative::from_file_with_db(
+        let multi_narrative = MultiNarrative::from_file_with_db(
             &self.args.narrative_path,
             &self.args.narrative_name,
             &mut conn,
         )?;
+        
+        tracing::debug!(
+            narrative_key = %self.args.narrative_name,
+            narrative_name = %multi_narrative.name(),
+            "Loaded multi-narrative structure"
+        );
         
         // Create executor with Gemini client
         let client = GeminiClient::new()?;
         let executor = NarrativeExecutor::new(client);
         
         // Execute the narrative
-        match executor.execute(&narrative).await {
+        match executor.execute(&multi_narrative).await {
             Ok(_) => {
                 info!("Generation cycle completed successfully");
                 Ok(())

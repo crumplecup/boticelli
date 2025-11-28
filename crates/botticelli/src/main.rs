@@ -119,6 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             handle_content_command(content_cmd).await?;
         }
 
+        #[cfg(feature = "bots")]
         Commands::Server { config, only } => {
             handle_server_command(config, only).await?;
         }

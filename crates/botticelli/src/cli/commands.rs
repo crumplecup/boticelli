@@ -68,6 +68,7 @@ pub enum Commands {
     Content(ContentCommands),
 
     /// Run the bot server with generation, curation, and posting bots
+    #[cfg(feature = "bots")]
     Server {
         /// Override config file path
         #[arg(long)]

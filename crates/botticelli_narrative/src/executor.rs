@@ -4,8 +4,8 @@
 //! by calling LLM APIs in sequence, passing context between acts.
 
 use crate::{
-    CarouselResult, CarouselState, NarrativeProvider, ProcessorContext, ProcessorRegistry,
-    StateManager,
+    CarouselResult, CarouselState, MultiNarrative, Narrative, NarrativeProvider, ProcessorContext,
+    ProcessorRegistry, StateManager,
 };
 use botticelli_core::{GenerateRequest, Input, Message, MessageBuilder, Output, Role};
 use botticelli_error::{BotticelliError, BotticelliResult, NarrativeError, NarrativeErrorKind};
@@ -308,13 +308,33 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             )))
         })?;
 
-        self.execute(narrative).await
+        // Execute with the MultiNarrative for composition support
+        self.execute_impl_with_multi(narrative, Some(&multi)).await
     }
 
     #[tracing::instrument(skip(self, narrative), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]
     async fn execute_impl<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
+    ) -> BotticelliResult<NarrativeExecution> {
+        self.execute_impl_with_multi(narrative, None).await
+    }
+
+    /// Execute a narrative that's part of a MultiNarrative (supports composition)
+    #[allow(dead_code)]
+    async fn execute_multi(
+        &self,
+        narrative: &Narrative,
+        multi: &MultiNarrative,
+    ) -> BotticelliResult<NarrativeExecution> {
+        self.execute_impl_with_multi(narrative, Some(multi)).await
+    }
+
+    #[tracing::instrument(skip(self, narrative, multi), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]
+    async fn execute_impl_with_multi<N: NarrativeProvider + ?Sized>(
+        &self,
+        narrative: &N,
+        multi: Option<&MultiNarrative>,
     ) -> BotticelliResult<NarrativeExecution> {
         let mut act_executions = Vec::new();
         let mut conversation_history: Vec<Message> = Vec::new();
@@ -335,13 +355,15 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 );
 
                 // Try to resolve the referenced narrative
-                // This requires the narrative to be a MultiNarrative
-                let resolved_narrative = narrative.resolve_narrative(narrative_ref_name);
-
-                if let Some(ref_narrative) = resolved_narrative {
-                    // Recursively execute the referenced narrative
-                    tracing::debug!("Recursively executing referenced narrative");
-                    let nested_execution = self.execute(ref_narrative).await?;
+                // First try from the MultiNarrative context if available
+                if let Some(ref_narrative) = if let Some(m) = multi {
+                    m.get_narrative(narrative_ref_name)
+                } else {
+                    None
+                } {
+                    // Recursively execute the referenced narrative with the same multi context
+                    tracing::debug!("Recursively executing referenced narrative from multi");
+                    let nested_execution = Box::pin(self.execute_impl_with_multi(ref_narrative, multi)).await?;
 
                     // Collect all responses from the nested execution
                     let nested_responses: Vec<String> = nested_execution

@@ -1,4 +1,7 @@
-use crate::{CurationBot, CurationMessage, GenerationBot, GenerationMessage, PostingBot, PostingMessage};
+use crate::{
+    CurationBot, CurationBotArgs, CurationMessage, GenerationBot, GenerationBotArgs,
+    GenerationMessage, PostingBot, PostingBotArgs, PostingMessage,
+};
 use botticelli_error::{BotticelliError, BotticelliResult, ServerError, ServerErrorKind};
 use ractor::{Actor, ActorRef};
 use std::path::PathBuf;
@@ -32,11 +35,20 @@ impl BotServer {
     ) -> BotticelliResult<()> {
         info!("Starting bot server");
 
+        // Define narrative paths (relative to workspace root)
+        let narratives_dir = PathBuf::from("./crates/botticelli_narrative/narratives/discord");
+        
         // Spawn generation bot
+        let generation_args = GenerationBotArgs {
+            interval: generation_interval,
+            narrative_path: narratives_dir.join("generation_carousel.toml"),
+            narrative_name: "batch_generate".to_string(),
+        };
+        
         let (generation_ref, _) = Actor::spawn(
             Some("generation_bot".to_string()),
-            GenerationBot::new(generation_interval),
-            generation_interval,
+            GenerationBot::new(generation_args.clone()),
+            generation_args,
         )
         .await
         .map_err(|e| {
@@ -53,12 +65,16 @@ impl BotServer {
             })?;
 
         // Spawn curation bot
-        let narrative_path = PathBuf::from("./crates/botticelli_narrative/narratives/discord/curation.toml");
-        let state_dir = PathBuf::from(".narrative_state");
+        let curation_args = CurationBotArgs {
+            check_interval: curation_interval,
+            narrative_path: narratives_dir.join("curation.toml"),
+            narrative_name: "curate_and_approve".to_string(),
+        };
+        
         let (curation_ref, _) = Actor::spawn(
             Some("curation_bot".to_string()),
-            CurationBot::new(narrative_path, state_dir, None),
-            curation_interval,
+            CurationBot::new(curation_args.clone()),
+            curation_args,
         )
         .await
         .map_err(|e| {
@@ -75,10 +91,17 @@ impl BotServer {
             })?;
 
         // Spawn posting bot
+        let posting_args = PostingBotArgs {
+            base_interval: posting_interval,
+            jitter_percent: 0.2,
+            narrative_path: narratives_dir.join("posting.toml"),
+            narrative_name: "post_approved".to_string(),
+        };
+        
         let (posting_ref, _) = Actor::spawn(
             Some("posting_bot".to_string()),
-            PostingBot::new(posting_interval, 0.2),
-            (posting_interval, 0.2),
+            PostingBot::new(posting_args.clone()),
+            posting_args,
         )
         .await
         .map_err(|e| {

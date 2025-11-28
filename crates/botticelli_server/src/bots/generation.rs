@@ -1,6 +1,11 @@
+use botticelli_database::establish_connection;
+use botticelli_models::GeminiClient;
+use botticelli_narrative::{MultiNarrative, NarrativeExecutor};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
+use std::path::PathBuf;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument};
+use tokio::time;
+use tracing::{error, info, instrument, warn};
 
 /// Messages for the GenerationBot actor
 #[derive(Debug, Clone)]
@@ -13,62 +18,124 @@ pub enum GenerationMessage {
     RunCycle,
 }
 
+/// Arguments for GenerationBot initialization
+#[derive(Debug, Clone)]
+pub struct GenerationBotArgs {
+    /// How often to run generation
+    pub interval: Duration,
+    /// Path to generation narrative
+    pub narrative_path: PathBuf,
+    /// Narrative name within the file
+    pub narrative_name: String,
+}
+
 /// Bot that generates content on a schedule
 pub struct GenerationBot {
-    running: bool,
-    interval: Duration,
+    args: GenerationBotArgs,
 }
 
 impl GenerationBot {
     /// Creates a new generation bot
-    pub fn new(interval: Duration) -> Self {
-        Self {
-            running: false,
-            interval,
-        }
+    pub fn new(args: GenerationBotArgs) -> Self {
+        Self { args }
     }
 
     #[instrument(skip(self))]
     async fn run_generation_cycle(&self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Running generation cycle");
         
-        // TODO: Execute generation narrative
-        // For now, just log
-        debug!(interval_secs = ?self.interval.as_secs(), "Generation cycle placeholder");
+        // Load narrative with database connection
+        let mut conn = establish_connection()?;
+        let narrative = MultiNarrative::from_file_with_db(
+            &self.args.narrative_path,
+            &self.args.narrative_name,
+            &mut conn,
+        )?;
         
-        Ok(())
+        // Create executor with Gemini client
+        let client = GeminiClient::new()?;
+        let executor = NarrativeExecutor::new(client);
+        
+        // Execute the narrative
+        match executor.execute(&narrative).await {
+            Ok(_) => {
+                info!("Generation cycle completed successfully");
+                Ok(())
+            }
+            Err(e) => {
+                error!(error = ?e, "Generation narrative failed");
+                Err(e.into())
+            }
+        }
     }
+}
+
+/// State for the Generation Bot
+pub struct GenerationBotState {
+    running: bool,
+    task_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 #[async_trait::async_trait]
 impl Actor for GenerationBot {
     type Msg = GenerationMessage;
-    type State = ();
-    type Arguments = Duration;
+    type State = GenerationBotState;
+    type Arguments = GenerationBotArgs;
 
     async fn pre_start(
         &self,
         _myself: ActorRef<Self::Msg>,
-        interval: Duration,
+        args: GenerationBotArgs,
     ) -> Result<Self::State, ActorProcessingErr> {
-        info!(interval_secs = ?interval.as_secs(), "GenerationBot starting");
-        Ok(())
+        info!(
+            interval_secs = ?args.interval.as_secs(),
+            narrative = %args.narrative_name,
+            "GenerationBot starting"
+        );
+        Ok(GenerationBotState {
+            running: false,
+            task_handle: None,
+        })
     }
 
-    #[instrument(skip(self, _myself, _state))]
+    #[instrument(skip(self, myself, state))]
     async fn handle(
         &self,
-        _myself: ActorRef<Self::Msg>,
+        myself: ActorRef<Self::Msg>,
         message: Self::Msg,
-        _state: &mut Self::State,
+        state: &mut Self::State,
     ) -> Result<(), ActorProcessingErr> {
         match message {
             GenerationMessage::Start => {
+                if state.running {
+                    warn!("Generation loop already running");
+                    return Ok(());
+                }
+                
                 info!("Starting generation loop");
-                // TODO: Spawn background task that runs every interval
+                state.running = true;
+                
+                // Spawn background task for periodic execution
+                let interval = self.args.interval;
+                let myself_clone = myself.clone();
+                let handle = tokio::spawn(async move {
+                    let mut ticker = time::interval(interval);
+                    loop {
+                        ticker.tick().await;
+                        if let Err(e) = myself_clone.send_message(GenerationMessage::RunCycle) {
+                            error!(error = ?e, "Failed to send RunCycle message");
+                            break;
+                        }
+                    }
+                });
+                state.task_handle = Some(handle);
             }
             GenerationMessage::Stop => {
                 info!("Stopping generation loop");
+                state.running = false;
+                if let Some(handle) = state.task_handle.take() {
+                    handle.abort();
+                }
             }
             GenerationMessage::RunCycle => {
                 if let Err(e) = self.run_generation_cycle().await {

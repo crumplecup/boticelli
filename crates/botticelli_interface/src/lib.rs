@@ -3,12 +3,14 @@
 //! This crate provides the core traits and capability traits that define
 //! the Botticelli interface.
 
+mod bot_server;
 mod narrative;
 mod table_query_view;
 mod table_view;
 mod traits;
 mod types;
 
+pub use bot_server::{BotActor, BotResult, BotServer, BotServerConfig, BotState, BotStats};
 pub use narrative::{
     ActExecution, ExecutionFilter, ExecutionStatus, ExecutionSummary, NarrativeExecution,
     NarrativeRepository,

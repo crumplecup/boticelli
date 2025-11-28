@@ -16,10 +16,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "gemini")]
     use cli::{
         Cli, Commands, ExecutionOptions, NarrativeSource, handle_content_command,
-        handle_server_command, launch_tui, run_narrative,
+        launch_tui, run_narrative,
     };
     #[cfg(not(feature = "gemini"))]
-    use cli::{Cli, Commands, handle_content_command, handle_server_command, launch_tui, run_narrative};
+    use cli::{Cli, Commands, handle_content_command, launch_tui, run_narrative};
+    #[cfg(feature = "server")]
+    use cli::handle_server_command;
 
     // Load environment variables from .env file (if present)
     let _ = dotenvy::dotenv();

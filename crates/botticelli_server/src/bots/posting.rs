@@ -1,7 +1,12 @@
+use botticelli_database::establish_connection;
+use botticelli_models::GeminiClient;
+use botticelli_narrative::{MultiNarrative, NarrativeExecutor};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use rand::Rng;
+use std::path::PathBuf;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument};
+use tokio::time;
+use tracing::{debug, error, info, instrument, warn};
 
 /// Messages for the PostingBot actor
 #[derive(Debug, Clone)]
@@ -14,34 +19,41 @@ pub enum PostingMessage {
     PostNext,
 }
 
+/// Arguments for PostingBot initialization
+#[derive(Debug, Clone)]
+pub struct PostingBotArgs {
+    /// Base interval between posts
+    pub base_interval: Duration,
+    /// Jitter percentage (0.0 to 1.0)
+    pub jitter_percent: f64,
+    /// Path to posting narrative
+    pub narrative_path: PathBuf,
+    /// Narrative name within the file
+    pub narrative_name: String,
+}
+
 /// Bot that posts curated content to Discord
 pub struct PostingBot {
-    running: bool,
-    base_interval: Duration,
-    jitter_percent: f64,
+    args: PostingBotArgs,
 }
 
 impl PostingBot {
     /// Creates a new posting bot
-    pub fn new(base_interval: Duration, jitter_percent: f64) -> Self {
-        Self {
-            running: false,
-            base_interval,
-            jitter_percent,
-        }
+    pub fn new(args: PostingBotArgs) -> Self {
+        Self { args }
     }
 
     /// Calculate next posting delay with jitter
     #[instrument(skip(self))]
     fn calculate_next_delay(&self) -> Duration {
         let mut rng = rand::thread_rng();
-        let jitter_range = (self.base_interval.as_secs_f64() * self.jitter_percent) as i64;
+        let jitter_range = (self.args.base_interval.as_secs_f64() * self.args.jitter_percent) as i64;
         let jitter = rng.gen_range(-jitter_range..=jitter_range);
-        let next_secs = (self.base_interval.as_secs() as i64 + jitter).max(60); // Minimum 1 minute
+        let next_secs = (self.args.base_interval.as_secs() as i64 + jitter).max(60); // Minimum 1 minute
         
         let delay = Duration::from_secs(next_secs as u64);
         debug!(
-            base_secs = self.base_interval.as_secs(),
+            base_secs = self.args.base_interval.as_secs(),
             jitter_secs = jitter,
             next_secs,
             "Calculated next posting delay"
@@ -53,48 +65,101 @@ impl PostingBot {
     async fn post_next_content(&self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Posting next approved content");
         
-        // TODO: Query approved_discord_posts for oldest unposted content
-        // TODO: Execute posting narrative or direct Discord API call
-        // TODO: Mark content as posted with timestamp
+        // Load narrative with database connection
+        let mut conn = establish_connection()?;
+        let narrative = MultiNarrative::from_file_with_db(
+            &self.args.narrative_path,
+            &self.args.narrative_name,
+            &mut conn,
+        )?;
         
-        debug!("Content posted successfully");
-        Ok(())
+        // Create executor with Gemini client
+        let client = GeminiClient::new()?;
+        let executor = NarrativeExecutor::new(client);
+        
+        // Execute the narrative
+        match executor.execute(&narrative).await {
+            Ok(_) => {
+                info!("Posting cycle completed successfully");
+                Ok(())
+            }
+            Err(e) => {
+                error!(error = ?e, "Posting narrative failed");
+                Err(e.into())
+            }
+        }
     }
+}
+
+/// State for the posting bot actor
+pub struct PostingBotState {
+    running: bool,
+    task_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 #[async_trait::async_trait]
 impl Actor for PostingBot {
     type Msg = PostingMessage;
-    type State = ();
-    type Arguments = (Duration, f64);
+    type State = PostingBotState;
+    type Arguments = PostingBotArgs;
 
     async fn pre_start(
         &self,
         _myself: ActorRef<Self::Msg>,
-        (base_interval, jitter_percent): (Duration, f64),
+        args: PostingBotArgs,
     ) -> Result<Self::State, ActorProcessingErr> {
         info!(
-            interval_hours = ?base_interval.as_secs() / 3600,
-            jitter_percent,
+            interval_hours = ?args.base_interval.as_secs() / 3600,
+            jitter_percent = args.jitter_percent,
+            narrative = %args.narrative_name,
             "PostingBot starting"
         );
-        Ok(())
+        Ok(PostingBotState {
+            running: false,
+            task_handle: None,
+        })
     }
 
-    #[instrument(skip(self, _myself, _state))]
+    #[instrument(skip(self, myself, state))]
     async fn handle(
         &self,
-        _myself: ActorRef<Self::Msg>,
+        myself: ActorRef<Self::Msg>,
         message: Self::Msg,
-        _state: &mut Self::State,
+        state: &mut Self::State,
     ) -> Result<(), ActorProcessingErr> {
         match message {
             PostingMessage::Start => {
+                if state.running {
+                    warn!("Posting loop already running");
+                    return Ok(());
+                }
+                
                 info!("Starting posting loop");
-                // TODO: Spawn background task with jittered intervals
+                state.running = true;
+                
+                // Spawn background task with jittered intervals
+                let myself_clone = myself.clone();
+                let bot_clone = Self { args: self.args.clone() };
+                
+                let handle = tokio::spawn(async move {
+                    loop {
+                        let delay = bot_clone.calculate_next_delay();
+                        time::sleep(delay).await;
+                        
+                        if let Err(e) = myself_clone.send_message(PostingMessage::PostNext) {
+                            error!(error = ?e, "Failed to send PostNext message");
+                            break;
+                        }
+                    }
+                });
+                state.task_handle = Some(handle);
             }
             PostingMessage::Stop => {
                 info!("Stopping posting loop");
+                state.running = false;
+                if let Some(handle) = state.task_handle.take() {
+                    handle.abort();
+                }
             }
             PostingMessage::PostNext => {
                 if let Err(e) = self.post_next_content().await {

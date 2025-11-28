@@ -1,10 +1,11 @@
+use botticelli_database::establish_connection;
+use botticelli_models::GeminiClient;
+use botticelli_narrative::{MultiNarrative, NarrativeExecutor};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::time::Duration;
-use tokio::process::Command;
-use tokio::time::interval;
-use tracing::{debug, error, info, instrument, warn};
+use tokio::time;
+use tracing::{error, info, instrument, warn};
 
 /// Messages for the CurationBot actor
 #[derive(Debug, Clone)]
@@ -17,61 +18,54 @@ pub enum CurationMessage {
     ProcessQueue,
 }
 
+/// Arguments for CurationBot initialization
+#[derive(Debug, Clone)]
+pub struct CurationBotArgs {
+    /// How often to check for content
+    pub check_interval: Duration,
+    /// Path to curation narrative
+    pub narrative_path: PathBuf,
+    /// Narrative name within the file
+    pub narrative_name: String,
+}
+
 /// Bot that curates generated content
 pub struct CurationBot {
-    narrative_path: PathBuf,
-    state_dir: PathBuf,
-    botticelli_bin: PathBuf,
+    args: CurationBotArgs,
 }
 
 impl CurationBot {
     /// Creates a new curation bot
-    pub fn new(
-        narrative_path: PathBuf,
-        state_dir: PathBuf,
-        botticelli_bin: Option<PathBuf>,
-    ) -> Self {
-        Self {
-            narrative_path,
-            state_dir,
-            botticelli_bin: botticelli_bin.unwrap_or_else(|| PathBuf::from("botticelli")),
-        }
+    pub fn new(args: CurationBotArgs) -> Self {
+        Self { args }
     }
 
     #[instrument(skip(self))]
-    async fn process_curation_queue(&self) -> Result<usize, Box<dyn std::error::Error>> {
+    async fn process_curation_queue(&self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Starting queue processing cycle");
         
-        // Execute curation narrative via CLI
-        let output = Command::new(&self.botticelli_bin)
-            .arg("run")
-            .arg("--narrative")
-            .arg(&self.narrative_path)
-            .arg("--narrative-name")
-            .arg("curate_and_approve")
-            .arg("--save")
-            .arg("--state-dir")
-            .arg(&self.state_dir)
-            .arg("--process-discord")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await?;
+        // Load narrative with database connection
+        let mut conn = establish_connection()?;
+        let narrative = MultiNarrative::from_file_with_db(
+            &self.args.narrative_path,
+            &self.args.narrative_name,
+            &mut conn,
+        )?;
         
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            
-            debug!(stdout = %stdout, stderr = %stderr, "Curation narrative completed");
-            info!("Queue processing complete");
-            
-            // For MVP, assume we processed content if command succeeded
-            // TODO: Parse output to get actual count
-            Ok(10)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            error!(stderr = %stderr, status = %output.status, "Curation narrative failed");
-            Err(format!("Curation command failed: {}", stderr).into())
+        // Create executor with Gemini client
+        let client = GeminiClient::new()?;
+        let executor = NarrativeExecutor::new(client);
+        
+        // Execute the narrative
+        match executor.execute(&narrative).await {
+            Ok(_) => {
+                info!("Curation cycle completed successfully");
+                Ok(())
+            }
+            Err(e) => {
+                error!(error = ?e, "Curation narrative failed");
+                Err(e.into())
+            }
         }
     }
 }
@@ -79,24 +73,28 @@ impl CurationBot {
 /// State for the curation bot actor
 pub struct CurationBotState {
     running: bool,
-    check_interval: Duration,
+    task_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 #[async_trait::async_trait]
 impl Actor for CurationBot {
     type Msg = CurationMessage;
     type State = CurationBotState;
-    type Arguments = Duration;
+    type Arguments = CurationBotArgs;
 
     async fn pre_start(
         &self,
         _myself: ActorRef<Self::Msg>,
-        check_interval: Duration,
+        args: CurationBotArgs,
     ) -> Result<Self::State, ActorProcessingErr> {
-        info!(check_interval_hours = ?check_interval.as_secs() / 3600, "CurationBot starting");
+        info!(
+            check_interval_hours = ?args.check_interval.as_secs() / 3600,
+            narrative = %args.narrative_name,
+            "CurationBot starting"
+        );
         Ok(CurationBotState {
             running: false,
-            check_interval,
+            task_handle: None,
         })
     }
 
@@ -118,30 +116,33 @@ impl Actor for CurationBot {
                 state.running = true;
                 
                 // Spawn background task for periodic checks
-                let actor_ref = myself.clone();
-                let check_interval = state.check_interval;
+                let check_interval = self.args.check_interval;
+                let myself_clone = myself.clone();
                 
-                tokio::spawn(async move {
-                    let mut timer = interval(check_interval);
+                let handle = tokio::spawn(async move {
+                    let mut timer = time::interval(check_interval);
                     
                     loop {
                         timer.tick().await;
                         
-                        if let Err(e) = actor_ref.send_message(CurationMessage::ProcessQueue) {
+                        if let Err(e) = myself_clone.send_message(CurationMessage::ProcessQueue) {
                             error!(error = ?e, "Failed to send ProcessQueue message");
                             break;
                         }
                     }
                 });
+                state.task_handle = Some(handle);
             }
             CurationMessage::Stop => {
                 info!("Stopping curation loop");
                 state.running = false;
+                if let Some(handle) = state.task_handle.take() {
+                    handle.abort();
+                }
             }
             CurationMessage::ProcessQueue => {
-                match self.process_curation_queue().await {
-                    Ok(count) => info!(processed = count, "Queue processed"),
-                    Err(e) => error!(error = ?e, "Queue processing failed"),
+                if let Err(e) = self.process_curation_queue().await {
+                    error!(error = ?e, "Queue processing failed");
                 }
             }
         }

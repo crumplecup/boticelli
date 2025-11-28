@@ -59,6 +59,14 @@ pub struct ActConfig {
     /// If `Some`, this act will be executed multiple times according to the
     /// carousel configuration, with rate limit budgeting applied.
     carousel: Option<CarouselConfig>,
+
+    /// Whether to extract and store JSON output from this act's response.
+    ///
+    /// If `None`, defaults to true only for the last act in the narrative.
+    /// Set to `true` to force extraction for intermediate acts.
+    /// Set to `false` to skip extraction even for the last act.
+    #[serde(default)]
+    extract_output: Option<bool>,
 }
 
 impl ActConfig {
@@ -69,6 +77,7 @@ impl ActConfig {
         temperature: Option<f32>,
         max_tokens: Option<u32>,
         carousel: Option<CarouselConfig>,
+        extract_output: Option<bool>,
     ) -> Self {
         Self {
             inputs,
@@ -77,6 +86,7 @@ impl ActConfig {
             temperature,
             max_tokens,
             carousel,
+            extract_output,
         }
     }
 
@@ -94,6 +104,7 @@ impl ActConfig {
             temperature,
             max_tokens,
             carousel: None,
+            extract_output: None,
         }
     }
 
@@ -109,6 +120,7 @@ impl ActConfig {
             temperature: None,
             max_tokens: None,
             carousel: None,
+            extract_output: None,
         }
     }
 
@@ -126,6 +138,7 @@ impl ActConfig {
             temperature: None,
             max_tokens: None,
             carousel: None,
+            extract_output: None,
         }
     }
 

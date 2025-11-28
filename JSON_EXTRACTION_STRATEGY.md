@@ -51,6 +51,72 @@ The carousel composition mechanism is working perfectly - these are prompt engin
 
 ---
 
+### Phase 2: User Control ✅ COMPLETE
+
+**Changes Made:**
+
+1. **Added `extract_output` field** to `TomlActConfig` (toml_parser.rs:301)
+   - Optional boolean field that controls extraction behavior
+   - Defaults to `None` (use default behavior)
+   
+2. **Added `extract_output` field** to `ActConfig` (provider.rs:68-69)
+   - Propagates user configuration through domain model
+   - Accessible via getter for decision logic
+
+3. **Updated TOML parser** to pass through `extract_output` (toml_parser.rs:769)
+   - `ActConfig::new()` now accepts `extract_output` parameter
+   - All construction sites updated
+
+4. **Added `should_extract_output` to `ProcessorContext`** (processor.rs:30-32)
+   - Computed field combining config and position
+   - Passed to all processors for decision-making
+
+5. **Updated `NarrativeExecutor`** extraction logic (executor.rs:540-551)
+   ```rust
+   let should_extract_output = config.extract_output().unwrap_or(is_last_act);
+   ```
+   - If `extract_output` is `Some(true)`: always extract
+   - If `extract_output` is `Some(false)`: never extract
+   - If `extract_output` is `None`: extract only on last act (Phase 1 behavior)
+
+6. **Updated `ContentGenerationProcessor`** to check flag (content_generation.rs:75-82)
+   - Early return if `should_extract_output == false`
+   - Logs skip reason for observability
+
+**TOML Usage Examples:**
+
+```toml
+# Force extraction on intermediate act
+[[acts.format_json]]
+extract_output = true  # Will extract even if not last act
+input = [...]
+
+# Suppress extraction on last act  
+[[acts.audit_json]]
+extract_output = false  # Won't extract even if last act
+input = [...]
+
+# Default behavior (no field specified)
+[[acts.generate]]
+input = [...]  # Will extract only if this is the last act
+```
+
+**Result:**
+- Users have full control over extraction behavior per act
+- Backward compatible (no config = Phase 1 behavior)
+- Enables advanced use cases:
+  - Multiple extraction points in a narrative
+  - Debugging intermediate JSON acts
+  - Suppressing storage for testing
+
+**Testing:**
+- [ ] Test `extract_output = false` on last act (should skip storage)
+- [ ] Test `extract_output = true` on middle act (should extract)
+- [ ] Test omitted field (should use Phase 1 default)
+- Integration testing with generation_carousel pending
+
+---
+
 ## Error Analysis
 
 ### Issue 1: Processor Applied to Non-JSON Acts (Architecture)

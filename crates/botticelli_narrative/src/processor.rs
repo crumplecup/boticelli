@@ -25,6 +25,10 @@ pub struct ProcessorContext<'a> {
 
     /// Whether this is the last act in the narrative
     pub is_last_act: bool,
+
+    /// Whether to extract and store output from this act
+    /// (determined by act config or defaults to last act only)
+    pub should_extract_output: bool,
 }
 
 /// Trait for processing act execution results with narrative context.

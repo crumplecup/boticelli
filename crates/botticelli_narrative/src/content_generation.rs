@@ -71,6 +71,15 @@ impl ContentGenerationProcessor {
 #[async_trait]
 impl ActProcessor for ContentGenerationProcessor {
     async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
+        // Check if we should extract output for this act
+        if !context.should_extract_output {
+            tracing::debug!(
+                act = %context.execution.act_name,
+                "Skipping output extraction (extract_output=false or not last act)"
+            );
+            return Ok(());
+        }
+
         // Determine processing mode: Template or Inference
         let processing_mode = if let Some(template) = &context.narrative_metadata.template() {
             ProcessingMode::Template(template.clone())

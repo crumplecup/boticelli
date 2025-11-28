@@ -294,6 +294,10 @@ pub struct TomlActConfig {
     /// Optional carousel configuration for this act
     #[serde(default)]
     pub carousel: Option<crate::CarouselConfig>,
+
+    /// Whether to extract and store JSON output (default: only for last act in narrative)
+    #[serde(default)]
+    pub extract_output: Option<bool>,
 }
 
 /// TOML representation of an input.
@@ -681,7 +685,7 @@ impl TomlAct {
                 if is_reference(text) {
                     debug!(reference = %text, "Resolving simple reference");
                     let input = narrative_file.resolve_reference(text)?;
-                    Ok(ActConfig::new(vec![input], None, None, None, None))
+                    Ok(ActConfig::new(vec![input], None, None, None, None, None))
                 } else {
                     // Validate that the text is not empty or just whitespace
                     if text.trim().is_empty() {
@@ -722,7 +726,7 @@ impl TomlAct {
                     input_count = inputs.len(),
                     "Array act converted successfully"
                 );
-                Ok(ActConfig::new(inputs, None, None, None, None))
+                Ok(ActConfig::new(inputs, None, None, None, None, None))
             }
             TomlAct::Structured(config) => {
                 debug!(
@@ -763,6 +767,7 @@ impl TomlAct {
                     config.temperature,
                     config.max_tokens,
                     config.carousel.clone(),
+                    config.extract_output,
                 ))
             }
         }

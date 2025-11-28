@@ -534,12 +534,26 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 // Determine if this is the last act in the narrative
                 let is_last_act = sequence_number == narrative.act_names().len() - 1;
 
+                // Determine if we should extract output:
+                // - If extract_output is explicitly set, use that value
+                // - Otherwise, only extract for the last act (default behavior)
+                let should_extract_output = config.extract_output().unwrap_or(is_last_act);
+
+                tracing::debug!(
+                    act = %act_name,
+                    is_last_act,
+                    extract_config = ?config.extract_output(),
+                    should_extract_output,
+                    "Determined extraction policy"
+                );
+
                 // Build processor context
                 let context = ProcessorContext {
                     execution: &act_execution,
                     narrative_metadata: narrative.metadata(),
                     narrative_name: narrative.name(),
                     is_last_act,
+                    should_extract_output,
                 };
 
                 if let Err(e) = registry.process(&context).await {

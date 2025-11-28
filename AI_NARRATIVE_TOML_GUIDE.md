@@ -265,6 +265,124 @@ channel_id = "${temp_channel_id}"
 
 ---
 
+## Multi-Stage Content Workflows
+
+Botticelli supports queue-based content pipelines where data flows between processing stages. Use `target` to write to specific tables and control read behavior with `preserve_source`.
+
+### ❌ WRONG - Creating Separate Tables
+```toml
+[narrative]
+name = "generate_posts"
+# No target - creates timestamped table each run
+# Can't chain with other narratives
+
+[acts]
+generate = "Create 10 posts"
+```
+
+### ✅ CORRECT - Pipeline with Shared Tables
+```toml
+# Stage 1: Generation → potential_posts
+[narrative]
+name = "generate_content"
+target = "potential_discord_posts"  # All acts write here
+
+[toc]
+order = ["topic1", "topic2", "topic3"]
+
+[acts]
+topic1 = "Generate post about feature X"
+topic2 = "Generate post about feature Y"
+topic3 = "Generate post about feature Z"
+```
+
+```toml
+# Stage 2: Curation → approved_posts
+[narrative]
+name = "curate_content"
+target = "approved_discord_posts"
+# Default: preserve_source = false (destructive reads)
+
+[toc]
+order = ["select_best"]
+
+[acts.select_best]
+[[acts.select_best.input]]
+type = "table"
+table_name = "potential_discord_posts"
+limit = 10  # Pulls 10 posts and DELETES them from source
+format = "json"
+
+[[acts.select_best.input]]
+type = "text"
+content = "Select the 3 best posts and refine them"
+```
+
+```toml
+# Stage 3: Posting
+[narrative]
+name = "publish_content"
+skip_content_generation = true  # Just posting, not generating
+
+[acts.post_to_discord]
+[[acts.post_to_discord.input]]
+type = "table"
+table_name = "approved_discord_posts"
+limit = 1  # Post one at a time, DELETE after posting
+
+[[acts.post_to_discord.input]]
+type = "bot_command"
+platform = "discord"
+command = "messages.send"
+# ... (use table data to post)
+```
+
+### Destructive Reads (Default)
+
+**By default, table reads DELETE source rows** - perfect for queue processing:
+
+```toml
+[narrative]
+name = "process_queue"
+# preserve_source = false is the DEFAULT
+
+[acts.process]
+[[acts.process.input]]
+type = "table"
+table_name = "work_queue"
+limit = 10  # Read 10 items and DELETE them
+```
+
+Benefits:
+- ✅ Process each item exactly once
+- ✅ No status column needed
+- ✅ Simple queue semantics
+- ✅ Perfect for: generation → curation → posting pipelines
+
+### Preserving Source Data
+
+Set `preserve_source = true` to keep source rows intact:
+
+```toml
+[narrative]
+name = "analyze_without_consuming"
+preserve_source = true  # Don't delete source rows
+
+[acts.report]
+[[acts.report.input]]
+type = "table"
+table_name = "approved_discord_posts"
+limit = 100  # Read 100 posts but KEEP them in table
+```
+
+Use cases:
+- Analytics and reporting
+- Testing/debugging workflows
+- Multiple readers of same data
+- Read-only analysis
+
+---
+
 ## Token Optimization with History Retention
 
 In multi-act narratives, large inputs (especially table queries and bot commands) can cause token explosion as they're re-sent with every subsequent act. Use `history_retention` to control this behavior and reduce token usage by 80%+.

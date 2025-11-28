@@ -378,7 +378,9 @@ Required fields:
 
 Optional fields:
 - `template` (string): Name of database table to use as schema source for content generation (see [Content Generation](#content-generation))
+- `target` (string): Target table name for storing generated content. When set, all acts write to this table instead of creating timestamped tables
 - `skip_content_generation` (boolean): Skip automatic content generation to custom tables (default: `false`)
+- `preserve_source` (boolean): When reading from tables, preserve the source rows instead of deleting them (default: `false` - destructive reads are the default)
 - `model` (string): Default model for all acts in this narrative (can be overridden per-act)
 - `temperature` (float): Default temperature for all acts (range: 0.0-1.0, can be overridden per-act)
 - `max_tokens` (integer): Default max_tokens for all acts (can be overridden per-act)
@@ -1089,6 +1091,79 @@ Generate 5 product descriptions in JSON format with these fields:
 3. Infers appropriate SQL column types (INTEGER, TEXT, NUMERIC, etc.)
 4. Creates a custom table with the inferred schema
 5. Inserts the content with metadata columns
+
+### Targeting a Specific Table
+
+Use the `target` field to write all generated content to a specific table instead of creating timestamped tables:
+
+```toml
+[narrative]
+name = "generate_posts"
+description = "Generate posts to shared table"
+target = "potential_discord_posts"  # All acts write here
+
+[toc]
+order = ["topic1", "topic2", "topic3"]
+
+[acts]
+topic1 = "Generate post about Rust async"
+topic2 = "Generate post about error handling"
+topic3 = "Generate post about testing"
+```
+
+All three acts write to `potential_discord_posts` instead of creating separate timestamped tables. This enables multi-stage workflows where:
+1. Generation narratives populate `potential_posts`
+2. Curation narratives read from `potential_posts`, write to `approved_posts`
+3. Publishing narratives read from `approved_posts` and post to platforms
+
+### Destructive vs Preserving Reads
+
+**By default, table reads are destructive** - rows are deleted after being read. This is ideal for queue-based workflows where you want to process items once:
+
+```toml
+[narrative]
+name = "curate_posts"
+description = "Select best posts from potential queue"
+# Default: preserve_source = false (destructive reads)
+
+[toc]
+order = ["select_best"]
+
+[acts.select_best]
+[[acts.select_best.input]]
+type = "table"
+table_name = "potential_discord_posts"
+limit = 10  # Pull 10 posts and DELETE them from source
+```
+
+To preserve source data (non-destructive reads), set `preserve_source = true`:
+
+```toml
+[narrative]
+name = "analyze_posts"
+description = "Analyze without consuming"
+preserve_source = true  # Keep source rows
+
+[toc]
+order = ["analyze"]
+
+[acts.analyze]
+[[acts.analyze.input]]
+type = "table"
+table_name = "approved_discord_posts"
+limit = 100  # Read 100 posts but DON'T delete them
+```
+
+Use `preserve_source = true` when:
+- Analyzing data without consuming it
+- Multiple narratives need to read the same data
+- Building reports or analytics dashboards
+- Testing/debugging workflows
+
+Use `preserve_source = false` (default) when:
+- Building content pipelines (generation → curation → posting)
+- Processing work queues where items should be handled once
+- Moving data between processing stages
 
 ### Opting Out of Content Generation
 

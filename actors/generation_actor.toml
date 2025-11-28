@@ -1,0 +1,23 @@
+# Generation Actor - Generates new Discord post content
+#
+# This actor runs periodically to generate new content using the generation narrative.
+# It does not post to Discord (no channel_id), only generates content into the database.
+
+[actor]
+name = "Content Generator"
+description = "Generates new Discord post content using carousel narrative"
+knowledge = []
+skills = ["narrative_execution"]
+
+[actor.config]
+# No actor-specific config needed
+
+[actor.execution]
+stop_on_unrecoverable = false
+max_retries = 3
+continue_on_error = true
+
+[skills.narrative_execution]
+enabled = true
+narrative_path = "crates/botticelli_narrative/narratives/discord/generation_carousel.toml"
+narrative_name = "batch_generate"  # Carousel mode: generates 15 posts (5 narratives × 3 iterations)

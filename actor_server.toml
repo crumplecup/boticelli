@@ -1,0 +1,49 @@
+# Botticelli Actor Server Configuration
+#
+# This configures the three-actor pipeline for Discord content automation:
+# 1. Generation Actor - Creates new content every 12 hours
+# 2. Curation Actor - Reviews and approves content every 6 hours
+# 3. Posting Actor - Posts approved content every 2 hours
+
+[server]
+# How often to check for scheduled tasks (in seconds)
+check_interval_seconds = 60
+
+# Maximum consecutive failures before circuit breaker pauses a task
+max_consecutive_failures = 5
+
+# Generation Actor - Generates new Discord post content
+# Runs every 12 hours, no channel_id (uses NoOpPlatform)
+[[actors]]
+name = "content_generator"
+config_file = "actors/generation_actor.toml"
+# No channel_id - this actor only writes to database
+enabled = true
+
+[actors.schedule]
+type = "Interval"
+seconds = 43200  # Every 12 hours
+
+# Curation Actor - Curates and approves generated content
+# Runs every 6 hours, no channel_id (uses NoOpPlatform)
+[[actors]]
+name = "content_curator"
+config_file = "actors/curation_actor.toml"
+# No channel_id - this actor only writes to database
+enabled = true
+
+[actors.schedule]
+type = "Interval"
+seconds = 21600  # Every 6 hours
+
+# Posting Actor - Posts approved content to Discord
+# Runs every 2 hours, requires channel_id (uses DiscordPlatform)
+[[actors]]
+name = "discord_poster"
+config_file = "actors/posting_actor.toml"
+channel_id = "${DISCORD_CHANNEL_ID}"  # Set via environment variable
+enabled = true
+
+[actors.schedule]
+type = "Interval"
+seconds = 7200  # Every 2 hours

@@ -2,6 +2,7 @@
 
 use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillResult};
 use async_trait::async_trait;
+use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, establish_connection};
 use botticelli_models::GeminiClient;
 use botticelli_narrative::{
     MultiNarrative, Narrative, NarrativeExecutor, NarrativeProvider, ProcessorRegistry,
@@ -9,6 +10,7 @@ use botticelli_narrative::{
 use ractor::Actor;
 use serde_json::json;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 /// Skill for executing narrative workflows.
 pub struct NarrativeExecutionSkill {
@@ -61,12 +63,19 @@ impl Skill for NarrativeExecutionSkill {
         // Load narrative from file
         let path = Path::new(narrative_path);
 
-        let narrative = if let Some(name) = narrative_name.as_ref() {
-            // Load specific narrative from multi-narrative file
+        // Determine which type of narrative to load
+        // MultiNarrative preserves composition context for carousel mode
+        let use_multi_narrative = narrative_name.is_some();
+
+        let (narrative_for_single, multi_for_composition) = if use_multi_narrative {
+            let name = narrative_name.as_ref().unwrap();
+
+            // Load multi-narrative file - preserves composition context
             tracing::debug!(
                 narrative_name = name,
-                "Loading specific narrative from file"
+                "Loading multi-narrative file with composition context"
             );
+
             let multi = MultiNarrative::from_file(path, name).map_err(|e| {
                 ActorError::new(ActorErrorKind::FileIo {
                     path: path.to_path_buf(),
@@ -74,31 +83,39 @@ impl Skill for NarrativeExecutionSkill {
                 })
             })?;
 
-            multi
-                .get_narrative(name)
-                .ok_or_else(|| {
-                    ActorError::new(ActorErrorKind::InvalidConfiguration(format!(
-                        "Narrative '{}' not found in file",
-                        name
-                    )))
-                })?
-                .clone()
+            // Verify target narrative exists
+            let target = multi.get_narrative(name).ok_or_else(|| {
+                ActorError::new(ActorErrorKind::InvalidConfiguration(format!(
+                    "Narrative '{}' not found in file",
+                    name
+                )))
+            })?;
+
+            tracing::debug!(
+                narrative_name = target.name(),
+                act_count = target.acts().len(),
+                "Multi-narrative loaded successfully with composition context"
+            );
+
+            (None, Some(multi))
         } else {
             // Load single narrative file
             tracing::debug!("Loading single narrative from file");
-            Narrative::from_file(path).map_err(|e| {
+            let narrative = Narrative::from_file(path).map_err(|e| {
                 ActorError::new(ActorErrorKind::FileIo {
                     path: path.to_path_buf(),
                     message: format!("Failed to load narrative: {}", e),
                 })
-            })?
-        };
+            })?;
 
-        tracing::debug!(
-            narrative_name = narrative.name(),
-            act_count = narrative.acts().len(),
-            "Narrative loaded successfully"
-        );
+            tracing::debug!(
+                narrative_name = narrative.name(),
+                act_count = narrative.acts().len(),
+                "Narrative loaded successfully"
+            );
+
+            (Some(narrative), None)
+        };
 
         // Create Gemini client for narrative execution
         // TODO: Make this configurable to support other LLM providers
@@ -129,17 +146,99 @@ impl Skill for NarrativeExecutionSkill {
         let mut registry = ProcessorRegistry::new();
         registry.register(Box::new(processor));
 
-        // Create executor with the client and processors
-        let executor = NarrativeExecutor::with_processors(client, registry);
+        // Create bot command registry for narrative bot commands
+        #[cfg(feature = "discord")]
+        let bot_registry = {
+            use botticelli_social::{BotCommandRegistryImpl, DatabaseCommandExecutor};
 
-        tracing::info!(narrative_name = narrative.name(), "Executing narrative");
+            // Load .env file if present
+            let _ = dotenvy::dotenv();
 
-        let result = executor.execute(&narrative).await.map_err(|e| {
-            ActorError::new(ActorErrorKind::Narrative(format!(
-                "Narrative execution failed: {}",
+            tracing::debug!("Creating bot command registry");
+            let mut bot_registry = BotCommandRegistryImpl::new();
+
+            // Always register database executor
+            let database_executor = DatabaseCommandExecutor::new();
+            bot_registry.register(database_executor);
+            tracing::debug!("Database command executor registered");
+
+            // Register Discord executor if token is available
+            if let Ok(token) = std::env::var("DISCORD_TOKEN") {
+                use botticelli_social::DiscordCommandExecutor;
+                tracing::debug!("Configuring Discord bot executor");
+                let discord_executor = DiscordCommandExecutor::new(token);
+                bot_registry.register(discord_executor);
+                tracing::debug!("Discord bot executor registered");
+            } else {
+                tracing::debug!("DISCORD_TOKEN not set, Discord commands will not be available");
+            }
+
+            Some(Box::new(bot_registry) as Box<dyn botticelli_narrative::BotCommandRegistry>)
+        };
+
+        #[cfg(not(feature = "discord"))]
+        let bot_registry: Option<Box<dyn botticelli_narrative::BotCommandRegistry>> = None;
+
+        // Create table query registry for database table access
+        tracing::debug!("Creating table query registry");
+
+        // Establish a standalone connection for table queries
+        // TODO: Refactor TableQueryExecutor to use connection pool
+        let conn = establish_connection().map_err(|e| {
+            ActorError::new(ActorErrorKind::DatabaseFailed(format!(
+                "Failed to establish database connection for table queries: {}",
                 e
             )))
         })?;
+
+        let table_executor = TableQueryExecutor::new(Arc::new(Mutex::new(conn)));
+        let table_registry = DatabaseTableQueryRegistry::new(table_executor);
+
+        // Create executor with the client, processors, table registry, and bot registry
+        let mut executor = NarrativeExecutor::with_processors(client, registry)
+            .with_table_registry(Box::new(table_registry));
+        tracing::debug!("Table query registry configured");
+
+        if let Some(bot_reg) = bot_registry {
+            executor = executor.with_bot_registry(bot_reg);
+            tracing::debug!("Bot command registry configured");
+        }
+
+        // Execute narrative with appropriate type (MultiNarrative or single Narrative)
+        // Both implement NarrativeProvider trait
+        let (result, executed_narrative_name, executed_act_count) = if let Some(multi) = multi_for_composition {
+            // Get target narrative name from original parameter
+            let target_name = narrative_name.as_ref().expect("multi_for_composition implies narrative_name is Some");
+
+            tracing::info!(
+                narrative_name = target_name,
+                "Executing multi-narrative with composition context"
+            );
+
+            let result = executor.execute(&multi).await.map_err(|e| {
+                ActorError::new(ActorErrorKind::Narrative(format!(
+                    "Multi-narrative execution failed: {}",
+                    e
+                )))
+            })?;
+
+            let act_count = multi.get_narrative(target_name).map(|n| n.acts().len()).unwrap_or(0);
+
+            (result, target_name.to_string(), act_count)
+        } else if let Some(narrative) = narrative_for_single {
+            tracing::info!(narrative_name = narrative.name(), "Executing narrative");
+
+            let result = executor.execute(&narrative).await.map_err(|e| {
+                ActorError::new(ActorErrorKind::Narrative(format!(
+                    "Narrative execution failed: {}",
+                    e
+                )))
+            })?;
+
+            (result, narrative.name().to_string(), narrative.acts().len())
+        } else {
+            unreachable!("Either narrative_for_single or multi_for_composition must be Some");
+        };
 
         // Shutdown the storage actor
         tracing::debug!("Shutting down storage actor");
@@ -154,7 +253,7 @@ impl Skill for NarrativeExecutionSkill {
         })?;
 
         tracing::info!(
-            narrative_name = narrative.name(),
+            narrative_name = %executed_narrative_name,
             "Narrative execution completed successfully"
         );
 
@@ -163,8 +262,8 @@ impl Skill for NarrativeExecutionSkill {
             data: json!({
                 "status": "executed",
                 "narrative_path": narrative_path,
-                "narrative_name": narrative.name(),
-                "act_count": narrative.acts().len(),
+                "narrative_name": executed_narrative_name,
+                "act_count": executed_act_count,
                 "result": result,
             }),
         })

@@ -1,0 +1,23 @@
+# Curation Actor - Curates and approves generated content
+#
+# This actor runs periodically to curate generated content using the curation narrative.
+# It does not post to Discord (no channel_id), only moves content from potential to approved.
+
+[actor]
+name = "Content Curator"
+description = "Curates and approves generated Discord posts"
+knowledge = []
+skills = ["narrative_execution"]
+
+[actor.config]
+# No actor-specific config needed
+
+[actor.execution]
+stop_on_unrecoverable = false
+max_retries = 3
+continue_on_error = true
+
+[skills.narrative_execution]
+enabled = true
+narrative_path = "crates/botticelli_narrative/narratives/discord/curate_and_approve.toml"
+# narrative_name not needed - using single narrative file

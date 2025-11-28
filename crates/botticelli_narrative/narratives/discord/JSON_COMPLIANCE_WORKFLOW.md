@@ -1,7 +1,9 @@
 # JSON Compliance Workflow
 
-**Created**: 2025-11-27  
+**Created**: 2025-11-27
+**Updated**: 2025-11-28
 **Purpose**: Separate content improvement from JSON formatting to reduce generation failures
+**Status**: ⚠️ PARTIALLY WORKING - Architecture issue identified (see JSON_EXTRACTION_STRATEGY.md)
 
 ## Problem
 
@@ -127,8 +129,59 @@ If posts fail to store:
 4. **Act 5 failures** - Validation logic needs adjustment
 5. **UTF-8 panics** - Check string truncation uses `.chars().take(N).collect()` not byte slicing
 
+## Current Issues (2025-11-28)
+
+### Architecture Issue: Processor Applied to All Acts
+
+**Problem**: `ContentGenerationProcessor` tries to parse JSON from ALL acts (generate, critique, refine, format_json, audit_json), but only acts 4-5 should produce JSON.
+
+**Symptoms**:
+- Acts 1-3 fail with "No JSON found in response"
+- Error rate ~60% due to processor attempting JSON extraction on plain-text acts
+- Misleading error messages suggesting LLM failures
+
+**Root Cause**: Processor registered globally, not filtered by act name
+
+**Fix**: See **JSON_EXTRACTION_STRATEGY.md** for detailed analysis and options
+
+**Recommended**: Option A (Selective Processor) - add act name filtering to skip non-JSON acts
+
+---
+
+### Prompt Engineering: Occasional Non-JSON Responses
+
+**Problem**: Even with "Output ONLY valid JSON" instructions, LLMs sometimes:
+- Include explanatory text before/after JSON
+- Truncate JSON mid-response (hit max_tokens limit)
+- Produce malformed JSON with syntax errors
+
+**Impact**: ~30% of format_json/audit_json failures
+
+**Fix**: See **JSON_EXTRACTION_STRATEGY.md** Options B + C:
+- Add explicit JSON examples to prompts
+- Increase max_tokens from 700 to 1200
+
+---
+
+### PostgreSQL Array Formatting
+
+**Problem**: JSON arrays `["a","b","c"]` fail when inserted into PostgreSQL array columns
+
+**Fix**: Use JSONB columns instead of native arrays (simpler than format conversion)
+
+---
+
 ## Future Work
 
+### Priority 1: Fix Architecture Issue
+Implement selective processor application (JSON_EXTRACTION_STRATEGY.md Option A)
+
+### Priority 2: Improve JSON Compliance
+- Add examples to format_json prompts (Option B)
+- Increase max_tokens for JSON acts (Option C)
+- Use JSONB for array fields (Option D2)
+
+### Priority 3: Reusable JSON Narrative
 Consider extracting JSON compliance acts into reusable narrative:
 
 ```toml

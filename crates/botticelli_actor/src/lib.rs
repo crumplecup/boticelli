@@ -80,7 +80,7 @@ pub use skill::{
 };
 pub use skills::{
     ContentFormatterSkill, ContentSchedulingSkill, ContentSelectionSkill, DuplicateCheckSkill,
-    RateLimitingSkill,
+    NarrativeExecutionSkill, RateLimitingSkill,
 };
 pub use state_persistence::{DatabaseExecutionResult, DatabaseStatePersistence};
 

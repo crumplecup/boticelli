@@ -7,10 +7,10 @@ use botticelli_actor::ActorServerConfig;
 #[cfg(feature = "discord")]
 use botticelli_actor::{
     Actor, ActorConfig, ActorExecutionTracker, DatabaseExecutionResult, DatabaseStatePersistence,
-    ScheduleConfig, SkillRegistry,
+    NarrativeExecutionSkill, ScheduleConfig, SkillRegistry,
 };
 #[cfg(feature = "discord")]
-use botticelli_database::establish_connection;
+use botticelli_database::create_pool;
 #[cfg(feature = "discord")]
 use botticelli_server::ActorServer;
 #[cfg(feature = "discord")]
@@ -133,6 +133,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Create Discord HTTP client
         let http = Arc::new(Http::new(&discord_token));
 
+        // Create database connection pool for actor execution
+        info!("Creating database connection pool for actor execution");
+        let db_pool = create_pool()?;
+        info!("Database connection pool created");
+
         // Initialize server with state file path
         let state_path = PathBuf::from(".actor_server_state.json");
         let mut server = DiscordActorServer::new(http.clone(), state_path);
@@ -173,10 +178,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Arc::new(botticelli_actor::NoOpPlatform::new())
                 };
 
-            // Build actor with platform
+            // Create skill registry and register narrative execution skill
+            let mut registry = SkillRegistry::new();
+            registry.register(Arc::new(NarrativeExecutionSkill::new()));
+
+            // Build actor with platform and skills
             let actor = Actor::builder()
                 .config(actor_config)
-                .skills(SkillRegistry::new())
+                .skills(registry)
                 .platform(platform)
                 .build()?;
 
@@ -339,86 +348,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 None
                             };
 
-                            // Get database connection
-                            match establish_connection() {
-                                Ok(mut conn) => {
-                                    // Execute the actor
-                                    match actor.execute(&mut conn).await {
-                                        Ok(result) => {
-                                            info!(
+                            // Execute the actor with database pool
+                            match actor.execute(&db_pool).await {
+                                Ok(result) => {
+                                    info!(
+                                        actor = %name,
+                                        skills_succeeded = result.succeeded.len(),
+                                        skills_failed = result.failed.len(),
+                                        skills_skipped = result.skipped.len(),
+                                        "Actor executed successfully"
+                                    );
+                                    *last_run = Some(Utc::now());
+
+                                    // Record success if tracker available
+                                    if let Some(exec_id) = exec_id
+                                        && let Some(tracker) = tracker.as_ref() {
+                                        let db_result = DatabaseExecutionResult {
+                                            skills_succeeded: result.succeeded.len() as i32,
+                                            skills_failed: result.failed.len() as i32,
+                                            skills_skipped: result.skipped.len() as i32,
+                                            metadata: serde_json::json!({}),
+                                        };
+
+                                        if let Err(e) =
+                                            tracker.record_success(exec_id, db_result).await
+                                        {
+                                            warn!(
                                                 actor = %name,
-                                                skills_succeeded = result.succeeded.len(),
-                                                skills_failed = result.failed.len(),
-                                                skills_skipped = result.skipped.len(),
-                                                "Actor executed successfully"
+                                                error = ?e,
+                                                "Failed to record success"
                                             );
-                                            *last_run = Some(Utc::now());
-
-                                            // Record success if tracker available
-                                            if let Some(exec_id) = exec_id
-                                                && let Some(tracker) = tracker.as_ref() {
-                                                let db_result = DatabaseExecutionResult {
-                                                    skills_succeeded: result.succeeded.len() as i32,
-                                                    skills_failed: result.failed.len() as i32,
-                                                    skills_skipped: result.skipped.len() as i32,
-                                                    metadata: serde_json::json!({}),
-                                                };
-
-                                                if let Err(e) =
-                                                    tracker.record_success(exec_id, db_result).await
-                                                {
-                                                    warn!(
-                                                        actor = %name,
-                                                        error = ?e,
-                                                        "Failed to record success"
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        Err(e) => {
-                                            error!(actor = %name, error = ?e, "Actor execution failed");
-
-                                            // Record failure if tracker available
-                                            if let Some(exec_id) = exec_id
-                                                && let Some(tracker) = tracker.as_ref() {
-                                                match tracker
-                                                    .record_failure(exec_id, &e.to_string())
-                                                    .await
-                                                {
-                                                    Ok(should_pause) => {
-                                                        if should_pause {
-                                                            warn!(
-                                                                actor = %name,
-                                                                "Circuit breaker triggered, task paused"
-                                                            );
-                                                        }
-                                                    }
-                                                    Err(e) => {
-                                                        warn!(
-                                                            actor = %name,
-                                                            error = ?e,
-                                                            "Failed to record failure"
-                                                        );
-                                                    }
-                                                }
-                                            }
                                         }
                                     }
                                 }
                                 Err(e) => {
-                                    error!(actor = %name, error = ?e, "Failed to establish database connection");
+                                    error!(actor = %name, error = ?e, "Actor execution failed");
 
-                                    // Record connection failure if tracker available
+                                    // Record failure if tracker available
                                     if let Some(exec_id) = exec_id
-                                        && let Some(tracker) = tracker.as_ref()
-                                        && let Err(e) =
-                                            tracker.record_failure(exec_id, &e.to_string()).await
-                                    {
-                                        warn!(
-                                            actor = %name,
-                                            error = ?e,
-                                            "Failed to record connection failure"
-                                        );
+                                        && let Some(tracker) = tracker.as_ref() {
+                                        match tracker
+                                            .record_failure(exec_id, &e.to_string())
+                                            .await
+                                        {
+                                            Ok(should_pause) => {
+                                                if should_pause {
+                                                    warn!(
+                                                        actor = %name,
+                                                        "Circuit breaker triggered, task paused"
+                                                    );
+                                                }
+                                            }
+                                            Err(e) => {
+                                                warn!(
+                                                    actor = %name,
+                                                    error = ?e,
+                                                    "Failed to record failure"
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                             }

@@ -4,6 +4,7 @@ use crate::{
     ActorConfig, ActorError, ActorErrorKind, ActorResult, KnowledgeTable, Platform, SkillContext,
     SkillContextBuilder, SkillOutput, SkillRegistry,
 };
+use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -48,7 +49,7 @@ impl Actor {
     ///
     /// # Arguments
     ///
-    /// * `conn` - Database connection for knowledge queries
+    /// * `pool` - Database connection pool for knowledge queries and skill execution
     ///
     /// # Returns
     ///
@@ -59,12 +60,20 @@ impl Actor {
     /// Returns error if:
     /// - Knowledge tables cannot be loaded
     /// - Unrecoverable error occurs with stop_on_unrecoverable=true
-    #[tracing::instrument(skip(self, conn), fields(actor_name = %self.config.name()))]
-    pub async fn execute(&self, conn: &mut PgConnection) -> ActorResult<ExecutionResult> {
+    #[tracing::instrument(skip(self, pool), fields(actor_name = %self.config.name()))]
+    pub async fn execute(&self, pool: &Pool<ConnectionManager<PgConnection>>) -> ActorResult<ExecutionResult> {
         tracing::info!("Starting actor execution");
 
+        // Get connection from pool for knowledge loading
+        let mut conn = pool.get().map_err(|e| {
+            ActorError::new(ActorErrorKind::DatabaseFailed(format!(
+                "Failed to get database connection: {}",
+                e
+            )))
+        })?;
+
         // Load knowledge from configured tables
-        let knowledge = self.load_knowledge(conn)?;
+        let knowledge = self.load_knowledge(&mut conn)?;
 
         let mut result = ExecutionResultBuilder::default()
             .build()
@@ -88,6 +97,7 @@ impl Actor {
                 .knowledge(knowledge.clone())
                 .config(self.extract_skill_config(skill_name))
                 .platform(Arc::clone(&self.platform))
+                .db_pool(pool.clone())
                 .build()
                 .expect("SkillContext with valid fields");
 

@@ -1,6 +1,6 @@
 # Bot Server Deployment Plan
 
-**Status**: Implementation Complete - Ready for Testing  
+**Status**: ✅ Implementation Complete - Ready for Testing  
 **Created**: 2025-11-27  
 **Updated**: 2025-11-28  
 **Goal**: Deploy multi-phase bot server with generation, curation, and posting actors
@@ -10,17 +10,32 @@
 **Completed Components:**
 - ✅ Bot trait hierarchy in `botticelli_interface`
 - ✅ Concrete bot implementations in `botticelli_bot` (GenerationBot, CurationBot, PostingBot)
-- ✅ Server orchestration with `BotServer<D>`
+- ✅ Server orchestration with `BotServer<D>` (driver-agnostic)
 - ✅ Configuration support via `bot_server.toml`
+- ✅ CLI command (`botticelli server`)
 - ✅ Just command (`just bot-server`)
 - ✅ JSON compliance workflow integrated
 - ✅ Schema inference for table creation
 - ✅ All narratives use improved JSON extraction
+- ✅ Feature flags (`bots` feature) properly configured
+- ✅ Dependencies and workspace setup complete
 
 **Ready to Test:**
-1. Generation bot → Creates 50 posts using carousel
+1. Generation bot → Creates posts using carousel (configurable count)
 2. Curation bot → Processes pending posts until queue empty
 3. Posting bot → Posts approved content with human-like jitter
+
+**How to Run:**
+```bash
+# Using just
+just bot-server
+
+# Or directly
+cargo run --release --features bots --bin botticelli -- server
+
+# With custom config
+cargo run --release --features bots --bin botticelli -- server --config my_bot_server.toml
+```
 
 ---
 

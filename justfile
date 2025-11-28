@@ -765,7 +765,7 @@ bot-server:
     @echo "📝 Generation bot: Every 6 hours"
     @echo "🎯 Curation bot: Every 12 hours, processes until queue empty"
     @echo "📤 Posting bot: Every 2-4 hours with jitter"
-    cargo run --release --features local --bin botticelli -- server
+    cargo run --release --features bots --bin botticelli -- server
 
 # Start only the generation bot (for testing)
 bot-generate:

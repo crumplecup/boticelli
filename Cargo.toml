@@ -58,6 +58,9 @@ botticelli_tui = { path = "crates/botticelli_tui", version = "0.2.0" }
 # Internal crates (local model server)
 botticelli_server = { path = "crates/botticelli_server", version = "0.2.0" }
 
+# Internal crates (bot actors)
+botticelli_bot = { path = "crates/botticelli_bot", version = "0.2.0" }
+
 # Internal crates (Phase 6 security)
 botticelli_security = { path = "crates/botticelli_security", version = "0.2.0" }
 

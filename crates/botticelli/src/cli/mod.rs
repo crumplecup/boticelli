@@ -5,7 +5,7 @@
 mod commands;
 mod content;
 mod run;
-#[cfg(feature = "server")]
+#[cfg(feature = "bots")]
 mod server;
 mod tui_handler;
 
@@ -15,6 +15,6 @@ pub use content::handle_content_command;
 pub use run::run_narrative;
 #[cfg(feature = "gemini")]
 pub use run::{ExecutionOptions, NarrativeSource, run_narrative};
-#[cfg(feature = "server")]
+#[cfg(feature = "bots")]
 pub use server::handle_server_command;
 pub use tui_handler::launch_tui;

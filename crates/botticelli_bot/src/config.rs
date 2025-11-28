@@ -1,5 +1,6 @@
+use botticelli_error::{BotticelliResult, ConfigError};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Configuration for the bot server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,6 +11,23 @@ pub struct BotConfig {
     pub curation: CurationConfig,
     /// Posting bot configuration
     pub posting: PostingConfig,
+}
+
+impl BotConfig {
+    /// Load bot configuration from a TOML file.
+    pub fn from_file(path: impl AsRef<Path>) -> BotticelliResult<Self> {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+            botticelli_error::BotticelliError::from(
+                ConfigError::new(format!("Failed to read config file: {}", e))
+            )
+        })?;
+        
+        toml::from_str(&content).map_err(|e| {
+            botticelli_error::BotticelliError::from(
+                ConfigError::new(format!("Failed to parse config: {}", e))
+            )
+        })
+    }
 }
 
 /// Configuration for the generation bot.

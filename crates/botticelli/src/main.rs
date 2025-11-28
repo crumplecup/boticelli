@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     #[cfg(not(feature = "gemini"))]
     use cli::{Cli, Commands, handle_content_command, launch_tui, run_narrative};
-    #[cfg(feature = "server")]
+    #[cfg(feature = "bots")]
     use cli::handle_server_command;
 
     // Load environment variables from .env file (if present)

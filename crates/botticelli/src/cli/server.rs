@@ -1,35 +1,38 @@
 //! Bot server command handler.
 
-use botticelli_error::BotticelliResult;
-use botticelli_server::BotServer;
+use botticelli::{GeminiClient};
+use botticelli_bot::{BotConfig, BotServer};
+use botticelli_database::create_pool;
+use botticelli_error::{BotticelliResult, BackendError};
+use botticelli_narrative::NarrativeExecutor;
 use std::path::PathBuf;
-
-use std::time::Duration;
 
 /// Handle the `server` command
 pub async fn handle_server_command(
-    _config_path: Option<PathBuf>,
+    config_path: Option<PathBuf>,
     _only_bots: Option<String>,
 ) -> BotticelliResult<()> {
     tracing::info!("Starting bot server");
 
-    // Create and run the server
-    let mut server = BotServer::new();
+    // Load bot configuration
+    let config_path = config_path.unwrap_or_else(|| PathBuf::from("bot_server.toml"));
+    let bot_config = BotConfig::from_file(&config_path)?;
+
+    // Create Gemini client using config from botticelli.toml
+    let client = GeminiClient::new_with_tier(None)?;
+
+    // Create database connection pool
+    let pool = create_pool()?;
+
+    // Create narrative executor
+    let executor = NarrativeExecutor::new(client);
+
+    // Create and start server
+    let server = BotServer::new(bot_config, executor, pool);
     
-    // Default intervals
-    let generation_interval = Duration::from_secs(6 * 60 * 60); // 6 hours
-    let curation_interval = Duration::from_secs(12 * 60 * 60);   // 12 hours
-    let posting_interval = Duration::from_secs(3 * 60 * 60);     // 3 hours base
+    tracing::info!("Bot server starting. Press Ctrl+C to stop.");
     
-    server.start(generation_interval, curation_interval, posting_interval).await?;
-    
-    tracing::info!("Bot server started. Press Ctrl+C to stop.");
-    
-    // Keep server running
-    tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
-    
-    tracing::info!("Shutting down bot server...");
-    server.stop().await?;
+    server.start().await.map_err(|e| BackendError::new(e.to_string()))?;
 
     Ok(())
 }

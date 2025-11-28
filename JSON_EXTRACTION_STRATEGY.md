@@ -462,6 +462,51 @@ async fn process_with_retry(&self, context: &ProcessorContext<'_>) -> Botticelli
 
 ---
 
+### Option F: Strip Markdown Fences Before Parsing (NEW - RECOMMENDED)
+
+**Description**: Pre-process LLM response to remove markdown code blocks
+
+**Implementation** (extraction.rs:extract_json_from_text):
+```rust
+pub fn extract_json_from_text(text: &str) -> Result<String, String> {
+    // Strip markdown code fences
+    let cleaned = text
+        .trim()
+        .strip_prefix("```json")
+        .or_else(|| text.trim().strip_prefix("```"))
+        .unwrap_or(text)
+        .strip_suffix("```")
+        .unwrap_or_else(|| {
+            // If no closing fence, might be mid-response
+            text.trim()
+        })
+        .trim();
+    
+    // Existing JSON extraction logic...
+    if let Some(start) = cleaned.find('{') {
+        if let Some(end) = cleaned.rfind('}') {
+            return Ok(cleaned[start..=end].to_string());
+        }
+    }
+    
+    Err("No JSON found".to_string())
+}
+```
+
+**Pros**:
+- ✅ Handles LLM non-compliance automatically
+- ✅ Recovers ~10 tokens per response
+- ✅ Works with any markdown variant (```json, ```, etc.)
+- ✅ Simple, defensive coding
+
+**Cons**:
+- None - this should have been there from the start
+
+**Effort**: 15 minutes
+**Risk**: Very Low
+
+---
+
 ## Comparison Matrix
 
 | Option | Fixes Issue #1 | Fixes Issue #2 | Fixes Issue #3 | Effort | Risk | API Cost |
@@ -548,9 +593,17 @@ async fn process_with_retry(&self, context: &ProcessorContext<'_>) -> Botticelli
 - ✅ PostgreSQL array columns working correctly
 - ⚠️ 3/5 narratives failed due to JSON truncation (LLM hitting max_tokens)
 
+**Phase 3 Testing (max_tokens=1200):**
+- ✅ Completed 3 iterations (15 narratives total)
+- ✅ Last-act-only extraction working correctly
+- ⚠️ Still seeing EOF truncation errors (1/15 narratives)
+- ❌ LLM wrapping JSON in markdown blocks despite explicit instructions: ` ```json\n{...}`
+- **Root cause**: Markdown fence wastes ~10 tokens, and extraction doesn't strip it
+
 **Remaining Issues:**
-- JSON truncation errors (EOF while parsing) - LLM response cut off mid-JSON
-- Need to increase `max_tokens` or improve prompts to generate more concise JSON
+- LLM ignores "No markdown blocks" instruction → Need better extraction
+- JSON truncation at ~1273 chars even with 1200 max_tokens → Fence overhead
+- Need to strip markdown fences BEFORE JSON parsing
 
 ---
 

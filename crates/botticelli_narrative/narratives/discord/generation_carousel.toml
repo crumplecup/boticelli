@@ -88,7 +88,7 @@ Output the improved post text (plain text, no JSON yet):
 [acts.format_json]
 model = "gemini-2.5-flash-lite"
 temperature = 0.1
-max_tokens = 700
+max_tokens = 1200
 
 [[acts.format_json.input]]
 type = "text"
@@ -118,7 +118,7 @@ Output ONLY valid JSON. No markdown blocks (```json), no explanations.
 [acts.audit_json]
 model = "gemini-2.5-flash-lite"
 temperature = 0.1
-max_tokens = 700
+max_tokens = 1200
 
 [[acts.audit_json.input]]
 type = "text"

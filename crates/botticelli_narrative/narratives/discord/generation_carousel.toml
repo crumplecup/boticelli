@@ -36,7 +36,7 @@ narrative = "problem"
 [config.gemini]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
-max_tokens = 600
+max_tokens = 20000
 
 # === Shared Resources ===
 
@@ -49,7 +49,7 @@ file = "BOTTICELLI_CONTEXT.md"
 [acts.critique]
 model = "gemini-2.5-flash-lite"
 temperature = 0.3
-max_tokens = 400
+max_tokens = 4000
 
 [[acts.critique.input]]
 type = "text"
@@ -71,7 +71,7 @@ Provide specific, actionable improvements.
 [acts.refine]
 model = "gemini-2.5-flash-lite"
 temperature = 0.7
-max_tokens = 600
+max_tokens = 4000
 
 [[acts.refine.input]]
 type = "text"
@@ -88,7 +88,7 @@ Output the improved post text (plain text, no JSON yet):
 [acts.format_json]
 model = "gemini-2.5-flash-lite"
 temperature = 0.1
-max_tokens = 1200
+max_tokens = 4000
 
 [[acts.format_json.input]]
 type = "text"
@@ -130,7 +130,7 @@ Now format the content above as JSON.
 [acts.audit_json]
 model = "gemini-2.5-flash-lite"
 temperature = 0.1
-max_tokens = 1200
+max_tokens = 4000
 
 [[acts.audit_json.input]]
 type = "text"
@@ -188,7 +188,7 @@ order = ["generate", "critique", "refine", "format_json", "audit_json"]
 [narratives.feature.acts.generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
-max_tokens = 600
+max_tokens = 2000
 
 [[narratives.feature.acts.generate.input]]
 type = "text"
@@ -224,7 +224,7 @@ order = ["generate", "critique", "refine", "format_json", "audit_json"]
 [narratives.usecase.acts.generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
-max_tokens = 600
+max_tokens = 2000
 
 [[narratives.usecase.acts.generate.input]]
 type = "text"
@@ -260,7 +260,7 @@ order = ["generate", "critique", "refine", "format_json", "audit_json"]
 [narratives.tutorial.acts.generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
-max_tokens = 600
+max_tokens = 2000
 
 [[narratives.tutorial.acts.generate.input]]
 type = "text"
@@ -296,7 +296,7 @@ order = ["generate", "critique", "refine", "format_json", "audit_json"]
 [narratives.community.acts.generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
-max_tokens = 600
+max_tokens = 2000
 
 [[narratives.community.acts.generate.input]]
 type = "text"
@@ -332,7 +332,7 @@ order = ["generate", "critique", "refine", "format_json", "audit_json"]
 [narratives.problem.acts.generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
-max_tokens = 600
+max_tokens = 2000
 
 [[narratives.problem.acts.generate.input]]
 type = "text"

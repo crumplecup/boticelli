@@ -18,7 +18,7 @@ order = ["analyze", "select", "format_json", "audit_json"]
 [acts.analyze]
 model = "gemini-2.5-flash-lite"
 temperature = 0.3
-max_tokens = 2000
+max_tokens = 40000
 
 [[acts.analyze.input]]
 type = "table"
@@ -28,7 +28,7 @@ limit = 10
 order_by = "generated_at DESC"
 required = false
 history_retention = "drop"
-pull_and_delete = true  # Destructive read: fetch and remove from source table
+pull_and_delete = true                 # Destructive read: fetch and remove from source table
 
 [[acts.analyze.input]]
 type = "text"
@@ -50,7 +50,7 @@ Output plain text analysis for each post. DO NOT output JSON yet.
 [acts.select]
 model = "gemini-2.5-flash-lite"
 temperature = 0.3
-max_tokens = 2000
+max_tokens = 40000
 
 [[acts.select.input]]
 type = "text"
@@ -69,7 +69,7 @@ Output as plain text. DO NOT format as JSON yet.
 [acts.format_json]
 model = "gemini-2.5-flash-lite"
 temperature = 0.1
-max_tokens = 3000  # Increased to handle 2-3 full posts without truncation
+max_tokens = 40000              # Increased to handle 2-3 full posts without truncation
 
 [[acts.format_json.input]]
 type = "text"
@@ -103,7 +103,7 @@ Output the JSON array now:
 [acts.audit_json]
 model = "gemini-2.5-flash-lite"
 temperature = 0.1
-max_tokens = 3000  # Increased to handle 2-3 full posts without truncation
+max_tokens = 40000              # Increased to handle 2-3 full posts without truncation
 
 [[acts.audit_json.input]]
 type = "text"

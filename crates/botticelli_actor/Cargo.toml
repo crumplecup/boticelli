@@ -44,10 +44,6 @@ default = []
 discord = ["serenity", "botticelli_social"]
 local = ["discord"]
 
-[[test]]
-name = "discord_server_test"
-required-features = ["discord"]
-
 [[example]]
 name = "discord_poster"
 required-features = ["discord"]

@@ -163,15 +163,45 @@ test-api-gemini:
     #!/usr/bin/env bash
     set +u
     test -n "${GEMINI_API_KEY}" || (echo "❌ GEMINI_API_KEY not set. API tests require this environment variable." && exit 1)
-    cargo test --workspace --features gemini,api
+    
+    LOG_FILE="/tmp/botticelli-test-api-gemini.log"
+    rm -f "$LOG_FILE"
+    
+    if cargo test --workspace --features gemini,api 2>&1 | tee "$LOG_FILE"; then
+        if [ -s "$LOG_FILE" ] && grep -qE "(warning|error|FAILED)" "$LOG_FILE"; then
+            echo "⚠️  API tests completed with warnings/errors. See: $LOG_FILE"
+            exit 1
+        else
+            echo "✅ All API tests passed!"
+            rm -f "$LOG_FILE"
+        fi
+    else
+        echo "❌ API tests failed. See: $LOG_FILE"
+        exit 1
+    fi
 
 # Run ALL API tests (requires all API keys, expensive!)
 test-api-all:
     #!/usr/bin/env bash
     set +u
     test -n "${GEMINI_API_KEY}" || (echo "⚠️  Warning: GEMINI_API_KEY not set" && exit 0)
+    
+    LOG_FILE="/tmp/botticelli-test-api-all.log"
+    rm -f "$LOG_FILE"
+    
     echo "🚀 Running all API tests (this will consume API quotas)..."
-    cargo test --workspace --all-features
+    if cargo test --workspace --all-features 2>&1 | tee "$LOG_FILE"; then
+        if [ -s "$LOG_FILE" ] && grep -qE "(warning|error|FAILED)" "$LOG_FILE"; then
+            echo "⚠️  API tests completed with warnings/errors. See: $LOG_FILE"
+            exit 1
+        else
+            echo "✅ All API tests passed!"
+            rm -f "$LOG_FILE"
+        fi
+    else
+        echo "❌ API tests failed. See: $LOG_FILE"
+        exit 1
+    fi
 
 # Run database tests (requires DATABASE_URL)
 test-db:
@@ -267,42 +297,37 @@ check-features:
 # Run all checks (lint, format check, tests)
 check-all package='':
     #!/usr/bin/env bash
+    set -euo pipefail
     LOG_FILE="/tmp/botticelli_check_all.log"
     rm -f "$LOG_FILE"
+    EXIT_CODE=0
     
     if [ -z "{{package}}" ]; then
         echo "🔍 Running all checks on entire workspace..."
         
         # Run fmt (errors only)
-        if ! cargo fmt --all -- --check 2>&1 | grep -v "^Finished" > "$LOG_FILE.tmp"; then
-            cat "$LOG_FILE.tmp" >> "$LOG_FILE"
+        if ! cargo fmt --all -- --check 2>&1 | tee -a "$LOG_FILE"; then
+            EXIT_CODE=1
         fi
-        rm -f "$LOG_FILE.tmp"
         
-        # Run lint (capture warnings/errors)
+        # Run lint (show output and log warnings/errors)
         echo "🔍 Linting entire workspace with local features"
-        if ! cargo clippy --workspace --features local --all-targets 2>&1 | \
-             grep -E "(warning:|error:)" > "$LOG_FILE.tmp"; then
-            true  # No warnings/errors is good
-        else
-            cat "$LOG_FILE.tmp" >> "$LOG_FILE"
+        if ! cargo clippy --workspace --features local --all-targets 2>&1 | tee -a "$LOG_FILE"; then
+            EXIT_CODE=1
         fi
-        rm -f "$LOG_FILE.tmp"
         
-        # Run tests (capture failures)
-        if ! cargo test --workspace --features local --lib --tests 2>&1 | \
-             grep -E "(FAILED|error:|panicked)" > "$LOG_FILE.tmp"; then
-            true  # No failures is good
-        else
-            cat "$LOG_FILE.tmp" >> "$LOG_FILE"
+        # Run tests (show output and log failures)
+        if ! cargo test --workspace --features local --lib --tests 2>&1 | tee -a "$LOG_FILE"; then
+            EXIT_CODE=1
         fi
-        rm -f "$LOG_FILE.tmp"
         
         # Report results
-        if [ -s "$LOG_FILE" ]; then
-            echo "⚠️  Checks completed with warnings/errors. See: $LOG_FILE"
+        if [ $EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "⚠️  Checks completed with warnings/errors. Full log saved to: $LOG_FILE"
             exit 1
         else
+            echo ""
             echo "✅ All checks passed!"
             rm -f "$LOG_FILE"
         fi

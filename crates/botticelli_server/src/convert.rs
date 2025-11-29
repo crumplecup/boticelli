@@ -70,7 +70,7 @@ fn message_to_server_message(msg: Message) -> Result<crate::Message, ServerError
         botticelli_core::Role::System => "system",
     };
 
-    Ok(MessageBuilder::default()
+    MessageBuilder::default()
         .role(role)
         .content(text)
         .build()
@@ -79,7 +79,7 @@ fn message_to_server_message(msg: Message) -> Result<crate::Message, ServerError
                 "Failed to build message: {}",
                 e
             )))
-        })?)
+        })
 }
 
 /// Convert ChatCompletionResponse to GenerateResponse

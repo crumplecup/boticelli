@@ -9,7 +9,6 @@ use botticelli_actor::{
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Mock platform for testing.
-#[allow(dead_code)]
 struct MockPlatform;
 
 #[async_trait]
@@ -32,14 +31,12 @@ impl Platform for MockPlatform {
 }
 
 /// Skill that fails with recoverable errors for a certain number of attempts.
-#[allow(dead_code)]
 struct RecoverableErrorSkill {
     attempts: AtomicU32,
     fail_count: u32,
 }
 
 impl RecoverableErrorSkill {
-    #[allow(dead_code)]
     fn new(fail_count: u32) -> Self {
         Self {
             attempts: AtomicU32::new(0),

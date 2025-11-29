@@ -321,8 +321,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
     }
 
     /// Execute a narrative that's part of a MultiNarrative (supports composition)
-    #[allow(dead_code)]
-    async fn execute_multi(
+    pub(crate) async fn execute_multi(
         &self,
         narrative: &Narrative,
         multi: &MultiNarrative,

@@ -19,7 +19,6 @@ const DISCORD_MAX_ATTACHMENTS: usize = 10;
 #[builder(setter(into))]
 pub struct DiscordPlatform {
     /// Discord bot token for authentication.
-    #[allow(dead_code)]
     token: String,
     /// Default channel ID for posting.
     channel_id: String,

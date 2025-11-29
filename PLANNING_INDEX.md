@@ -2,6 +2,12 @@
 
 This document provides a comprehensive index of all planning and strategy documents in the Botticelli workspace, organized by category with their last commit information.
 
+## About This Index
+
+This index tracks all planning documents in the workspace. When documents are completed or superseded, they are **deleted from the workspace** but remain accessible in git history. The index preserves entries for deleted documents with their last commit hash, allowing easy retrieval via `git show <commit>:<path>`.
+
+**To view a deleted document**: `git show <commit-hash>:<document-path>`
+
 ## Active Planning Documents
 
 ### Bot Server & Deployment

@@ -1,49 +1,37 @@
-# Inline Test Module Cleanup
-
-## Overview
-
-Per CLAUDE.md guidelines, all tests must be in `tests/` directories at crate roots, not inline `#[cfg(test)] mod tests` within source files.
+# Inline Test Cleanup Progress
 
 ## Status
+Moving all `#[cfg(test)] mod tests` from src/ to tests/ directory per CLAUDE.md guidelines.
 
-### Completed
-- ✅ botticelli_core/src/rate_limit.rs → tests/rate_limit_test.rs (already done)
-- ✅ botticelli_server/src/schedule.rs → tests/schedule_test.rs
+## Completed
+- ✅ botticelli_actor
+- ✅ botticelli_bot  
+- ✅ botticelli_cache
+- ✅ botticelli_core
+- ✅ botticelli_error
+- ✅ botticelli_interface
+- ✅ botticelli_models
+- ✅ botticelli_rate_limit
+- ✅ botticelli_security
+- ✅ botticelli_server
+- ✅ botticelli_social
+- ✅ botticelli_storage
+- ✅ botticelli_tui
+- ✅ botticelli (top-level)
 
-### Remaining
+## In Progress
+- 🔄 botticelli_database (3 files)
+- 🔄 botticelli_narrative (5 files)
 
-**botticelli_database:**
-- `src/schema_docs.rs` - mod tests
-- `src/schema_reflection.rs` - mod tests  
-- `src/schema_inference.rs` - mod tests
+## Files Remaining
+### botticelli_database
+- schema_docs.rs
+- schema_inference.rs  
+- schema_reflection.rs
 
-**botticelli_models:**
-- `src/gemini/live_protocol.rs` - mod tests
-- `src/gemini/live_rate_limit.rs` - mod tests
-- `src/gemini/live_client.rs` - mod tests
-
-**botticelli_narrative:**
-- `src/extraction.rs` - mod tests
-- `src/processor.rs` - mod tests
-- `src/state.rs` - mod tests
-- `src/table_reference.rs` - mod tests
-
-**botticelli_social:**
-- `src/database/commands.rs` - mod tests
-
-## Process
-
-For each file:
-1. Extract test module to `tests/{module}_test.rs`
-2. Add necessary imports (use crate-level exports)
-3. Remove `#[cfg(test)] mod tests` from source
-4. Verify with `just check {package}`
-5. Commit with message: `refactor(tests): move {module} tests to tests/ directory`
-
-## Benefits
-
-- Cleaner source files (no test clutter)
-- Centralized test organization
-- Easier to find and maintain tests
-- Follows Rust best practices
-- Enforces crate-level API usage in tests
+### botticelli_narrative
+- core.rs
+- extraction.rs
+- processor.rs
+- state.rs
+- table_reference.rs

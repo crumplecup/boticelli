@@ -231,5 +231,3 @@ pub fn is_content_focus(prompt: &str) -> bool {
     // No keywords found - this is content focus
     true
 }
-
-

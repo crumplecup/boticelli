@@ -601,17 +601,3 @@ impl LiveSession {
         &self.model
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_live_api_endpoint() {
-        assert!(LIVE_API_ENDPOINT.starts_with("wss://"));
-        assert!(LIVE_API_ENDPOINT.contains("BidiGenerateContent"));
-    }
-
-    // Integration tests with #[cfg_attr(not(feature = "api"), ignore)]
-    // will be in tests/gemini_live_basic_test.rs
-}

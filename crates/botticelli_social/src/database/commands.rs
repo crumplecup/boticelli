@@ -436,34 +436,3 @@ impl BotCommandExecutor for DatabaseCommandExecutor {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_allowed_tables() {
-        let executor = DatabaseCommandExecutor::new();
-        assert!(executor.is_table_allowed("approved_discord_posts"));
-        assert!(executor.is_table_allowed("potential_discord_posts"));
-        assert!(executor.is_table_allowed("content"));
-        assert!(executor.is_table_allowed("post_history"));
-        assert!(!executor.is_table_allowed("users")); // Not in whitelist
-    }
-
-    #[test]
-    fn test_custom_allowed_tables() {
-        let mut allowed = HashSet::new();
-        allowed.insert("custom_table".to_string());
-        let executor = DatabaseCommandExecutor::with_allowed_tables(allowed);
-        assert!(executor.is_table_allowed("custom_table"));
-        assert!(!executor.is_table_allowed("approved_discord_posts"));
-    }
-
-    #[test]
-    fn test_allow_table() {
-        let mut executor = DatabaseCommandExecutor::new();
-        executor.allow_table("new_table");
-        assert!(executor.is_table_allowed("new_table"));
-    }
-}

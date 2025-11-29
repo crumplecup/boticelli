@@ -18,7 +18,6 @@ setup:
     @echo "📦 Installing development dependencies..."
     @just install-rust
     @just install-cargo-tools
-    @just install-node-tools
     @echo "✅ Setup complete!"
 
 # Install or update Rust toolchain
@@ -37,12 +36,8 @@ install-cargo-tools:
     cargo install cargo-hack || true
     cargo install cargo-dist || true
     cargo install omnibor-cli || true
+    cargo install cargo-nextest || true
     @echo "✅ Cargo tools installed"
-
-# Install node-based tools (markdownlint)
-install-node-tools:
-    @echo "📝 Installing node tools..."
-    npm install -g markdownlint-cli2 || echo "⚠️  npm not available, skipping markdownlint"
 
 # Update just itself
 update-just:
@@ -794,3 +789,11 @@ alias f := fmt
 alias c := check-all
 alias r := run
 alias d := docs
+
+# Run tests with timing information using nextest
+test-timings:
+    cargo nextest run --workspace --features local
+
+# Install nextest if not present
+install-nextest:
+    cargo install cargo-nextest --locked

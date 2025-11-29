@@ -120,6 +120,7 @@ macro_rules! integration_test {
     ($name:ident, $file:expr) => {
         #[tokio::test]
         #[cfg_attr(not(feature = "discord"), ignore)]
+        #[cfg_attr(not(feature = "api"), ignore)]
         async fn $name() {
             load_env();
             run_test_narrative($file)

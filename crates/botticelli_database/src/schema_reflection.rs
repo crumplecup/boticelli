@@ -258,5 +258,3 @@ pub fn create_content_table(
 
     Ok(())
 }
-
-

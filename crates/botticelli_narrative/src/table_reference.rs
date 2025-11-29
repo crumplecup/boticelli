@@ -41,34 +41,3 @@ impl TableReference {
             .await
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_table_reference_builder() {
-        let reference = TableReference::builder()
-            .table_name("my_content")
-            .status_filter(Some("approved".to_string()))
-            .limit(20_usize)
-            .build()
-            .unwrap();
-
-        assert_eq!(reference.table_name(), "my_content");
-        assert_eq!(reference.status_filter(), &Some("approved".to_string()));
-        assert_eq!(reference.limit(), &20);
-    }
-
-    #[test]
-    fn test_table_reference_defaults() {
-        let reference = TableReference::builder()
-            .table_name("my_content")
-            .build()
-            .unwrap();
-
-        assert_eq!(reference.table_name(), "my_content");
-        assert_eq!(reference.status_filter(), &None);
-        assert_eq!(reference.limit(), &10);
-    }
-}

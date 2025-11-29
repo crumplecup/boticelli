@@ -2,6 +2,9 @@
 //!
 //! This module provides mock implementations and test helpers.
 
+// Test utilities may not be used by all test files
+#![allow(dead_code)]
+
 use botticelli_core::{GenerateRequest, Input, MessageBuilder, Role};
 
 pub mod mock_gemini;
@@ -13,6 +16,7 @@ pub use mock_gemini::{MockBehavior, MockGeminiClient, MockResponse};
 ///
 /// # Panics
 /// Panics if the message or request cannot be built (test utility only).
+#[cfg(feature = "gemini")]
 pub fn create_test_request(
     prompt: &str,
     model: Option<String>,

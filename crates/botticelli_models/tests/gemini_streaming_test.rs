@@ -193,7 +193,7 @@ async fn test_streaming_vs_non_streaming_consistency() -> botticelli_error::Bott
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result?;
         if let Output::Text(t) = &chunk.content {
-            streaming_text.push_str(&t);
+            streaming_text.push_str(t);
         }
         if chunk.is_final {
             break;

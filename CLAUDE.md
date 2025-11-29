@@ -756,60 +756,51 @@ just check-features                  # All combinations
 
 ## Linting
 
-### The `#[allow]` Anti-Pattern
+### Never Use `#[allow]`
 
-**Never use `#[allow(clippy::...)]` or `#[allow(dead_code)]`** - these hide real problems that must be fixed.
+Never use `#[allow(dead_code)]` or any `#[allow(...)]` directive. Fix the root cause instead.
 
-#### Why `#[allow]` is Harmful
+Why this matters:
+- `dead_code` warnings expose missing `#[cfg(feature)]` gates
+- Unused code = design problem or missing functionality
+- Each `allow` postpones a real problem
 
-1. **Hides Feature Gate Issues**: Dead code warnings often indicate missing `#[cfg(feature = "...")]` gates
-2. **Masks Design Problems**: Unused code suggests incorrect API design or missing functionality
-3. **Prevents Refactoring**: You can't safely refactor what you don't know exists
-4. **Accumulates Technical Debt**: Each `allow` is a postponed problem that compounds over time
-
-#### The Dead Code Problem
-
+Fix it properly:
 ```rust
-// ❌ BAD: Hiding the symptom
+// ❌ Never do this
 #[allow(dead_code)]
-pub struct Config {
-    database_url: String,  // Only used with "database" feature
-}
+field: String,
 
-// ✅ GOOD: Fix the root cause with feature gates
-pub struct Config {
-    #[cfg(feature = "database")]
-    database_url: String,
-}
+// ✅ Add feature gate
+#[cfg(feature = "database")]
+field: String,
 
-// ✅ GOOD: Or make it actually used
-pub struct Config {
-    database_url: String,
-}
-
-impl Config {
-    pub fn database_url(&self) -> &str {  // Now used via getter
-        &self.database_url
-    }
-}
+// ✅ Or add getter to use it
+pub fn field(&self) -> &str { &self.field }
 ```
 
-#### Correct Solutions (in order of preference)
+Solutions (in order):
 
 1. **Feature gate the code**: `#[cfg(feature = "...")]` if truly conditional
 2. **Make it public with getters**: Expose via proper encapsulation
 3. **Use `pub(crate)`**: Limit visibility appropriately  
 4. **Delete it**: If genuinely unused, remove it
-5. **Document why**: Only if ALL above are impossible (extremely rare)
 
-#### Legitimate Exceptions (Rare)
+#### No Exceptions
 
-Only two cases permit `#[allow]`:
+**Never use `#[allow]` directives.** If you think you need one, you're solving the wrong problem. Fix the root cause instead.
 
-1. **Intentional API**: `#[allow(clippy::new_without_default)]` when `Default` semantics don't match `new()`
-2. **External macro limitations**: When derive macros generate unavoidable warnings
+#### Why This Keeps Happening
 
-Even these should have a comment explaining why the exception is necessary.
+AI systems operate on probabilistic pattern matching, not deterministic rules. `#[allow(dead_code)]` appears frequently in Rust training data, creating strong learned associations. This documentation shifts probability distributions but cannot guarantee compliance - the AI will still reach for anti-patterns when trained heuristics dominate.
+
+**Human review is critical:**
+- Search for `#[allow` in diffs - reject any occurrence
+- Run `just check-features` to catch hidden feature gate issues
+- Verify `#[cfg]` usage over suppression
+- The AI's decisions blend: training data (strongest), project docs, immediate context, statistical patterns
+
+No amount of documentation creates "hard rules" in probabilistic systems.
 
 ### Workflow
 

@@ -1,7 +1,6 @@
-///! OpenTelemetry-based observability infrastructure for Botticelli bot server.
-///!
-///! Provides metrics, traces, and structured logging via OpenTelemetry protocol (OTLP).
-
+//! OpenTelemetry-based observability infrastructure for Botticelli bot server.
+//!
+//! Provides metrics, traces, and structured logging via OpenTelemetry protocol (OTLP).
 use opentelemetry::{global, trace::TracerProvider, KeyValue};
 use opentelemetry_sdk::Resource;
 use opentelemetry_stdout::SpanExporter;

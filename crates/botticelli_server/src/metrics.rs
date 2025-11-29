@@ -1,7 +1,6 @@
-///! Metrics collection for Botticelli bot server.
-///!
-///! Provides OpenTelemetry-based metrics for bots, narratives, and the content pipeline.
-
+//! Metrics collection for Botticelli bot server.
+//!
+//! Provides OpenTelemetry-based metrics for bots, narratives, and the content pipeline.
 use opentelemetry::{
     global,
     metrics::{Counter, Gauge, Histogram, Meter},

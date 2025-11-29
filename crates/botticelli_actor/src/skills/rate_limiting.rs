@@ -1,14 +1,13 @@
 //! Rate limiting skill.
 
-use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillResult};
+use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillOutputBuilder, SkillResult};
 use async_trait::async_trait;
 use serde_json::json;
-use std::collections::HashMap;
 
 /// Skill for enforcing posting frequency limits.
 pub struct RateLimitingSkill {
     name: String,
-    state: HashMap<String, usize>,
+    // Reserved for future rate limit state tracking
 }
 
 impl RateLimitingSkill {
@@ -16,7 +15,6 @@ impl RateLimitingSkill {
     pub fn new() -> Self {
         Self {
             name: "rate_limiting".to_string(),
-            state: HashMap::new(),
         }
     }
 
@@ -47,13 +45,13 @@ impl Skill for RateLimitingSkill {
         tracing::debug!("Executing rate limiting skill");
 
         let max_posts_per_day = context
-            .config
+            .config()
             .get("max_posts_per_day")
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(10);
 
         let min_interval_minutes = context
-            .config
+            .config()
             .get("min_interval_minutes")
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(60);
@@ -65,7 +63,7 @@ impl Skill for RateLimitingSkill {
         );
 
         let mut total_items = 0;
-        for rows in context.knowledge.values() {
+        for rows in context.knowledge().values() {
             total_items += rows.len();
         }
 
@@ -92,15 +90,16 @@ impl Skill for RateLimitingSkill {
             "Rate limit check passed"
         );
 
-        Ok(SkillOutput {
-            skill_name: self.name.clone(),
-            data: json!({
+        Ok(SkillOutputBuilder::default()
+            .skill_name(self.name.clone())
+            .data(json!({
                 "max_posts_per_day": max_posts_per_day,
                 "min_interval_minutes": min_interval_minutes,
                 "current_count": current_count,
                 "remaining": remaining,
                 "can_post": can_post,
-            }),
-        })
+            }))
+            .build()
+            .map_err(|e| ActorError::new(ActorErrorKind::Narrative(e)))?)
     }
 }

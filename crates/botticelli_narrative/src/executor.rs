@@ -4,7 +4,7 @@
 //! by calling LLM APIs in sequence, passing context between acts.
 
 use crate::{
-    CarouselResult, CarouselState, MultiNarrative, Narrative, NarrativeProvider, ProcessorContext,
+    CarouselResult, CarouselState, MultiNarrative, NarrativeProvider, ProcessorContext,
     ProcessorRegistry, StateManager,
 };
 use botticelli_core::{GenerateRequest, Input, Message, MessageBuilder, Output, Role};
@@ -318,15 +318,6 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         narrative: &N,
     ) -> BotticelliResult<NarrativeExecution> {
         self.execute_impl_with_multi(narrative, None).await
-    }
-
-    /// Execute a narrative that's part of a MultiNarrative (supports composition)
-    pub(crate) async fn execute_multi(
-        &self,
-        narrative: &Narrative,
-        multi: &MultiNarrative,
-    ) -> BotticelliResult<NarrativeExecution> {
-        self.execute_impl_with_multi(narrative, Some(multi)).await
     }
 
     #[tracing::instrument(skip(self, narrative, multi), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]

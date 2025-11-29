@@ -12,37 +12,49 @@ use std::sync::Arc;
 pub type SkillResult<T> = Result<T, ActorError>;
 
 /// Output from skill execution.
-#[derive(Debug, Clone, PartialEq, Eq, derive_builder::Builder)]
-#[builder(setter(into))]
+#[derive(Debug, Clone, PartialEq, Eq, derive_builder::Builder, derive_getters::Getters)]
+#[builder(setter(into), build_fn(private, name = "build_internal"))]
 pub struct SkillOutput {
     /// Skill name that produced output.
-    pub skill_name: String,
+    skill_name: String,
     /// Result data (JSON for flexibility).
-    pub data: JsonValue,
+    data: JsonValue,
+}
+
+impl SkillOutputBuilder {
+    /// Build the SkillOutput.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if required fields are missing.
+    pub fn build(&self) -> Result<SkillOutput, String> {
+        self.build_internal()
+            .map_err(|e| e.to_string())
+    }
 }
 
 /// Context provided to skills during execution.
-#[derive(derive_builder::Builder)]
+#[derive(derive_builder::Builder, derive_getters::Getters)]
 #[builder(setter(into))]
 pub struct SkillContext {
     /// Knowledge table data (table_name -> rows).
-    pub knowledge: HashMap<String, Vec<JsonValue>>,
+    knowledge: HashMap<String, Vec<JsonValue>>,
     /// Skill-specific configuration.
-    pub config: HashMap<String, String>,
+    config: HashMap<String, String>,
     /// Platform interface.
-    pub platform: Arc<dyn Platform>,
+    platform: Arc<dyn Platform>,
     /// Database connection pool for table operations.
-    pub db_pool: Pool<ConnectionManager<PgConnection>>,
+    db_pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 /// Information about a skill.
-#[derive(Debug, Clone, PartialEq, Eq, derive_builder::Builder)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_builder::Builder, derive_getters::Getters)]
 #[builder(setter(into))]
 pub struct SkillInfo {
     /// Skill name.
-    pub name: String,
+    name: String,
     /// Skill description.
-    pub description: String,
+    description: String,
 }
 
 /// Trait for skill implementations.

@@ -207,64 +207,67 @@ pub struct InlineData {
 
 /// Realtime input message for streaming audio/video.
 ///
-/// Not yet used - reserved for future realtime input feature.
-#[allow(dead_code)]
+/// Reserved for future realtime input feature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RealtimeInputMessage {
+    /// Realtime input
     pub realtime_input: RealtimeInput,
 }
 
 /// Realtime input data.
 ///
-/// Not yet used - reserved for future realtime input feature.
-#[allow(dead_code)]
+/// Reserved for future realtime input feature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RealtimeInput {
+    /// Media chunks
     pub media_chunks: Vec<MediaChunk>,
 }
 
 /// Media chunk for streaming.
 ///
-/// Not yet used - reserved for future realtime input feature.
-#[allow(dead_code)]
+/// Reserved for future realtime input feature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaChunk {
+    /// MIME type
     pub mime_type: String,
-    pub data: String, // base64-encoded
+    /// Base64-encoded data
+    pub data: String,
 }
 
 /// Tool response message.
 ///
-/// Not yet used - reserved for future tool calling feature.
-#[allow(dead_code)]
+/// Reserved for future tool calling feature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolResponseMessage {
+    /// Tool response
     pub tool_response: ToolResponse,
 }
 
 /// Tool response data.
 ///
-/// Not yet used - reserved for future tool calling feature.
-#[allow(dead_code)]
+/// Reserved for future tool calling feature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolResponse {
+    /// Function responses
     pub function_responses: Vec<FunctionResponse>,
 }
 
 /// Function call response.
 ///
-/// Not yet used - reserved for future tool calling feature.
-#[allow(dead_code)]
+/// Reserved for future tool calling feature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FunctionResponse {
+    /// Function call ID
     pub id: String,
+    /// Function name
     pub name: String,
+    /// Function response
     pub response: serde_json::Value,
 }
 

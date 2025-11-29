@@ -1,14 +1,12 @@
 //! Tests for platform trait and basic implementations.
 
-use botticelli_actor::{Platform, PlatformCapability, PlatformMessage};
-
 #[cfg(feature = "discord")]
 use botticelli_actor::DiscordPlatform;
 
 #[cfg(feature = "discord")]
 #[tokio::test]
 async fn test_discord_platform_creation() {
-    let platform = DiscordPlatform::new("test_token", "123456789").expect("Should create platform");
+    let platform = DiscordPlatform::new("123456789").expect("Should create platform");
 
     assert_eq!(platform.platform_name(), "discord");
     assert_eq!(platform.channel_id(), "123456789");
@@ -17,7 +15,7 @@ async fn test_discord_platform_creation() {
 #[cfg(feature = "discord")]
 #[tokio::test]
 async fn test_discord_platform_capabilities() {
-    let platform = DiscordPlatform::new("test_token", "123456789").expect("Should create platform");
+    let platform = DiscordPlatform::new("123456789").expect("Should create platform");
 
     let caps = platform.capabilities();
     assert!(caps.contains(&PlatformCapability::Text));
@@ -28,7 +26,7 @@ async fn test_discord_platform_capabilities() {
 #[cfg(feature = "discord")]
 #[tokio::test]
 async fn test_discord_platform_post_validation() {
-    let platform = DiscordPlatform::new("test_token", "123456789").expect("Should create platform");
+    let platform = DiscordPlatform::new("123456789").expect("Should create platform");
 
     // Empty message should fail
     let message = PlatformMessage {
@@ -43,7 +41,7 @@ async fn test_discord_platform_post_validation() {
 #[cfg(feature = "discord")]
 #[tokio::test]
 async fn test_discord_platform_text_limit() {
-    let platform = DiscordPlatform::new("test_token", "123456789").expect("Should create platform");
+    let platform = DiscordPlatform::new("123456789").expect("Should create platform");
 
     // Text too long should fail
     let long_text = "a".repeat(2001);
@@ -59,7 +57,7 @@ async fn test_discord_platform_text_limit() {
 #[cfg(feature = "discord")]
 #[tokio::test]
 async fn test_discord_platform_valid_post() {
-    let platform = DiscordPlatform::new("test_token", "123456789").expect("Should create platform");
+    let platform = DiscordPlatform::new("123456789").expect("Should create platform");
 
     let message = PlatformMessage {
         text: "Hello Discord!".to_string(),

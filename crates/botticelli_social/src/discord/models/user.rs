@@ -6,18 +6,24 @@ use diesel::prelude::*;
 /// Database row for discord_users table.
 ///
 /// Represents a Discord user account with global profile information.
-#[derive(Debug, Clone, Queryable, Identifiable, Selectable)]
+#[derive(Debug, Clone, Queryable, Identifiable, Selectable, derive_getters::Getters)]
 #[diesel(table_name = botticelli_database::schema::discord_users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[allow(dead_code)] // Model fields used for database operations
 pub struct UserRow {
-    id: i64,
-    username: String,
-    discriminator: Option<String>, // Legacy discriminator
-    global_name: Option<String>,   // Display name
-    avatar: Option<String>,
-    banner: Option<String>,
-    accent_color: Option<i32>,
+    /// User ID
+    pub id: i64,
+    /// Username
+    pub username: String,
+    /// Legacy discriminator
+    pub discriminator: Option<String>,
+    /// Display name
+    pub global_name: Option<String>,
+    /// Avatar hash
+    pub avatar: Option<String>,
+    /// Banner hash
+    pub banner: Option<String>,
+    /// Accent color
+    pub accent_color: Option<i32>,
 
     // Account flags
     bot: Option<bool>,

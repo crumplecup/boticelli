@@ -49,7 +49,7 @@ async fn get_metrics(State(state): State<ApiState>) -> impl IntoResponse {
 #[instrument(skip(state))]
 async fn get_bot_metrics(State(state): State<ApiState>) -> impl IntoResponse {
     let snapshot = state.metrics.snapshot();
-    (StatusCode::OK, Json(json!({ "bots": snapshot.bots })))
+    (StatusCode::OK, Json(json!({ "bots": snapshot.bots() })))
 }
 
 /// Get narrative execution metrics.
@@ -58,6 +58,6 @@ async fn get_narrative_metrics(State(state): State<ApiState>) -> impl IntoRespon
     let snapshot = state.metrics.snapshot();
     (
         StatusCode::OK,
-        Json(json!({ "narratives": snapshot.narratives })),
+        Json(json!({ "narratives": snapshot.narratives() })),
     )
 }

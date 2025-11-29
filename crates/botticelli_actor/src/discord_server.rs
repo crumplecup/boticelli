@@ -224,13 +224,10 @@ impl ActorManager for DiscordActorManager {
         drop(configs);
 
         // Create actor with builder pattern
-        // TODO: Get token from environment or config
-        let token = std::env::var("DISCORD_TOKEN").unwrap_or_else(|_| "dummy_token".to_string());
+        // TODO: Get token from environment or config for authentication
+        let _token = std::env::var("DISCORD_TOKEN").unwrap_or_else(|_| "dummy_token".to_string());
 
-        let platform = Arc::new(DiscordPlatform::new(
-            token,
-            actor_id.channel_id.to_string(),
-        )?);
+        let platform = Arc::new(DiscordPlatform::new(actor_id.channel_id.to_string())?);
         let skills = crate::SkillRegistry::new();
 
         let actor = Actor::builder()

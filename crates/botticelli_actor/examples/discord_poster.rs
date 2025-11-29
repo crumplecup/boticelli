@@ -86,7 +86,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(actor = %config.name(), "Created actor configuration");
 
     // Create Discord platform
-    let platform = Arc::new(DiscordPlatform::new(token, channel_id.to_string())?);
+    let _ = token; // Token validation happens elsewhere
+    let platform = Arc::new(DiscordPlatform::new(channel_id.to_string())?);
     info!("Created Discord platform adapter");
 
     // Register skills
@@ -120,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if !result.succeeded.is_empty() {
                 info!("Successfully executed skills:");
                 for output in &result.succeeded {
-                    info!("  ✓ {}", output.skill_name);
+                    info!("  ✓ {}", output.skill_name());
                 }
             }
 

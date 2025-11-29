@@ -20,7 +20,7 @@
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let config = ActorConfig::from_file("actor.toml")?;
-//! let platform = DiscordPlatform::new("token", "channel_id")?;
+//! let platform = DiscordPlatform::new("channel_id")?;
 //! let registry = SkillRegistry::new();
 //!
 //! let actor = Actor::builder()

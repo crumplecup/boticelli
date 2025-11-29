@@ -18,10 +18,9 @@ const DISCORD_MAX_ATTACHMENTS: usize = 10;
 #[derive(derive_builder::Builder)]
 #[builder(setter(into))]
 pub struct DiscordPlatform {
-    /// Discord bot token for authentication.
-    token: String,
     /// Default channel ID for posting.
     channel_id: String,
+    // Token will be retrieved from config when needed
 }
 
 impl DiscordPlatform {
@@ -29,22 +28,14 @@ impl DiscordPlatform {
     ///
     /// # Arguments
     ///
-    /// * `token` - Discord bot token
     /// * `channel_id` - Default channel ID for posting
     ///
     /// # Errors
     ///
-    /// Returns error if token or channel_id are empty.
-    #[tracing::instrument(skip(token), fields(channel_id))]
-    pub fn new(token: impl Into<String>, channel_id: impl Into<String>) -> ActorResult<Self> {
-        let token = token.into();
+    /// Returns error if channel_id is empty.
+    #[tracing::instrument(fields(channel_id))]
+    pub fn new(channel_id: impl Into<String>) -> ActorResult<Self> {
         let channel_id = channel_id.into();
-
-        if token.is_empty() {
-            return Err(ActorError::new(ActorErrorKind::AuthenticationFailed(
-                "Discord token cannot be empty".to_string(),
-            )));
-        }
 
         if channel_id.is_empty() {
             return Err(ActorError::new(ActorErrorKind::InvalidConfiguration(
@@ -55,7 +46,6 @@ impl DiscordPlatform {
         tracing::debug!("Created Discord platform instance");
 
         Ok(DiscordPlatformBuilder::default()
-            .token(token)
             .channel_id(channel_id)
             .build()
             .expect("DiscordPlatform with validated fields"))

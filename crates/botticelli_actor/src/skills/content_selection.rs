@@ -1,6 +1,6 @@
 //! Content selection skill for querying and ranking content from database.
 
-use crate::{Skill, SkillContext, SkillOutput, SkillResult};
+use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillOutputBuilder, SkillResult};
 use async_trait::async_trait;
 use serde_json::json;
 
@@ -39,19 +39,19 @@ impl Skill for ContentSelectionSkill {
         tracing::debug!("Executing content selection skill");
 
         let max_candidates = context
-            .config
+            .config()
             .get("max_candidates")
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(10);
 
         let priority_weight = context
-            .config
+            .config()
             .get("priority_weight")
             .and_then(|s| s.parse::<f64>().ok())
             .unwrap_or(0.7);
 
         let freshness_weight = context
-            .config
+            .config()
             .get("freshness_weight")
             .and_then(|s| s.parse::<f64>().ok())
             .unwrap_or(0.3);
@@ -64,7 +64,7 @@ impl Skill for ContentSelectionSkill {
         );
 
         let content_rows = context
-            .knowledge
+            .knowledge()
             .get("content")
             .cloned()
             .unwrap_or_default();
@@ -78,14 +78,15 @@ impl Skill for ContentSelectionSkill {
 
         tracing::info!(selected = candidates.len(), "Content selection completed");
 
-        Ok(SkillOutput {
-            skill_name: self.name.clone(),
-            data: json!({
+        Ok(SkillOutputBuilder::default()
+            .skill_name(self.name.clone())
+            .data(json!({
                 "candidates": candidates,
                 "max_candidates": max_candidates,
                 "priority_weight": priority_weight,
                 "freshness_weight": freshness_weight,
-            }),
-        })
+            }))
+            .build()
+            .map_err(|e| ActorError::new(ActorErrorKind::Narrative(e)))?)
     }
 }

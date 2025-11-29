@@ -116,14 +116,6 @@ impl DiscordCommandExecutor {
         self
     }
 
-    /// Check permission for a write operation.
-    /// TODO: Properly integrate with security framework
-    #[allow(dead_code)]
-    fn check_permission(&self, _command: &str, _resource_id: &str) -> BotCommandResult<()> {
-        // Temporarily disabled until we properly integrate security framework
-        Ok(())
-    }
-
     /// Parse guild_id argument from command args.
     fn parse_guild_id(
         command: &str,

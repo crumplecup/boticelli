@@ -124,18 +124,6 @@ pub enum ScheduleConfig {
         /// Interval duration in seconds
         seconds: u64,
     },
-    /// Cron expression (for future Phase 4 implementation)
-    #[allow(dead_code)]
-    Cron {
-        /// Cron expression string
-        expression: String,
-    },
-    /// One-time execution at specific time
-    #[allow(dead_code)]
-    Once {
-        /// ISO 8601 timestamp
-        at: String,
-    },
     /// Execute immediately on startup
     Immediate,
 }
@@ -171,86 +159,6 @@ impl Schedule for ScheduleConfig {
                     }
                 }
             }
-            ScheduleConfig::Cron { expression } => {
-                let now = Utc::now();
-
-                // Parse cron expression
-                let schedule = match expression.parse::<cron::Schedule>() {
-                    Ok(s) => s,
-                    Err(_) => {
-                        // Invalid cron expression, never run
-                        return ScheduleCheck::new(false, None);
-                    }
-                };
-
-                // Find next execution time from now
-                let next = schedule.after(&now).next();
-
-                match (last_run, next) {
-                    (None, Some(next_time)) => {
-                        // Never run before, check if it's time
-                        if now >= next_time {
-                            // Time to run
-                            let after_next = schedule.after(&next_time).next();
-                            ScheduleCheck::new(true, after_next)
-                        } else {
-                            // Wait until scheduled time
-                            ScheduleCheck::wait_until(next_time)
-                        }
-                    }
-                    (Some(last), Some(_next_time)) => {
-                        // Find next occurrence after last run
-                        let next_after_last = schedule.after(&last).next();
-
-                        match next_after_last {
-                            Some(next_run) if now >= next_run => {
-                                // Time to run
-                                let after_next = schedule.after(&next_run).next();
-                                ScheduleCheck::new(true, after_next)
-                            }
-                            Some(next_run) => {
-                                // Wait until next scheduled time
-                                ScheduleCheck::wait_until(next_run)
-                            }
-                            None => {
-                                // No more scheduled runs
-                                ScheduleCheck::new(false, None)
-                            }
-                        }
-                    }
-                    _ => {
-                        // No next time available
-                        ScheduleCheck::new(false, None)
-                    }
-                }
-            }
-            ScheduleConfig::Once { at } => {
-                // Parse ISO 8601 timestamp
-                let scheduled_time = match DateTime::parse_from_rfc3339(at) {
-                    Ok(dt) => dt.with_timezone(&Utc),
-                    Err(_) => {
-                        // Invalid timestamp, never run
-                        return ScheduleCheck::new(false, None);
-                    }
-                };
-
-                match last_run {
-                    None => {
-                        let now = Utc::now();
-                        if now >= scheduled_time {
-                            // Time to run once
-                            ScheduleCheck::run_once()
-                        } else {
-                            // Wait until scheduled time
-                            ScheduleCheck::wait_until(scheduled_time)
-                        }
-                    }
-                    Some(_) => {
-                        // Already run, never run again
-                        ScheduleCheck::new(false, None)
-                    }
-                }
-            }
             ScheduleConfig::Immediate => {
                 match last_run {
                     None => {
@@ -271,19 +179,6 @@ impl Schedule for ScheduleConfig {
             ScheduleConfig::Interval { seconds } => {
                 let interval = Duration::seconds(*seconds as i64);
                 Some(after + interval)
-            }
-            ScheduleConfig::Cron { expression } => {
-                let schedule = expression.parse::<cron::Schedule>().ok()?;
-                schedule.after(&after).next()
-            }
-            ScheduleConfig::Once { at } => {
-                let scheduled_time = DateTime::parse_from_rfc3339(at).ok()?.with_timezone(&Utc);
-
-                if after < scheduled_time {
-                    Some(scheduled_time)
-                } else {
-                    None
-                }
             }
             ScheduleConfig::Immediate => None,
         }

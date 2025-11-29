@@ -303,53 +303,54 @@ impl Default for MetricsCollector {
 }
 
 /// Snapshot of metrics at a point in time.
-#[derive(Debug, Clone, serde::Serialize)]
+/// Metrics snapshot for serialization.
+#[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct MetricsSnapshot {
     /// Bot metrics snapshot
-    pub bots: BotMetricsSnapshot,
+    bots: BotMetricsSnapshot,
     /// Narrative metrics snapshot
-    pub narratives: NarrativeMetricsSnapshot,
+    narratives: NarrativeMetricsSnapshot,
     /// Pipeline metrics snapshot
-    pub pipeline: PipelineMetricsSnapshot,
+    pipeline: PipelineMetricsSnapshot,
 }
 
 /// Bot metrics snapshot.
-#[derive(Debug, Clone, Default, serde::Serialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct BotMetricsSnapshot {
     /// Total executions
-    pub executions: u64,
+    executions: u64,
     /// Total failures
-    pub failures: u64,
+    failures: u64,
     /// Average duration in seconds
-    pub avg_duration: f64,
+    avg_duration: f64,
     /// Current queue depth
-    pub queue_depth: u64,
+    queue_depth: u64,
 }
 
 /// Narrative metrics snapshot.
-#[derive(Debug, Clone, Default, serde::Serialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct NarrativeMetricsSnapshot {
     /// Total executions
-    pub executions: u64,
+    executions: u64,
     /// Average duration in seconds
-    pub avg_duration: f64,
+    avg_duration: f64,
     /// JSON success count
-    pub json_success: u64,
+    json_success: u64,
     /// JSON failure count
-    pub json_failures: u64,
+    json_failures: u64,
     /// JSON success rate
-    pub json_success_rate: f64,
+    json_success_rate: f64,
 }
 
 /// Pipeline metrics snapshot.
-#[derive(Debug, Clone, Default, serde::Serialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct PipelineMetricsSnapshot {
     /// Posts generated
-    pub generated: u64,
+    generated: u64,
     /// Posts curated
-    pub curated: u64,
+    curated: u64,
     /// Posts published
-    pub published: u64,
+    published: u64,
     /// Average stage latency in seconds
-    pub avg_stage_latency: f64,
+    avg_stage_latency: f64,
 }

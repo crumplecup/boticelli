@@ -1,6 +1,6 @@
 //! Narrative execution skill for running narrative workflows.
 
-use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillResult};
+use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillOutputBuilder, SkillResult};
 use async_trait::async_trait;
 use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, establish_connection};
 use botticelli_models::GeminiClient;
@@ -46,13 +46,13 @@ impl Skill for NarrativeExecutionSkill {
     async fn execute(&self, context: &SkillContext) -> SkillResult<SkillOutput> {
         tracing::debug!("Executing narrative execution skill");
 
-        let narrative_path = context.config.get("narrative_path").ok_or_else(|| {
+        let narrative_path = context.config().get("narrative_path").ok_or_else(|| {
             ActorError::new(ActorErrorKind::InvalidConfiguration(
                 "Missing narrative_path configuration".to_string(),
             ))
         })?;
 
-        let narrative_name = context.config.get("narrative_name");
+        let narrative_name = context.config().get("narrative_name");
 
         tracing::info!(
             narrative_path,
@@ -130,8 +130,8 @@ impl Skill for NarrativeExecutionSkill {
 
         // Spawn storage actor for database operations
         tracing::debug!("Spawning storage actor");
-        let storage_actor = botticelli_narrative::StorageActor::new(context.db_pool.clone());
-        let (storage_ref, _handle) = Actor::spawn(None, storage_actor, context.db_pool.clone())
+        let storage_actor = botticelli_narrative::StorageActor::new(context.db_pool().clone());
+        let (storage_ref, _handle) = Actor::spawn(None, storage_actor, context.db_pool().clone())
             .await
             .map_err(|e| {
                 ActorError::new(ActorErrorKind::Narrative(format!(
@@ -263,15 +263,16 @@ impl Skill for NarrativeExecutionSkill {
             "Narrative execution completed successfully"
         );
 
-        Ok(SkillOutput {
-            skill_name: self.name.clone(),
-            data: json!({
+        Ok(SkillOutputBuilder::default()
+            .skill_name(self.name.clone())
+            .data(json!({
                 "status": "executed",
                 "narrative_path": narrative_path,
                 "narrative_name": executed_narrative_name,
                 "act_count": executed_act_count,
                 "result": result,
-            }),
-        })
+            }))
+            .build()
+            .map_err(|e| ActorError::new(ActorErrorKind::Narrative(e)))?)
     }
 }

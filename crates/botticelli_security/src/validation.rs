@@ -34,27 +34,23 @@ pub struct DiscordValidator;
 
 impl DiscordValidator {
     /// Create a new Discord validator.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn new() -> Self {
         Self
     }
 
     /// Validate a Discord snowflake ID.
-    #[cfg_attr(not(test), allow(dead_code))]
     fn validate_snowflake(&self, value: &str) -> bool {
         // Discord snowflakes are 17-19 digit integers
         value.len() >= 17 && value.len() <= 19 && value.chars().all(|c| c.is_ascii_digit())
     }
 
     /// Validate message content length.
-    #[cfg_attr(not(test), allow(dead_code))]
     fn validate_content_length(&self, content: &str) -> bool {
         // Discord message limit is 2000 characters
         !content.is_empty() && content.len() <= 2000
     }
 
     /// Validate channel name.
-    #[cfg_attr(not(test), allow(dead_code))]
     fn validate_channel_name(&self, name: &str) -> bool {
         // Channel names: 1-100 chars, lowercase alphanumeric + hyphens/underscores
         !name.is_empty()
@@ -65,7 +61,6 @@ impl DiscordValidator {
     }
 
     /// Validate role name.
-    #[cfg_attr(not(test), allow(dead_code))]
     fn validate_role_name(&self, name: &str) -> bool {
         // Role names: 1-100 characters
         !name.is_empty() && name.len() <= 100

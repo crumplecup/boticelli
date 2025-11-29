@@ -1,6 +1,6 @@
 //! Content scheduling skill.
 
-use crate::{Skill, SkillContext, SkillOutput, SkillResult};
+use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillOutputBuilder, SkillResult};
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveTime, Utc};
 use serde_json::json;
@@ -40,19 +40,19 @@ impl Skill for ContentSchedulingSkill {
         tracing::debug!("Executing content scheduling skill");
 
         let window_start = context
-            .config
+            .config()
             .get("schedule_window_start")
             .and_then(|s| NaiveTime::parse_from_str(s, "%H:%M").ok())
             .unwrap_or_else(|| NaiveTime::from_hms_opt(9, 0, 0).unwrap());
 
         let window_end = context
-            .config
+            .config()
             .get("schedule_window_end")
             .and_then(|s| NaiveTime::parse_from_str(s, "%H:%M").ok())
             .unwrap_or_else(|| NaiveTime::from_hms_opt(17, 0, 0).unwrap());
 
         let randomize = context
-            .config
+            .config()
             .get("randomize_within_window")
             .map(|s| s.parse::<bool>().unwrap_or(true))
             .unwrap_or(true);
@@ -65,7 +65,7 @@ impl Skill for ContentSchedulingSkill {
         );
 
         let mut total_items = 0;
-        for (table_name, rows) in &context.knowledge {
+        for (table_name, rows) in context.knowledge() {
             tracing::debug!(table = %table_name, count = rows.len(), "Processing knowledge table");
             total_items += rows.len();
         }
@@ -79,16 +79,17 @@ impl Skill for ContentSchedulingSkill {
             "Content scheduling completed"
         );
 
-        Ok(SkillOutput {
-            skill_name: self.name.clone(),
-            data: json!({
+        Ok(SkillOutputBuilder::default()
+            .skill_name(self.name.clone())
+            .data(json!({
                 "total_items": total_items,
                 "next_slot": next_slot.to_rfc3339(),
                 "window_start": window_start.format("%H:%M").to_string(),
                 "window_end": window_end.format("%H:%M").to_string(),
                 "randomized": randomize,
-            }),
-        })
+            }))
+            .build()
+            .map_err(|e| ActorError::new(ActorErrorKind::Narrative(e)))?)
     }
 }
 

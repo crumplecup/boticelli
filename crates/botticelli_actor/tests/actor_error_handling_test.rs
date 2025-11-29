@@ -1,79 +1,8 @@
 //! Tests for actor error handling and recovery behavior.
 
-use async_trait::async_trait;
 use botticelli_actor::{
-    ActorConfigBuilder, ActorError, ActorErrorKind, ExecutionConfigBuilder, Platform,
-    PlatformCapability, PlatformMessage, PlatformMetadata, Skill, SkillContext, SkillInfoBuilder,
-    SkillOutput, SkillOutputBuilder,
+    ActorConfigBuilder, ActorError, ActorErrorKind, ExecutionConfigBuilder, SkillInfoBuilder,
 };
-use std::sync::atomic::{AtomicU32, Ordering};
-
-/// Mock platform for testing.
-struct MockPlatform;
-
-#[async_trait]
-impl Platform for MockPlatform {
-    async fn post(&self, _message: &PlatformMessage) -> Result<PlatformMetadata, ActorError> {
-        Ok(PlatformMetadata::new())
-    }
-
-    async fn verify_connection(&self) -> Result<(), ActorError> {
-        Ok(())
-    }
-
-    fn capabilities(&self) -> Vec<PlatformCapability> {
-        vec![PlatformCapability::Text]
-    }
-
-    fn platform_name(&self) -> &str {
-        "mock"
-    }
-}
-
-/// Skill that fails with recoverable errors for a certain number of attempts.
-struct RecoverableErrorSkill {
-    attempts: AtomicU32,
-    fail_count: u32,
-}
-
-impl RecoverableErrorSkill {
-    fn new(fail_count: u32) -> Self {
-        Self {
-            attempts: AtomicU32::new(0),
-            fail_count,
-        }
-    }
-}
-
-#[async_trait]
-impl Skill for RecoverableErrorSkill {
-    fn name(&self) -> &str {
-        "recoverable_error"
-    }
-
-    fn description(&self) -> &str {
-        "Skill that fails with recoverable errors"
-    }
-
-    async fn execute(&self, _context: &SkillContext) -> Result<SkillOutput, ActorError> {
-        let attempt = self.attempts.fetch_add(1, Ordering::SeqCst);
-
-        if attempt < self.fail_count {
-            // Return recoverable error
-            Err(ActorError::new(ActorErrorKind::PlatformTemporary(format!(
-                "Temporary failure (attempt {})",
-                attempt
-            ))))
-        } else {
-            // Success after retries
-            Ok(SkillOutputBuilder::default()
-                .skill_name(self.name())
-                .data(serde_json::json!({"attempts": attempt + 1}))
-                .build()
-                .expect("Valid skill output"))
-        }
-    }
-}
 
 /// Skill that always fails with unrecoverable errors.
 #[allow(dead_code)]
@@ -97,7 +26,6 @@ impl Skill for UnrecoverableErrorSkill {
 }
 
 /// Skill that succeeds immediately.
-#[allow(dead_code)]
 struct SuccessSkill;
 
 #[async_trait]

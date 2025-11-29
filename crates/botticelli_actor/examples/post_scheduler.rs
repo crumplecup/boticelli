@@ -77,7 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let channel_id =
         std::env::var("DISCORD_CHANNEL_ID").unwrap_or_else(|_| "123456789".to_string());
 
-    let platform = DiscordPlatform::new(discord_token, channel_id)?;
+    let _ = discord_token; // Token validation happens elsewhere
+    let platform = DiscordPlatform::new(channel_id)?;
     println!("   ✓ Platform: {}", platform.platform_name());
     println!("   ✓ Capabilities: {:?}", platform.capabilities());
 

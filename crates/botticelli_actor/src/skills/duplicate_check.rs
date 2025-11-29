@@ -1,6 +1,6 @@
 //! Duplicate checking skill to prevent reposting same content.
 
-use crate::{Skill, SkillContext, SkillOutput, SkillResult};
+use crate::{ActorError, ActorErrorKind, Skill, SkillContext, SkillOutput, SkillOutputBuilder, SkillResult};
 use async_trait::async_trait;
 use serde_json::json;
 
@@ -39,13 +39,13 @@ impl Skill for DuplicateCheckSkill {
         tracing::debug!("Executing duplicate check skill");
 
         let lookback_days = context
-            .config
+            .config()
             .get("lookback_days")
             .and_then(|s| s.parse::<i64>().ok())
             .unwrap_or(30);
 
         let similarity_threshold = context
-            .config
+            .config()
             .get("similarity_threshold")
             .and_then(|s| s.parse::<f64>().ok())
             .unwrap_or(0.9);
@@ -57,7 +57,7 @@ impl Skill for DuplicateCheckSkill {
         );
 
         let post_history = context
-            .knowledge
+            .knowledge()
             .get("post_history")
             .cloned()
             .unwrap_or_default();
@@ -81,14 +81,15 @@ impl Skill for DuplicateCheckSkill {
             "Duplicate check completed"
         );
 
-        Ok(SkillOutput {
-            skill_name: self.name.clone(),
-            data: json!({
+        Ok(SkillOutputBuilder::default()
+            .skill_name(self.name.clone())
+            .data(json!({
                 "posted_content_ids": content_ids,
                 "lookback_days": lookback_days,
                 "similarity_threshold": similarity_threshold,
                 "history_count": post_history.len(),
-            }),
-        })
+            }))
+            .build()
+            .map_err(|e| ActorError::new(ActorErrorKind::Narrative(e)))?)
     }
 }

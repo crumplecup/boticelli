@@ -6,17 +6,22 @@ use diesel::prelude::*;
 /// Database row for discord_guilds table.
 ///
 /// Represents a Discord guild (server) with all metadata, settings, and bot-specific state.
-#[derive(Debug, Clone, Queryable, Identifiable, Selectable)]
+#[derive(Debug, Clone, Queryable, Identifiable, Selectable, derive_getters::Getters)]
 #[diesel(table_name = botticelli_database::schema::discord_guilds)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[allow(dead_code)] // Model fields used for database operations
 pub struct GuildRow {
-    id: i64,
-    name: String,
-    icon: Option<String>,
-    banner: Option<String>,
-    splash: Option<String>,
-    owner_id: i64,
+    /// Guild ID
+    pub id: i64,
+    /// Guild name
+    pub name: String,
+    /// Guild icon hash
+    pub icon: Option<String>,
+    /// Guild banner hash
+    pub banner: Option<String>,
+    /// Guild invite splash hash
+    pub splash: Option<String>,
+    /// Guild owner user ID
+    pub owner_id: i64,
 
     // Guild features
     features: Option<Vec<Option<String>>>,

@@ -99,7 +99,6 @@ impl MockGeminiClient {
     }
 
     /// Create a mock client with custom behavior.
-    #[allow(dead_code)]
     pub fn new_with_behavior(behavior: MockBehavior) -> Self {
         Self {
             behavior,
@@ -140,7 +139,6 @@ impl MockGeminiClient {
     }
 
     /// Reset the call count to zero.
-    #[allow(dead_code)]
     pub fn reset_call_count(&self) {
         *self.call_count.lock().unwrap() = 0;
     }

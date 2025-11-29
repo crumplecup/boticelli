@@ -7,16 +7,17 @@ use diesel::prelude::*;
 ///
 /// Represents a user's membership in a specific guild with guild-specific data.
 /// Uses composite primary key (guild_id, user_id).
-#[derive(Debug, Clone, Queryable, Selectable, Associations)]
+#[derive(Debug, Clone, Queryable, Selectable, Associations, derive_getters::Getters)]
 #[diesel(belongs_to(super::guild::GuildRow, foreign_key = guild_id))]
 #[diesel(belongs_to(super::user::UserRow, foreign_key = user_id))]
 #[diesel(table_name = botticelli_database::schema::discord_guild_members)]
 #[diesel(primary_key(guild_id, user_id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[allow(dead_code)] // Model fields used for database operations
 pub struct GuildMemberRow {
-    guild_id: i64,
-    user_id: i64,
+    /// Guild ID
+    pub guild_id: i64,
+    /// User ID
+    pub user_id: i64,
 
     // Member-specific data
     nick: Option<String>,

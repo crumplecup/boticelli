@@ -160,9 +160,8 @@ pub struct GenericActorManager<I, C> {
 }
 
 #[derive(Debug, Clone)]
-struct ActorState {
-    #[allow(dead_code)]
-    registered_at: chrono::DateTime<chrono::Utc>,
+pub(crate) struct ActorState {
+    // Reserved for future state tracking
 }
 
 impl<I, C> GenericActorManager<I, C>
@@ -202,12 +201,7 @@ where
     async fn register_actor(&mut self, actor_id: Self::ActorId) -> ActorServerResult<()> {
         debug!("Registering actor");
         let mut actors = self.actors.write().await;
-        actors.insert(
-            actor_id,
-            ActorState {
-                registered_at: chrono::Utc::now(),
-            },
-        );
+        actors.insert(actor_id, ActorState {});
         info!("Actor registered");
         Ok(())
     }

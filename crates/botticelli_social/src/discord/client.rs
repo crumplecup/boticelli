@@ -32,8 +32,7 @@ use tracing::{info, instrument};
 pub struct BotticelliBot {
     /// Serenity client instance
     client: Client,
-    /// Database repository (kept for potential direct access)
-    #[allow(dead_code)]
+    /// Database repository for direct database access
     repository: Arc<DiscordRepository>,
 }
 
@@ -103,7 +102,6 @@ impl BotticelliBot {
     /// Get a reference to the repository for direct database access.
     ///
     /// Useful for querying Discord data outside of event handlers.
-    #[allow(dead_code)]
     pub fn repository(&self) -> &Arc<DiscordRepository> {
         &self.repository
     }

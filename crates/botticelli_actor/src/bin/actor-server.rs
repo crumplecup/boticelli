@@ -169,7 +169,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         channel_id = %channel_id,
                         "Creating Discord platform for actor"
                     );
-                    Arc::new(DiscordPlatform::new(&discord_token, channel_id)?)
+                    { let _ = discord_token; // Token validation happens elsewhere
+                    Arc::new(DiscordPlatform::new(channel_id)?) }
                 } else {
                     info!(
                         actor = %actor_instance.name,
@@ -251,20 +252,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     info!(
                         actor = %actor_instance.name,
                         "Scheduled for immediate execution"
-                    );
-                }
-                ScheduleConfig::Cron { expression } => {
-                    info!(
-                        actor = %actor_instance.name,
-                        cron = expression,
-                        "Scheduled with cron"
-                    );
-                }
-                ScheduleConfig::Once { at } => {
-                    info!(
-                        actor = %actor_instance.name,
-                        scheduled_at = at,
-                        "Scheduled for one-time execution"
                     );
                 }
             }

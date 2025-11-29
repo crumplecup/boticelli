@@ -243,12 +243,31 @@ lint-md:
 
 # Test various feature gate combinations (requires cargo-hack)
 check-features:
-    @command -v cargo-hack >/dev/null 2>&1 || (echo "❌ cargo-hack not installed. Run: cargo install cargo-hack" && exit 1)
-    ./scripts/feature-gate-check.sh
+    #!/usr/bin/env bash
+    set -e
+    command -v cargo-hack >/dev/null 2>&1 || (echo "❌ cargo-hack not installed. Run: cargo install cargo-hack" && exit 1)
+    
+    LOG_FILE="/tmp/botticelli-check-features.log"
+    rm -f "$LOG_FILE"
+    
+    # Run feature gate checks and capture output
+    if ./scripts/feature-gate-check.sh 2>&1 | tee "$LOG_FILE"; then
+        if [ -s "$LOG_FILE" ] && grep -qE "(warning|error)" "$LOG_FILE"; then
+            echo "⚠️  Feature gate checks completed with warnings/errors. See: $LOG_FILE"
+            exit 1
+        else
+            echo "✅ All feature gate checks passed!"
+            rm -f "$LOG_FILE"
+        fi
+    else
+        echo "❌ Feature gate checks failed. See: $LOG_FILE"
+        exit 1
+    fi
 
 # Run all checks (lint, format check, tests)
 check-all package='':
     #!/usr/bin/env bash
+    set -e
     if [ -z "{{package}}" ]; then
         echo "🔍 Running all checks on entire workspace..."
         just fmt

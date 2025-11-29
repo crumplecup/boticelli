@@ -1,5 +1,5 @@
 use crate::{
-    create_metrics_router, ApiState, CurationBot, CurationBotArgs, CurationMessage, GenerationBot,
+    create_metrics_router, CurationBot, CurationBotArgs, CurationMessage, GenerationBot,
     GenerationBotArgs, GenerationMessage, MetricsCollector, PostingBot, PostingBotArgs,
     PostingMessage,
 };
@@ -51,8 +51,7 @@ impl BotServer {
         // Start metrics HTTP server if port is provided
         if let Some(port) = metrics_port {
             info!(port = port, "Starting metrics HTTP server");
-            let state = ApiState::new(Arc::clone(&self.metrics_collector));
-            let app = create_metrics_router(state);
+            let app = create_metrics_router(Arc::clone(&self.metrics_collector));
             let addr = format!("0.0.0.0:{}", port);
             
             let listener = tokio::net::TcpListener::bind(&addr)

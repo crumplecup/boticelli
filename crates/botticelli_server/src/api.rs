@@ -13,6 +13,13 @@ pub struct ApiState {
     pub metrics: Arc<MetricsCollector>,
 }
 
+impl ApiState {
+    /// Creates a new API state.
+    pub fn new(metrics: Arc<MetricsCollector>) -> Self {
+        Self { metrics }
+    }
+}
+
 /// Creates the API router.
 pub fn create_router(metrics: Arc<MetricsCollector>) -> Router {
     let state = ApiState { metrics };

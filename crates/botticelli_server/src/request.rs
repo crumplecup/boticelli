@@ -1,56 +1,79 @@
+use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 
 /// OpenAI-compatible chat completion request
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Getters, derive_builder::Builder)]
+#[builder(setter(into))]
 pub struct ChatCompletionRequest {
     /// Model identifier
-    pub model: String,
+    model: String,
     /// Conversation messages
-    pub messages: Vec<Message>,
+    messages: Vec<Message>,
     /// Maximum tokens to generate
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<u32>,
+    #[builder(default)]
+    max_tokens: Option<u32>,
     /// Temperature for sampling (0.0 - 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
+    #[builder(default)]
+    temperature: Option<f32>,
     /// Top-p sampling parameter
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>,
+    #[builder(default)]
+    top_p: Option<f32>,
     /// Enable streaming mode
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stream: Option<bool>,
+    #[builder(default)]
+    stream: Option<bool>,
+}
+
+impl ChatCompletionRequest {
+    /// Create a streaming version of this request
+    pub fn with_streaming(self) -> Self {
+        Self {
+            stream: Some(true),
+            ..self
+        }
+    }
 }
 
 /// A message in the conversation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, derive_builder::Builder,
+)]
+#[builder(setter(into))]
 pub struct Message {
     /// Role of the message sender (system, user, assistant)
-    pub role: String,
+    role: String,
     /// Message content
-    pub content: String,
+    content: String,
 }
 
 impl Message {
-    /// Create a new message
-    pub fn new(role: impl Into<String>, content: impl Into<String>) -> Self {
-        Self {
-            role: role.into(),
-            content: content.into(),
-        }
-    }
-
     /// Create a system message
     pub fn system(content: impl Into<String>) -> Self {
-        Self::new("system", content)
+        MessageBuilder::default()
+            .role("system")
+            .content(content)
+            .build()
+            .expect("Valid Message")
     }
 
     /// Create a user message
     pub fn user(content: impl Into<String>) -> Self {
-        Self::new("user", content)
+        MessageBuilder::default()
+            .role("user")
+            .content(content)
+            .build()
+            .expect("Valid Message")
     }
 
     /// Create an assistant message
     pub fn assistant(content: impl Into<String>) -> Self {
-        Self::new("assistant", content)
+        MessageBuilder::default()
+            .role("assistant")
+            .content(content)
+            .build()
+            .expect("Valid Message")
     }
 }

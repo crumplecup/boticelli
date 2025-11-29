@@ -27,6 +27,8 @@ rand = "0.8"
 diesel = { version = "2.2", features = ["postgres", "r2d2"] }
 parking_lot = "0.12.5"
 axum = "0.7"
+derive-getters = "0.5"
+typed-builder = "0.20"
 
 [dev-dependencies]
 tokio-test = "0.4"

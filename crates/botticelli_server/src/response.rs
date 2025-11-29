@@ -1,87 +1,88 @@
+use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 
 /// OpenAI-compatible chat completion response
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Getters)]
 pub struct ChatCompletionResponse {
     /// Unique identifier for the completion
-    pub id: String,
+    id: String,
     /// Object type (always "chat.completion")
-    pub object: String,
+    object: String,
     /// Unix timestamp of when the completion was created
-    pub created: i64,
+    created: i64,
     /// Model used for completion
-    pub model: String,
+    model: String,
     /// Generated completions
-    pub choices: Vec<Choice>,
+    choices: Vec<Choice>,
     /// Token usage statistics
-    pub usage: Usage,
+    usage: Usage,
 }
 
 /// A completion choice
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Getters)]
 pub struct Choice {
     /// Index of this choice
-    pub index: u32,
+    index: u32,
     /// The generated message
-    pub message: ChoiceMessage,
+    message: ChoiceMessage,
     /// Reason why generation finished
-    pub finish_reason: String,
+    finish_reason: String,
 }
 
 /// Message in a choice
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Getters)]
 pub struct ChoiceMessage {
     /// Role of the message (typically "assistant")
-    pub role: String,
+    role: String,
     /// Generated content
-    pub content: String,
+    content: String,
 }
 
 /// Token usage statistics
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Getters)]
 pub struct Usage {
     /// Tokens in the prompt
-    pub prompt_tokens: u32,
+    prompt_tokens: u32,
     /// Tokens in the completion
-    pub completion_tokens: u32,
+    completion_tokens: u32,
     /// Total tokens used
-    pub total_tokens: u32,
+    total_tokens: u32,
 }
 
 /// Streaming chat completion chunk
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Getters)]
 pub struct ChatCompletionChunk {
     /// Unique identifier
-    pub id: String,
+    id: String,
     /// Object type (always "chat.completion.chunk")
-    pub object: String,
+    object: String,
     /// Unix timestamp
-    pub created: i64,
+    created: i64,
     /// Model used
-    pub model: String,
+    model: String,
     /// Delta choices
-    pub choices: Vec<ChunkChoice>,
+    choices: Vec<ChunkChoice>,
 }
 
 /// A choice in a streaming chunk
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Getters)]
 pub struct ChunkChoice {
     /// Index of this choice
-    pub index: u32,
+    index: u32,
     /// Delta content
-    pub delta: Delta,
+    delta: Delta,
     /// Finish reason (if complete)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub finish_reason: Option<String>,
+    finish_reason: Option<String>,
 }
 
 /// Delta content in a streaming chunk
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Getters)]
 pub struct Delta {
     /// Role (only in first chunk)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
+    role: Option<String>,
     /// Incremental content
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub content: Option<String>,
+    content: Option<String>,
 }

@@ -5,6 +5,7 @@ use crate::metrics::BotMetrics;
 use crate::posting::{PostingBot, PostingMessage};
 use botticelli_interface::BotticelliDriver;
 use botticelli_narrative::NarrativeExecutor;
+use derive_getters::Getters;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use rand::Rng;
@@ -14,6 +15,7 @@ use tokio::time::{interval, sleep};
 use tracing::{error, info, instrument};
 
 /// Bot server that orchestrates all three bots.
+#[derive(Getters)]
 pub struct BotServer<D: BotticelliDriver> {
     config: BotConfig,
     schedule: BotSchedule,
@@ -37,11 +39,6 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
             database: Arc::new(database),
             metrics: Arc::new(BotMetrics::new()),
         }
-    }
-
-    /// Gets metrics for the bot server.
-    pub fn metrics(&self) -> &Arc<BotMetrics> {
-        &self.metrics
     }
 
     /// Starts the bot server and all bot actors.
@@ -87,14 +84,14 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
 
         // Spawn bot actors
         let generation_bot = GenerationBot::new(
-            self.config.generation.clone(),
+            self.config.generation().clone(),
             Arc::clone(&self.executor),
             Arc::clone(&self.metrics),
             gen_rx,
         );
 
         let curation_bot = CurationBot::new(
-            self.config.curation.clone(),
+            self.config.curation().clone(),
             Arc::clone(&self.executor),
             Arc::clone(&self.database),
             Arc::clone(&self.metrics),
@@ -102,7 +99,7 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
         );
 
         let posting_bot = PostingBot::new(
-            self.config.posting.clone(),
+            self.config.posting().clone(),
             Arc::clone(&self.executor),
             Arc::clone(&self.database),
             Arc::clone(&self.metrics),
@@ -122,11 +119,11 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
         });
 
         // Spawn schedulers
-        Self::spawn_generation_scheduler_static(self.schedule.generation_interval, gen_tx);
-        Self::spawn_curation_scheduler_static(self.schedule.curation_interval, cur_tx);
+        Self::spawn_generation_scheduler_static(*self.schedule.generation_interval(), gen_tx);
+        Self::spawn_curation_scheduler_static(*self.schedule.curation_interval(), cur_tx);
         Self::spawn_posting_scheduler_static(
-            self.config.posting.base_interval_hours,
-            self.config.posting.jitter_minutes,
+            *self.config.posting().base_interval_hours(),
+            *self.config.posting().jitter_minutes(),
             post_tx,
         );
 

@@ -2,6 +2,7 @@ use crate::config::GenerationConfig;
 use crate::metrics::BotMetrics;
 use botticelli_interface::BotticelliDriver;
 use botticelli_narrative::NarrativeExecutor;
+use derive_getters::Getters;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc;
@@ -17,6 +18,7 @@ pub enum GenerationMessage {
 }
 
 /// Bot that generates content on a schedule.
+#[derive(Getters)]
 pub struct GenerationBot<D: BotticelliDriver> {
     config: GenerationConfig,
     executor: Arc<NarrativeExecutor<D>>,
@@ -66,15 +68,15 @@ impl<D: BotticelliDriver> GenerationBot<D> {
         self.metrics.record_generation_execution();
 
         debug!(
-            narrative = %self.config.narrative_name,
+            narrative = %self.config.narrative_name(),
             "Starting content generation"
         );
 
         let result = self
             .executor
             .execute_narrative_by_name(
-                &self.config.narrative_path.to_string_lossy(),
-                &self.config.narrative_name,
+                &self.config.narrative_path().to_string_lossy(),
+                self.config.narrative_name(),
             )
             .await;
 

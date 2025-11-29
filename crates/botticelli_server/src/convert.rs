@@ -4,7 +4,10 @@ use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, Output}
 use botticelli_error::{ServerError, ServerErrorKind};
 use botticelli_interface::{FinishReason, StreamChunk};
 
-use crate::{ChatCompletionChunk, ChatCompletionRequest, ChatCompletionResponse};
+use crate::{
+    ChatCompletionChunk, ChatCompletionRequest, ChatCompletionResponse,
+    request::{ChatCompletionRequestBuilder, MessageBuilder},
+};
 
 /// Convert botticelli GenerateRequest to server ChatCompletionRequest
 #[tracing::instrument(skip(request))]
@@ -18,14 +21,20 @@ pub fn to_chat_request(
         .map(|m| message_to_server_message(m.clone()))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let chat_request = ChatCompletionRequest {
-        model,
-        messages,
-        max_tokens: *request.max_tokens(),
-        temperature: *request.temperature(),
-        top_p: None,
-        stream: Some(false),
-    };
+    let chat_request = ChatCompletionRequestBuilder::default()
+        .model(model)
+        .messages(messages)
+        .max_tokens(*request.max_tokens())
+        .temperature(*request.temperature())
+        .top_p(None)
+        .stream(Some(false))
+        .build()
+        .map_err(|e| {
+            ServerError::new(ServerErrorKind::Api(format!(
+                "Failed to build request: {}",
+                e
+            )))
+        })?;
 
     Ok(chat_request)
 }
@@ -55,14 +64,22 @@ fn message_to_server_message(msg: Message) -> Result<crate::Message, ServerError
         )));
     }
 
-    Ok(crate::Message {
-        role: match msg.role() {
-            botticelli_core::Role::User => "user".to_string(),
-            botticelli_core::Role::Assistant => "assistant".to_string(),
-            botticelli_core::Role::System => "system".to_string(),
-        },
-        content: text,
-    })
+    let role = match msg.role() {
+        botticelli_core::Role::User => "user",
+        botticelli_core::Role::Assistant => "assistant",
+        botticelli_core::Role::System => "system",
+    };
+
+    Ok(MessageBuilder::default()
+        .role(role)
+        .content(text)
+        .build()
+        .map_err(|e| {
+            ServerError::new(ServerErrorKind::Api(format!(
+                "Failed to build message: {}",
+                e
+            )))
+        })?)
 }
 
 /// Convert ChatCompletionResponse to GenerateResponse
@@ -71,11 +88,11 @@ pub fn from_chat_response(
     response: ChatCompletionResponse,
 ) -> Result<GenerateResponse, ServerError> {
     let choice = response
-        .choices
+        .choices()
         .first()
         .ok_or_else(|| ServerError::new(ServerErrorKind::Api("No choices in response".into())))?;
 
-    let text = choice.message.content.clone();
+    let text = choice.message().content().clone();
     let output = Output::Text(text);
 
     Ok(GenerateResponse {
@@ -96,13 +113,16 @@ fn map_finish_reason(reason: &str) -> FinishReason {
 /// Convert streaming chunk to StreamChunk
 pub fn chunk_to_stream_chunk(chunk: ChatCompletionChunk) -> Result<StreamChunk, ServerError> {
     let choice = chunk
-        .choices
+        .choices()
         .first()
         .ok_or_else(|| ServerError::new(ServerErrorKind::Api("No choices in chunk".into())))?;
 
-    let text = choice.delta.content.clone().unwrap_or_default();
-    let is_final = choice.finish_reason.is_some();
-    let finish_reason = choice.finish_reason.as_ref().map(|r| map_finish_reason(r));
+    let text = choice.delta().content().clone().unwrap_or_default();
+    let is_final = choice.finish_reason().is_some();
+    let finish_reason = choice
+        .finish_reason()
+        .as_ref()
+        .map(|r| map_finish_reason(r));
 
     Ok(StreamChunk {
         content: Output::Text(text),

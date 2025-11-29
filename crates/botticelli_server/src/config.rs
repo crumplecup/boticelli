@@ -1,28 +1,22 @@
 //! Configuration for local inference server connection
 
 use crate::{ServerError, ServerErrorKind};
+use derive_getters::Getters;
 
 /// Configuration for local inference server connection
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Getters, derive_builder::Builder)]
+#[builder(setter(into))]
 pub struct ServerConfig {
     /// Base URL of the server (e.g., "http://localhost:8080")
-    pub base_url: String,
+    base_url: String,
     /// Model identifier to use for inference
-    pub model: String,
+    model: String,
     /// Optional API key (mistral.rs doesn't require one by default)
-    pub api_key: Option<String>,
+    #[builder(default)]
+    api_key: Option<String>,
 }
 
 impl ServerConfig {
-    /// Create a new server configuration
-    pub fn new(base_url: impl Into<String>, model: impl Into<String>) -> Self {
-        Self {
-            base_url: base_url.into(),
-            model: model.into(),
-            api_key: None,
-        }
-    }
-
     /// Create config from environment variables
     ///
     /// Reads:
@@ -39,16 +33,11 @@ impl ServerConfig {
         })?;
         let api_key = std::env::var("INFERENCE_SERVER_API_KEY").ok();
 
-        Ok(Self {
-            base_url,
-            model,
-            api_key,
-        })
-    }
-
-    /// Set the API key
-    pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
-        self.api_key = Some(api_key.into());
-        self
+        Ok(ServerConfigBuilder::default()
+            .base_url(base_url)
+            .model(model)
+            .api_key(api_key)
+            .build()
+            .expect("Valid ServerConfig"))
     }
 }

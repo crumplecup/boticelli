@@ -21,7 +21,7 @@ pub struct ServerClient {
 
 impl ServerClient {
     /// Create a new server client
-    #[instrument(skip(config), fields(base_url = %config.base_url, model = %config.model))]
+    #[instrument(skip(config), fields(base_url = %config.base_url(), model = %config.model()))]
     pub fn new(config: ServerConfig) -> Self {
         tracing::debug!("Creating server client");
         Self {
@@ -38,7 +38,7 @@ impl ServerClient {
     /// Check if the server is running and responding
     #[instrument(skip(self))]
     pub async fn health_check(&self) -> Result<(), ServerError> {
-        let url = format!("{}/health", self.config.base_url);
+        let url = format!("{}/health", self.config.base_url());
         tracing::debug!("Checking server health at {}", url);
 
         let response = self.client.get(&url).send().await.map_err(|e| {
@@ -60,12 +60,12 @@ impl ServerClient {
     }
 
     /// Send a chat completion request
-    #[instrument(skip(self, request), fields(model = %request.model))]
+    #[instrument(skip(self, request), fields(model = %request.model()))]
     pub async fn chat_completion(
         &self,
         request: ChatCompletionRequest,
     ) -> Result<ChatCompletionResponse, ServerError> {
-        let url = format!("{}/v1/chat/completions", self.config.base_url);
+        let url = format!("{}/v1/chat/completions", self.config.base_url());
         tracing::debug!("Sending chat completion request to {}", url);
 
         let mut req = self
@@ -74,7 +74,7 @@ impl ServerClient {
             .json(&request)
             .header("Content-Type", "application/json");
 
-        if let Some(api_key) = &self.config.api_key {
+        if let Some(api_key) = self.config.api_key() {
             req = req.header("Authorization", format!("Bearer {}", api_key));
         }
 
@@ -105,14 +105,14 @@ impl ServerClient {
     }
 
     /// Send a streaming chat completion request
-    #[instrument(skip(self, request), fields(model = %request.model))]
+    #[instrument(skip(self, request), fields(model = %request.model()))]
     pub async fn chat_completion_stream(
         &self,
-        mut request: ChatCompletionRequest,
+        request: ChatCompletionRequest,
     ) -> Result<ChatCompletionStream, ServerError> {
-        request.stream = Some(true);
+        let request = request.with_streaming();
 
-        let url = format!("{}/v1/chat/completions", self.config.base_url);
+        let url = format!("{}/v1/chat/completions", self.config.base_url());
         tracing::debug!("Sending streaming chat completion request to {}", url);
 
         let mut req = self
@@ -121,7 +121,7 @@ impl ServerClient {
             .json(&request)
             .header("Content-Type", "application/json");
 
-        if let Some(api_key) = &self.config.api_key {
+        if let Some(api_key) = self.config.api_key() {
             req = req.header("Authorization", format!("Bearer {}", api_key));
         }
 
@@ -210,7 +210,7 @@ impl BotticelliDriver for ServerClient {
         &self,
         req: &GenerateRequest,
     ) -> botticelli_error::BotticelliResult<GenerateResponse> {
-        let chat_request = convert::to_chat_request(req.clone(), self.config.model.clone())
+        let chat_request = convert::to_chat_request(req.clone(), self.config.model().to_string())
             .map_err(|e| botticelli_error::BotticelliError::new(e.into()))?;
 
         let response = self
@@ -227,7 +227,7 @@ impl BotticelliDriver for ServerClient {
     }
 
     fn model_name(&self) -> &str {
-        &self.config.model
+        self.config.model()
     }
 
     fn rate_limits(&self) -> &botticelli_rate_limit::RateLimitConfig {
@@ -253,9 +253,8 @@ impl Streaming for ServerClient {
     > {
         tracing::debug!("Starting stream generation");
 
-        let mut chat_request = convert::to_chat_request(req.clone(), self.config.model.clone())
+        let chat_request = convert::to_chat_request(req.clone(), self.config.model().to_string())
             .map_err(|e| botticelli_error::BotticelliError::new(e.into()))?;
-        chat_request.stream = Some(true);
 
         let stream = self
             .chat_completion_stream(chat_request)

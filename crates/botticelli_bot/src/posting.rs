@@ -2,6 +2,7 @@ use crate::config::PostingConfig;
 use crate::metrics::BotMetrics;
 use botticelli_interface::BotticelliDriver;
 use botticelli_narrative::NarrativeExecutor;
+use derive_getters::Getters;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use rand::Rng;
@@ -20,6 +21,7 @@ pub enum PostingMessage {
 }
 
 /// Bot that posts approved content to Discord.
+#[derive(Getters)]
 pub struct PostingBot<D: BotticelliDriver> {
     config: PostingConfig,
     executor: Arc<NarrativeExecutor<D>>,
@@ -86,8 +88,8 @@ impl<D: BotticelliDriver> PostingBot<D> {
         let result = self
             .executor
             .execute_narrative_by_name(
-                &self.config.narrative_path.to_string_lossy(),
-                &self.config.narrative_name,
+                &self.config.narrative_path().to_string_lossy(),
+                self.config.narrative_name(),
             )
             .await;
 
@@ -132,8 +134,8 @@ impl<D: BotticelliDriver> PostingBot<D> {
 
     /// Calculates next post time with jitter.
     pub fn calculate_next_post_time(&self) -> Duration {
-        let base = Duration::from_secs(self.config.base_interval_hours * 3600);
-        let jitter_secs = self.config.jitter_minutes * 60;
+        let base = Duration::from_secs(*self.config.base_interval_hours() * 3600);
+        let jitter_secs = *self.config.jitter_minutes() * 60;
 
         let mut rng = rand::thread_rng();
         let jitter = rng.gen_range(0..=jitter_secs);

@@ -2,6 +2,7 @@ use crate::config::CurationConfig;
 use crate::metrics::BotMetrics;
 use botticelli_interface::BotticelliDriver;
 use botticelli_narrative::NarrativeExecutor;
+use derive_getters::Getters;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use std::sync::Arc;
@@ -19,6 +20,7 @@ pub enum CurationMessage {
 }
 
 /// Bot that curates generated content.
+#[derive(Getters)]
 pub struct CurationBot<D: BotticelliDriver> {
     config: CurationConfig,
     executor: Arc<NarrativeExecutor<D>>,
@@ -86,12 +88,12 @@ impl<D: BotticelliDriver> CurationBot<D> {
                 // Process batch - the narrative will pull and delete content atomically
                 self.executor
                     .execute_narrative_by_name(
-                        &self.config.narrative_path.to_string_lossy(),
-                        &self.config.narrative_name,
+                        &self.config.narrative_path().to_string_lossy(),
+                        self.config.narrative_name(),
                     )
                     .await?;
 
-                info!(batch_size = self.config.batch_size, "Curated batch");
+                info!(batch_size = *self.config.batch_size(), "Curated batch");
             }
 
             Ok::<(), Box<dyn std::error::Error>>(())

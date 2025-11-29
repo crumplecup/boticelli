@@ -1,0 +1,34 @@
+# Curation Test V2: Explicit JSON request like generation_carousel
+[narrative]
+name = "curate_v2"
+description = "Test with explicit 'Output only' instruction"
+target = "approved_discord_posts"
+
+[toc]
+order = ["select"]
+
+[acts.select]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 600
+
+[[acts.select.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 10
+order_by = "generated_at DESC"
+
+[[acts.select.input]]
+type = "text"
+content = """
+Review the Discord posts in the table above. Select the highest quality post.
+
+Output only valid JSON:
+{
+  "text_content": "Selected post text here...",
+  "content_type": "discord_post",
+  "source": "curation_v2",
+  "tags": ["approved"]
+}
+"""

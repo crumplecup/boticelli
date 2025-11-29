@@ -1,6 +1,6 @@
 //! Core data structures for narratives.
 
-use crate::{toml_parser, ActConfig, NarrativeProvider};
+use crate::{ActConfig, CarouselConfig, NarrativeProvider, toml_parser};
 use botticelli_error::{NarrativeError, NarrativeErrorKind};
 use std::collections::HashMap;
 use std::path::Path;
@@ -9,29 +9,71 @@ use std::str::FromStr;
 #[cfg(feature = "database")]
 use botticelli_core::Input;
 #[cfg(feature = "database")]
-use botticelli_database::schema_docs::{assemble_prompt, is_content_focus};
+use botticelli_database::{assemble_prompt, is_content_focus};
 #[cfg(feature = "database")]
 use diesel::pg::PgConnection;
 
 /// Narrative metadata from the `[narrative]` section.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, derive_getters::Getters,
+)]
 pub struct NarrativeMetadata {
     /// Unique identifier for this narrative
-    pub name: String,
+    name: String,
     /// Human-readable description of what this narrative does
-    pub description: String,
+    description: String,
     /// Optional template table to use as schema source for content generation
-    pub template: Option<String>,
+    template: Option<String>,
+    /// Optional target table name for content generation (overrides narrative name)
+    target: Option<String>,
     /// Skip content generation (both template and inference modes)
     #[serde(default)]
-    pub skip_content_generation: bool,
+    skip_content_generation: bool,
+    /// Optional carousel configuration for narrative-level looping
+    #[serde(default)]
+    carousel: Option<CarouselConfig>,
+    /// Optional default model for all acts in this narrative
+    #[serde(default)]
+    model: Option<String>,
+    /// Optional default temperature for all acts in this narrative
+    #[serde(default)]
+    temperature: Option<f32>,
+    /// Optional default max_tokens for all acts in this narrative
+    #[serde(default)]
+    max_tokens: Option<u32>,
+    /// Optional budget multipliers to throttle API usage.
+    ///
+    /// Available with the`budget`feature.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    budget: Option<botticelli_core::BudgetConfig>,
+}
+
+impl NarrativeMetadata {
+    /// Create a minimal test metadata (for tests only).
+    #[cfg(test)]
+    pub fn new_test(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            description: "Test narrative".to_string(),
+            template: None,
+            target: None,
+            skip_content_generation: false,
+            carousel: None,
+            model: None,
+            temperature: None,
+            max_tokens: None,
+            budget: None,
+        }
+    }
 }
 
 /// Table of contents from the `[toc]` section.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, derive_getters::Getters,
+)]
 pub struct NarrativeToc {
     /// Ordered list of act names to execute
-    pub order: Vec<String>,
+    order: Vec<String>,
 }
 
 /// Complete narrative structure parsed from TOML.
@@ -67,20 +109,29 @@ pub struct NarrativeToc {
 /// mime = "image/png"
 /// url = "https://example.com/image.png"
 /// ```
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, derive_getters::Getters)]
 pub struct Narrative {
     /// Narrative metadata
-    pub metadata: NarrativeMetadata,
+    metadata: NarrativeMetadata,
 
     /// Table of contents defining execution order
-    pub toc: NarrativeToc,
+    toc: NarrativeToc,
 
     /// Map of act names to their configurations
     #[serde(skip)]
-    pub acts: HashMap<String, ActConfig>,
+    acts: HashMap<String, ActConfig>,
+
+    /// Source file path (for resolving relative paths in nested narratives)
+    #[serde(skip)]
+    source_path: Option<std::path::PathBuf>,
 }
 
 impl Narrative {
+    /// Set the source path for this narrative.
+    pub fn set_source_path(&mut self, path: Option<std::path::PathBuf>) {
+        self.source_path = path;
+    }
+
     /// Loads a narrative from a TOML file.
     ///
     /// # Errors
@@ -91,10 +142,13 @@ impl Narrative {
     /// - Validation fails (missing acts, empty order, etc.)
     #[tracing::instrument(skip_all, fields(path = %path.as_ref().display()))]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, NarrativeError> {
-        let content = std::fs::read_to_string(path.as_ref())
+        let path = path.as_ref();
+        let content = std::fs::read_to_string(path)
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::FileRead(e.to_string())))?;
 
-        content.parse()
+        let mut narrative: Self = content.parse()?;
+        narrative.source_path = Some(path.to_path_buf());
+        Ok(narrative)
     }
 
     /// Loads a narrative from a TOML file with database-driven prompt assembly.
@@ -150,7 +204,7 @@ impl Narrative {
     /// - Prompt assembly fails
     #[cfg(feature = "database")]
     #[tracing::instrument(skip(self, conn), fields(template = ?self.metadata.template, act_count = self.acts.len()))]
-    fn assemble_act_prompts(&mut self, conn: &mut PgConnection) -> Result<(), NarrativeError> {
+    pub fn assemble_act_prompts(&mut self, conn: &mut PgConnection) -> Result<(), NarrativeError> {
         let template = self
             .metadata
             .template
@@ -159,7 +213,7 @@ impl Narrative {
 
         for (act_name, config) in &mut self.acts {
             // Get the first text input (most common case)
-            if let Some(Input::Text(user_prompt)) = config.inputs.first() {
+            if let Some(Input::Text(user_prompt)) = config.inputs().first() {
                 // Check if this is a content focus or explicit prompt
                 if is_content_focus(user_prompt) {
                     // Assemble complete prompt with schema injection
@@ -171,7 +225,9 @@ impl Narrative {
                     })?;
 
                     // Replace the first input with assembled prompt
-                    config.inputs[0] = Input::Text(assembled);
+                    let mut new_inputs = config.inputs().clone();
+                    new_inputs[0] = Input::Text(assembled);
+                    *config = config.clone().with_inputs(new_inputs);
 
                     tracing::debug!(
                         act = %act_name,
@@ -216,9 +272,9 @@ impl Narrative {
             }
         }
 
-        // Check that all acts have at least one input
+        // Check that all acts have at least one input OR are narrative references
         for (act_name, config) in &self.acts {
-            if config.inputs.is_empty() {
+            if config.inputs().is_empty() && !config.is_narrative_ref() {
                 return Err(NarrativeError::new(NarrativeErrorKind::EmptyPrompt(
                     act_name.clone(),
                 )));
@@ -244,25 +300,43 @@ impl FromStr for Narrative {
     type Err = NarrativeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_toml_str(s, None)
+    }
+}
+
+impl Narrative {
+    /// Parse a narrative from TOML string, optionally specifying which narrative to load.
+    pub fn from_toml_str(s: &str, narrative_name: Option<&str>) -> Result<Self, NarrativeError> {
         // Parse TOML into intermediate structure
-        let toml_narrative: toml_parser::TomlNarrativeFile = toml::from_str(s)
+        let toml_narrative_file: toml_parser::TomlNarrativeFile = toml::from_str(s)
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::TomlParse(e.to_string())))?;
+
+        // Resolve the narrative (supports multi-narrative files)
+        let (narrative_meta, narrative_toc, narrative_acts) = toml_narrative_file
+            .resolve_narrative(narrative_name)
+            .map_err(|e| NarrativeError::new(NarrativeErrorKind::TomlParse(e)))?;
 
         // Convert to domain types
         let metadata = NarrativeMetadata {
-            name: toml_narrative.narrative.name,
-            description: toml_narrative.narrative.description,
-            template: toml_narrative.narrative.template,
-            skip_content_generation: toml_narrative.narrative.skip_content_generation,
+            name: narrative_meta.name.clone(),
+            description: narrative_meta.description.clone(),
+            template: narrative_meta.template.clone(),
+            target: narrative_meta.target.clone(),
+            skip_content_generation: narrative_meta.skip_content_generation,
+            carousel: narrative_meta.carousel.clone(),
+            model: narrative_meta.model.clone(),
+            temperature: narrative_meta.temperature,
+            max_tokens: narrative_meta.max_tokens,
+            budget: narrative_meta.budget.clone(),
         };
 
         let toc = NarrativeToc {
-            order: toml_narrative.toc.order,
+            order: narrative_toc.order.clone(),
         };
 
         let mut acts = HashMap::new();
-        for (act_name, toml_act) in toml_narrative.acts {
-            let act_config = toml_act.to_act_config().map_err(|e| {
+        for (act_name, toml_act) in &narrative_acts {
+            let act_config = toml_act.to_act_config(&toml_narrative_file).map_err(|e| {
                 // Check if this is an empty prompt error
                 if e.contains("empty") || e.contains("whitespace") {
                     NarrativeError::new(NarrativeErrorKind::EmptyPrompt(act_name.clone()))
@@ -273,13 +347,14 @@ impl FromStr for Narrative {
                     )))
                 }
             })?;
-            acts.insert(act_name, act_config);
+            acts.insert(act_name.clone(), act_config);
         }
 
         let narrative = Narrative {
             metadata,
             toc,
             acts,
+            source_path: None,
         };
         narrative.validate()?;
         Ok(narrative)
@@ -301,5 +376,13 @@ impl NarrativeProvider for Narrative {
 
     fn get_act_config(&self, act_name: &str) -> Option<ActConfig> {
         self.acts.get(act_name).cloned()
+    }
+
+    fn carousel_config(&self) -> Option<&CarouselConfig> {
+        self.metadata.carousel.as_ref()
+    }
+
+    fn source_path(&self) -> Option<&std::path::Path> {
+        self.source_path.as_deref()
     }
 }

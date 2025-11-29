@@ -1,0 +1,115 @@
+# FAQ Content Generation - Iterative Question Generation
+# Generates FAQ questions one at a time, checking existing questions to avoid duplicates
+# Uses carousel mode to produce 9 total questions (9 iterations, 1 question per iteration)
+
+[narrative]
+name = "faq_content"
+description = "Generate FAQ questions for Botticelli Discord server iteratively"
+
+[narrative.carousel]
+iterations = 9
+
+[toc]
+order = ["generate_questions", "critique_questions", "submit_best"]
+
+[acts.generate_questions]
+model = "gemini-2.5-flash-lite"
+temperature = 0.7
+max_tokens = 3000
+
+[[acts.generate_questions.input]]
+type = "table"
+table_name = "faq_content"
+format = "markdown"
+required = false
+
+[[acts.generate_questions.input]]
+type = "text"
+content = """
+Generate 7 high-quality FAQ questions and answers for the Botticelli Discord server.
+
+Botticelli is a Rust library and CLI for executing multi-act LLM narratives with:
+- Multi-step narratives with context passing
+- Content generation with database persistence
+- Discord bot integration with security policies
+- Support for multiple AI providers (Gemini, Claude, GPT)
+- Carousel mode for batch content generation
+- TOML-based workflow definitions
+
+{% if faq_content %}
+IMPORTANT: The following questions already exist. Generate NEW questions that are NOT covered:
+{{ faq_content }}
+
+Focus on topics NOT yet addressed in the existing FAQ.
+{% else %}
+This is the first iteration - generate foundational questions about:
+- What is Botticelli?
+- Installation and setup
+- Basic usage and getting started
+{% endif %}
+
+For each question:
+- Write a clear, specific question
+- Provide a helpful, accurate answer (100-150 words)
+- Include code examples where relevant
+- Use Discord markdown formatting
+- Add relevant emojis
+
+Provide your response as a JSON array with exactly 7 objects:
+[
+  {
+    "title": "Question text here?",
+    "content": "Answer in Discord markdown format"
+  },
+  ...
+]
+
+CRITICAL: Generate exactly 7 questions. Keep answers concise. Valid JSON only.
+"""
+
+[acts.critique_questions]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 2000
+
+[[acts.critique_questions.input]]
+type = "text"
+content = """
+Review the 7 FAQ questions from the previous act.
+
+Evaluate each question on:
+1. Relevance - Is this a question users would actually ask?
+2. Clarity - Is the question clearly worded?
+3. Answer Quality - Is the answer accurate, helpful, and complete?
+4. Examples - Are code examples correct and useful?
+5. Formatting - Is Discord markdown used effectively?
+
+Rank the questions from best to worst and explain why the top question is the best choice.
+"""
+
+[acts.submit_best]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 2000
+
+[[acts.submit_best.input]]
+type = "text"
+content = """
+Based on the critique, select the SINGLE BEST question from the 7 candidates and polish it.
+
+Improvements to make:
+- Refine question wording for maximum clarity
+- Enhance answer completeness and accuracy
+- Perfect code examples
+- Optimize Discord formatting
+
+Provide your response as a JSON array with ONE object (the best question):
+[
+  {
+    "title": "Refined question text?",
+    "content": "Polished answer in Discord markdown"
+  }
+]
+
+CRITICAL: Return exactly ONE question. Valid JSON only.
+"""

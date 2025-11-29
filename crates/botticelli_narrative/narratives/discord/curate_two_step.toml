@@ -1,0 +1,71 @@
+# Discord Post Curation - Two Step Approach
+# Step 1: Fetch and analyze (skip_content_generation=true to preserve response)
+# Step 2: Format as JSON and store (skip_content_generation=false for auto-storage)
+
+[narrative]
+name = "curate_two_step"
+description = "Curate potential Discord posts using two-step process"
+target = "approved_discord_posts"
+
+[toc]
+order = ["analyze", "format_and_store"]
+
+# Step 1: Analyze posts (preserve response text)
+[acts.analyze]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 2000
+skip_content_generation = true
+
+[[acts.analyze.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 10
+order_by = "generated_at DESC"
+required = false
+
+[[acts.analyze.input]]
+type = "text"
+content = """
+Analyze these Discord posts. For each, score (1-10) on: Engagement, Clarity, Value, Tone, Polish.
+
+Select the TOP 2 posts with highest total scores. For each selected post, output:
+- Post number from table
+- Total score
+- Brief selection reason
+
+Keep output concise and structured.
+"""
+
+# Step 2: Format selected posts as JSON for storage
+[acts.format_and_store]
+model = "gemini-2.5-flash"
+temperature = 0.1
+max_tokens = 3000
+
+[[acts.format_and_store.input]]
+type = "text"
+content = """
+Analysis results:
+{{analyze}}
+
+Original posts table:
+{{potential_discord_posts}}
+
+Based on the analysis, extract the full text of the recommended posts and output as JSON array:
+
+[
+  {
+    "text_content": "Full post text from table...",
+    "content_type": "discord_post",
+    "source": "curation_pipeline",
+    "tags": ["approved", "curated"],
+    "curation_score": 45,
+    "curation_notes": "Brief selection reason",
+    "selected_at": "2025-11-25T20:00:00Z"
+  }
+]
+
+CRITICAL: Return ONLY valid JSON array with 2 selected posts.
+"""

@@ -93,7 +93,7 @@ impl<T: Tier + std::fmt::Debug> RateLimiter<T> {
     #[instrument(skip(tier), fields(tier = ?tier))]
     pub fn new(tier: T) -> Self {
         debug!("Creating new rate limiter");
-        
+
         // Create RPM limiter
         let rpm_limiter = tier.rpm().and_then(|rpm| {
             debug!(rpm, "Configuring RPM limiter");
@@ -214,7 +214,7 @@ impl<T: Tier + std::fmt::Debug> RateLimiter<T> {
     #[instrument(skip(self))]
     pub async fn acquire(&self, estimated_tokens: u64) -> RateLimiterGuard {
         debug!(estimated_tokens, "Acquiring rate limit permission");
-        
+
         // Wait for RPM quota
         if let Some(limiter) = &self.rpm_limiter {
             debug!("Waiting for RPM quota");
@@ -264,8 +264,11 @@ impl<T: Tier + std::fmt::Debug> RateLimiter<T> {
     /// ```
     #[instrument(skip(self))]
     pub fn try_acquire(&self, estimated_tokens: u64) -> Option<RateLimiterGuard> {
-        debug!(estimated_tokens, "Trying to acquire rate limit permission without waiting");
-        
+        debug!(
+            estimated_tokens,
+            "Trying to acquire rate limit permission without waiting"
+        );
+
         // Check RPM
         if let Some(limiter) = &self.rpm_limiter {
             limiter.check().ok()?;

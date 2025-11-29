@@ -1,11 +1,14 @@
 #![cfg(feature = "gemini")]
+mod test_utils;
 
 // Tests for the Gemini client implementation.
 
-use botticelli_core::{GenerateRequest, Input, Message, Role};
+use botticelli_core::{GenerateRequest, Input, MessageBuilder, Role};
 use botticelli_error::{BotticelliError, GeminiError, GeminiErrorKind};
 use botticelli_interface::{BotticelliDriver, Metadata, Vision};
 use botticelli_models::GeminiClient;
+
+// MessageBuilder trait is auto-imported via derive_builder
 
 //
 // ─── ERROR HANDLING TESTS ───────────────────────────────────────────────────────
@@ -70,43 +73,51 @@ fn test_gemini_error_source_location_tracking() {
 //
 
 #[test]
-fn test_simple_text_request_structure() {
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Hello, world!".to_string())],
-        }],
-        max_tokens: Some(100),
-        temperature: Some(0.7),
-        model: None,
-    };
+fn test_simple_text_request_structure() -> anyhow::Result<()> {
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Hello, world!".to_string())])
+        .build()
+        .expect("Valid message");
 
-    assert_eq!(request.messages.len(), 1);
-    assert_eq!(request.max_tokens, Some(100));
-    assert_eq!(request.temperature, Some(0.7));
+    let request = GenerateRequest::builder()
+        .messages(vec![message])
+        .max_tokens(Some(100))
+        .temperature(Some(0.7))
+        .build()
+        .expect("Valid request");
+
+    assert_eq!(request.messages().len(), 1);
+    assert_eq!(*request.max_tokens(), Some(100));
+    assert_eq!(*request.temperature(), Some(0.7));
+
+    Ok(())
 }
 
 #[test]
 fn test_multi_message_request_structure() {
-    let request = GenerateRequest {
-        messages: vec![
-            Message {
-                role: Role::System,
-                content: vec![Input::Text("You are a helpful assistant.".to_string())],
-            },
-            Message {
-                role: Role::User,
-                content: vec![Input::Text("What is Rust?".to_string())],
-            },
-        ],
-        max_tokens: None,
-        temperature: None,
-        model: None,
-    };
+    let message1 = MessageBuilder::default()
+        .role(Role::System)
+        .content(vec![Input::Text(
+            "You are a helpful assistant.".to_string(),
+        )])
+        .build()
+        .expect("Failed to build message");
 
-    assert_eq!(request.messages.len(), 2);
-    assert_eq!(request.messages[0].role, Role::System);
-    assert_eq!(request.messages[1].role, Role::User);
+    let message2 = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("What is Rust?".to_string())])
+        .build()
+        .expect("Failed to build message");
+
+    let request = GenerateRequest::builder()
+        .messages(vec![message1, message2])
+        .build()
+        .expect("Failed to build request");
+
+    assert_eq!(request.messages().len(), 2);
+    assert_eq!(request.messages()[0].role(), &Role::System);
+    assert_eq!(request.messages()[1].role(), &Role::User);
 }
 
 //
@@ -158,15 +169,18 @@ fn test_real_api_call() {
         }
     };
 
-    let request = GenerateRequest {
-        messages: vec![Message {
-            role: Role::User,
-            content: vec![Input::Text("Say 'ok'".to_string())],
-        }],
-        max_tokens: Some(10),
-        temperature: Some(0.0),
-        model: None,
-    };
+    let message = MessageBuilder::default()
+        .role(Role::User)
+        .content(vec![Input::Text("Say 'ok'".to_string())])
+        .build()
+        .expect("Failed to build message");
+
+    let request = GenerateRequest::builder()
+        .messages(vec![message])
+        .max_tokens(Some(10))
+        .temperature(Some(0.0))
+        .build()
+        .expect("Failed to build request");
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async { client.generate(&request).await });

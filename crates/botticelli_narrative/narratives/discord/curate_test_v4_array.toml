@@ -1,0 +1,42 @@
+# Curation Test V4: JSON array with 2 posts
+[narrative]
+name = "curate_v4"
+description = "Test with JSON array output"
+target = "approved_discord_posts"
+
+[toc]
+order = ["select"]
+
+[acts.select]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 1000
+
+[[acts.select.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 10
+order_by = "generated_at DESC"
+
+[[acts.select.input]]
+type = "text"
+content = """
+Select the top 2 posts from the table.
+
+Output as JSON array:
+[
+  {
+    "text_content": "First post...",
+    "content_type": "discord_post",
+    "source": "curation_v4",
+    "tags": ["approved"]
+  },
+  {
+    "text_content": "Second post...",
+    "content_type": "discord_post",
+    "source": "curation_v4",
+    "tags": ["approved"]
+  }
+]
+"""

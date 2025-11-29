@@ -1,0 +1,19 @@
+[narrative]
+name = "test_messages_get"
+description = "Test getting message details"
+skip_content_generation = true
+
+[toc]
+order = ["get_message"]
+
+[acts.get_message]
+
+[[acts.get_message.input]]
+type = "bot_command"
+platform = "discord"
+command = "messages.get"
+required = true
+
+[acts.get_message.input.args]
+channel_id = "${TEST_CHANNEL_ID}"
+message_id = "${TEST_MESSAGE_ID}"

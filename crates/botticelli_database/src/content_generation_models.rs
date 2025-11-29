@@ -8,21 +8,21 @@ use serde::Serialize;
 ///
 /// Tracks metadata for each content generation execution, including
 /// success/failure status, timing information, and error details.
-#[derive(Debug, Clone, Queryable, Identifiable, Selectable, Serialize)]
+#[derive(Debug, Clone, Queryable, Identifiable, Selectable, Serialize, derive_getters::Getters)]
 #[diesel(table_name = crate::schema::content_generations)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct ContentGenerationRow {
-    pub id: i32,
-    pub table_name: String,
-    pub narrative_file: String,
-    pub narrative_name: String,
-    pub generated_at: DateTime<Utc>,
-    pub completed_at: Option<DateTime<Utc>>,
-    pub row_count: Option<i32>,
-    pub generation_duration_ms: Option<i32>,
-    pub status: String,
-    pub error_message: Option<String>,
-    pub created_by: Option<String>,
+    id: i32,
+    table_name: String,
+    narrative_file: String,
+    narrative_name: String,
+    generated_at: DateTime<Utc>,
+    completed_at: Option<DateTime<Utc>>,
+    row_count: Option<i32>,
+    generation_duration_ms: Option<i32>,
+    status: String,
+    error_message: Option<String>,
+    created_by: Option<String>,
 }
 
 /// Insertable struct for starting a new content generation.

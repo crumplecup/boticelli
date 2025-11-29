@@ -27,13 +27,35 @@ pub enum Commands {
         #[arg(long)]
         narrative: PathBuf,
 
+        /// Specific narrative name (for multi-narrative files)
+        #[arg(long)]
+        narrative_name: Option<String>,
+
         /// Save execution results to database
         #[arg(long)]
         save: bool,
 
         /// Process Discord infrastructure (guilds, channels, etc.)
+        #[cfg(feature = "discord")]
         #[arg(long)]
         process_discord: bool,
+
+        /// Directory for persistent state storage
+        #[cfg(all(feature = "gemini", feature = "database"))]
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+
+        /// Budget multiplier for requests per minute (0.0 < x ≤ 1.0)
+        #[arg(long)]
+        rpm_multiplier: Option<f64>,
+
+        /// Budget multiplier for tokens per minute (0.0 < x ≤ 1.0)
+        #[arg(long)]
+        tpm_multiplier: Option<f64>,
+
+        /// Budget multiplier for requests per day (0.0 < x ≤ 1.0)
+        #[arg(long)]
+        rpd_multiplier: Option<f64>,
     },
 
     /// Launch the terminal user interface for a table
@@ -45,6 +67,18 @@ pub enum Commands {
     /// Content management commands
     #[command(subcommand)]
     Content(ContentCommands),
+
+    /// Run the bot server with generation, curation, and posting bots
+    #[cfg(feature = "bots")]
+    Server {
+        /// Override config file path
+        #[arg(long)]
+        config: Option<PathBuf>,
+
+        /// Enable only specific bots (comma-separated: generation,curation,posting)
+        #[arg(long)]
+        only: Option<String>,
+    },
 }
 
 /// Content management subcommands

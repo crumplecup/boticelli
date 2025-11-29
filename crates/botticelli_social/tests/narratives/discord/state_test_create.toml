@@ -1,0 +1,20 @@
+[narrative]
+name = "state_test_create"
+description = "Create a test channel and save its ID to state"
+skip_content_generation = true
+
+[toc]
+order = ["create_channel"]
+
+[acts.create_channel]
+
+[[acts.create_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_channel.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "botticelli-state-test"
+kind = "text"

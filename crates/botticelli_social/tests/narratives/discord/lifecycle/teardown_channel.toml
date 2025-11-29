@@ -1,0 +1,14 @@
+# Teardown narrative: Delete the test channel
+
+name = "teardown_test_channel"
+skip_content_generation = true
+
+[[acts]]
+name = "delete_test_channel"
+
+[[acts.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "channels.delete"
+required = false
+channel_id = "${STATE:TEST_CHANNEL_ID}"

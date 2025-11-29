@@ -35,6 +35,83 @@ diesel::table! {
 }
 
 diesel::table! {
+    actor_preferences (id) {
+        id -> Int4,
+        #[max_length = 100]
+        actor_name -> Varchar,
+        min_post_interval_minutes -> Nullable<Int4>,
+        max_posts_per_day -> Nullable<Int4>,
+        preferred_tags -> Nullable<Array<Nullable<Text>>>,
+        excluded_tags -> Nullable<Array<Nullable<Text>>>,
+        time_window_start -> Nullable<Time>,
+        time_window_end -> Nullable<Time>,
+        #[max_length = 50]
+        timezone -> Nullable<Varchar>,
+        randomize_schedule -> Nullable<Bool>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    actor_server_executions (id) {
+        id -> Int8,
+        #[max_length = 255]
+        task_id -> Varchar,
+        #[max_length = 255]
+        actor_name -> Varchar,
+        started_at -> Timestamptz,
+        completed_at -> Nullable<Timestamptz>,
+        success -> Nullable<Bool>,
+        error_message -> Nullable<Text>,
+        skills_succeeded -> Nullable<Int4>,
+        skills_failed -> Nullable<Int4>,
+        skills_skipped -> Nullable<Int4>,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    actor_server_state (task_id) {
+        #[max_length = 255]
+        task_id -> Varchar,
+        #[max_length = 255]
+        actor_name -> Varchar,
+        last_run -> Nullable<Timestamptz>,
+        next_run -> Timestamptz,
+        consecutive_failures -> Nullable<Int4>,
+        is_paused -> Nullable<Bool>,
+        metadata -> Nullable<Jsonb>,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    content (id) {
+        id -> Int4,
+        #[max_length = 50]
+        content_type -> Varchar,
+        text_content -> Nullable<Text>,
+        media_urls -> Nullable<Array<Nullable<Text>>>,
+        media_types -> Nullable<Array<Nullable<Varchar>>>,
+        #[max_length = 255]
+        source -> Nullable<Varchar>,
+        priority -> Nullable<Int4>,
+        tags -> Nullable<Array<Nullable<Text>>>,
+        approved_at -> Nullable<Timestamp>,
+        #[max_length = 100]
+        approved_by -> Nullable<Varchar>,
+        scheduled_for -> Nullable<Timestamp>,
+        expires_at -> Nullable<Timestamp>,
+        post_count -> Nullable<Int4>,
+        last_posted_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
+        metadata -> Nullable<Jsonb>,
+    }
+}
+
+diesel::table! {
     content_generation_tables (table_name) {
         table_name -> Text,
         template_source -> Text,
@@ -272,6 +349,24 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    post_history (id) {
+        id -> Int4,
+        content_id -> Nullable<Int4>,
+        #[max_length = 100]
+        actor_name -> Varchar,
+        #[max_length = 50]
+        platform -> Varchar,
+        #[max_length = 100]
+        channel_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        post_id -> Nullable<Varchar>,
+        posted_at -> Timestamp,
+        engagement_count -> Nullable<Int4>,
+        metadata -> Nullable<Jsonb>,
+    }
+}
+
 diesel::joinable!(act_executions -> narrative_executions (execution_id));
 diesel::joinable!(act_inputs -> act_executions (act_execution_id));
 diesel::joinable!(act_inputs -> media_references (media_ref_id));
@@ -280,10 +375,15 @@ diesel::joinable!(discord_guild_members -> discord_guilds (guild_id));
 diesel::joinable!(discord_guild_members -> discord_users (user_id));
 diesel::joinable!(discord_member_roles -> discord_roles (role_id));
 diesel::joinable!(discord_roles -> discord_guilds (guild_id));
+diesel::joinable!(post_history -> content (content_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     act_executions,
     act_inputs,
+    actor_preferences,
+    actor_server_executions,
+    actor_server_state,
+    content,
     content_generation_tables,
     content_generations,
     discord_channels,
@@ -295,4 +395,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     media_references,
     model_responses,
     narrative_executions,
+    post_history,
 );

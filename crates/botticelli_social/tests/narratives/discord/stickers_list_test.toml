@@ -1,0 +1,18 @@
+[narrative]
+name = "test_stickers_list"
+description = "Test listing guild stickers"
+skip_content_generation = true
+
+[toc]
+order = ["list_stickers"]
+
+[acts.list_stickers]
+
+[[acts.list_stickers.input]]
+type = "bot_command"
+platform = "discord"
+command = "stickers.list"
+required = true
+
+[acts.list_stickers.input.args]
+guild_id = "${TEST_GUILD_ID}"

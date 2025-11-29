@@ -29,25 +29,14 @@
 //! let client = GeminiClient::new()?;
 //!
 //! // Use default model (gemini-2.0-flash-lite)
-//! let request1 = GenerateRequest {
-//!     messages: vec![Message {
-//!         role: Role::User,
-//!         content: vec![Input::Text("Hello".to_string())],
-//!     }],
-//!     model: None,
-//!     ..Default::default()
-//! };
+//! let message1 = Message::new(Role::User, vec![Input::Text("Hello".to_string())]);
+//! let request1 = GenerateRequest::new(vec![message1]);
 //! let response1 = client.generate(&request1).await?;
 //!
 //! // Override to use a different model
-//! let request2 = GenerateRequest {
-//!     messages: vec![Message {
-//!         role: Role::User,
-//!         content: vec![Input::Text("Complex task".to_string())],
-//!     }],
-//!     model: Some("gemini-2.5-flash".to_string()),
-//!     ..Default::default()
-//! };
+//! let message2 = Message::new(Role::User, vec![Input::Text("Complex task".to_string())]);
+//! let request2 = GenerateRequest::new(vec![message2])
+//!     .with_model(Some("gemini-2.5-flash".to_string()));
 //! let response2 = client.generate(&request2).await?;
 //! # Ok(())
 //! # }
@@ -207,7 +196,9 @@ impl GeminiClient {
     fn model_name_to_enum(name: &str) -> Model {
         match name {
             "gemini-2.5-flash" => Model::Gemini25Flash,
-            "gemini-2.5-flash-lite" => Model::Gemini25FlashLite,
+            // NOTE: gemini-rust 1.5's Model::Gemini25FlashLite incorrectly maps to "gemini-2.0-flash-lite"
+            // Use Custom variant to get correct 2.5 version until upstream is fixed
+            "gemini-2.5-flash-lite" => Model::Custom("models/gemini-2.5-flash-lite".to_string()),
             "gemini-2.5-pro" => Model::Gemini25Pro,
             "text-embedding-004" => Model::TextEmbedding004,
             // For other model names, use Custom variant with "models/" prefix
@@ -491,8 +482,8 @@ impl GeminiClient {
 
         // Build generation config from request
         let config = super::live_protocol::GenerationConfig {
-            max_output_tokens: req.max_tokens.map(|t| t as i32),
-            temperature: req.temperature.map(|t| t as f64),
+            max_output_tokens: req.max_tokens().map(|t| t as i32),
+            temperature: req.temperature().map(|t| t as f64),
             ..Default::default()
         };
 
@@ -610,21 +601,26 @@ impl GeminiClient {
     /// Helper to combine all message content into a single text string.
     fn combine_messages(&self, req: &GenerateRequest) -> String {
         let mut combined_text = String::new();
-        for msg in &req.messages {
-            for input in &msg.content {
+        for msg in req.messages() {
+            for input in msg.content() {
                 if let Some(text) = Self::extract_text(input) {
                     combined_text.push_str(&text);
                     combined_text.push('\n');
                 }
             }
         }
+        tracing::debug!(
+            combined_text_length = combined_text.len(),
+            combined_text_preview = &combined_text[..combined_text.len().min(200)],
+            "Combined messages for Gemini Live API"
+        );
         combined_text
     }
 
     /// Internal generate method that returns Gemini-specific errors.
     async fn generate_internal(&self, req: &GenerateRequest) -> GeminiResult<GenerateResponse> {
         // Determine which model to use
-        let model_name = req.model.as_ref().unwrap_or(&self.model_name);
+        let model_name = req.model().as_ref().unwrap_or(&self.model_name);
 
         // Check if this is a live model (requires WebSocket Live API)
         if Self::is_live_model(model_name) {
@@ -667,20 +663,20 @@ impl GeminiClient {
 
         // Estimate tokens for rate limiting
         let estimated_tokens: u64 = req
-            .messages
+            .messages()
             .iter()
-            .flat_map(|msg| &msg.content)
+            .flat_map(|msg| msg.content())
             .filter_map(Self::extract_text)
             .map(|text| Self::estimate_tokens(&text))
             .sum();
 
         // Add max_tokens if specified (output token estimate)
-        let total_estimate = estimated_tokens + req.max_tokens.unwrap_or(1000) as u64;
+        let total_estimate = estimated_tokens + req.max_tokens().unwrap_or(1000) as u64;
 
         // Clone data needed in the closure
-        let messages = req.messages.clone();
-        let temperature = req.temperature;
-        let max_tokens = req.max_tokens;
+        let messages = req.messages().clone();
+        let temperature = req.temperature();
+        let max_tokens = req.max_tokens();
 
         // Execute with rate limiting and automatic retry
         let response = rate_limited_client
@@ -695,16 +691,16 @@ impl GeminiClient {
                 let mut system_prompt = None;
 
                 for msg in &messages {
-                    match msg.role {
+                    match msg.role() {
                         Role::System => {
                             // Gemini uses a separate system prompt
-                            if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                            if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                                 system_prompt = Some(text);
                             }
                         }
                         Role::User => {
                             // Add user message(s)
-                            for input in &msg.content {
+                            for input in msg.content() {
                                 if let Some(text) = Self::extract_text(input) {
                                     builder = builder.with_user_message(&text);
                                 }
@@ -712,7 +708,7 @@ impl GeminiClient {
 
                             // Note: gemini-rust's simple API doesn't directly support
                             // multimodal inputs through the builder pattern.
-                            if Self::has_media(&msg.content) {
+                            if Self::has_media(msg.content()) {
                                 return Err(GeminiError::new(
                                     GeminiErrorKind::MultimodalNotSupported,
                                 ));
@@ -720,7 +716,7 @@ impl GeminiClient {
                         }
                         Role::Assistant => {
                             // Add model/assistant message
-                            if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                            if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                                 builder = builder.with_model_message(&text);
                             }
                         }
@@ -734,11 +730,11 @@ impl GeminiClient {
 
                 // Apply optional parameters
                 if let Some(temp) = temperature {
-                    builder = builder.with_temperature(temp);
+                    builder = builder.with_temperature(*temp);
                 }
 
                 if let Some(max_tok) = max_tokens {
-                    builder = builder.with_max_output_tokens(max_tok as i32);
+                    builder = builder.with_max_output_tokens(*max_tok as i32);
                 }
 
                 // Execute the request and parse errors
@@ -805,6 +801,13 @@ impl BotticelliDriver for GeminiClient {
     fn model_name(&self) -> &str {
         &self.model_name
     }
+
+    fn rate_limits(&self) -> &botticelli_rate_limit::RateLimitConfig {
+        // TODO: This creates a temporary on each call. Consider caching in the struct.
+        Box::leak(Box::new(botticelli_rate_limit::RateLimitConfig::from_tier(
+            &self.base_tier,
+        )))
+    }
 }
 
 impl GeminiClient {
@@ -831,8 +834,8 @@ impl GeminiClient {
 
         // Build generation config from request
         let config = super::live_protocol::GenerationConfig {
-            max_output_tokens: req.max_tokens.map(|t| t as i32),
-            temperature: req.temperature.map(|t| t as f64),
+            max_output_tokens: req.max_tokens().map(|t| t as i32),
+            temperature: req.temperature().map(|t| t as f64),
             ..Default::default()
         };
 
@@ -844,8 +847,8 @@ impl GeminiClient {
 
         // Combine all user messages into a single text
         let mut combined_text = String::new();
-        for msg in &req.messages {
-            for input in &msg.content {
+        for msg in req.messages() {
+            for input in msg.content() {
                 if let Some(text) = Self::extract_text(input) {
                     combined_text.push_str(&text);
                     combined_text.push('\n');
@@ -879,7 +882,7 @@ impl Streaming for GeminiClient {
         use futures_util::{StreamExt, TryStreamExt};
 
         // Determine which model to use
-        let model_name = req.model.as_ref().unwrap_or(&self.model_name);
+        let model_name = req.model().as_ref().unwrap_or(&self.model_name);
 
         // Check if this is a live model (requires WebSocket Live API)
         if Self::is_live_model(model_name) {
@@ -907,14 +910,14 @@ impl Streaming for GeminiClient {
 
         // Estimate tokens for rate limiting
         let estimated_tokens: u64 = req
-            .messages
+            .messages()
             .iter()
-            .flat_map(|msg| &msg.content)
+            .flat_map(|msg| msg.content())
             .filter_map(Self::extract_text)
             .map(|text| Self::estimate_tokens(&text))
             .sum();
 
-        let total_estimate = estimated_tokens + req.max_tokens.unwrap_or(1000) as u64;
+        let total_estimate = estimated_tokens + req.max_tokens().unwrap_or(1000) as u64;
 
         // Acquire rate limit permission (counts stream as single request)
         let _guard = rate_limited_client.acquire(total_estimate).await;
@@ -926,27 +929,27 @@ impl Streaming for GeminiClient {
         let mut builder = client.generate_content();
         let mut system_prompt = None;
 
-        for msg in &req.messages {
-            match msg.role {
+        for msg in req.messages() {
+            match msg.role() {
                 Role::System => {
-                    if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                    if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                         system_prompt = Some(text);
                     }
                 }
                 Role::User => {
-                    for input in &msg.content {
+                    for input in msg.content() {
                         if let Some(text) = Self::extract_text(input) {
                             builder = builder.with_user_message(&text);
                         }
                     }
-                    if Self::has_media(&msg.content) {
+                    if Self::has_media(msg.content()) {
                         return Err(
                             GeminiError::new(GeminiErrorKind::MultimodalNotSupported).into()
                         );
                     }
                 }
                 Role::Assistant => {
-                    if let Some(text) = msg.content.iter().find_map(Self::extract_text) {
+                    if let Some(text) = msg.content().iter().find_map(Self::extract_text) {
                         builder = builder.with_model_message(&text);
                     }
                 }
@@ -957,12 +960,12 @@ impl Streaming for GeminiClient {
             builder = builder.with_system_prompt(&prompt);
         }
 
-        if let Some(temp) = req.temperature {
-            builder = builder.with_temperature(temp);
+        if let Some(temp) = req.temperature() {
+            builder = builder.with_temperature(*temp);
         }
 
-        if let Some(max_tokens) = req.max_tokens {
-            builder = builder.with_max_output_tokens(max_tokens as i32);
+        if let Some(max_tokens) = req.max_tokens() {
+            builder = builder.with_max_output_tokens(*max_tokens as i32);
         }
 
         // Execute as stream

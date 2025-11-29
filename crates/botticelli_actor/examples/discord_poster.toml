@@ -1,0 +1,62 @@
+# Discord Content Poster Actor Configuration
+# 
+# Environment variables required:
+# - DATABASE_URL: PostgreSQL connection string
+# - DISCORD_TOKEN: Discord bot token
+# - DISCORD_CHANNEL_ID: Target channel ID (numeric)
+
+[actor]
+name = "discord_poster"
+description = "Posts approved content to Discord channel periodically"
+version = "1.0.0"
+
+[actor.execution]
+continue_on_error = true
+stop_on_unrecoverable = true
+max_retries = 3
+retry_delay_seconds = 60
+
+# Knowledge tables the actor queries
+[[actor.knowledge]]
+table = "content"
+required = true
+
+[[actor.knowledge]]
+table = "post_history"
+required = true
+
+[[actor.knowledge]]
+table = "actor_preferences"
+required = false
+
+# Skills executed in order
+[[actor.skills]]
+name = "content_selection"
+enabled = true
+
+[[actor.skills]]
+name = "content_scheduling"
+enabled = true
+
+[[actor.skills]]
+name = "rate_limiting"
+enabled = true
+
+[[actor.skills]]
+name = "duplicate_check"
+enabled = true
+
+[[actor.skills]]
+name = "content_formatter"
+enabled = true
+
+# Platform configuration
+[platform]
+type = "discord"
+# channel_id loaded from DISCORD_CHANNEL_ID env var
+# token loaded from DISCORD_TOKEN env var
+
+# Caching strategy
+[cache]
+strategy = "memory"
+ttl_seconds = 300

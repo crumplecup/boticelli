@@ -1,0 +1,44 @@
+[narrative]
+name = "test_channels_get"
+description = "Test getting channel details"
+skip_content_generation = true
+
+[toc]
+order = ["create_channel", "get_channel", "cleanup"]
+
+[acts.create_channel]
+
+[[acts.create_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_channel.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "temp-test-channel"
+kind = "text"
+
+[acts.get_channel]
+
+[[acts.get_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.get"
+required = true
+
+[acts.get_channel.input.args]
+guild_id = "${TEST_GUILD_ID}"
+channel_id = "${create_channel.id}"
+
+[acts.cleanup]
+
+[[acts.cleanup.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.delete"
+required = false
+
+[acts.cleanup.input.args]
+guild_id = "${TEST_GUILD_ID}"
+channel_id = "${create_channel.id}"

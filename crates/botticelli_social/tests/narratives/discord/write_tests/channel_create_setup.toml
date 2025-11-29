@@ -1,0 +1,26 @@
+# Setup: Create a test channel for write operation tests
+
+[narrative]
+name = "channel_create_setup"
+description = "Create a test channel for testing"
+skip_content_generation = true
+
+[toc]
+order = ["create_channel"]
+
+[acts.create_channel]
+
+[[acts.create_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_channel.input.args]
+guild_id = "${env:TEST_GUILD_ID}"
+name = "botticelli-write-test"
+kind = "text"
+
+# Capture the channel ID from the bot command output
+[acts.create_channel.state_capture]
+channel_id = "$.channel_id"

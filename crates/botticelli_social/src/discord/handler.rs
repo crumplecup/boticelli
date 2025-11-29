@@ -3,7 +3,9 @@
 //! This module implements the EventHandler trait to respond to Discord events
 //! and persist data to the database.
 
-use super::{DiscordRepository, NewChannel, NewGuild, NewGuildMember, NewRole, NewUser};
+use crate::{
+    ChannelType, DiscordRepository, NewChannel, NewGuildBuilder, NewGuildMember, NewRole, NewUser,
+};
 use chrono::NaiveDateTime;
 use serenity::all::{GuildId, Ready};
 use serenity::async_trait;
@@ -14,8 +16,6 @@ use serenity::model::gateway::GatewayIntents;
 use serenity::model::guild::{Guild, Member, Role};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
-
-use super::models::ChannelType;
 
 /// Convert Serenity Timestamp to Chrono NaiveDateTime
 fn timestamp_to_naive(ts: &Timestamp) -> NaiveDateTime {
@@ -58,47 +58,54 @@ impl BotticelliHandler {
 
     /// Store a Discord guild in the database.
     async fn store_guild(&self, guild: &Guild) {
-        let new_guild = NewGuild {
-            id: Self::to_db_id(guild.id.get()),
-            name: guild.name.clone(),
-            icon: guild.icon.as_ref().map(|i| i.to_string()),
-            banner: guild.banner.as_ref().map(|b| b.to_string()),
-            splash: guild.splash.as_ref().map(|s| s.to_string()),
-            owner_id: Self::to_db_id(guild.owner_id.get()),
-            features: Some(guild.features.iter().map(|f| Some(f.clone())).collect()),
-            description: guild.description.clone(),
-            vanity_url_code: guild.vanity_url_code.clone(),
-            member_count: Some(guild.member_count as i32),
-            approximate_member_count: guild.approximate_member_count.map(|c| c as i32),
-            approximate_presence_count: guild.approximate_presence_count.map(|c| c as i32),
-            afk_channel_id: guild
-                .afk_metadata
-                .as_ref()
-                .map(|afk| Self::to_db_id(afk.afk_channel_id.get())),
-            afk_timeout: guild
-                .afk_metadata
-                .as_ref()
-                .map(|afk| u16::from(afk.afk_timeout) as i32),
-            system_channel_id: guild.system_channel_id.map(|id| Self::to_db_id(id.get())),
-            rules_channel_id: guild.rules_channel_id.map(|id| Self::to_db_id(id.get())),
-            public_updates_channel_id: guild
-                .public_updates_channel_id
-                .map(|id| Self::to_db_id(id.get())),
-            verification_level: Some(u8::from(guild.verification_level) as i16),
-            explicit_content_filter: Some(u8::from(guild.explicit_content_filter) as i16),
-            mfa_level: Some(u8::from(guild.mfa_level) as i16),
-            premium_tier: Some(u8::from(guild.premium_tier) as i16),
-            premium_subscription_count: guild.premium_subscription_count.map(|c| c as i32),
-            max_presences: guild.max_presences.map(|c| c as i32),
-            max_members: guild.max_members.map(|c| c as i32),
-            max_video_channel_users: guild.max_video_channel_users.map(|c| c as i32),
-            large: Some(guild.large),
-            unavailable: Some(guild.unavailable),
-            joined_at: Some(timestamp_to_naive(&guild.joined_at)),
-            left_at: None,
-            bot_permissions: None,
-            bot_active: Some(true),
-        };
+        let new_guild = NewGuildBuilder::default()
+            .id(Self::to_db_id(guild.id.get()))
+            .name(guild.name.clone())
+            .icon(guild.icon.as_ref().map(|i| i.to_string()))
+            .banner(guild.banner.as_ref().map(|b| b.to_string()))
+            .splash(guild.splash.as_ref().map(|s| s.to_string()))
+            .owner_id(Self::to_db_id(guild.owner_id.get()))
+            .features(Some(
+                guild.features.iter().map(|f| Some(f.clone())).collect(),
+            ))
+            .description(guild.description.clone())
+            .vanity_url_code(guild.vanity_url_code.clone())
+            .member_count(Some(guild.member_count as i32))
+            .approximate_member_count(guild.approximate_member_count.map(|c| c as i32))
+            .approximate_presence_count(guild.approximate_presence_count.map(|c| c as i32))
+            .afk_channel_id(
+                guild
+                    .afk_metadata
+                    .as_ref()
+                    .map(|afk| Self::to_db_id(afk.afk_channel_id.get())),
+            )
+            .afk_timeout(
+                guild
+                    .afk_metadata
+                    .as_ref()
+                    .map(|afk| u16::from(afk.afk_timeout) as i32),
+            )
+            .system_channel_id(guild.system_channel_id.map(|id| Self::to_db_id(id.get())))
+            .rules_channel_id(guild.rules_channel_id.map(|id| Self::to_db_id(id.get())))
+            .public_updates_channel_id(
+                guild
+                    .public_updates_channel_id
+                    .map(|id| Self::to_db_id(id.get())),
+            )
+            .verification_level(Some(u8::from(guild.verification_level) as i16))
+            .explicit_content_filter(Some(u8::from(guild.explicit_content_filter) as i16))
+            .mfa_level(Some(u8::from(guild.mfa_level) as i16))
+            .premium_tier(Some(u8::from(guild.premium_tier) as i16))
+            .premium_subscription_count(guild.premium_subscription_count.map(|c| c as i32))
+            .max_presences(guild.max_presences.map(|c| c as i32))
+            .max_members(guild.max_members.map(|c| c as i32))
+            .max_video_channel_users(guild.max_video_channel_users.map(|c| c as i32))
+            .large(Some(guild.large))
+            .unavailable(Some(guild.unavailable))
+            .joined_at(Some(timestamp_to_naive(&guild.joined_at)))
+            .bot_active(Some(true))
+            .build()
+            .expect("NewGuild builder should succeed with valid data");
 
         match self.repository.store_guild(&new_guild).await {
             Ok(_) => {

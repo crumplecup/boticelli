@@ -1,0 +1,206 @@
+# JSON Extraction Test Suite
+# Purpose: Test different prompt strategies for JSON compliance
+
+# === Shared Configuration ===
+[config.gemini]
+model = "gemini-2.0-flash-lite"
+temperature = 0.7
+max_tokens = 400
+
+# === Shared Act: Generate Content ===
+[acts.generate]
+model = "gemini-2.0-flash-lite"
+
+[[acts.generate.input]]
+type = "text"
+content = "Write a short Discord post about Botticelli's narrative composition feature."
+
+[acts.generate.config]
+temperature = 0.7
+max_tokens = 400
+
+# === Test Narratives ===
+
+[narratives.baseline]
+description = "Current prompt strategy (baseline)"
+target_table = "json_test_baseline"
+
+[narratives.baseline.toc]
+order = ["generate", "format_json_baseline"]
+
+[narratives.baseline.acts.format_json_baseline]
+model = "gemini-2.0-flash-lite"
+extract_output = true
+
+[[narratives.baseline.acts.format_json_baseline.input]]
+type = "text"
+content = """Format this content as valid JSON matching this schema:
+{
+  "text_content": string,
+  "tags": array of strings
+}
+
+Content: {{generate}}
+
+Output ONLY valid JSON. No markdown blocks, no explanations."""
+
+[narratives.baseline.acts.format_json_baseline.config]
+temperature = 0.1
+max_tokens = 600
+
+# Test with explicit example
+[narratives.with_example]
+description = "Prompt with concrete JSON example"
+target_table = "json_test_with_example"
+
+[narratives.with_example.toc]
+order = ["generate", "format_json_example"]
+
+[narratives.with_example.acts.format_json_example]
+model = "gemini-2.0-flash-lite"
+extract_output = true
+
+[[narratives.with_example.acts.format_json_example.input]]
+type = "text"
+content = """Format this content as valid JSON matching this EXACT schema.
+
+Content to format:
+{{generate}}
+
+Required Schema:
+{
+  "text_content": string (required, 10-2000 characters),
+  "tags": array of strings (optional, relevant keywords)
+}
+
+EXAMPLE OUTPUT (use this exact structure):
+{
+  "text_content": "Your Discord post content here...",
+  "tags": ["feature", "discord", "automation"]
+}
+
+CRITICAL: Output ONLY the JSON object. Start with { and end with }. No other text."""
+
+[narratives.with_example.acts.format_json_example.config]
+temperature = 0.1
+max_tokens = 600
+
+# Test with step-by-step instructions
+[narratives.step_by_step]
+description = "Prompt with numbered steps"
+target_table = "json_test_step_by_step"
+
+[narratives.step_by_step.toc]
+order = ["generate", "format_json_steps"]
+
+[narratives.step_by_step.acts.format_json_steps]
+model = "gemini-2.0-flash-lite"
+extract_output = true
+
+[[narratives.step_by_step.acts.format_json_steps.input]]
+type = "text"
+content = """Convert this text to JSON format.
+
+Content: {{generate}}
+
+Follow these steps EXACTLY:
+1. Start your response with a single {
+2. Add "text_content": followed by the content in quotes
+3. Add a comma
+4. Add "tags": followed by an array of relevant keywords
+5. End with a single }
+
+Schema:
+{
+  "text_content": string,
+  "tags": array of strings
+}
+
+Begin your response now (start with {):"""
+
+[narratives.step_by_step.acts.format_json_steps.config]
+temperature = 0.1
+max_tokens = 600
+
+# Test with higher max_tokens
+[narratives.high_tokens]
+description = "Current prompt with 2x max_tokens"
+target_table = "json_test_high_tokens"
+
+[narratives.high_tokens.toc]
+order = ["generate", "format_json_high"]
+
+[narratives.high_tokens.acts.format_json_high]
+model = "gemini-2.0-flash-lite"
+extract_output = true
+
+[[narratives.high_tokens.acts.format_json_high.input]]
+type = "text"
+content = """Format this content as valid JSON matching this schema:
+{
+  "text_content": string,
+  "tags": array of strings
+}
+
+Content: {{generate}}
+
+Output ONLY valid JSON. No markdown blocks, no explanations."""
+
+[narratives.high_tokens.acts.format_json_high.config]
+temperature = 0.1
+max_tokens = 1200
+
+# Test with JSON-first framing
+[narratives.json_first]
+description = "Prompt that starts with JSON instruction"
+target_table = "json_test_json_first"
+
+[narratives.json_first.toc]
+order = ["generate", "format_json_first"]
+
+[narratives.json_first.acts.format_json_first]
+model = "gemini-2.0-flash-lite"
+extract_output = true
+
+[[narratives.json_first.acts.format_json_first.input]]
+type = "text"
+content = """You are a JSON formatter. Your ONLY job is to output valid JSON.
+
+Input text: {{generate}}
+
+Required format:
+{
+  "text_content": "...",
+  "tags": ["..."]
+}
+
+Output the JSON now:"""
+
+[narratives.json_first.acts.format_json_first.config]
+temperature = 0.1
+max_tokens = 600
+
+# Carousel to run all tests
+[narratives.run_all_tests]
+description = "Run all JSON extraction tests"
+
+[narratives.run_all_tests.carousel]
+iterations = 5
+
+[narratives.run_all_tests.toc]
+order = ["baseline", "with_example", "step_by_step", "high_tokens", "json_first"]
+
+[narratives.run_all_tests.acts.baseline]
+narrative = "baseline"
+
+[narratives.run_all_tests.acts.with_example]
+narrative = "with_example"
+
+[narratives.run_all_tests.acts.step_by_step]
+narrative = "step_by_step"
+
+[narratives.run_all_tests.acts.high_tokens]
+narrative = "high_tokens"
+
+[narratives.run_all_tests.acts.json_first]
+narrative = "json_first"

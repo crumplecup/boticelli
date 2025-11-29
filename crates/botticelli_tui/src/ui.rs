@@ -1,6 +1,6 @@
 //! UI rendering for TUI.
 
-use crate::app::{App, AppMode};
+#[cfg(feature = "database")]
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -8,7 +8,11 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Row, Table},
 };
 
+#[cfg(feature = "database")]
+use crate::{App, app::AppMode};
+
 /// Draw the main UI.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip_all)]
 pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
@@ -37,6 +41,7 @@ pub fn draw(f: &mut Frame, app: &App) {
 }
 
 /// Draw the header.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip_all)]
 fn draw_header(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let title = format!("Botticelli Content Review - {}", app.table_name);
@@ -52,6 +57,7 @@ fn draw_header(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 }
 
 /// Draw the status bar with help text.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip_all)]
 fn draw_status_bar(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let help_text = match app.mode {
@@ -72,6 +78,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 }
 
 /// Draw the list view.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip_all)]
 fn draw_list_view(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let header = Row::new(vec!["ID", "Status", "Rating", "Tags", "Preview"])
@@ -135,6 +142,7 @@ fn draw_list_view(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 }
 
 /// Draw the detail view.
+#[cfg(feature = "database")]
 #[tracing::instrument(skip_all)]
 fn draw_detail_view(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     if let Some(item) = app.content_items.get(app.selected_index) {

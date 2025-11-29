@@ -1,0 +1,17 @@
+# Setup narrative: Create a test channel and store its ID
+
+name = "setup_test_channel"
+skip_content_generation = true
+
+[[acts]]
+name = "create_test_channel"
+
+[[acts.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+guild_id = "${TEST_GUILD_ID}"
+name = "botticelli-test-channel"
+channel_type = "text"
+store_as = "TEST_CHANNEL_ID"

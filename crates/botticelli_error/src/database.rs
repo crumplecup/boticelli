@@ -24,6 +24,9 @@ pub enum DatabaseErrorKind {
     /// Schema inference error
     #[display("Schema inference error: {}", _0)]
     SchemaInference(String),
+    /// Invalid query
+    #[display("Invalid query: {}", _0)]
+    InvalidQuery(String),
 }
 
 /// Database error with source location tracking.

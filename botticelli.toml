@@ -10,6 +10,35 @@
 # 4. Default: boticelli.toml (this file)
 
 # ============================================================================
+# Context Path Configuration
+# ============================================================================
+# Base directory for resolving file references in narrative TOML files.
+# When a narrative references a file (e.g., file = "BOTTICELLI_CONTEXT.md"),
+# the system searches recursively from this path.
+#
+# Default: Current workspace root (for development)
+# Override: Set to your project directory or a shared context repository
+
+[context]
+# Search base directory (defaults to workspace root if not set)
+# path = "/path/to/your/context/files"
+
+# ============================================================================
+# Default Budget Multipliers
+# ============================================================================
+# Apply conservative multipliers to all rate limits by default to avoid
+# hitting quota edges. Set at 80% to provide safety margin.
+#
+# Override in narrative TOML or via CLI flags:
+# - Narrative: [narrative.budget] or [narratives.name.carousel.budget]
+# - CLI: --rpm-multiplier 0.9 --rpd-multiplier 0.5
+
+[budget]
+rpm_multiplier = 0.8  # Use 80% of requests per minute
+tpm_multiplier = 0.8  # Use 80% of tokens per minute  
+rpd_multiplier = 0.8  # Use 80% of requests per day
+
+# ============================================================================
 # Gemini (Google AI)
 # ============================================================================
 # Last updated: 2025-01-15
@@ -24,9 +53,9 @@ default_tier = "free"
 # Tier-level defaults (used when no model-specific override exists)
 [providers.gemini.tiers.free]
 name = "Free"
-rpm = 10                                # Default (gemini-2.5-flash)
-tpm = 250_000                           # Default (gemini-2.5-flash)
-rpd = 250                               # Default (gemini-2.5-flash)
+rpm = 10                             # Default (gemini-2.5-flash)
+tpm = 250_000                        # Default (gemini-2.5-flash)
+rpd = 250                            # Default (gemini-2.5-flash)
 max_concurrent = 1
 cost_per_million_input_tokens = 0.0
 cost_per_million_output_tokens = 0.0
@@ -55,11 +84,11 @@ rpd = 200
 # Pay-as-you-go tier defaults
 [providers.gemini.tiers.payasyougo]
 name = "Pay-as-you-go"
-rpm = 1_000                             # Default (gemini-2.5-flash)
-tpm = 1_000_000                         # Default (gemini-2.5-flash)
+rpm = 1_000            # Default (gemini-2.5-flash)
+tpm = 1_000_000        # Default (gemini-2.5-flash)
 # rpd not specified = unlimited
 max_concurrent = 1
-cost_per_million_input_tokens = 0.075  # Gemini 2.0 Flash pricing
+cost_per_million_input_tokens = 0.075 # Gemini 2.0 Flash pricing
 cost_per_million_output_tokens = 0.30
 
 # Model-specific overrides for pay-as-you-go tier
@@ -97,7 +126,7 @@ name = "Tier 1"
 rpm = 5
 tpm = 20_000
 max_concurrent = 5
-cost_per_million_input_tokens = 3.0    # Claude 3.5 Sonnet
+cost_per_million_input_tokens = 3.0   # Claude 3.5 Sonnet
 cost_per_million_output_tokens = 15.0
 
 [providers.anthropic.tiers.tier2]
@@ -147,7 +176,7 @@ name = "Tier 1"
 rpm = 500
 tpm = 200_000
 max_concurrent = 50
-cost_per_million_input_tokens = 2.50   # GPT-4 Turbo (varies by model)
+cost_per_million_input_tokens = 2.50  # GPT-4 Turbo (varies by model)
 cost_per_million_output_tokens = 10.0
 
 [providers.openai.tiers.tier2]
@@ -181,6 +210,49 @@ tpm = 100_000_000
 max_concurrent = 50
 cost_per_million_input_tokens = 2.50
 cost_per_million_output_tokens = 10.0
+
+[inference]
+backend = "local"
+api_url = "http://localhost:8080"
+model = "mistralai/Mistral-7B-Instruct-v0.2" # Must match the model you started
+
+# ============================================================================
+# Bot Server Configuration
+# ============================================================================
+# Configuration for automated content generation, curation, and posting bots.
+# These bots run independently as background services orchestrated by the
+# bot server.
+
+[bot_server]
+# Enable/disable the bot server
+enabled = false
+
+# Generation bot configuration
+[bot_server.generation]
+enabled = true
+narrative = "discord/generation_carousel"  # Path relative to narratives/
+narrative_name = "batch_generate"
+interval_hours = 24  # Run once per day
+model = "gemini-2.5-flash-lite"  # High RPD limit model
+
+# Curation bot configuration
+[bot_server.curation]
+enabled = true
+narrative = "discord/curation"
+narrative_name = "curate"
+check_interval_hours = 12  # Check for new content every 12 hours
+batch_size = 10  # Process up to 10 items per batch
+model = "gemini-2.5-flash"  # Balanced model
+
+# Posting bot configuration
+[bot_server.posting]
+enabled = true
+narrative = "discord/posting"
+narrative_name = "post"
+base_interval_hours = 6  # Base posting interval (every 6 hours)
+jitter_percent = 30  # ±30% randomization (4.2-7.8 hours)
+channel_id = "1234567890"  # Discord channel ID for posts
+model = "gemini-2.5-flash-lite"  # Lightweight model
 
 # ============================================================================
 # Additional Providers

@@ -1,0 +1,46 @@
+[package]
+name = "botticelli_server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+botticelli_core = { path = "../botticelli_core" }
+botticelli_database = { path = "../botticelli_database" }
+botticelli_error = { path = "../botticelli_error" }
+botticelli_interface = { path = "../botticelli_interface" }
+botticelli_models = { path = "../botticelli_models", features = ["gemini"] }
+botticelli_narrative = { path = "../botticelli_narrative" }
+botticelli_rate_limit = { path = "../botticelli_rate_limit" }
+
+reqwest = { version = "0.12", features = ["json", "stream"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures = "0.3"
+chrono = { workspace = true }
+cron = "0.12"
+ractor = { workspace = true }
+rand = "0.8"
+diesel = { workspace = true }
+axum = "0.7"
+
+# Observability
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-stdout = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+
+[dev-dependencies]
+
+[features]
+default = []
+api = []

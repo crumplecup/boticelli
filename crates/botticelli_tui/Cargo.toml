@@ -11,12 +11,12 @@ description = "Terminal UI for reviewing and managing Botticelli-generated conte
 
 [dependencies]
 # Internal workspace crates
-botticelli_error = { workspace = true }
-botticelli_database = { workspace = true }
+botticelli_error = { workspace = true, features = ["tui"] }
+botticelli_database = { workspace = true, optional = true }
 botticelli_narrative = { workspace = true }
 
 # Database
-diesel = { workspace = true }
+diesel = { workspace = true, optional = true }
 
 # Async runtime
 tokio = { workspace = true }
@@ -32,5 +32,9 @@ tracing = { workspace = true }
 ratatui = { workspace = true }
 crossterm = { workspace = true }
 
+# System utilities
+dirs = { workspace = true }
+
 [features]
-default = []
+default = ["database"]
+database = ["dep:botticelli_database", "dep:diesel", "botticelli_error/database"]

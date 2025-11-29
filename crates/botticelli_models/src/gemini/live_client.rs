@@ -138,7 +138,10 @@ impl GeminiLiveClient {
     ///
     /// * `model` - Model name
     /// * `generation_config` - Generation parameters (temperature, max_tokens, etc.)
-    #[instrument(name = "gemini_live_client_connect_with_config", skip(self, generation_config))]
+    #[instrument(
+        name = "gemini_live_client_connect_with_config",
+        skip(self, generation_config)
+    )]
     pub async fn connect_with_config(
         &self,
         model: &str,
@@ -388,6 +391,11 @@ impl LiveSession {
 
                 // Extract text from response
                 if let Some(text) = server_msg.extract_text() {
+                    debug!(
+                        chunk_length = text.len(),
+                        chunk_text = &text[..text.len().min(100)],
+                        "Extracted text chunk from server message"
+                    );
                     full_response.push_str(&text);
                 }
 

@@ -1,0 +1,36 @@
+# Daily Content Poster Actor
+#
+# Posts curated content once per day from a knowledge table
+
+[actor]
+name = "Daily Content Poster"
+description = "Posts daily curated content from the content database"
+
+[knowledge]
+# Reference to content table produced by narratives
+table_name = "narrative_content"
+query = "SELECT * FROM narrative_content WHERE posted = false ORDER BY created_at DESC LIMIT 1"
+
+[[skills]]
+name = "content_selection"
+config = { strategy = "latest", limit = 1 }
+
+[[skills]]
+name = "duplicate_check"
+config = { lookback_days = 7 }
+
+[[skills]]
+name = "content_formatter"
+config = { max_length = 2000, add_hashtags = true }
+
+[[skills]]
+name = "rate_limiting"
+config = { min_interval_hours = 24 }
+
+[execution]
+max_retries = 3
+timeout_seconds = 60
+
+[cache]
+strategy = "memory"
+ttl_seconds = 3600

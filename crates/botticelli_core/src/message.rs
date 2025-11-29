@@ -10,18 +10,30 @@ use serde::{Deserialize, Serialize};
 /// ```
 /// use botticelli_core::{Message, Role, Input};
 ///
-/// let message = Message {
-///     role: Role::User,
-///     content: vec![Input::Text("Hello!".to_string())],
-/// };
+/// let message = Message::new(Role::User, vec![Input::Text("Hello!".to_string())]);
 ///
-/// assert_eq!(message.role, Role::User);
-/// assert_eq!(message.content.len(), 1);
+/// assert_eq!(*message.role(), Role::User);
+/// assert_eq!(message.content().len(), 1);
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    derive_getters::Getters,
+    derive_builder::Builder,
+)]
 pub struct Message {
     /// The role of the message sender
-    pub role: Role,
+    role: Role,
     /// The content of the message (can be multimodal)
-    pub content: Vec<Input>,
+    content: Vec<Input>,
+}
+
+impl Message {
+    /// Creates a new message with the given role and content.
+    pub fn new(role: Role, content: Vec<Input>) -> Self {
+        Self { role, content }
+    }
 }

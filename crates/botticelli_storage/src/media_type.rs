@@ -2,16 +2,7 @@
 
 /// Type of media content.
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    strum::EnumIter,
-    derive_more::Display,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, strum::EnumIter, derive_more::Display,
 )]
 pub enum MediaType {
     /// Image content (PNG, JPEG, WebP, etc.)

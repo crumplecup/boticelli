@@ -1,0 +1,19 @@
+[narrative]
+name = "state_test_cleanup"
+description = "Delete test channel using state-stored ID"
+skip_content_generation = true
+
+[toc]
+order = ["delete_channel"]
+
+[acts.delete_channel]
+
+[[acts.delete_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.delete"
+required = true
+
+[acts.delete_channel.input.args]
+guild_id = "${env:TEST_GUILD_ID}"
+channel_id = "${state:channel_id}"

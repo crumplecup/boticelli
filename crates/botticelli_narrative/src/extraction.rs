@@ -144,6 +144,9 @@ fn extract_from_code_block(response: &str, language: &str) -> Option<String> {
             let content = &response[content_start..content_start + end];
             return Some(content.trim().to_string());
         }
+        // No closing fence found - likely truncated response
+        // Return content from opening fence to end
+        return Some(response[content_start..].trim().to_string());
     }
 
     // Try without language specifier
@@ -159,6 +162,9 @@ fn extract_from_code_block(response: &str, language: &str) -> Option<String> {
             let content = &response[skip_to..skip_to + end];
             return Some(content.trim().to_string());
         }
+        // No closing fence found - likely truncated response
+        // Return content from opening fence to end
+        return Some(response[skip_to..].trim().to_string());
     }
 
     None
@@ -224,16 +230,21 @@ where
     T: serde::de::DeserializeOwned,
 {
     serde_json::from_str(json_str).map_err(|e| {
+        let preview = json_str
+            .chars()
+            .take(100)
+            .collect::<String>();
+
         tracing::error!(
             error = %e,
-            json_preview = &json_str[..json_str.len().min(100)],
+            json_preview = %preview,
             "JSON parsing failed"
         );
 
         botticelli_error::BackendError::new(format!(
             "Failed to parse JSON: {} (JSON: {}...). Hint: Ensure the LLM outputs valid JSON without syntax errors.",
             e,
-            &json_str[..json_str.len().min(100)]
+            preview
         ))
         .into()
     })
@@ -265,10 +276,15 @@ where
     T: serde::de::DeserializeOwned,
 {
     toml::from_str(toml_str).map_err(|e| {
+        let preview = toml_str
+            .char_indices()
+            .take(100)
+            .last()
+            .map(|(idx, _)| &toml_str[..=idx])
+            .unwrap_or(toml_str);
         botticelli_error::BackendError::new(format!(
             "Failed to parse TOML: {} (TOML: {}...)",
-            e,
-            &toml_str[..toml_str.len().min(100)]
+            e, preview
         ))
         .into()
     })

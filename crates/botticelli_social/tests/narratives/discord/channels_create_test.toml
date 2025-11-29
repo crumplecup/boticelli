@@ -1,0 +1,20 @@
+[narrative]
+name = "channels_create_test"
+description = "Test creating a channel and caching its ID"
+skip_content_generation = true
+
+[toc]
+order = ["create_test_channel"]
+
+[acts.create_test_channel]
+
+[[acts.create_test_channel.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_test_channel.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "botticelli-test-channel"
+kind = "text"

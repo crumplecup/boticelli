@@ -1,0 +1,16 @@
+# Setup narrative: Create a test role and store its ID
+
+name = "setup_test_role"
+skip_content_generation = true
+
+[[acts]]
+name = "create_test_role"
+
+[[acts.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "roles.create"
+required = true
+guild_id = "${TEST_GUILD_ID}"
+name = "Botticelli Test Role"
+store_as = "TEST_ROLE_ID"

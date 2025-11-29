@@ -1,0 +1,23 @@
+# Posting Actor - Posts approved content to Discord
+#
+# This actor runs periodically to post approved content to Discord using the posting narrative.
+# It requires Discord integration (channel_id in server config).
+
+[actor]
+name = "Discord Poster"
+description = "Posts approved content to Discord channels"
+knowledge = []
+skills = ["narrative_execution"]
+
+[actor.config]
+# No actor-specific config needed
+
+[actor.execution]
+stop_on_unrecoverable = false
+max_retries = 3
+continue_on_error = true
+
+[skills.narrative_execution]
+enabled = true
+narrative_path = "crates/botticelli_narrative/narratives/discord/discord_poster.toml"
+# narrative_name not needed - using single narrative file

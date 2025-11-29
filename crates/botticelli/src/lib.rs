@@ -63,7 +63,22 @@
 pub use botticelli_core::*;
 pub use botticelli_error::*;
 pub use botticelli_interface::*;
-pub use botticelli_narrative::*;
+pub use botticelli_narrative::{
+    ActConfig,
+    ActProcessor,
+    InMemoryNarrativeRepository,
+    MultiNarrative,
+    Narrative,
+    NarrativeExecutor,
+    NarrativeMetadata,
+    NarrativeProvider,
+    NarrativeToc,
+    ProcessorContext,
+    ProcessorRegistry,
+    // Note: BotCommandRegistry trait NOT re-exported to avoid ambiguity
+    // Use botticelli_narrative::BotCommandRegistry for the trait
+    // Use botticelli_social::BotCommandRegistry for the implementation
+};
 pub use botticelli_rate_limit::*;
 pub use botticelli_storage::*;
 
@@ -79,3 +94,7 @@ pub use botticelli_social::*;
 
 #[cfg(feature = "tui")]
 pub use botticelli_tui::*;
+
+// OpenTelemetry telemetry module
+#[cfg(feature = "observability")]
+pub mod telemetry;

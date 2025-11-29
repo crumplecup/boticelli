@@ -1,0 +1,26 @@
+# Isolation Test 1.1: Minimal table + text, no JSON request
+# Goal: Confirm if response is captured at all with table input
+
+[narrative]
+name = "isolation_1_1"
+description = "Table input + simple text prompt (no JSON)"
+target = "test_isolation_output"
+
+[toc]
+order = ["test"]
+
+[acts.test]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 100
+
+[[acts.test.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 1
+order_by = "generated_at DESC"
+
+[[acts.test.input]]
+type = "text"
+content = "Say hello."

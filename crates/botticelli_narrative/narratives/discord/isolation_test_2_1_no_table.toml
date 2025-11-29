@@ -1,0 +1,23 @@
+# Isolation Test 2.1: Dual text inputs (no table) - CONTROL TEST
+# Goal: Confirm ContentGenerationProcessor works without table input
+
+[narrative]
+name = "isolation_2_1"
+description = "Two text inputs, no table (control test)"
+target = "test_isolation_output"
+
+[toc]
+order = ["test"]
+
+[acts.test]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 100
+
+[[acts.test.input]]
+type = "text"
+content = "List: A, B, C"
+
+[[acts.test.input]]
+type = "text"
+content = "Pick one. Output JSON: {\"choice\": \"A\"}"

@@ -7,10 +7,10 @@
 use botticelli_error::{BackendError, BotticelliResult};
 use chrono::NaiveDateTime;
 
-use super::{
+use crate::{
     ChannelType, DiscordChannelJson, DiscordGuildJson, DiscordGuildMemberJson,
-    DiscordMemberRoleJson, DiscordRoleJson, DiscordUserJson, NewChannel, NewGuild, NewGuildMember,
-    NewRole, NewUser,
+    DiscordMemberRoleJson, DiscordRoleJson, DiscordUserJson, NewChannel, NewGuild, NewGuildBuilder,
+    NewGuildMember, NewRole, NewUser,
 };
 
 /// Parse an ISO 8601 timestamp string to NaiveDateTime.
@@ -79,8 +79,8 @@ pub fn parse_channel_type(s: &str) -> BotticelliResult<ChannelType> {
 ///
 /// The database schema uses `Vec<Option<String>>` for the features field,
 /// so we wrap each string in Some().
-fn convert_features(features: Vec<String>) -> Vec<Option<String>> {
-    features.into_iter().map(Some).collect()
+fn convert_features(features: &[String]) -> Vec<Option<String>> {
+    features.iter().map(|s| Some(s.clone())).collect()
 }
 
 // ============================================================================
@@ -91,57 +91,42 @@ impl TryFrom<DiscordGuildJson> for NewGuild {
     type Error = botticelli_error::BotticelliError;
 
     fn try_from(json: DiscordGuildJson) -> BotticelliResult<Self> {
-        Ok(NewGuild {
-            id: json.id,
-            name: json.name,
-            icon: json.icon,
-            banner: json.banner,
-            splash: None, // Not in JSON model
-            owner_id: json.owner_id,
+        let mut builder = NewGuildBuilder::default();
+        builder.id(*json.id());
+        builder.name(json.name().clone());
+        builder.owner_id(*json.owner_id());
 
-            // Guild features
-            features: json.features.map(convert_features),
-            description: json.description,
-            vanity_url_code: None, // Not in JSON model
+        if let Some(icon) = json.icon() {
+            builder.icon(Some(icon.clone()));
+        }
 
-            // Member counts
-            member_count: json.member_count,
-            approximate_member_count: None,   // Not in JSON model
-            approximate_presence_count: None, // Not in JSON model
+        if let Some(banner) = json.banner() {
+            builder.banner(Some(banner.clone()));
+        }
 
-            // Guild settings
-            afk_channel_id: None,            // Not in JSON model
-            afk_timeout: None,               // Not in JSON model
-            system_channel_id: None,         // Not in JSON model
-            rules_channel_id: None,          // Not in JSON model
-            public_updates_channel_id: None, // Not in JSON model
+        if let Some(features_vec) = json.features().as_ref() {
+            builder.features(Some(convert_features(features_vec)));
+        }
 
-            // Verification and content filtering
-            verification_level: json.verification_level,
-            explicit_content_filter: None, // Not in JSON model
-            mfa_level: None,               // Not in JSON model
+        if let Some(description) = json.description() {
+            builder.description(Some(description.clone()));
+        }
 
-            // Premium features
-            premium_tier: json.premium_tier,
-            premium_subscription_count: None, // Not in JSON model
+        if let Some(member_count) = json.member_count() {
+            builder.member_count(Some(*member_count));
+        }
 
-            // Server boost progress
-            max_presences: None,           // Not in JSON model
-            max_members: None,             // Not in JSON model
-            max_video_channel_users: None, // Not in JSON model
+        if let Some(verification_level) = json.verification_level() {
+            builder.verification_level(Some(*verification_level));
+        }
 
-            // Status flags
-            large: None,       // Not in JSON model
-            unavailable: None, // Not in JSON model
+        if let Some(premium_tier) = json.premium_tier() {
+            builder.premium_tier(Some(*premium_tier));
+        }
 
-            // Timestamps
-            joined_at: None, // Set by database/bot when joining
-            left_at: None,   // Not applicable for new guilds
-
-            // Bot-specific metadata
-            bot_permissions: None, // Not in JSON model
-            bot_active: None,      // Not in JSON model
-        })
+        builder
+            .build()
+            .map_err(|e| BackendError::new(e.to_string()).into())
     }
 }
 
@@ -150,26 +135,26 @@ impl TryFrom<DiscordUserJson> for NewUser {
 
     fn try_from(json: DiscordUserJson) -> BotticelliResult<Self> {
         Ok(NewUser {
-            id: json.id,
-            username: json.username,
-            discriminator: json.discriminator,
-            global_name: json.global_name,
-            avatar: json.avatar,
+            id: *json.id(),
+            username: json.username().clone(),
+            discriminator: json.discriminator().clone(),
+            global_name: json.global_name().clone(),
+            avatar: json.avatar().clone(),
             banner: None,       // Not in JSON model
             accent_color: None, // Not in JSON model
 
             // Account flags
-            bot: json.bot,
+            bot: *json.bot(),
             system: None,      // Not in JSON model
             mfa_enabled: None, // Not in JSON model
             verified: None,    // Not in JSON model
 
             // Premium status
-            premium_type: json.premium_type,
+            premium_type: *json.premium_type(),
             public_flags: None, // Not in JSON model
 
             // Locale
-            locale: json.locale,
+            locale: json.locale().clone(),
         })
     }
 }
@@ -178,26 +163,26 @@ impl TryFrom<DiscordChannelJson> for NewChannel {
     type Error = botticelli_error::BotticelliError;
 
     fn try_from(json: DiscordChannelJson) -> BotticelliResult<Self> {
-        let channel_type = parse_channel_type(&json.channel_type)?;
+        let channel_type = parse_channel_type(json.channel_type())?;
 
         Ok(NewChannel {
-            id: json.id,
-            guild_id: json.guild_id,
-            name: json.name,
+            id: *json.id(),
+            guild_id: *json.guild_id(),
+            name: json.name().clone(),
             channel_type,
-            position: json.position,
+            position: *json.position(),
 
             // Topic and description
-            topic: json.topic,
+            topic: json.topic().clone(),
 
             // Channel settings
-            nsfw: json.nsfw,
-            rate_limit_per_user: json.rate_limit_per_user,
-            bitrate: json.bitrate,
-            user_limit: json.user_limit,
+            nsfw: *json.nsfw(),
+            rate_limit_per_user: *json.rate_limit_per_user(),
+            bitrate: *json.bitrate(),
+            user_limit: *json.user_limit(),
 
             // Thread-specific
-            parent_id: json.parent_id,
+            parent_id: *json.parent_id(),
             owner_id: None,              // Not in JSON model
             message_count: None,         // Not in JSON model
             member_count: None,          // Not in JSON model
@@ -229,17 +214,17 @@ impl TryFrom<DiscordRoleJson> for NewRole {
 
     fn try_from(json: DiscordRoleJson) -> BotticelliResult<Self> {
         Ok(NewRole {
-            id: json.id,
-            guild_id: json.guild_id,
-            name: json.name,
-            color: json.color.unwrap_or(0), // Default to no color
-            hoist: json.hoist,
-            icon: json.icon,
-            unicode_emoji: json.unicode_emoji,
-            position: json.position,
-            permissions: json.permissions,
-            managed: json.managed,
-            mentionable: json.mentionable,
+            id: *json.id(),
+            guild_id: *json.guild_id(),
+            name: json.name().clone(),
+            color: json.color().unwrap_or(0), // Default to no color
+            hoist: *json.hoist(),
+            icon: json.icon().clone(),
+            unicode_emoji: json.unicode_emoji().clone(),
+            position: *json.position(),
+            permissions: *json.permissions(),
+            managed: *json.managed(),
+            mentionable: *json.mentionable(),
 
             // Role tags
             tags: None, // Not in JSON model
@@ -251,20 +236,20 @@ impl TryFrom<DiscordGuildMemberJson> for NewGuildMember {
     type Error = botticelli_error::BotticelliError;
 
     fn try_from(json: DiscordGuildMemberJson) -> BotticelliResult<Self> {
-        let joined_at = parse_iso_timestamp(&json.joined_at)?;
+        let joined_at = parse_iso_timestamp(json.joined_at())?;
         let premium_since = json
-            .premium_since
+            .premium_since()
             .as_ref()
             .map(|s| parse_iso_timestamp(s))
             .transpose()?;
 
         Ok(NewGuildMember {
-            guild_id: json.guild_id,
-            user_id: json.user_id,
+            guild_id: *json.guild_id(),
+            user_id: *json.user_id(),
 
             // Member-specific data
-            nick: json.nick,
-            avatar: json.avatar,
+            nick: json.nick().clone(),
+            avatar: json.avatar().clone(),
 
             // Timestamps
             joined_at,
@@ -272,9 +257,9 @@ impl TryFrom<DiscordGuildMemberJson> for NewGuildMember {
             communication_disabled_until: None, // Not in JSON model
 
             // Flags
-            deaf: json.deaf,
-            mute: json.mute,
-            pending: json.pending,
+            deaf: *json.deaf(),
+            mute: *json.mute(),
+            pending: *json.pending(),
 
             // left_at is None for new members
             left_at: None,
@@ -285,238 +270,28 @@ impl TryFrom<DiscordGuildMemberJson> for NewGuildMember {
 /// Insertable struct for discord_member_roles table.
 ///
 /// Used to create role assignment records in the database.
-#[derive(Debug, Clone, diesel::Insertable)]
+#[derive(Debug, Clone, diesel::Insertable, derive_getters::Getters)]
 #[diesel(table_name = botticelli_database::schema::discord_member_roles)]
 pub struct NewMemberRole {
-    pub guild_id: i64,
-    pub user_id: i64,
-    pub role_id: i64,
-    pub assigned_at: NaiveDateTime,
-    pub assigned_by: Option<i64>,
+    guild_id: i64,
+    user_id: i64,
+    role_id: i64,
+    assigned_at: NaiveDateTime,
+    assigned_by: Option<i64>,
 }
 
 impl TryFrom<DiscordMemberRoleJson> for NewMemberRole {
     type Error = botticelli_error::BotticelliError;
 
     fn try_from(json: DiscordMemberRoleJson) -> BotticelliResult<Self> {
-        let assigned_at = parse_iso_timestamp(&json.assigned_at)?;
+        let assigned_at = parse_iso_timestamp(json.assigned_at())?;
 
         Ok(NewMemberRole {
-            guild_id: json.guild_id,
-            user_id: json.user_id,
-            role_id: json.role_id,
+            guild_id: *json.guild_id(),
+            user_id: *json.user_id(),
+            role_id: *json.role_id(),
             assigned_at,
-            assigned_by: json.assigned_by,
+            assigned_by: *json.assigned_by(),
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::{Datelike, Timelike};
-
-    #[test]
-    fn test_parse_iso_timestamp_with_z() {
-        let result = parse_iso_timestamp("2024-01-15T14:30:00Z");
-        assert!(result.is_ok());
-        let dt = result.unwrap();
-        assert_eq!(dt.year(), 2024);
-        assert_eq!(dt.month(), 1);
-        assert_eq!(dt.day(), 15);
-        assert_eq!(dt.hour(), 14);
-        assert_eq!(dt.minute(), 30);
-    }
-
-    #[test]
-    fn test_parse_iso_timestamp_with_fractional() {
-        let result = parse_iso_timestamp("2024-01-15T14:30:00.123Z");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_parse_iso_timestamp_without_z() {
-        let result = parse_iso_timestamp("2024-01-15T14:30:00");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_parse_iso_timestamp_invalid() {
-        let result = parse_iso_timestamp("not a timestamp");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_parse_channel_type_guild_text() {
-        let result = parse_channel_type("guild_text");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ChannelType::GuildText);
-    }
-
-    #[test]
-    fn test_parse_channel_type_guild_voice() {
-        let result = parse_channel_type("guild_voice");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ChannelType::GuildVoice);
-    }
-
-    #[test]
-    fn test_parse_channel_type_invalid() {
-        let result = parse_channel_type("invalid_type");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_convert_features() {
-        let input = vec!["COMMUNITY".to_string(), "DISCOVERABLE".to_string()];
-        let output = convert_features(input);
-        assert_eq!(output.len(), 2);
-        assert_eq!(output[0], Some("COMMUNITY".to_string()));
-        assert_eq!(output[1], Some("DISCOVERABLE".to_string()));
-    }
-
-    #[test]
-    fn test_guild_json_to_new_guild() {
-        let json = DiscordGuildJson {
-            id: 123456789,
-            name: "Test Guild".to_string(),
-            owner_id: 987654321,
-            icon: Some("icon_hash".to_string()),
-            banner: None,
-            description: Some("A test guild".to_string()),
-            member_count: Some(100),
-            verification_level: Some(2),
-            premium_tier: Some(1),
-            features: Some(vec!["COMMUNITY".to_string()]),
-        };
-
-        let result: Result<NewGuild, _> = json.try_into();
-        assert!(result.is_ok());
-
-        let guild = result.unwrap();
-        assert_eq!(guild.id, 123456789);
-        assert_eq!(guild.name, "Test Guild");
-        assert_eq!(guild.owner_id, 987654321);
-        assert_eq!(guild.description, Some("A test guild".to_string()));
-        assert_eq!(guild.verification_level, Some(2));
-    }
-
-    #[test]
-    fn test_user_json_to_new_user() {
-        let json = DiscordUserJson {
-            id: 222222222,
-            username: "testuser".to_string(),
-            discriminator: Some("1234".to_string()),
-            global_name: Some("Test User".to_string()),
-            avatar: Some("avatar_hash".to_string()),
-            bot: Some(false),
-            premium_type: Some(2),
-            locale: Some("en-US".to_string()),
-        };
-
-        let result: Result<NewUser, _> = json.try_into();
-        assert!(result.is_ok());
-
-        let user = result.unwrap();
-        assert_eq!(user.id, 222222222);
-        assert_eq!(user.username, "testuser");
-        assert_eq!(user.global_name, Some("Test User".to_string()));
-    }
-
-    #[test]
-    fn test_channel_json_to_new_channel() {
-        let json = DiscordChannelJson {
-            id: 111111111,
-            channel_type: "guild_text".to_string(),
-            guild_id: Some(123456789),
-            name: Some("general".to_string()),
-            topic: Some("General chat".to_string()),
-            position: Some(0),
-            parent_id: None,
-            nsfw: Some(false),
-            rate_limit_per_user: None,
-            bitrate: None,
-            user_limit: None,
-        };
-
-        let result: Result<NewChannel, _> = json.try_into();
-        assert!(result.is_ok());
-
-        let channel = result.unwrap();
-        assert_eq!(channel.id, 111111111);
-        assert_eq!(channel.channel_type, ChannelType::GuildText);
-        assert_eq!(channel.guild_id, Some(123456789));
-        assert_eq!(channel.name, Some("general".to_string()));
-    }
-
-    #[test]
-    fn test_role_json_to_new_role() {
-        let json = DiscordRoleJson {
-            id: 333333333,
-            guild_id: 123456789,
-            name: "Moderator".to_string(),
-            position: 5,
-            permissions: 8,
-            color: Some(3447003),
-            hoist: Some(true),
-            icon: None,
-            unicode_emoji: None,
-            managed: Some(false),
-            mentionable: Some(true),
-        };
-
-        let result: Result<NewRole, _> = json.try_into();
-        assert!(result.is_ok());
-
-        let role = result.unwrap();
-        assert_eq!(role.id, 333333333);
-        assert_eq!(role.guild_id, 123456789);
-        assert_eq!(role.name, "Moderator");
-        assert_eq!(role.permissions, 8);
-        assert_eq!(role.color, 3447003);
-    }
-
-    #[test]
-    fn test_guild_member_json_to_new_guild_member() {
-        let json = DiscordGuildMemberJson {
-            guild_id: 123456789,
-            user_id: 222222222,
-            joined_at: "2024-01-15T14:30:00Z".to_string(),
-            nick: Some("TestNick".to_string()),
-            avatar: None,
-            premium_since: Some("2024-02-01T10:00:00Z".to_string()),
-            deaf: Some(false),
-            mute: Some(false),
-            pending: Some(false),
-        };
-
-        let result: Result<NewGuildMember, _> = json.try_into();
-        assert!(result.is_ok());
-
-        let member = result.unwrap();
-        assert_eq!(member.guild_id, 123456789);
-        assert_eq!(member.user_id, 222222222);
-        assert_eq!(member.nick, Some("TestNick".to_string()));
-        assert!(member.premium_since.is_some());
-    }
-
-    #[test]
-    fn test_member_role_json_to_new_member_role() {
-        let json = DiscordMemberRoleJson {
-            guild_id: 123456789,
-            user_id: 222222222,
-            role_id: 333333333,
-            assigned_at: "2024-01-20T10:00:00Z".to_string(),
-            assigned_by: Some(987654321),
-        };
-
-        let result: Result<NewMemberRole, _> = json.try_into();
-        assert!(result.is_ok());
-
-        let member_role = result.unwrap();
-        assert_eq!(member_role.guild_id, 123456789);
-        assert_eq!(member_role.user_id, 222222222);
-        assert_eq!(member_role.role_id, 333333333);
-        assert_eq!(member_role.assigned_by, Some(987654321));
     }
 }

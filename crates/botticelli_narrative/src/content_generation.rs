@@ -4,19 +4,34 @@
 //! content into custom tables based on Discord schema templates, OR infers
 //! schema automatically from JSON responses when no template is provided.
 
-use crate::{ActProcessor, ProcessorContext, extraction::extract_json, extraction::parse_json};
-use async_trait::async_trait;
-use botticelli_database::{
-    ContentGenerationRepository, NewContentGenerationRow, PostgresContentGenerationRepository,
-    UpdateContentGenerationRow,
-    schema_inference::{create_inferred_table, infer_schema},
-    schema_reflection::{create_content_table, reflect_table_schema},
+use crate::{
+    ActProcessor, ProcessorContext, StorageMessage, extraction::extract_json,
+    extraction::parse_json,
 };
+use async_trait::async_trait;
 use botticelli_error::BotticelliResult;
-use chrono::Utc;
-use diesel::prelude::*;
+use ractor::{ActorRef, MessagingErr, rpc::CallResult};
 use serde_json::Value as JsonValue;
-use std::sync::{Arc, Mutex};
+
+/// Helper to unwrap Ractor's CallResult into a standard Result
+fn unwrap_call_result<T>(
+    result: Result<CallResult<BotticelliResult<T>>, MessagingErr<StorageMessage>>,
+) -> BotticelliResult<T> {
+    match result {
+        Ok(CallResult::Success(inner)) => inner,
+        Ok(CallResult::Timeout) => {
+            Err(botticelli_error::BackendError::new("Storage actor call timed out").into())
+        }
+        Ok(CallResult::SenderError) => {
+            Err(botticelli_error::BackendError::new("Storage actor sender error").into())
+        }
+        Err(e) => Err(botticelli_error::BackendError::new(format!(
+            "Failed to send message to storage actor: {}",
+            e
+        ))
+        .into()),
+    }
+}
 
 /// Content generation processing mode
 #[derive(Debug, Clone, PartialEq)]
@@ -36,98 +51,48 @@ enum ProcessingMode {
 /// 4. Inserts generated content with metadata columns
 /// 5. Updates tracking record with success/failure
 pub struct ContentGenerationProcessor {
-    /// Database connection wrapped in Arc<Mutex> for thread safety
-    connection: Arc<Mutex<PgConnection>>,
+    /// Storage actor reference for asynchronous database operations
+    storage_actor: ActorRef<StorageMessage>,
 }
 
 impl ContentGenerationProcessor {
-    /// Create a new content generation processor.
+    /// Create a new content generation processor with storage actor.
     ///
     /// # Arguments
     ///
-    /// * `connection` - Database connection for table creation and inserts
-    pub fn new(connection: Arc<Mutex<PgConnection>>) -> Self {
-        Self { connection }
-    }
-
-    /// Insert generated content into the target table with metadata.
-    fn insert_content(
-        &self,
-        table_name: &str,
-        json_data: &JsonValue,
-        narrative_name: &str,
-        act_name: &str,
-        model: Option<&str>,
-    ) -> BotticelliResult<()> {
-        let mut conn = self.connection.lock().map_err(|e| {
-            botticelli_error::BackendError::new(format!("Failed to lock connection: {}", e))
-        })?;
-
-        // Query schema to get column types
-        let schema = reflect_table_schema(&mut conn, table_name)?;
-        let column_types: std::collections::HashMap<_, _> = schema
-            .columns
-            .iter()
-            .map(|col| (col.name.as_str(), col.data_type.as_str()))
-            .collect();
-
-        // Build INSERT statement dynamically
-        // Extract fields from JSON and add metadata columns
-        let obj = json_data
-            .as_object()
-            .ok_or_else(|| botticelli_error::BackendError::new("JSON must be an object"))?;
-
-        let mut columns = Vec::new();
-        let mut values = Vec::new();
-
-        // Add content fields from JSON
-        for (key, value) in obj {
-            columns.push(key.clone());
-            let col_type = column_types.get(key.as_str()).copied().unwrap_or("text");
-            values.push(json_value_to_sql(value, col_type));
-        }
-
-        // Add metadata columns
-        columns.push("source_narrative".to_string());
-        values.push(format!("'{}'", narrative_name));
-
-        columns.push("source_act".to_string());
-        values.push(format!("'{}'", act_name));
-
-        if let Some(m) = model {
-            columns.push("generation_model".to_string());
-            values.push(format!("'{}'", m));
-        }
-
-        let insert_sql = format!(
-            "INSERT INTO {} ({}) VALUES ({})",
-            table_name,
-            columns.join(", "),
-            values.join(", ")
-        );
-
-        tracing::debug!(sql = %insert_sql, "Inserting generated content");
-
-        diesel::sql_query(&insert_sql)
-            .execute(&mut *conn)
-            .map_err(|e| {
-                botticelli_error::BackendError::new(format!("Failed to insert content: {}", e))
-            })?;
-
-        Ok(())
+    /// * `storage_actor` - Reference to the storage actor for database operations
+    pub fn new(storage_actor: ActorRef<StorageMessage>) -> Self {
+        Self { storage_actor }
     }
 }
 
 #[async_trait]
 impl ActProcessor for ContentGenerationProcessor {
     async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
-        let table_name = &context.narrative_metadata.name;
+        // Check if we should extract output for this act
+        if !context.should_extract_output {
+            tracing::debug!(
+                act = %context.execution.act_name,
+                "Skipping output extraction (extract_output=false or not last act)"
+            );
+            return Ok(());
+        }
 
         // Determine processing mode: Template or Inference
-        let processing_mode = if let Some(template) = &context.narrative_metadata.template {
+        let processing_mode = if let Some(template) = &context.narrative_metadata.template() {
             ProcessingMode::Template(template.clone())
         } else {
             ProcessingMode::Inference
+        };
+
+        // Use target if specified, otherwise template name or narrative name
+        let table_name = if let Some(target) = context.narrative_metadata.target() {
+            target.to_string()
+        } else {
+            match &processing_mode {
+                ProcessingMode::Template(template) => template.clone(),
+                ProcessingMode::Inference => context.narrative_metadata.name().to_string(),
+            }
         };
 
         tracing::info!(
@@ -139,36 +104,22 @@ impl ActProcessor for ContentGenerationProcessor {
 
         let start_time = std::time::Instant::now();
 
-        // Track generation start
-        {
-            let mut conn = self.connection.lock().map_err(|e| {
-                botticelli_error::BackendError::new(format!("Failed to lock connection: {}", e))
-            })?;
-
-            let mut repo = PostgresContentGenerationRepository::new(&mut conn);
-
-            // Try to start tracking (ignore unique constraint violations if already exists)
-            let new_gen = NewContentGenerationRow {
-                table_name: table_name.clone(),
-                narrative_file: format!("{} (from processor)", context.narrative_name),
-                narrative_name: context.narrative_name.to_string(),
-                status: "running".to_string(),
-                created_by: None,
-            };
-
-            if let Err(e) = repo.start_generation(new_gen) {
-                tracing::debug!(
-                    error = %e,
-                    table = %table_name,
-                    "Could not start tracking (may already exist, continuing)"
-                );
-            } else {
-                tracing::info!(table = %table_name, "Started tracking content generation");
-            }
-        }
+        // Track generation start (fire and forget - don't block on tracking failures)
+        let _ = self
+            .storage_actor
+            .call(
+                |reply| StorageMessage::StartGeneration {
+                    table_name: table_name.clone(),
+                    narrative_file: format!("{} (from processor)", context.narrative_name),
+                    narrative_name: context.narrative_name.to_string(),
+                    reply,
+                },
+                None,
+            )
+            .await;
 
         // Execute content generation
-        let generation_result: Result<usize, botticelli_error::BotticelliError> = (|| {
+        let generation_result: Result<usize, botticelli_error::BotticelliError> = async {
             // Extract JSON from response first (needed for both modes)
             let json_str = extract_json(&context.execution.response)?;
 
@@ -184,46 +135,50 @@ impl ActProcessor for ContentGenerationProcessor {
             };
 
             // Create table based on processing mode
-            {
-                let mut conn = self.connection.lock().map_err(|e| {
-                    botticelli_error::BackendError::new(format!("Failed to lock connection: {}", e))
-                })?;
-
-                match &processing_mode {
-                    ProcessingMode::Template(template) => {
-                        tracing::debug!(template = %template, "Creating table from template");
-
-                        create_content_table(
-                            &mut conn,
-                            table_name,
-                            template,
-                            Some(context.narrative_name),
-                            Some(&context.narrative_metadata.description),
-                        )?;
-                    }
-                    ProcessingMode::Inference => {
-                        tracing::debug!("Inferring schema from JSON response");
-
-                        // Infer schema from parsed JSON
-                        let schema = infer_schema(&parsed_json)?;
-
-                        tracing::info!(
-                            field_count = schema.field_count(),
-                            "Inferred schema from JSON"
-                        );
-
-                        create_inferred_table(
-                            &mut conn,
-                            table_name,
-                            &schema,
-                            Some(context.narrative_name),
-                            Some(&context.narrative_metadata.description),
-                        )?;
-                    }
+            match &processing_mode {
+                ProcessingMode::Template(template) => {
+                    unwrap_call_result(
+                        self.storage_actor
+                            .call(
+                                |reply| StorageMessage::CreateTableFromTemplate {
+                                    table_name: table_name.clone(),
+                                    template: template.clone(),
+                                    narrative_name: Some(context.narrative_name.to_string()),
+                                    description: Some(
+                                        context.narrative_metadata.description().to_string(),
+                                    ),
+                                    reply,
+                                },
+                                None,
+                            )
+                            .await,
+                    )?;
+                }
+                ProcessingMode::Inference => {
+                    unwrap_call_result(
+                        self.storage_actor
+                            .call(
+                                |reply| StorageMessage::CreateTableFromInference {
+                                    table_name: table_name.clone(),
+                                    json_sample: parsed_json.clone(),
+                                    narrative_name: Some(context.narrative_name.to_string()),
+                                    description: Some(
+                                        context.narrative_metadata.description().to_string(),
+                                    ),
+                                    reply,
+                                },
+                                None,
+                            )
+                            .await,
+                    )?;
                 }
             }
 
-            tracing::info!(count = items.len(), "Parsed JSON items for insertion");
+            tracing::info!(
+                count = items.len(),
+                table = %table_name,
+                "Parsed JSON items for insertion"
+            );
 
             // Insert each item
             for (idx, item) in items.iter().enumerate() {
@@ -233,79 +188,50 @@ impl ActProcessor for ContentGenerationProcessor {
                     "Inserting content item"
                 );
 
-                self.insert_content(
-                    table_name,
-                    item,
-                    context.narrative_name,
-                    &context.execution.act_name,
-                    context.execution.model.as_deref(),
+                unwrap_call_result(
+                    self.storage_actor
+                        .call(
+                            |reply| StorageMessage::InsertContent {
+                                table_name: table_name.clone(),
+                                json_data: item.clone(),
+                                narrative_name: context.narrative_name.to_string(),
+                                act_name: context.execution.act_name.clone(),
+                                model: context.execution.model.clone(),
+                                reply,
+                            },
+                            None,
+                        )
+                        .await,
                 )?;
             }
 
             Ok(items.len())
-        })();
+        }
+        .await;
 
         // Update tracking record with result
         let duration_ms = start_time.elapsed().as_millis() as i32;
 
-        {
-            let mut conn = self.connection.lock().map_err(|e| {
-                botticelli_error::BackendError::new(format!("Failed to lock connection: {}", e))
-            })?;
+        let (row_count, status, error_message) = match &generation_result {
+            Ok(count) => (Some(*count as i32), "success".to_string(), None),
+            Err(e) => (None, "failed".to_string(), Some(e.to_string())),
+        };
 
-            let mut repo = PostgresContentGenerationRepository::new(&mut conn);
-
-            match generation_result {
-                Ok(row_count) => {
-                    let update = UpdateContentGenerationRow {
-                        completed_at: Some(Utc::now()),
-                        row_count: Some(row_count as i32),
-                        generation_duration_ms: Some(duration_ms),
-                        status: Some("success".to_string()),
-                        error_message: None,
-                    };
-
-                    if let Err(e) = repo.complete_generation(table_name, update) {
-                        tracing::warn!(
-                            error = %e,
-                            table = %table_name,
-                            "Failed to update tracking record"
-                        );
-                    } else {
-                        tracing::info!(
-                            table = %table_name,
-                            row_count,
-                            duration_ms,
-                            "Updated tracking: generation successful"
-                        );
-                    }
-                }
-                Err(ref e) => {
-                    let update = UpdateContentGenerationRow {
-                        completed_at: Some(Utc::now()),
-                        row_count: None,
-                        generation_duration_ms: Some(duration_ms),
-                        status: Some("failed".to_string()),
-                        error_message: Some(e.to_string()),
-                    };
-
-                    if let Err(update_err) = repo.complete_generation(table_name, update) {
-                        tracing::warn!(
-                            error = %update_err,
-                            table = %table_name,
-                            "Failed to update tracking record with failure"
-                        );
-                    } else {
-                        tracing::info!(
-                            table = %table_name,
-                            error = %e,
-                            duration_ms,
-                            "Updated tracking: generation failed"
-                        );
-                    }
-                }
-            }
-        }
+        // Fire and forget - don't block on tracking update
+        let _ = self
+            .storage_actor
+            .call(
+                |reply| StorageMessage::CompleteGeneration {
+                    table_name: table_name.clone(),
+                    row_count,
+                    duration_ms,
+                    status,
+                    error_message,
+                    reply,
+                },
+                None,
+            )
+            .await;
 
         // Return the original result
         generation_result.map(|row_count| {
@@ -320,56 +246,35 @@ impl ActProcessor for ContentGenerationProcessor {
 
     fn should_process(&self, context: &ProcessorContext<'_>) -> bool {
         // Don't process if user explicitly opted out
-        if context.narrative_metadata.skip_content_generation {
+        if *context.narrative_metadata.skip_content_generation() {
+            tracing::debug!(
+                act = %context.execution.act_name,
+                "Skipping content generation (skip_content_generation = true)"
+            );
             return false;
         }
 
-        // Otherwise, process (with template OR inference mode)
+        // Only process the last act by default (Phase 1 of JSON extraction strategy)
+        if !context.is_last_act {
+            tracing::debug!(
+                act = %context.execution.act_name,
+                "Skipping content generation (not the last act)"
+            );
+            return false;
+        }
+
+        tracing::debug!(
+            act = %context.execution.act_name,
+            template = ?context.narrative_metadata.template(),
+            target = ?context.narrative_metadata.target(),
+            "Content generation processor will process this act (last act)"
+        );
+
+        // Process the last act (with template OR inference mode)
         true
     }
 
     fn name(&self) -> &str {
         "ContentGenerationProcessor"
-    }
-}
-
-/// Convert a JSON value to SQL literal format.
-#[cfg(feature = "database")]
-/// Convert a JSON value to SQL literal with proper type casting.
-///
-/// Handles type conversions based on PostgreSQL column type:
-/// - text[] (PostgreSQL arrays) from JSON arrays
-/// - jsonb from JSON objects or arrays (when column is jsonb)
-/// - Primitives (string, number, bool, null)
-fn json_value_to_sql(value: &JsonValue, col_type: &str) -> String {
-    match value {
-        JsonValue::Null => "NULL".to_string(),
-        JsonValue::Bool(b) => b.to_string(),
-        JsonValue::Number(n) => n.to_string(),
-        JsonValue::String(s) => format!("'{}'", s.replace('\'', "''")), // SQL escape
-        JsonValue::Array(arr) => {
-            // Check if target column is a PostgreSQL array type
-            if col_type == "ARRAY" || col_type.contains("[]") {
-                // Format as PostgreSQL array literal: ARRAY['val1', 'val2']
-                let elements: Vec<String> = arr
-                    .iter()
-                    .map(|v| match v {
-                        JsonValue::String(s) => format!("'{}'", s.replace('\'', "''")),
-                        JsonValue::Number(n) => n.to_string(),
-                        JsonValue::Bool(b) => b.to_string(),
-                        JsonValue::Null => "NULL".to_string(),
-                        _ => format!("'{}'", v.to_string().replace('\'', "''")),
-                    })
-                    .collect();
-                format!("ARRAY[{}]", elements.join(", "))
-            } else {
-                // Store as JSONB
-                format!("'{}'::jsonb", value.to_string().replace('\'', "''"))
-            }
-        }
-        JsonValue::Object(_) => {
-            // Objects always stored as JSONB
-            format!("'{}'::jsonb", value.to_string().replace('\'', "''"))
-        }
     }
 }

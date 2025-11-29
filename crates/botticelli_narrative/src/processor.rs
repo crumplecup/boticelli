@@ -22,6 +22,13 @@ pub struct ProcessorContext<'a> {
 
     /// Full narrative name for tracking
     pub narrative_name: &'a str,
+
+    /// Whether this is the last act in the narrative
+    pub is_last_act: bool,
+
+    /// Whether to extract and store output from this act
+    /// (determined by act config or defaults to last act only)
+    pub should_extract_output: bool,
 }
 
 /// Trait for processing act execution results with narrative context.
@@ -150,10 +157,27 @@ impl ProcessorRegistry {
     /// all processor errors concatenated together.
     #[tracing::instrument(skip(self, context), fields(act = %context.execution.act_name, processor_count = self.processors.len()))]
     pub async fn process(&self, context: &ProcessorContext<'_>) -> BotticelliResult<()> {
+        tracing::debug!(
+            act = %context.execution.act_name,
+            processor_count = self.processors.len(),
+            "ProcessorRegistry: Starting processor execution"
+        );
+
         let mut errors = Vec::new();
 
         for processor in &self.processors {
+            tracing::debug!(
+                processor = processor.name(),
+                act = %context.execution.act_name,
+                "Checking if processor should process"
+            );
             if processor.should_process(context) {
+                tracing::info!(
+                    processor = processor.name(),
+                    act = %context.execution.act_name,
+                    "Processor will process this act"
+                );
+
                 if let Err(e) = processor.process(context).await {
                     tracing::warn!(
                         processor = processor.name(),
@@ -259,16 +283,13 @@ mod tests {
             execution,
             narrative_metadata: metadata,
             narrative_name,
+            is_last_act: true,           // Default to true for tests
+            should_extract_output: true, // Extract output for last act
         }
     }
 
     fn create_test_metadata(name: &str) -> NarrativeMetadata {
-        NarrativeMetadata {
-            name: name.to_string(),
-            description: "Test narrative".to_string(),
-            template: None,
-            skip_content_generation: false,
-        }
+        NarrativeMetadata::new_test(name)
     }
 
     #[tokio::test]

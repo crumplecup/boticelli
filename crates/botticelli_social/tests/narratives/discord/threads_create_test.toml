@@ -1,0 +1,20 @@
+[narrative]
+name = "threads_create_test"
+description = "Test creating a thread"
+skip_content_generation = true
+
+[toc]
+order = ["create_test_thread"]
+
+[acts.create_test_thread]
+
+[[acts.create_test_thread.input]]
+type = "bot_command"
+platform = "discord"
+command = "threads.create"
+required = true
+
+[acts.create_test_thread.input.args]
+channel_id = "${TEST_CHANNEL_ID}"
+name = "Test Thread"
+auto_archive_duration = 60

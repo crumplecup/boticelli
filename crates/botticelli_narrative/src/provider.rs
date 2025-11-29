@@ -3,7 +3,7 @@
 //! This module defines the `NarrativeProvider` trait, which decouples the
 //! narrative executor from specific configuration formats (TOML, YAML, JSON, etc.).
 
-use crate::NarrativeMetadata;
+use crate::{CarouselConfig, NarrativeMetadata};
 use botticelli_core::Input;
 use serde::{Deserialize, Serialize};
 
@@ -11,14 +11,30 @@ use serde::{Deserialize, Serialize};
 ///
 /// This structure allows fine-grained control over each act's behavior,
 /// including multimodal inputs and per-act model/parameter overrides.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// Acts can either:
+/// - Have direct inputs (traditional act execution)
+/// - Reference another narrative (narrative composition)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, derive_getters::Getters)]
 pub struct ActConfig {
     /// Multimodal inputs for this act.
     ///
     /// Can include text, images, audio, video, documents, or any combination.
     /// Most acts will have a single `Input::Text`, but multimodal acts can
     /// combine multiple input types.
-    pub inputs: Vec<Input>,
+    ///
+    /// Mutually exclusive with `narrative_ref`.
+    #[serde(default)]
+    inputs: Vec<Input>,
+
+    /// Reference to another narrative to execute as this act.
+    ///
+    /// When set, this act will execute the referenced narrative and use its
+    /// output as the act's result. Enables narrative composition.
+    ///
+    /// Mutually exclusive with `inputs`.
+    #[serde(default)]
+    narrative_ref: Option<String>,
 
     /// Optional model override for this specific act.
     ///
@@ -26,20 +42,72 @@ pub struct ActConfig {
     /// executor's default. Enables per-act model selection.
     ///
     /// Example: `Some("gpt-4".to_string())` or `Some("claude-3-opus-20240229".to_string())`
-    pub model: Option<String>,
+    model: Option<String>,
 
     /// Optional temperature override for this act.
     ///
     /// Controls randomness/creativity. Typical range: 0.0 (deterministic) to 1.0 (creative).
-    pub temperature: Option<f32>,
+    temperature: Option<f32>,
 
     /// Optional max_tokens override for this act.
     ///
     /// Limits the length of the generated response.
-    pub max_tokens: Option<u32>,
+    max_tokens: Option<u32>,
+
+    /// Optional carousel configuration for repeated execution.
+    ///
+    /// If `Some`, this act will be executed multiple times according to the
+    /// carousel configuration, with rate limit budgeting applied.
+    carousel: Option<CarouselConfig>,
+
+    /// Whether to extract and store JSON output from this act's response.
+    ///
+    /// If `None`, defaults to true only for the last act in the narrative.
+    /// Set to `true` to force extraction for intermediate acts.
+    /// Set to `false` to skip extraction even for the last act.
+    #[serde(default)]
+    extract_output: Option<bool>,
 }
 
 impl ActConfig {
+    /// Create a new act configuration with all fields.
+    pub fn new(
+        inputs: Vec<Input>,
+        model: Option<String>,
+        temperature: Option<f32>,
+        max_tokens: Option<u32>,
+        carousel: Option<CarouselConfig>,
+        extract_output: Option<bool>,
+    ) -> Self {
+        Self {
+            inputs,
+            narrative_ref: None,
+            model,
+            temperature,
+            max_tokens,
+            carousel,
+            extract_output,
+        }
+    }
+
+    /// Create an act that references another narrative.
+    pub fn from_narrative_ref<S: Into<String>>(
+        narrative_name: S,
+        model: Option<String>,
+        temperature: Option<f32>,
+        max_tokens: Option<u32>,
+    ) -> Self {
+        Self {
+            inputs: Vec::new(),
+            narrative_ref: Some(narrative_name.into()),
+            model,
+            temperature,
+            max_tokens,
+            carousel: None,
+            extract_output: None,
+        }
+    }
+
     /// Create a simple text-only act configuration.
     ///
     /// Convenience constructor for the common case of a single text prompt
@@ -47,19 +115,30 @@ impl ActConfig {
     pub fn from_text<S: Into<String>>(text: S) -> Self {
         Self {
             inputs: vec![Input::Text(text.into())],
+            narrative_ref: None,
             model: None,
             temperature: None,
             max_tokens: None,
+            carousel: None,
+            extract_output: None,
         }
+    }
+
+    /// Check if this act is a narrative reference.
+    pub fn is_narrative_ref(&self) -> bool {
+        self.narrative_ref.is_some()
     }
 
     /// Create an act configuration with multimodal inputs.
     pub fn from_inputs(inputs: Vec<Input>) -> Self {
         Self {
             inputs,
+            narrative_ref: None,
             model: None,
             temperature: None,
             max_tokens: None,
+            carousel: None,
+            extract_output: None,
         }
     }
 
@@ -80,6 +159,18 @@ impl ActConfig {
         self.max_tokens = Some(max_tokens);
         self
     }
+
+    /// Builder method to set the carousel configuration.
+    pub fn with_carousel(mut self, carousel: CarouselConfig) -> Self {
+        self.carousel = Some(carousel);
+        self
+    }
+
+    /// Builder method to set the inputs.
+    pub fn with_inputs(mut self, inputs: Vec<Input>) -> Self {
+        self.inputs = inputs;
+        self
+    }
 }
 
 /// Provides access to narrative configuration data.
@@ -94,7 +185,7 @@ impl ActConfig {
 /// - Reduced coupling (config changes don't ripple through executor)
 /// - Multimodal support (acts can use text, images, audio, video, documents)
 /// - Per-act model selection (different acts can use different LLMs)
-pub trait NarrativeProvider {
+pub trait NarrativeProvider: Send + Sync {
     /// Name of the narrative for tracking and identification.
     fn name(&self) -> &str;
 
@@ -115,4 +206,35 @@ pub trait NarrativeProvider {
     /// - Optional model override
     /// - Optional temperature/max_tokens overrides
     fn get_act_config(&self, act_name: &str) -> Option<ActConfig>;
+
+    /// Resolve a referenced narrative by name for narrative composition.
+    ///
+    /// For multi-narrative files, this returns the referenced narrative.
+    /// For single-narrative files, this returns `None`.
+    ///
+    /// # Arguments
+    ///
+    /// * `narrative_name` - Name of the narrative to resolve
+    ///
+    /// # Returns
+    ///
+    /// Returns the referenced narrative if it exists, `None` otherwise.
+    fn resolve_narrative(&self, _narrative_name: &str) -> Option<&dyn NarrativeProvider> {
+        None // Default implementation for single narratives
+    }
+
+    /// Get the carousel configuration if present.
+    ///
+    /// Returns `None` if this narrative doesn't have carousel configuration.
+    fn carousel_config(&self) -> Option<&crate::CarouselConfig> {
+        None
+    }
+
+    /// Get the source file path for this narrative.
+    ///
+    /// Used to resolve relative paths in nested narratives.
+    /// Returns `None` if the narrative wasn't loaded from a file.
+    fn source_path(&self) -> Option<&std::path::Path> {
+        None
+    }
 }

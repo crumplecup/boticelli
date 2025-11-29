@@ -29,6 +29,46 @@ pub enum NarrativeErrorKind {
         /// Error message
         message: String,
     },
+    /// Bot command registry not configured
+    #[display("Bot command not configured: {}", _0)]
+    BotCommandNotConfigured(String),
+    /// Bot command execution failed
+    #[display("Bot command failed: {}", _0)]
+    BotCommandFailed(String),
+    /// Table query registry not configured
+    #[display("Table query not configured: {}", _0)]
+    TableQueryNotConfigured(String),
+    /// Table query execution failed
+    #[display("Table query failed: {}", _0)]
+    TableQueryFailed(String),
+    /// Serialization error
+    #[display("Serialization error: {}", _0)]
+    SerializationError(String),
+    /// Carousel budget exhausted
+    #[display(
+        "Carousel budget exhausted after {completed_iterations} of {max_iterations} iterations"
+    )]
+    CarouselBudgetExhausted {
+        /// Completed iterations
+        completed_iterations: u32,
+        /// Maximum iterations requested
+        max_iterations: u32,
+    },
+    /// Configuration error
+    #[display("Configuration error: {}", _0)]
+    ConfigurationError(String),
+    /// Template resolution error
+    #[display("Template error: {}", _0)]
+    TemplateError(String),
+    /// Nested narrative load failed
+    #[display("Nested narrative load failed: {}", _0)]
+    NestedNarrativeLoadFailed(String),
+    /// Nested narrative execution failed
+    #[display("Nested narrative execution failed: {}", _0)]
+    NestedNarrativeExecutionFailed(String),
+    /// State management error
+    #[display("State error: {}", _0)]
+    StateError(String),
 }
 
 /// Error type for narrative operations.

@@ -70,7 +70,7 @@ impl HeaderRateLimitDetector {
     #[instrument(skip(self, headers))]
     pub async fn detect_gemini(&self, headers: &HeaderMap) -> Option<TierConfig> {
         debug!("Detecting Gemini rate limits from headers");
-        
+
         // Parse rate limit headers
         let rpm = parse_header_u32(headers, "x-ratelimit-limit")?;
         debug!(rpm, "Detected RPM from x-ratelimit-limit header");
@@ -121,7 +121,7 @@ impl HeaderRateLimitDetector {
     #[instrument(skip(self, headers))]
     pub async fn detect_anthropic(&self, headers: &HeaderMap) -> Option<TierConfig> {
         debug!("Detecting Anthropic rate limits from headers");
-        
+
         let rpm = parse_header_u32(headers, "anthropic-ratelimit-requests-limit")?;
         let tpm = parse_header_u64(headers, "anthropic-ratelimit-tokens-limit")?;
         debug!(rpm, tpm, "Detected Anthropic rate limits");
@@ -170,7 +170,7 @@ impl HeaderRateLimitDetector {
     #[instrument(skip(self, headers))]
     pub async fn detect_openai(&self, headers: &HeaderMap) -> Option<TierConfig> {
         debug!("Detecting OpenAI rate limits from headers");
-        
+
         let rpm = parse_header_u32(headers, "x-ratelimit-limit-requests")?;
         let tpm = parse_header_u64(headers, "x-ratelimit-limit-tokens")?;
         debug!(rpm, tpm, "Detected OpenAI rate limits");
@@ -218,7 +218,10 @@ impl HeaderRateLimitDetector {
     #[instrument(skip(self))]
     pub async fn get_cached(&self) -> Option<TierConfig> {
         let cached = self.detected_limits.read().await.clone();
-        debug!(has_cached = cached.is_some(), "Retrieving cached rate limits");
+        debug!(
+            has_cached = cached.is_some(),
+            "Retrieving cached rate limits"
+        );
         cached
     }
 

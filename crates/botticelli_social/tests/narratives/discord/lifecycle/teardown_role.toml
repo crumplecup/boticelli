@@ -1,0 +1,15 @@
+# Teardown narrative: Delete the test role
+
+name = "teardown_test_role"
+skip_content_generation = true
+
+[[acts]]
+name = "delete_test_role"
+
+[[acts.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "roles.delete"
+required = false
+guild_id = "${TEST_GUILD_ID}"
+role_id = "${STATE:TEST_ROLE_ID}"

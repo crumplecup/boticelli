@@ -1,0 +1,32 @@
+[package]
+name = "botticelli_bot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+botticelli_core = { path = "../botticelli_core", version = "0.2.0" }
+botticelli_interface = { path = "../botticelli_interface", version = "0.2.0" }
+botticelli_narrative = { path = "../botticelli_narrative", version = "0.2.0" }
+botticelli_database = { path = "../botticelli_database", version = "0.2.0" }
+botticelli_social = { path = "../botticelli_social", version = "0.2.0" }
+botticelli_error = { path = "../botticelli_error", version = "0.2.0" }
+
+tokio = { version = "1.42", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+chrono = "0.4"
+rand = "0.8"
+diesel = { version = "2.2", features = ["postgres", "r2d2"] }
+parking_lot = "0.12.5"
+axum = "0.7"
+
+[dev-dependencies]
+tokio-test = "0.4"

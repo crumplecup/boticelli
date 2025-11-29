@@ -13,53 +13,54 @@ use diesel::prelude::*;
 #[diesel(table_name = botticelli_database::schema::discord_guild_members)]
 #[diesel(primary_key(guild_id, user_id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)] // Model fields used for database operations
 pub struct GuildMemberRow {
-    pub guild_id: i64,
-    pub user_id: i64,
+    guild_id: i64,
+    user_id: i64,
 
     // Member-specific data
-    pub nick: Option<String>,
-    pub avatar: Option<String>, // Guild-specific avatar
+    nick: Option<String>,
+    avatar: Option<String>, // Guild-specific avatar
 
     // Timestamps
-    pub joined_at: NaiveDateTime,
-    pub premium_since: Option<NaiveDateTime>, // Server boost date
-    pub communication_disabled_until: Option<NaiveDateTime>, // Timeout
+    joined_at: NaiveDateTime,
+    premium_since: Option<NaiveDateTime>, // Server boost date
+    communication_disabled_until: Option<NaiveDateTime>, // Timeout
 
     // Flags
-    pub deaf: Option<bool>,
-    pub mute: Option<bool>,
-    pub pending: Option<bool>, // Passed membership screening
+    deaf: Option<bool>,
+    mute: Option<bool>,
+    pending: Option<bool>, // Passed membership screening
 
     // Metadata
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-    pub left_at: Option<NaiveDateTime>,
+    created_at: NaiveDateTime,
+    updated_at: NaiveDateTime,
+    left_at: Option<NaiveDateTime>,
 }
 
 /// Insertable struct for discord_guild_members table.
 ///
 /// Used to create new guild member records in the database.
-#[derive(Debug, Clone, Insertable)]
+#[derive(Debug, Clone, Insertable, derive_getters::Getters)]
 #[diesel(table_name = botticelli_database::schema::discord_guild_members)]
 pub struct NewGuildMember {
-    pub guild_id: i64,
-    pub user_id: i64,
+    pub(crate) guild_id: i64,
+    pub(crate) user_id: i64,
 
     // Member-specific data
-    pub nick: Option<String>,
-    pub avatar: Option<String>,
+    pub(crate) nick: Option<String>,
+    pub(crate) avatar: Option<String>,
 
     // Timestamps
-    pub joined_at: NaiveDateTime,
-    pub premium_since: Option<NaiveDateTime>,
-    pub communication_disabled_until: Option<NaiveDateTime>,
+    pub(crate) joined_at: NaiveDateTime,
+    pub(crate) premium_since: Option<NaiveDateTime>,
+    pub(crate) communication_disabled_until: Option<NaiveDateTime>,
 
     // Flags
-    pub deaf: Option<bool>,
-    pub mute: Option<bool>,
-    pub pending: Option<bool>,
+    pub(crate) deaf: Option<bool>,
+    pub(crate) mute: Option<bool>,
+    pub(crate) pending: Option<bool>,
 
     // left_at is set when member leaves
-    pub left_at: Option<NaiveDateTime>,
+    pub(crate) left_at: Option<NaiveDateTime>,
 }

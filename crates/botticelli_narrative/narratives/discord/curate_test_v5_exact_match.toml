@@ -1,0 +1,39 @@
+# Curation Test V5: Exact match to generation_carousel style
+[narrative]
+name = "curate_v5"
+description = "Test matching generation_carousel format exactly"
+target = "approved_discord_posts"
+
+[toc]
+order = ["select"]
+
+[acts.select]
+model = "gemini-2.5-flash-lite"
+temperature = 0.8
+max_tokens = 600
+
+[[acts.select.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 10
+order_by = "generated_at DESC"
+
+[[acts.select.input]]
+type = "text"
+content = """
+Read the posts in the table above. Select the best one.
+
+Requirements:
+- Choose highest quality post
+- Consider engagement and clarity
+- Select exactly ONE post
+
+Output only the selected post as JSON:
+{
+  "text_content": "Your selected post here...",
+  "content_type": "discord_post",
+  "source": "curation_carousel",
+  "tags": ["approved", "curated"]
+}
+"""

@@ -1,0 +1,19 @@
+[narrative]
+name = "test_roles_get"
+description = "Test getting role details"
+skip_content_generation = true
+
+[toc]
+order = ["get_role"]
+
+[acts.get_role]
+
+[[acts.get_role.input]]
+type = "bot_command"
+platform = "discord"
+command = "roles.get"
+required = true
+
+[acts.get_role.input.args]
+guild_id = "${TEST_GUILD_ID}"
+role_id = "${TEST_ROLE_ID}"

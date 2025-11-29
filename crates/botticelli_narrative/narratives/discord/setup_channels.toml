@@ -1,0 +1,269 @@
+# Setup Discord Channels for Botticelli Community Server
+# This narrative creates all the channels outlined in the server plan
+#
+# REQUIREMENTS:
+# - Bot must have "Manage Channels" permission in the Discord server
+# - Grant this in Server Settings -> Roles -> Botticelli Bot -> Permissions
+
+[narrative]
+name = "setup_channels"
+description = "Create Discord channels for Botticelli community server"
+skip_content_generation = true
+
+[toc]
+order = [
+    "create_welcome_channels",
+    "create_documentation_channels", 
+    "create_discussion_channels",
+    "create_development_channels",
+    "create_showcase_channels",
+    "create_bot_channels"
+]
+
+# 🏠 Welcome & Information Channels
+[[acts.create_welcome_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_welcome_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "welcome"
+kind = "text"
+
+[[acts.create_welcome_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_welcome_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "rules"
+kind = "text"
+
+[[acts.create_welcome_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_welcome_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "announcements"
+kind = "text"
+
+[[acts.create_welcome_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_welcome_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "faq"
+kind = "text"
+
+# 📚 Documentation & Learning Channels
+[[acts.create_documentation_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_documentation_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "getting-started"
+kind = "text"
+
+[[acts.create_documentation_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_documentation_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "tutorials"
+kind = "text"
+
+[[acts.create_documentation_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_documentation_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "examples"
+kind = "text"
+
+[[acts.create_documentation_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_documentation_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "best-practices"
+kind = "text"
+
+# 💬 Discussion & Support Channels
+[[acts.create_discussion_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_discussion_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "general"
+kind = "text"
+
+[[acts.create_discussion_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_discussion_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "help"
+kind = "text"
+
+[[acts.create_discussion_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_discussion_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "feature-requests"
+kind = "text"
+
+[[acts.create_discussion_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_discussion_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "bug-reports"
+kind = "text"
+
+# 🔧 Development Channels
+[[acts.create_development_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_development_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "contributors"
+kind = "text"
+
+[[acts.create_development_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_development_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "pull-requests"
+kind = "text"
+
+[[acts.create_development_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_development_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "architecture"
+kind = "text"
+
+# 🎨 Showcase Channels
+[[acts.create_showcase_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_showcase_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "projects"
+kind = "text"
+
+[[acts.create_showcase_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_showcase_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "narratives"
+kind = "text"
+
+[[acts.create_showcase_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_showcase_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "generated-content"
+kind = "text"
+
+[[acts.create_showcase_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_showcase_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "integrations"
+kind = "text"
+
+# 🤖 Bot Interaction Channels
+[[acts.create_bot_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_bot_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "bot-commands"
+kind = "text"
+
+[[acts.create_bot_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_bot_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "narrative-requests"
+kind = "text"
+
+[[acts.create_bot_channels.input]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+
+[acts.create_bot_channels.input.args]
+guild_id = "${TEST_GUILD_ID}"
+name = "scheduled-content"
+kind = "text"

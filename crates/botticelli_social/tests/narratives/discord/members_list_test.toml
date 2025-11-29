@@ -1,0 +1,19 @@
+[narrative]
+name = "test_members_list"
+description = "Test listing guild members"
+skip_content_generation = true
+
+[toc]
+order = ["list_members"]
+
+[acts.list_members]
+
+[[acts.list_members.input]]
+type = "bot_command"
+platform = "discord"
+command = "members.list"
+required = true
+
+[acts.list_members.input.args]
+guild_id = "${TEST_GUILD_ID}"
+limit = "10"

@@ -4,20 +4,197 @@
 //! into our domain types (ActConfig, Input, etc.).
 
 use crate::ActConfig;
-use botticelli_core::{Input, MediaSource};
+use botticelli_core::{HistoryRetention, Input, MediaSource};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use tracing::{debug, error, instrument, warn};
 
-/// Intermediate structure for deserializing the [narrative] section.
+/// Recursively search for a file starting from a base directory.
+///
+/// Searches upward through parent directories until the file is found or root is reached.
+/// Then searches downward recursively from the highest found directory.
+///
+/// # Arguments
+///
+/// * `filename` - The filename to search for (without path, e.g., "BOTTICELLI_CONTEXT.md")
+/// * `start_dir` - Optional starting directory (defaults to current directory)
+/// * `context_path` - Optional context base path from configuration
+///
+/// # Returns
+///
+/// The full path to the file if found, or an error if not found.
+#[instrument(skip_all, fields(%filename))]
+fn find_file_recursive(
+    filename: &str,
+    start_dir: Option<&Path>,
+    context_path: Option<&str>,
+) -> Result<PathBuf, String> {
+    // Determine search start directory
+    let base_dir = if let Some(ctx_path) = context_path {
+        PathBuf::from(ctx_path)
+    } else if let Some(start) = start_dir {
+        start.to_path_buf()
+    } else {
+        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?
+    };
+
+    debug!(search_base = %base_dir.display(), "Starting file search");
+
+    // First try exact match in base directory
+    let direct_path = base_dir.join(filename);
+    if direct_path.exists() {
+        debug!(found = %direct_path.display(), "Found file directly");
+        return Ok(direct_path);
+    }
+
+    // Search upward to find project root or file
+    let mut current = base_dir.as_path();
+    let mut search_roots = vec![current.to_path_buf()];
+
+    while let Some(parent) = current.parent() {
+        let candidate = parent.join(filename);
+        if candidate.exists() {
+            debug!(found = %candidate.display(), "Found file in parent directory");
+            return Ok(candidate);
+        }
+
+        // Check for workspace markers (stop at project root)
+        if parent.join("Cargo.toml").exists() || parent.join(".git").exists() {
+            search_roots.push(parent.to_path_buf());
+            break;
+        }
+
+        search_roots.push(parent.to_path_buf());
+        current = parent;
+    }
+
+    // Search downward recursively from collected roots
+    for root in search_roots.iter().rev() {
+        if let Ok(found) = search_directory_recursive(root, filename) {
+            debug!(found = %found.display(), "Found file via recursive search");
+            return Ok(found);
+        }
+    }
+
+    error!("File not found after exhaustive search");
+    Err(format!(
+        "File '{}' not found in {} or any parent/child directories",
+        filename,
+        base_dir.display()
+    ))
+}
+
+/// Recursively search a directory tree for a file.
+fn search_directory_recursive(dir: &Path, filename: &str) -> Result<PathBuf, ()> {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+
+            // Check if this is the file we're looking for
+            if path.is_file() && path.file_name().and_then(|n| n.to_str()) == Some(filename) {
+                return Ok(path);
+            }
+
+            // Recurse into subdirectories (skip hidden dirs and common ignore patterns)
+            if path.is_dir()
+                && let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                && !dir_name.starts_with('.')
+                && dir_name != "target"
+                && dir_name != "node_modules"
+                && let Ok(found) = search_directory_recursive(&path, filename)
+            {
+                return Ok(found);
+            }
+        }
+    }
+
+    Err(())
+}
+
+/// Expand environment variables in string values within a HashMap.
+///
+/// Supports `${VAR_NAME}` and `$VAR_NAME` syntax.
+fn expand_env_vars(
+    args: &HashMap<String, serde_json::Value>,
+) -> HashMap<String, serde_json::Value> {
+    args.iter()
+        .map(|(k, v)| {
+            let expanded_value = match v {
+                serde_json::Value::String(s) => {
+                    match shellexpand::env(s) {
+                        Ok(expanded) => serde_json::Value::String(expanded.into_owned()),
+                        Err(_) => v.clone(), // Keep original if expansion fails
+                    }
+                }
+                _ => v.clone(),
+            };
+            (k.clone(), expanded_value)
+        })
+        .collect()
+}
+
+/// Intermediate structure for deserializing the [narrative] section (single narrative).
 #[derive(Debug, Clone, Deserialize)]
 pub struct TomlNarrative {
     pub name: String,
     pub description: String,
     /// Optional template table to use as schema source for content generation
     pub template: Option<String>,
+    /// Optional target table name for content generation (overrides narrative name)
+    pub target: Option<String>,
     /// Optional flag to skip content generation (both template and inference modes)
     #[serde(default)]
     pub skip_content_generation: bool,
+    /// Optional carousel configuration
+    #[serde(default)]
+    pub carousel: Option<crate::CarouselConfig>,
+    /// Optional default model for all acts
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Optional default temperature for all acts
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    /// Optional default max_tokens for all acts
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
+    /// Optional budget multipliers
+    #[serde(default)]
+    pub budget: Option<botticelli_core::BudgetConfig>,
+}
+
+/// Intermediate structure for deserializing individual [narratives.name] sections.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TomlNarrativeDefinition {
+    pub name: String,
+    pub description: String,
+    /// Optional template table to use as schema source for content generation
+    pub template: Option<String>,
+    /// Optional target table name for content generation (overrides narrative name)
+    pub target: Option<String>,
+    /// Optional flag to skip content generation
+    #[serde(default)]
+    pub skip_content_generation: bool,
+    /// Optional carousel configuration
+    #[serde(default)]
+    pub carousel: Option<crate::CarouselConfig>,
+    /// Optional default model
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Optional default temperature
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    /// Optional default max_tokens
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
+    /// Optional budget multipliers
+    #[serde(default)]
+    pub budget: Option<botticelli_core::BudgetConfig>,
+    /// Table of contents for this narrative
+    pub toc: TomlToc,
+    /// Optional narrative-specific acts (override shared acts)
+    #[serde(default)]
+    pub acts: HashMap<String, TomlAct>,
 }
 
 /// Intermediate structure for deserializing the [toc] section.
@@ -26,18 +203,73 @@ pub struct TomlToc {
     pub order: Vec<String>,
 }
 
+/// Bot command definition from [bots.name] section.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TomlBotDefinition {
+    pub platform: String,
+    pub command: String,
+    /// All other fields are flattened into args
+    #[serde(flatten)]
+    pub args: HashMap<String, serde_json::Value>,
+}
+
+/// Table query definition from [tables.name] section.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TomlTableDefinition {
+    pub table_name: String,
+    pub columns: Option<Vec<String>>,
+    #[serde(rename = "where")]
+    pub where_clause: Option<String>,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+    pub order_by: Option<String>,
+    pub format: Option<String>,
+    pub sample: Option<u32>,
+    pub pull_and_delete: Option<bool>,
+}
+
+/// Media source definition from [media.name] section.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TomlMediaDefinition {
+    pub url: Option<String>,
+    pub file: Option<String>,
+    pub base64: Option<String>,
+    pub mime: Option<String>,
+    pub filename: Option<String>,
+}
+
+/// Nested narrative reference from [narratives.name] section.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TomlNarrativeReference {
+    pub narrative: String,
+}
+
 /// Intermediate structure for deserializing acts.
 ///
-/// Acts can be either:
+/// Acts can be:
 /// - Simple strings: `act_name = "prompt text"`
+/// - Resource references: `act_name = "bots.name"` or `act_name = "media.name"`
+/// - Arrays: `act_name = ["bots.name", "media.name", "text"]`
 /// - Structured tables: `[acts.act_name]` with optional `[[acts.act_name.input]]`
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum TomlAct {
-    /// Simple text act: `act_name = "prompt"`
+    /// Simple text act or resource reference: `act_name = "prompt"` or `act_name = "bots.name"`
     Simple(String),
+    /// Array of references/inputs: `act_name = ["bots.name", "text"]`
+    Array(Vec<TomlActInput>),
     /// Structured act with configuration
     Structured(TomlActConfig),
+}
+
+/// Input in array syntax - either a reference or inline text.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum TomlActInput {
+    /// String reference to resource or plain text
+    String(String),
+    /// Inline structured input
+    Structured(Box<TomlInput>),
 }
 
 /// Structured act configuration from TOML.
@@ -47,6 +279,10 @@ pub struct TomlActConfig {
     #[serde(default)]
     pub input: Vec<TomlInput>,
 
+    /// Reference to another narrative to execute as this act
+    #[serde(default)]
+    pub narrative: Option<String>,
+
     /// Optional model override
     pub model: Option<String>,
 
@@ -55,6 +291,14 @@ pub struct TomlActConfig {
 
     /// Optional max_tokens override
     pub max_tokens: Option<u32>,
+
+    /// Optional carousel configuration for this act
+    #[serde(default)]
+    pub carousel: Option<crate::CarouselConfig>,
+
+    /// Whether to extract and store JSON output (default: only for last act in narrative)
+    #[serde(default)]
+    pub extract_output: Option<bool>,
 }
 
 /// TOML representation of an input.
@@ -63,9 +307,13 @@ pub struct TomlActConfig {
 /// Source is detected from which of url/base64/file is present.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TomlInput {
-    /// Input type: "text", "image", "audio", "video", "document"
+    /// Input type: "text", "image", "audio", "video", "document", "bot_command", "table"
     #[serde(rename = "type")]
-    pub input_type: String,
+    pub input_type: Option<String>,
+
+    /// Reference to a resource: "bots.name", "tables.name", "media.name"
+    #[serde(rename = "ref")]
+    pub reference: Option<String>,
 
     // Text input field
     pub content: Option<String>,
@@ -78,99 +326,722 @@ pub struct TomlInput {
 
     // Document-specific field
     pub filename: Option<String>,
+
+    // Bot command fields
+    pub platform: Option<String>,
+    pub command: Option<String>,
+    pub args: Option<HashMap<String, serde_json::Value>>,
+    pub required: Option<bool>,
+    pub cache_duration: Option<u64>,
+
+    // Table reference fields
+    pub table_name: Option<String>,
+    pub columns: Option<Vec<String>>,
+    #[serde(rename = "where")]
+    pub where_clause: Option<String>,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+    pub order_by: Option<String>,
+    pub format: Option<String>,
+    pub sample: Option<u32>,
+
+    // History retention field (applies to bot_command, table, narrative)
+    pub history_retention: Option<String>,
+
+    // Pull and delete flag for destructive reads (table only)
+    pub pull_and_delete: Option<bool>,
 }
 
-/// Root TOML structure.
+/// Root TOML structure supporting both single and multi-narrative files.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TomlNarrativeFile {
-    pub narrative: TomlNarrative,
-    pub toc: TomlToc,
+    /// Single narrative (backwards compatible)
+    #[serde(default)]
+    pub narrative: Option<TomlNarrative>,
+
+    /// TOC for single narrative (backwards compatible)
+    #[serde(default)]
+    pub toc: Option<TomlToc>,
+
+    /// Shared act definitions (available to all narratives)
+    #[serde(default)]
     pub acts: HashMap<String, TomlAct>,
+
+    /// Optional bot command definitions (shared)
+    #[serde(default)]
+    pub bots: HashMap<String, TomlBotDefinition>,
+
+    /// Optional table query definitions (shared)
+    #[serde(default)]
+    pub tables: HashMap<String, TomlTableDefinition>,
+
+    /// Optional media source definitions (shared)
+    #[serde(default)]
+    pub media: HashMap<String, TomlMediaDefinition>,
+
+    /// Narratives section - can be either references or inline definitions
+    #[serde(default)]
+    pub narratives: HashMap<String, TomlNarrativeEntry>,
+}
+
+/// Entry in [narratives.name] can be either a reference or inline definition.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum TomlNarrativeEntry {
+    /// Reference to another narrative file
+    Reference(TomlNarrativeReference),
+    /// Inline narrative definition
+    Definition(Box<TomlNarrativeDefinition>),
+}
+
+impl TomlNarrativeFile {
+    /// Resolve a narrative from this file.
+    ///
+    /// If `narrative_name` is provided, looks for it in [narratives.name].
+    /// Otherwise, uses the single [narrative] section if present.
+    ///
+    /// Returns a tuple of (metadata fields, toc, acts map, shared resources).
+    pub fn resolve_narrative(
+        &self,
+        narrative_name: Option<&str>,
+    ) -> Result<(TomlNarrative, TomlToc, HashMap<String, TomlAct>), String> {
+        match (narrative_name, &self.narrative, &self.narratives) {
+            // Explicit name provided - look in [narratives.name]
+            (Some(name), _, narratives) if !narratives.is_empty() => {
+                let entry = narratives.get(name).ok_or_else(|| {
+                    let available: Vec<_> = narratives.keys().cloned().collect();
+                    format!(
+                        "Narrative '{}' not found. Available: {}",
+                        name,
+                        available.join(", ")
+                    )
+                })?;
+
+                match entry {
+                    TomlNarrativeEntry::Definition(def) => {
+                        // Convert definition to TomlNarrative format
+                        let meta = TomlNarrative {
+                            name: def.name.clone(),
+                            description: def.description.clone(),
+                            template: def.template.clone(),
+                            target: def.target.clone(),
+                            skip_content_generation: def.skip_content_generation,
+                            carousel: def.carousel.clone(),
+                            model: def.model.clone(),
+                            temperature: def.temperature,
+                            max_tokens: def.max_tokens,
+                            budget: def.budget.clone(),
+                        };
+
+                        // Merge shared acts with definition-specific acts
+                        let mut acts = self.acts.clone();
+                        acts.extend(def.acts.clone()); // Definition acts override shared
+
+                        Ok((meta, def.toc.clone(), acts))
+                    }
+                    TomlNarrativeEntry::Reference(_) => Err(format!(
+                        "Narrative '{}' is a file reference, not an inline definition",
+                        name
+                    )),
+                }
+            }
+
+            // No name provided, use single [narrative] (backwards compat)
+            (None, Some(single), _) => {
+                let toc = self
+                    .toc
+                    .clone()
+                    .ok_or_else(|| "Single narrative requires [toc] section".to_string())?;
+                Ok((single.clone(), toc, self.acts.clone()))
+            }
+
+            // No name, multiple definitions exist - ambiguous
+            (None, _, narratives) if !narratives.is_empty() => {
+                let available: Vec<_> = narratives.keys().cloned().collect();
+                Err(format!(
+                    "Multiple narratives found. Specify one: {}",
+                    available.join(", ")
+                ))
+            }
+
+            // No narrative found at all
+            _ => Err("No narrative found in file".to_string()),
+        }
+    }
+}
+
+/// Parse history retention string to HistoryRetention enum.
+///
+/// Accepts: "full", "summary", "drop"
+/// Returns HistoryRetention::Full if None or invalid value.
+fn parse_history_retention(value: Option<&String>) -> HistoryRetention {
+    match value.map(|s| s.as_str()) {
+        Some("full") => HistoryRetention::Full,
+        Some("summary") => HistoryRetention::Summary,
+        Some("drop") => HistoryRetention::Drop,
+        Some(invalid) => {
+            warn!(
+                value = invalid,
+                "Invalid history_retention value, defaulting to 'full'"
+            );
+            HistoryRetention::Full
+        }
+        None => HistoryRetention::Full,
+    }
 }
 
 impl TomlInput {
     /// Convert TOML input to domain Input type.
+    #[instrument(skip(self), fields(input_type = ?self.input_type))]
     pub fn to_input(&self) -> Result<Input, String> {
-        match self.input_type.as_str() {
+        // Get input type, defaulting to "text" if not specified
+        let input_type = self.input_type.as_deref().unwrap_or("text");
+        debug!(input_type, "Converting TOML input to domain Input");
+
+        match input_type {
             "text" => {
-                let content = self
-                    .content
-                    .as_ref()
-                    .ok_or("Text input missing 'content' field")?;
-                Ok(Input::Text(content.clone()))
+                // Support both inline content and file reference
+                let content = if let Some(content) = &self.content {
+                    content.clone()
+                } else if let Some(file_ref) = &self.file {
+                    // Load content from file
+                    let file_path = if Path::new(file_ref).is_absolute()
+                        || file_ref.contains('/')
+                        || file_ref.contains('\\')
+                    {
+                        PathBuf::from(file_ref)
+                    } else {
+                        let context_path = std::env::var("BOTTICELLI_CONTEXT_PATH").ok();
+                        match find_file_recursive(file_ref, None, context_path.as_deref()) {
+                            Ok(path) => {
+                                debug!(original = %file_ref, resolved = %path.display(), "Resolved text file path");
+                                path
+                            }
+                            Err(e) => {
+                                warn!(filename = %file_ref, error = %e, "File search failed, trying as-is");
+                                PathBuf::from(file_ref)
+                            }
+                        }
+                    };
+
+                    debug!(file = %file_path.display(), "Loading text from file");
+                    std::fs::read_to_string(&file_path).map_err(|e| {
+                        error!(file = %file_path.display(), error = %e, "Failed to read text file");
+                        format!("Failed to read text file {}: {}", file_path.display(), e)
+                    })?
+                } else {
+                    error!("Text input missing both 'content' and 'file' fields");
+                    return Err("Text input missing both 'content' and 'file' fields".to_string());
+                };
+
+                debug!(content_len = content.len(), "Created text input");
+                Ok(Input::Text(content))
             }
             "image" => {
                 let mime = self.mime.clone();
                 let source = self.detect_source()?;
+                debug!(?mime, "Created image input");
                 Ok(Input::Image { mime, source })
             }
             "audio" => {
                 let mime = self.mime.clone();
                 let source = self.detect_source()?;
+                debug!(?mime, "Created audio input");
                 Ok(Input::Audio { mime, source })
             }
             "video" => {
                 let mime = self.mime.clone();
                 let source = self.detect_source()?;
+                debug!(?mime, "Created video input");
                 Ok(Input::Video { mime, source })
             }
             "document" => {
                 let mime = self.mime.clone();
                 let source = self.detect_source()?;
                 let filename = self.filename.clone();
+                debug!(?mime, ?filename, "Created document input");
                 Ok(Input::Document {
                     mime,
                     source,
                     filename,
                 })
             }
-            unknown => Err(format!("Unknown input type: {}", unknown)),
+            "bot_command" => {
+                let platform = self.platform.as_ref().ok_or_else(|| {
+                    error!("Bot command missing 'platform' field");
+                    "Bot command missing 'platform' field".to_string()
+                })?;
+                let command = self.command.as_ref().ok_or_else(|| {
+                    error!("Bot command missing 'command' field");
+                    "Bot command missing 'command' field".to_string()
+                })?;
+                debug!(%platform, %command, "Created bot command input");
+                let args = expand_env_vars(&self.args.clone().unwrap_or_default());
+                let history_retention = parse_history_retention(self.history_retention.as_ref());
+                Ok(Input::BotCommand {
+                    platform: platform.clone(),
+                    command: command.clone(),
+                    args,
+                    required: self.required.unwrap_or(false),
+                    cache_duration: self.cache_duration,
+                    history_retention,
+                })
+            }
+            "table" => {
+                let table_name = self.table_name.as_ref().ok_or_else(|| {
+                    error!("Table input missing 'table_name' field");
+                    "Table input missing 'table_name' field".to_string()
+                })?;
+
+                use botticelli_core::TableFormat;
+                let format = match self.format.as_deref() {
+                    Some("json") | None => TableFormat::Json,
+                    Some("markdown") => TableFormat::Markdown,
+                    Some("csv") => TableFormat::Csv,
+                    Some(f) => {
+                        error!(format = f, "Unknown table format");
+                        return Err(format!("Unknown table format: {}", f));
+                    }
+                };
+
+                debug!(%table_name, ?format, ?self.limit, "Created table input");
+                let history_retention = parse_history_retention(self.history_retention.as_ref());
+                Ok(Input::Table {
+                    table_name: table_name.clone(),
+                    columns: self.columns.clone(),
+                    where_clause: self.where_clause.clone(),
+                    limit: self.limit,
+                    offset: self.offset,
+                    order_by: self.order_by.clone(),
+                    alias: None, // Will be set during resolution
+                    format,
+                    sample: self.sample,
+                    destructive_read: self.pull_and_delete.unwrap_or(true),
+                    history_retention,
+                })
+            }
+            unknown => {
+                error!(input_type = unknown, "Unknown input type");
+                Err(format!("Unknown input type: {}", unknown))
+            }
         }
     }
 
     /// Detect media source from which field is present.
+    #[instrument(skip(self))]
     fn detect_source(&self) -> Result<MediaSource, String> {
         if let Some(url) = &self.url {
+            debug!(%url, "Using URL source");
             Ok(MediaSource::Url(url.clone()))
         } else if let Some(base64) = &self.base64 {
+            debug!(base64_len = base64.len(), "Using base64 source");
             Ok(MediaSource::Base64(base64.clone()))
-        } else if let Some(file) = &self.file {
-            Ok(MediaSource::Binary(std::fs::read(file).map_err(|e| {
-                format!("Failed to read file {}: {}", file, e)
-            })?))
+        } else if let Some(file_ref) = &self.file {
+            // Try to find the file recursively if it's just a filename
+            let file_path = if Path::new(file_ref).is_absolute()
+                || file_ref.contains('/')
+                || file_ref.contains('\\')
+            {
+                // Use as-is if it looks like a full path
+                PathBuf::from(file_ref)
+            } else {
+                // Search recursively for the file
+                let context_path = std::env::var("BOTTICELLI_CONTEXT_PATH").ok();
+                match find_file_recursive(file_ref, None, context_path.as_deref()) {
+                    Ok(path) => {
+                        debug!(original = %file_ref, resolved = %path.display(), "Resolved file path");
+                        path
+                    }
+                    Err(e) => {
+                        warn!(filename = %file_ref, error = %e, "File search failed, trying as-is");
+                        PathBuf::from(file_ref)
+                    }
+                }
+            };
+
+            debug!(file = %file_path.display(), "Reading file source");
+            let data = std::fs::read(&file_path).map_err(|e| {
+                error!(file = %file_path.display(), error = %e, "Failed to read file");
+                format!("Failed to read file {}: {}", file_path.display(), e)
+            })?;
+            debug!(file = %file_path.display(), size = data.len(), "File read successfully");
+            Ok(MediaSource::Binary(data))
         } else {
+            error!("Media input missing source (url, base64, or file)");
             Err("Media input missing source (url, base64, or file)".to_string())
         }
     }
 }
 
 impl TomlActConfig {
-    /// Convert TOML act config to domain ActConfig.
-    pub fn to_act_config(&self) -> Result<ActConfig, String> {
-        let inputs: Result<Vec<Input>, String> =
-            self.input.iter().map(|ti| ti.to_input()).collect();
-
-        Ok(ActConfig {
-            inputs: inputs?,
-            model: self.model.clone(),
-            temperature: self.temperature,
-            max_tokens: self.max_tokens,
-        })
-    }
+    // Methods moved to TomlAct::to_act_config for multi-narrative file support
 }
 
 impl TomlAct {
     /// Convert TOML act to domain ActConfig.
-    pub fn to_act_config(&self) -> Result<ActConfig, String> {
+    ///
+    /// Requires the parent TomlNarrativeFile for resolving references.
+    #[instrument(skip(self, narrative_file))]
+    pub fn to_act_config(&self, narrative_file: &TomlNarrativeFile) -> Result<ActConfig, String> {
+        debug!("Converting TOML act to domain ActConfig");
         match self {
             TomlAct::Simple(text) => {
-                // Validate that the text is not empty or just whitespace
-                if text.trim().is_empty() {
-                    return Err("Act prompt cannot be empty or whitespace only".to_string());
+                // Check if it's a resource reference
+                if is_reference(text) {
+                    debug!(reference = %text, "Resolving simple reference");
+                    let input = narrative_file.resolve_reference(text)?;
+                    Ok(ActConfig::new(vec![input], None, None, None, None, None))
+                } else {
+                    // Validate that the text is not empty or just whitespace
+                    if text.trim().is_empty() {
+                        error!("Act prompt cannot be empty or whitespace only");
+                        return Err("Act prompt cannot be empty or whitespace only".to_string());
+                    }
+                    debug!(text_len = text.len(), "Using simple text act");
+                    Ok(ActConfig::from_text(text.clone()))
                 }
-                Ok(ActConfig::from_text(text.clone()))
             }
-            TomlAct::Structured(config) => config.to_act_config(),
+            TomlAct::Array(items) => {
+                debug!(item_count = items.len(), "Processing array act");
+                let mut inputs = Vec::new();
+                for item in items {
+                    match item {
+                        TomlActInput::String(s) => {
+                            if is_reference(s) {
+                                debug!(reference = %s, "Resolving array reference");
+                                inputs.push(narrative_file.resolve_reference(s)?);
+                            } else {
+                                debug!(text_len = s.len(), "Adding array text input");
+                                inputs.push(Input::Text(s.clone()));
+                            }
+                        }
+                        TomlActInput::Structured(toml_input) => {
+                            // Check if it has a reference field
+                            if let Some(ref_str) = &toml_input.reference {
+                                debug!(reference = %ref_str, "Resolving structured array reference");
+                                inputs.push(narrative_file.resolve_reference(ref_str)?);
+                            } else {
+                                debug!("Converting structured array input");
+                                inputs.push(toml_input.to_input()?);
+                            }
+                        }
+                    }
+                }
+                debug!(
+                    input_count = inputs.len(),
+                    "Array act converted successfully"
+                );
+                Ok(ActConfig::new(inputs, None, None, None, None, None))
+            }
+            TomlAct::Structured(config) => {
+                debug!(
+                    input_count = config.input.len(),
+                    has_narrative = config.narrative.is_some(),
+                    "Processing structured act"
+                );
+
+                // Check for narrative reference first (handles mutual exclusivity)
+                if let Some(ref narrative_name) = config.narrative {
+                    debug!(narrative = %narrative_name, "Creating narrative composition act");
+                    return Ok(ActConfig::from_narrative_ref(
+                        narrative_name.clone(),
+                        config.model.clone(),
+                        config.temperature,
+                        config.max_tokens,
+                    ));
+                }
+
+                // Otherwise handle inputs normally
+                let mut inputs = Vec::new();
+                for toml_input in &config.input {
+                    if let Some(ref_str) = &toml_input.reference {
+                        debug!(reference = %ref_str, "Resolving structured reference");
+                        inputs.push(narrative_file.resolve_reference(ref_str)?);
+                    } else {
+                        debug!("Converting structured input");
+                        inputs.push(toml_input.to_input()?);
+                    }
+                }
+                debug!(
+                    input_count = inputs.len(),
+                    "Structured act converted successfully"
+                );
+                Ok(ActConfig::new(
+                    inputs,
+                    config.model.clone(),
+                    config.temperature,
+                    config.max_tokens,
+                    config.carousel.clone(),
+                    config.extract_output,
+                ))
+            }
         }
     }
+}
+
+/// Check if a string is a resource reference (bots.name, tables.name, media.name, narratives.name, narrative:name).
+fn is_reference(s: &str) -> bool {
+    s.starts_with("bots.")
+        || s.starts_with("tables.")
+        || s.starts_with("media.")
+        || s.starts_with("narratives.")
+        || s.starts_with("narrative:")
+}
+
+impl TomlNarrativeFile {
+    /// Resolve a resource reference to an Input.
+    #[instrument(skip(self), fields(reference))]
+    pub fn resolve_reference(&self, reference: &str) -> Result<Input, String> {
+        debug!(%reference, "Resolving resource reference");
+
+        // Handle narrative: prefix specially
+        if let Some(narrative_name) = reference.strip_prefix("narrative:") {
+            debug!(narrative_name, "Resolved narrative reference");
+            return Ok(Input::Narrative {
+                name: narrative_name.to_string(),
+                path: None, // Will be resolved relative to calling narrative
+                history_retention: HistoryRetention::Full,
+            });
+        }
+
+        let parts: Vec<&str> = reference.split('.').collect();
+        if parts.len() != 2 {
+            error!(%reference, "Invalid reference format (expected 'category.name')");
+            return Err(format!("Invalid reference format: {}", reference));
+        }
+
+        let (category, name) = (parts[0], parts[1]);
+        debug!(category, name, "Parsed reference");
+
+        match category {
+            "bots" => self.resolve_bot_reference(name),
+            "tables" => self.resolve_table_reference(name),
+            "media" => self.resolve_media_reference(name),
+            "narratives" => self.resolve_narrative_reference(name),
+            _ => {
+                error!(category, "Unknown reference category");
+                Err(format!("Unknown reference category: {}", category))
+            }
+        }
+    }
+
+    #[instrument(skip(self), fields(name))]
+    fn resolve_bot_reference(&self, name: &str) -> Result<Input, String> {
+        debug!(%name, "Resolving bot reference");
+        let bot_def = self.bots.get(name).ok_or_else(|| {
+            error!(%name, "Bot not found");
+            format!("Bot not found: {}", name)
+        })?;
+
+        debug!(platform = %bot_def.platform, command = %bot_def.command, "Bot reference resolved");
+        let args = expand_env_vars(&bot_def.args);
+        Ok(Input::BotCommand {
+            platform: bot_def.platform.clone(),
+            command: bot_def.command.clone(),
+            args,
+            required: false,
+            cache_duration: None,
+            history_retention: HistoryRetention::Full,
+        })
+    }
+
+    #[instrument(skip(self), fields(name))]
+    fn resolve_table_reference(&self, name: &str) -> Result<Input, String> {
+        debug!(%name, "Resolving table reference");
+        let table_def = self.tables.get(name).ok_or_else(|| {
+            error!(%name, "Table not found");
+            format!("Table not found: {}", name)
+        })?;
+
+        use botticelli_core::TableFormat;
+        let format = match table_def.format.as_deref() {
+            Some("json") | None => TableFormat::Json,
+            Some("markdown") => TableFormat::Markdown,
+            Some("csv") => TableFormat::Csv,
+            Some(f) => {
+                error!(format = f, "Unknown table format");
+                return Err(format!("Unknown table format: {}", f));
+            }
+        };
+
+        debug!(
+            table_name = %table_def.table_name,
+            ?format,
+            ?table_def.limit,
+            "Table reference resolved"
+        );
+        Ok(Input::Table {
+            table_name: table_def.table_name.clone(),
+            columns: table_def.columns.clone(),
+            where_clause: table_def.where_clause.clone(),
+            limit: table_def.limit,
+            offset: table_def.offset,
+            order_by: table_def.order_by.clone(),
+            alias: Some(name.to_string()),
+            format,
+            sample: table_def.sample,
+            destructive_read: table_def.pull_and_delete.unwrap_or(true),
+            history_retention: HistoryRetention::Full,
+        })
+    }
+
+    #[instrument(skip(self), fields(name))]
+    fn resolve_media_reference(&self, name: &str) -> Result<Input, String> {
+        debug!(%name, "Resolving media reference");
+        let media_def = self.media.get(name).ok_or_else(|| {
+            error!(%name, "Media not found");
+            format!("Media not found: {}", name)
+        })?;
+
+        // Detect media source
+        let source = if let Some(url) = &media_def.url {
+            debug!(%url, "Using URL source");
+            MediaSource::Url(url.clone())
+        } else if let Some(file) = &media_def.file {
+            debug!(%file, "Reading file source");
+            let data = std::fs::read(file).map_err(|e| {
+                error!(%file, error = %e, "Failed to read file");
+                format!("Failed to read file {}: {}", file, e)
+            })?;
+            debug!(%file, size = data.len(), "File read successfully");
+            MediaSource::Binary(data)
+        } else if let Some(base64) = &media_def.base64 {
+            debug!(base64_len = base64.len(), "Using base64 source");
+            MediaSource::Base64(base64.clone())
+        } else {
+            error!(%name, "Media definition missing source (url, file, or base64)");
+            return Err(format!(
+                "Media definition '{}' missing source (url, file, or base64)",
+                name
+            ));
+        };
+
+        // Infer MIME type if not provided
+        let mime = media_def.mime.clone().or_else(|| {
+            media_def
+                .file
+                .as_ref()
+                .or(media_def.url.as_ref())
+                .and_then(|path| infer_mime_type(path))
+        });
+
+        // Infer media type from MIME or extension
+        let media_type = if let Some(mime_str) = &mime {
+            match mime_str.split('/').next() {
+                Some("image") => "image",
+                Some("audio") => "audio",
+                Some("video") => "video",
+                Some("application") | Some("text") => "document",
+                _ => {
+                    error!(mime = %mime_str, "Cannot determine media type from MIME");
+                    return Err(format!(
+                        "Cannot determine media type from MIME: {}",
+                        mime_str
+                    ));
+                }
+            }
+        } else {
+            // Infer from file extension
+            let path = media_def
+                .file
+                .as_ref()
+                .or(media_def.url.as_ref())
+                .ok_or_else(|| {
+                    error!(%name, "Cannot infer media type without file path or MIME");
+                    format!(
+                        "Cannot infer media type for '{}' without file path or MIME",
+                        name
+                    )
+                })?;
+            infer_media_type_from_extension(path)?
+        };
+
+        debug!(media_type, ?mime, "Media reference resolved");
+        match media_type {
+            "image" => Ok(Input::Image { mime, source }),
+            "audio" => Ok(Input::Audio { mime, source }),
+            "video" => Ok(Input::Video { mime, source }),
+            "document" => Ok(Input::Document {
+                mime,
+                source,
+                filename: media_def.filename.clone(),
+            }),
+            _ => {
+                error!(media_type, "Unknown media type");
+                Err(format!("Unknown media type: {}", media_type))
+            }
+        }
+    }
+
+    #[instrument(skip(self), fields(name))]
+    fn resolve_narrative_reference(&self, name: &str) -> Result<Input, String> {
+        debug!(%name, "Resolving narrative reference");
+        let narrative_entry = self.narratives.get(name).ok_or_else(|| {
+            error!(%name, "Narrative not found");
+            format!("Narrative not found: {}", name)
+        })?;
+
+        match narrative_entry {
+            TomlNarrativeEntry::Reference(ref_def) => {
+                debug!(narrative_file = %ref_def.narrative, "Narrative file reference resolved");
+                Ok(Input::Narrative {
+                    name: name.to_string(),
+                    path: Some(ref_def.narrative.clone()),
+                    history_retention: HistoryRetention::Full,
+                })
+            }
+            TomlNarrativeEntry::Definition(_) => {
+                error!(%name, "Cannot use inline narrative definition as input");
+                Err(format!(
+                    "Narrative '{}' is an inline definition, not a file reference",
+                    name
+                ))
+            }
+        }
+    }
+}
+
+/// Infer MIME type from file extension.
+fn infer_mime_type(path: &str) -> Option<String> {
+    let extension = std::path::Path::new(path)
+        .extension()?
+        .to_str()?
+        .to_lowercase();
+
+    Some(
+        match extension.as_str() {
+            "png" => "image/png",
+            "jpg" | "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "mp3" => "audio/mp3",
+            "wav" => "audio/wav",
+            "ogg" => "audio/ogg",
+            "mp4" => "video/mp4",
+            "webm" => "video/webm",
+            "pdf" => "application/pdf",
+            "txt" => "text/plain",
+            "md" => "text/markdown",
+            "json" => "application/json",
+            _ => return None,
+        }
+        .to_string(),
+    )
+}
+
+/// Infer media type category from extension.
+fn infer_media_type_from_extension(path: &str) -> Result<&'static str, String> {
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .ok_or_else(|| format!("Cannot determine file extension from: {}", path))?
+        .to_lowercase();
+
+    Ok(match extension.as_str() {
+        "png" | "jpg" | "jpeg" | "gif" | "webp" => "image",
+        "mp3" | "wav" | "ogg" => "audio",
+        "mp4" | "avi" | "mov" | "webm" => "video",
+        "pdf" | "txt" | "md" | "json" => "document",
+        _ => return Err(format!("Unknown file extension: {}", extension)),
+    })
 }

@@ -1,0 +1,35 @@
+# Curation Test V1: Minimal prompt, single object
+[narrative]
+name = "curate_v1"
+description = "Test curation with minimal prompt"
+target = "approved_discord_posts"
+
+[toc]
+order = ["select"]
+
+[acts.select]
+model = "gemini-2.5-flash"
+temperature = 0.3
+max_tokens = 600
+
+[[acts.select.input]]
+type = "table"
+table_name = "potential_discord_posts"
+format = "markdown"
+limit = 10
+order_by = "generated_at DESC"
+
+[[acts.select.input]]
+type = "text"
+content = """
+Review the posts in the table above. Select the BEST post.
+
+Output as JSON:
+{
+  "text_content": "Full text of the best post...",
+  "content_type": "discord_post",
+  "source": "curation_v1",
+  "tags": ["approved", "curated"],
+  "curation_score": 45
+}
+"""

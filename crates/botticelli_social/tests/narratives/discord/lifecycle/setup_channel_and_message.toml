@@ -1,0 +1,29 @@
+# Setup narrative: Create a test channel and send a test message
+
+name = "setup_channel_and_message"
+skip_content_generation = true
+
+[[acts]]
+name = "create_test_channel"
+
+[[acts.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "channels.create"
+required = true
+guild_id = "${TEST_GUILD_ID}"
+name = "botticelli-test-channel"
+channel_type = "text"
+store_as = "TEST_CHANNEL_ID"
+
+[[acts]]
+name = "send_test_message"
+
+[[acts.inputs]]
+type = "bot_command"
+platform = "discord"
+command = "messages.send"
+required = true
+channel_id = "${STATE:TEST_CHANNEL_ID}"
+content = "Test message for Botticelli testing"
+store_as = "TEST_MESSAGE_ID"

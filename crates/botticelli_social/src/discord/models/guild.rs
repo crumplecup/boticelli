@@ -9,113 +9,165 @@ use diesel::prelude::*;
 #[derive(Debug, Clone, Queryable, Identifiable, Selectable)]
 #[diesel(table_name = botticelli_database::schema::discord_guilds)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)] // Model fields used for database operations
 pub struct GuildRow {
-    pub id: i64,
-    pub name: String,
-    pub icon: Option<String>,
-    pub banner: Option<String>,
-    pub splash: Option<String>,
-    pub owner_id: i64,
+    id: i64,
+    name: String,
+    icon: Option<String>,
+    banner: Option<String>,
+    splash: Option<String>,
+    owner_id: i64,
 
     // Guild features
-    pub features: Option<Vec<Option<String>>>,
-    pub description: Option<String>,
-    pub vanity_url_code: Option<String>,
+    features: Option<Vec<Option<String>>>,
+    description: Option<String>,
+    vanity_url_code: Option<String>,
 
     // Member counts
-    pub member_count: Option<i32>,
-    pub approximate_member_count: Option<i32>,
-    pub approximate_presence_count: Option<i32>,
+    member_count: Option<i32>,
+    approximate_member_count: Option<i32>,
+    approximate_presence_count: Option<i32>,
 
     // Guild settings
-    pub afk_channel_id: Option<i64>,
-    pub afk_timeout: Option<i32>,
-    pub system_channel_id: Option<i64>,
-    pub rules_channel_id: Option<i64>,
-    pub public_updates_channel_id: Option<i64>,
+    afk_channel_id: Option<i64>,
+    afk_timeout: Option<i32>,
+    system_channel_id: Option<i64>,
+    rules_channel_id: Option<i64>,
+    public_updates_channel_id: Option<i64>,
 
     // Verification and content filtering
-    pub verification_level: Option<i16>,
-    pub explicit_content_filter: Option<i16>,
-    pub mfa_level: Option<i16>,
+    verification_level: Option<i16>,
+    explicit_content_filter: Option<i16>,
+    mfa_level: Option<i16>,
 
     // Premium features
-    pub premium_tier: Option<i16>,
-    pub premium_subscription_count: Option<i32>,
+    premium_tier: Option<i16>,
+    premium_subscription_count: Option<i32>,
 
     // Server boost progress
-    pub max_presences: Option<i32>,
-    pub max_members: Option<i32>,
-    pub max_video_channel_users: Option<i32>,
+    max_presences: Option<i32>,
+    max_members: Option<i32>,
+    max_video_channel_users: Option<i32>,
 
     // Status flags
-    pub large: Option<bool>,
-    pub unavailable: Option<bool>,
+    large: Option<bool>,
+    unavailable: Option<bool>,
 
     // Timestamps
-    pub joined_at: Option<NaiveDateTime>,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-    pub left_at: Option<NaiveDateTime>,
+    joined_at: Option<NaiveDateTime>,
+    created_at: NaiveDateTime,
+    updated_at: NaiveDateTime,
+    left_at: Option<NaiveDateTime>,
 
     // Bot-specific metadata
-    pub bot_permissions: Option<i64>,
-    pub bot_active: Option<bool>,
+    bot_permissions: Option<i64>,
+    bot_active: Option<bool>,
 }
 
 /// Insertable struct for discord_guilds table.
 ///
 /// Used to create new guild records in the database.
-#[derive(Debug, Clone, Insertable)]
+#[derive(Debug, Clone, Insertable, derive_getters::Getters, derive_builder::Builder)]
 #[diesel(table_name = botticelli_database::schema::discord_guilds)]
+#[builder(setter(into))]
 pub struct NewGuild {
-    pub id: i64,
-    pub name: String,
-    pub icon: Option<String>,
-    pub banner: Option<String>,
-    pub splash: Option<String>,
-    pub owner_id: i64,
+    /// Discord guild snowflake ID
+    pub(crate) id: i64,
+    /// Guild name
+    pub(crate) name: String,
+    /// Icon hash for guild avatar
+    #[builder(default)]
+    pub(crate) icon: Option<String>,
+    /// Banner hash for guild banner image
+    #[builder(default)]
+    pub(crate) banner: Option<String>,
+    /// Splash hash for invite splash image
+    #[builder(default)]
+    pub(crate) splash: Option<String>,
+    /// User ID of guild owner
+    pub(crate) owner_id: i64,
 
-    // Guild features
-    pub features: Option<Vec<Option<String>>>,
-    pub description: Option<String>,
-    pub vanity_url_code: Option<String>,
+    /// Discord guild features enabled
+    #[builder(default)]
+    pub(crate) features: Option<Vec<Option<String>>>,
+    /// Guild description text
+    #[builder(default)]
+    pub(crate) description: Option<String>,
+    /// Vanity URL code if enabled
+    #[builder(default)]
+    pub(crate) vanity_url_code: Option<String>,
 
-    // Member counts
-    pub member_count: Option<i32>,
-    pub approximate_member_count: Option<i32>,
-    pub approximate_presence_count: Option<i32>,
+    /// Total member count
+    #[builder(default)]
+    pub(crate) member_count: Option<i32>,
+    /// Approximate member count
+    #[builder(default)]
+    pub(crate) approximate_member_count: Option<i32>,
+    /// Approximate presence count (online members)
+    #[builder(default)]
+    pub(crate) approximate_presence_count: Option<i32>,
 
-    // Guild settings
-    pub afk_channel_id: Option<i64>,
-    pub afk_timeout: Option<i32>,
-    pub system_channel_id: Option<i64>,
-    pub rules_channel_id: Option<i64>,
-    pub public_updates_channel_id: Option<i64>,
+    /// AFK voice channel ID
+    #[builder(default)]
+    pub(crate) afk_channel_id: Option<i64>,
+    /// AFK timeout in seconds
+    #[builder(default)]
+    pub(crate) afk_timeout: Option<i32>,
+    /// System messages channel ID
+    #[builder(default)]
+    pub(crate) system_channel_id: Option<i64>,
+    /// Rules channel ID for community guilds
+    #[builder(default)]
+    pub(crate) rules_channel_id: Option<i64>,
+    /// Public updates channel ID for community guilds
+    #[builder(default)]
+    pub(crate) public_updates_channel_id: Option<i64>,
 
-    // Verification and content filtering
-    pub verification_level: Option<i16>,
-    pub explicit_content_filter: Option<i16>,
-    pub mfa_level: Option<i16>,
+    /// Verification level required for members
+    #[builder(default)]
+    pub(crate) verification_level: Option<i16>,
+    /// Explicit content filter level
+    #[builder(default)]
+    pub(crate) explicit_content_filter: Option<i16>,
+    /// MFA level required for moderation actions
+    #[builder(default)]
+    pub(crate) mfa_level: Option<i16>,
 
-    // Premium features
-    pub premium_tier: Option<i16>,
-    pub premium_subscription_count: Option<i32>,
+    /// Server boost premium tier (0-3)
+    #[builder(default)]
+    pub(crate) premium_tier: Option<i16>,
+    /// Number of server boosts
+    #[builder(default)]
+    pub(crate) premium_subscription_count: Option<i32>,
 
-    // Server boost progress
-    pub max_presences: Option<i32>,
-    pub max_members: Option<i32>,
-    pub max_video_channel_users: Option<i32>,
+    /// Maximum number of presences (null for large guilds)
+    #[builder(default)]
+    pub(crate) max_presences: Option<i32>,
+    /// Maximum number of members
+    #[builder(default)]
+    pub(crate) max_members: Option<i32>,
+    /// Maximum users in a video channel
+    #[builder(default)]
+    pub(crate) max_video_channel_users: Option<i32>,
 
-    // Status flags
-    pub large: Option<bool>,
-    pub unavailable: Option<bool>,
+    /// Whether guild is considered large (>250 members)
+    #[builder(default)]
+    pub(crate) large: Option<bool>,
+    /// Whether guild is unavailable due to outage
+    #[builder(default)]
+    pub(crate) unavailable: Option<bool>,
 
-    // Timestamps
-    pub joined_at: Option<NaiveDateTime>,
-    pub left_at: Option<NaiveDateTime>,
+    /// Timestamp when bot joined guild
+    #[builder(default)]
+    pub(crate) joined_at: Option<NaiveDateTime>,
+    /// Timestamp when bot left guild
+    #[builder(default)]
+    pub(crate) left_at: Option<NaiveDateTime>,
 
-    // Bot-specific metadata
-    pub bot_permissions: Option<i64>,
-    pub bot_active: Option<bool>,
+    /// Bot's permission bitfield in this guild
+    #[builder(default)]
+    pub(crate) bot_permissions: Option<i64>,
+    /// Whether bot is currently active in guild
+    #[builder(default)]
+    pub(crate) bot_active: Option<bool>,
 }

@@ -7,7 +7,7 @@ use crate::DatabaseResult;
 use botticelli_error::{DatabaseError, DatabaseErrorKind};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
-use tracing::instrument;
+use tracing::{debug, instrument, warn};
 
 /// Inferred column definition from JSON analysis
 #[derive(Debug, Clone, PartialEq)]
@@ -127,22 +127,12 @@ pub fn infer_column_type(value: &JsonValue) -> (&'static str, bool) {
         JsonValue::Bool(_) => ("BOOLEAN", false),
         JsonValue::Null => ("TEXT", true), // Nullable, type inferred from other rows
         JsonValue::Array(arr) => {
+            // Use JSONB for all arrays to avoid PostgreSQL array format conversion issues
+            // (JSON uses ["a","b"] while PostgreSQL arrays use {"a", "b"})
             if arr.is_empty() {
-                ("JSONB", true) // Unknown array type
+                ("JSONB", true) // Unknown array type, nullable
             } else {
-                // Check first element to determine array type
-                match &arr[0] {
-                    JsonValue::String(_) => ("TEXT[]", false),
-                    JsonValue::Number(n) => {
-                        if n.is_i64() || n.is_u64() {
-                            ("BIGINT[]", false)
-                        } else {
-                            ("DOUBLE PRECISION[]", false)
-                        }
-                    }
-                    JsonValue::Bool(_) => ("BOOLEAN[]", false),
-                    _ => ("JSONB", false), // Complex array
-                }
+                ("JSONB", false) // Store JSON arrays as JSONB
             }
         }
         JsonValue::Object(_) => ("JSONB", false),
@@ -183,6 +173,175 @@ pub fn resolve_type_conflict(type1: &str, type2: &str) -> DatabaseResult<String>
         ("BOOLEAN", _) | (_, "BOOLEAN") => Ok("TEXT".to_string()),
         // All other incompatible types → TEXT fallback
         _ => Ok("TEXT".to_string()),
+    }
+}
+
+/// Coerce a JSON value to match a PostgreSQL column type
+///
+/// Performs best-effort type conversion when JSON type doesn't match database schema.
+/// Falls back to string representation if conversion fails.
+///
+/// Note: This function is primarily used for schema inference. For SQL generation,
+/// see `storage_actor::json_value_to_sql()` which handles coercion during INSERT.
+#[instrument(skip(value))]
+#[allow(dead_code)] // Used by schema inference, may be used by future features
+pub fn coerce_value(value: &JsonValue, target_type: &str) -> DatabaseResult<JsonValue> {
+    // NULL values always pass through
+    if value.is_null() {
+        return Ok(JsonValue::Null);
+    }
+
+    match target_type {
+        "TEXT" | "VARCHAR" | "CHAR" => {
+            // Any value → string
+            Ok(match value {
+                JsonValue::String(s) => JsonValue::String(s.clone()),
+                other => JsonValue::String(other.to_string()),
+            })
+        }
+        "BIGINT" | "INTEGER" | "SMALLINT" => {
+            // Number, boolean, or parseable string → integer
+            match value {
+                JsonValue::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        Ok(JsonValue::Number(i.into()))
+                    } else if let Some(f) = n.as_f64() {
+                        warn!(value = %f, "Coercing float to integer (truncating)");
+                        Ok(JsonValue::Number((f as i64).into()))
+                    } else {
+                        Ok(JsonValue::Number(0.into()))
+                    }
+                }
+                JsonValue::Bool(b) => Ok(JsonValue::Number(if *b { 1 } else { 0 }.into())),
+                JsonValue::String(s) => {
+                    if let Ok(i) = s.parse::<i64>() {
+                        Ok(JsonValue::Number(i.into()))
+                    } else if let Ok(f) = s.parse::<f64>() {
+                        warn!(value = %s, "Coercing string with float to integer");
+                        Ok(JsonValue::Number((f as i64).into()))
+                    } else {
+                        warn!(value = %s, "Cannot parse string as integer, using 0");
+                        Ok(JsonValue::Number(0.into()))
+                    }
+                }
+                _ => {
+                    warn!(value = ?value, "Cannot coerce to integer, using 0");
+                    Ok(JsonValue::Number(0.into()))
+                }
+            }
+        }
+        "DOUBLE PRECISION" | "REAL" | "NUMERIC" => {
+            // Number, boolean, or parseable string → float
+            match value {
+                JsonValue::Number(n) => {
+                    if let Some(f) = n.as_f64() {
+                        Ok(JsonValue::Number(
+                            serde_json::Number::from_f64(f).unwrap_or_else(|| 0.into()),
+                        ))
+                    } else if let Some(i) = n.as_i64() {
+                        Ok(JsonValue::Number(
+                            serde_json::Number::from_f64(i as f64).unwrap_or_else(|| 0.into()),
+                        ))
+                    } else {
+                        Ok(JsonValue::Number(
+                            serde_json::Number::from_f64(0.0).unwrap(),
+                        ))
+                    }
+                }
+                JsonValue::Bool(b) => Ok(JsonValue::Number(
+                    serde_json::Number::from_f64(if *b { 1.0 } else { 0.0 }).unwrap(),
+                )),
+                JsonValue::String(s) => {
+                    if let Ok(f) = s.parse::<f64>() {
+                        Ok(JsonValue::Number(
+                            serde_json::Number::from_f64(f).unwrap_or_else(|| 0.into()),
+                        ))
+                    } else {
+                        warn!(value = %s, "Cannot parse string as float, using 0.0");
+                        Ok(JsonValue::Number(
+                            serde_json::Number::from_f64(0.0).unwrap(),
+                        ))
+                    }
+                }
+                _ => {
+                    warn!(value = ?value, "Cannot coerce to float, using 0.0");
+                    Ok(JsonValue::Number(
+                        serde_json::Number::from_f64(0.0).unwrap(),
+                    ))
+                }
+            }
+        }
+        "BOOLEAN" => {
+            // Number, boolean, or parseable string → bool
+            match value {
+                JsonValue::Bool(b) => Ok(JsonValue::Bool(*b)),
+                JsonValue::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        Ok(JsonValue::Bool(i != 0))
+                    } else if let Some(f) = n.as_f64() {
+                        Ok(JsonValue::Bool(f != 0.0))
+                    } else {
+                        Ok(JsonValue::Bool(false))
+                    }
+                }
+                JsonValue::String(s) => {
+                    let lower = s.to_lowercase();
+                    Ok(JsonValue::Bool(
+                        lower == "true"
+                            || lower == "yes"
+                            || lower == "1"
+                            || lower == "t"
+                            || lower == "y",
+                    ))
+                }
+                _ => {
+                    warn!(value = ?value, "Cannot coerce to boolean, using false");
+                    Ok(JsonValue::Bool(false))
+                }
+            }
+        }
+        "JSONB" | "JSON" => {
+            // Any value → JSON (already is JSON)
+            Ok(value.clone())
+        }
+        t if t.ends_with("[]") => {
+            // Array type
+            match value {
+                JsonValue::Array(arr) => {
+                    // Coerce each element to the base type
+                    let base_type = &t[..t.len() - 2];
+                    let mut coerced = Vec::new();
+                    for item in arr {
+                        coerced.push(coerce_value(item, base_type)?);
+                    }
+                    Ok(JsonValue::Array(coerced))
+                }
+                _ => {
+                    warn!(value = ?value, target = t, "Expected array, wrapping single value");
+                    // Wrap single value in array
+                    let base_type = &t[..t.len() - 2];
+                    Ok(JsonValue::Array(vec![coerce_value(value, base_type)?]))
+                }
+            }
+        }
+        "TIMESTAMP" | "TIMESTAMPTZ" | "DATE" | "TIME" => {
+            // String or number → keep as-is (PostgreSQL handles conversion)
+            match value {
+                JsonValue::String(_) | JsonValue::Number(_) => Ok(value.clone()),
+                _ => {
+                    warn!(value = ?value, "Cannot coerce to timestamp, using current time");
+                    Ok(JsonValue::String("now".to_string()))
+                }
+            }
+        }
+        _ => {
+            // Unknown type - pass through as-is
+            debug!(
+                target_type,
+                "Unknown PostgreSQL type, passing value through"
+            );
+            Ok(value.clone())
+        }
     }
 }
 
@@ -276,13 +435,21 @@ pub fn create_inferred_table(
     }
 
     // Add metadata columns (same as template-based tables)
+    // Only add if not already present in schema
     columns.push("generated_at TIMESTAMP NOT NULL DEFAULT NOW()".to_string());
     columns.push("source_narrative TEXT".to_string());
     columns.push("source_act TEXT".to_string());
     columns.push("generation_model TEXT".to_string());
-    columns.push("review_status TEXT DEFAULT 'pending'".to_string());
-    columns.push("tags TEXT[]".to_string());
-    columns.push("rating INTEGER".to_string());
+
+    if !schema.fields.contains_key("review_status") {
+        columns.push("review_status TEXT DEFAULT 'pending'".to_string());
+    }
+    if !schema.fields.contains_key("tags") {
+        columns.push("tags TEXT[]".to_string());
+    }
+    if !schema.fields.contains_key("rating") {
+        columns.push("rating INTEGER".to_string());
+    }
 
     let create_sql = format!(
         "CREATE TABLE IF NOT EXISTS {} ({})",
@@ -366,21 +533,24 @@ mod tests {
     #[test]
     fn test_infer_column_type_string_array() {
         let (pg_type, nullable) = infer_column_type(&json!(["a", "b", "c"]));
-        assert_eq!(pg_type, "TEXT[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 
     #[test]
     fn test_infer_column_type_number_array() {
         let (pg_type, nullable) = infer_column_type(&json!([1, 2, 3]));
-        assert_eq!(pg_type, "BIGINT[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 
     #[test]
     fn test_infer_column_type_boolean_array() {
         let (pg_type, nullable) = infer_column_type(&json!([true, false]));
-        assert_eq!(pg_type, "BOOLEAN[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 
@@ -572,7 +742,8 @@ mod tests {
         });
         let schema = infer_schema(&json).unwrap();
         assert_eq!(schema.field_count(), 2);
-        assert_eq!(schema.fields["tags"].pg_type, "TEXT[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(schema.fields["tags"].pg_type, "JSONB");
     }
 
     #[test]
@@ -618,7 +789,8 @@ mod tests {
     #[test]
     fn test_infer_column_type_float_array() {
         let (pg_type, nullable) = infer_column_type(&json!([1.1, 2.2, 3.3]));
-        assert_eq!(pg_type, "DOUBLE PRECISION[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 }

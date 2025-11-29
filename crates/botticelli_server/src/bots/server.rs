@@ -1,7 +1,7 @@
 use crate::{
-    create_metrics_router, CurationBot, CurationBotArgs, CurationMessage, GenerationBot,
-    GenerationBotArgs, GenerationMessage, MetricsCollector, PostingBot, PostingBotArgs,
-    PostingMessage,
+    CurationBot, CurationBotArgs, CurationMessage, GenerationBot, GenerationBotArgs,
+    GenerationMessage, MetricsCollector, PostingBot, PostingBotArgs, PostingMessage,
+    create_metrics_router,
 };
 use botticelli_error::{BotticelliError, BotticelliResult, ServerError, ServerErrorKind};
 use ractor::{Actor, ActorRef};
@@ -53,15 +53,13 @@ impl BotServer {
             info!(port = port, "Starting metrics HTTP server");
             let app = create_metrics_router(Arc::clone(&self.metrics_collector));
             let addr = format!("0.0.0.0:{}", port);
-            
-            let listener = tokio::net::TcpListener::bind(&addr)
-                .await
-                .map_err(|e| {
-                    error!(error = ?e, addr = %addr, "Failed to bind metrics server");
-                    BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed(
-                        format!("Failed to bind metrics server: {}", e),
-                    )))
-                })?;
+
+            let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| {
+                error!(error = ?e, addr = %addr, "Failed to bind metrics server");
+                BotticelliError::from(ServerError::new(ServerErrorKind::ServerStartFailed(
+                    format!("Failed to bind metrics server: {}", e),
+                )))
+            })?;
 
             let handle = tokio::spawn(async move {
                 if let Err(e) = axum::serve(listener, app).await {

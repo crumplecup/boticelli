@@ -2,17 +2,16 @@
 //!
 //! Provides OpenTelemetry-based metrics for bots, narratives, and the content pipeline.
 use opentelemetry::{
-    global,
+    KeyValue, global,
     metrics::{Counter, Gauge, Histogram, Meter},
-    KeyValue,
 };
 use std::sync::Arc;
 
 /// Bot-level metrics for tracking execution and health.
 #[derive(Clone)]
 pub struct BotMetrics {
-    #[allow(dead_code)]
-    meter: Meter,
+    /// Meter handle kept alive for metric instruments
+    _meter: Meter,
     /// Total bot executions
     pub executions: Counter<u64>,
     /// Total bot failures
@@ -31,7 +30,7 @@ impl BotMetrics {
         let meter = global::meter("botticelli_bots");
 
         Self {
-            meter: meter.clone(),
+            _meter: meter.clone(),
             executions: meter
                 .u64_counter("bot.executions")
                 .with_description("Total bot executions")
@@ -87,8 +86,8 @@ impl Default for BotMetrics {
 /// Narrative-level metrics for tracking execution performance.
 #[derive(Clone)]
 pub struct NarrativeMetrics {
-    #[allow(dead_code)]
-    meter: Meter,
+    /// Meter handle kept alive for metric instruments
+    _meter: Meter,
     /// Narrative execution count
     pub executions: Counter<u64>,
     /// Narrative execution duration
@@ -107,7 +106,7 @@ impl NarrativeMetrics {
         let meter = global::meter("botticelli_narratives");
 
         Self {
-            meter: meter.clone(),
+            _meter: meter.clone(),
             executions: meter
                 .u64_counter("narrative.executions")
                 .with_description("Narrative execution count")
@@ -169,8 +168,8 @@ impl Default for NarrativeMetrics {
 /// Content pipeline metrics.
 #[derive(Clone)]
 pub struct PipelineMetrics {
-    #[allow(dead_code)]
-    meter: Meter,
+    /// Meter handle kept alive for metric instruments
+    _meter: Meter,
     /// Posts generated
     pub generated: Counter<u64>,
     /// Posts curated
@@ -187,7 +186,7 @@ impl PipelineMetrics {
         let meter = global::meter("botticelli_pipeline");
 
         Self {
-            meter: meter.clone(),
+            _meter: meter.clone(),
             generated: meter
                 .u64_counter("pipeline.generated")
                 .with_description("Posts generated")
@@ -270,21 +269,21 @@ impl Default for ServerMetrics {
 /// Uses Arc internally so cloning is cheap.
 #[derive(Clone)]
 pub struct MetricsCollector {
-    #[allow(dead_code)]
-    metrics: Arc<ServerMetrics>,
+    /// Server metrics handle kept alive
+    _metrics: Arc<ServerMetrics>,
 }
 
 impl MetricsCollector {
     /// Create new metrics collector.
     pub fn new() -> Self {
         Self {
-            metrics: Arc::new(ServerMetrics::new()),
+            _metrics: Arc::new(ServerMetrics::new()),
         }
     }
 
     /// Create from existing server metrics.
     pub fn from_server_metrics(metrics: Arc<ServerMetrics>) -> Self {
-        Self { metrics }
+        Self { _metrics: metrics }
     }
 
     /// Get current metrics snapshot.

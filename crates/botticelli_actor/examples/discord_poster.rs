@@ -110,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Built actor, executing...");
 
     // Execute actor
-    match actor.execute(&mut conn).await {
+    match actor.execute(&pool).await {
         Ok(result) => {
             info!("Actor execution completed");
             info!("  Succeeded: {}", result.succeeded.len());

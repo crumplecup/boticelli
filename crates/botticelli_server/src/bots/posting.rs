@@ -1,4 +1,3 @@
-
 use botticelli_models::GeminiClient;
 use botticelli_narrative::{MultiNarrative, NarrativeExecutor};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -67,10 +66,8 @@ impl PostingBot {
         info!("Posting next approved content");
 
         // Load narrative
-        let narrative = MultiNarrative::from_file(
-            &self.args.narrative_path,
-            &self.args.narrative_name,
-        )?;
+        let narrative =
+            MultiNarrative::from_file(&self.args.narrative_path, &self.args.narrative_name)?;
 
         // Create executor with Gemini client
         let client = GeminiClient::new()?;

@@ -32,6 +32,7 @@ impl Platform for MockPlatform {
 }
 
 /// Skill that fails with recoverable errors for a certain number of attempts.
+#[allow(dead_code)]
 struct RecoverableErrorSkill {
     attempts: AtomicU32,
     fail_count: u32,
@@ -77,6 +78,7 @@ impl Skill for RecoverableErrorSkill {
 }
 
 /// Skill that always fails with unrecoverable errors.
+#[allow(dead_code)]
 struct UnrecoverableErrorSkill;
 
 #[async_trait]
@@ -97,6 +99,7 @@ impl Skill for UnrecoverableErrorSkill {
 }
 
 /// Skill that succeeds immediately.
+#[allow(dead_code)]
 struct SuccessSkill;
 
 #[async_trait]

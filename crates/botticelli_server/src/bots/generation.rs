@@ -1,4 +1,3 @@
-
 use botticelli_models::GeminiClient;
 use botticelli_narrative::{MultiNarrative, NarrativeExecutor, NarrativeProvider};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -45,10 +44,8 @@ impl GenerationBot {
         info!("Running generation cycle");
 
         // Load narrative
-        let multi_narrative = MultiNarrative::from_file(
-            &self.args.narrative_path,
-            &self.args.narrative_name,
-        )?;
+        let multi_narrative =
+            MultiNarrative::from_file(&self.args.narrative_path, &self.args.narrative_name)?;
 
         tracing::debug!(
             narrative_key = %self.args.narrative_name,

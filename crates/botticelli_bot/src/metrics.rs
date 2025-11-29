@@ -177,9 +177,8 @@ impl BotMetrics {
 
     /// Gets overall success rate (0.0 - 1.0).
     pub fn overall_success_rate(&self) -> f64 {
-        let total_executions = self.generation_executions()
-            + self.curation_executions()
-            + self.posting_executions();
+        let total_executions =
+            self.generation_executions() + self.curation_executions() + self.posting_executions();
         let total_failures =
             self.generation_failures() + self.curation_failures() + self.posting_failures();
 
@@ -197,9 +196,7 @@ impl BotMetrics {
             generation: BotMetricSnapshot {
                 executions: self.generation_executions(),
                 failures: self.generation_failures(),
-                seconds_since_success: self
-                    .generation_time_since_success()
-                    .map(|d| d.as_secs()),
+                seconds_since_success: self.generation_time_since_success().map(|d| d.as_secs()),
             },
             curation: BotMetricSnapshot {
                 executions: self.curation_executions(),

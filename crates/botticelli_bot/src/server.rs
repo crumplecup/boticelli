@@ -58,9 +58,9 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
                 let state = crate::ApiState::new(metrics);
                 let app = crate::create_router(state);
                 let addr = format!("0.0.0.0:{}", port);
-                
+
                 info!(port = port, "Starting metrics HTTP server");
-                
+
                 let listener = match tokio::net::TcpListener::bind(&addr).await {
                     Ok(l) => l,
                     Err(e) => {
@@ -73,8 +73,11 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
                     error!(error = ?e, "Metrics server error");
                 }
             });
-            
-            info!(port = port, "Metrics HTTP server started at http://0.0.0.0:{}/metrics", port);
+
+            info!(
+                port = port,
+                "Metrics HTTP server started at http://0.0.0.0:{}/metrics", port
+            );
         }
 
         // Create channels

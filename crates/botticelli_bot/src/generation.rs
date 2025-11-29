@@ -83,7 +83,10 @@ impl<D: BotticelliDriver> GenerationBot<D> {
         match result {
             Ok(_) => {
                 self.metrics.record_generation_success();
-                info!(duration_ms = duration.as_millis(), "Content generation completed");
+                info!(
+                    duration_ms = duration.as_millis(),
+                    "Content generation completed"
+                );
                 Ok(())
             }
             Err(e) => {

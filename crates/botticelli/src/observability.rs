@@ -1,7 +1,7 @@
 use opentelemetry::{global, trace::TracerProvider};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_stdout::SpanExporter;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Initialize OpenTelemetry observability stack
 ///

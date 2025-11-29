@@ -4,7 +4,9 @@ use botticelli_bot::{BotConfig, BotServer};
 use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, create_pool};
 use botticelli_error::{BotticelliResult, ServerError, ServerErrorKind};
 use botticelli_models::GeminiClient;
-use botticelli_narrative::{ContentGenerationProcessor, NarrativeExecutor, ProcessorRegistry, StorageActor};
+use botticelli_narrative::{
+    ContentGenerationProcessor, NarrativeExecutor, ProcessorRegistry, StorageActor,
+};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tracing::info;
@@ -33,8 +35,9 @@ pub async fn handle_server_command(
     // Start storage actor with Ractor
     info!("Starting storage actor");
     let actor = StorageActor::new(pool.clone());
-    let (actor_ref, _handle) =
-        ractor::Actor::spawn(None, actor, pool.clone()).await.map_err(|e| {
+    let (actor_ref, _handle) = ractor::Actor::spawn(None, actor, pool.clone())
+        .await
+        .map_err(|e| {
             ServerError::new(ServerErrorKind::ServerStartFailed(format!(
                 "Failed to spawn storage actor: {}",
                 e

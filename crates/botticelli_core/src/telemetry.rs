@@ -3,7 +3,7 @@
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::trace::{RandomIdGenerator, Sampler, SdkTracerProvider};
 use opentelemetry_stdout::SpanExporter;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Initialize OpenTelemetry with stdout exporter for development.
 ///

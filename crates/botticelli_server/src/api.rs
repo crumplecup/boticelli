@@ -1,7 +1,7 @@
 //! HTTP API for bot server metrics and health checks.
 
 use crate::metrics::MetricsCollector;
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
 use serde_json::json;
 use std::sync::Arc;
 use tracing::instrument;

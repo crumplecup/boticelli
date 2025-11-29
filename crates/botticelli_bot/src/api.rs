@@ -2,11 +2,11 @@
 
 use crate::BotMetrics;
 use axum::{
+    Router,
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Json},
     routing::get,
-    Router,
 };
 use serde_json::json;
 use std::sync::Arc;

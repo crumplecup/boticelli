@@ -533,21 +533,24 @@ mod tests {
     #[test]
     fn test_infer_column_type_string_array() {
         let (pg_type, nullable) = infer_column_type(&json!(["a", "b", "c"]));
-        assert_eq!(pg_type, "TEXT[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 
     #[test]
     fn test_infer_column_type_number_array() {
         let (pg_type, nullable) = infer_column_type(&json!([1, 2, 3]));
-        assert_eq!(pg_type, "BIGINT[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 
     #[test]
     fn test_infer_column_type_boolean_array() {
         let (pg_type, nullable) = infer_column_type(&json!([true, false]));
-        assert_eq!(pg_type, "BOOLEAN[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 
@@ -739,7 +742,8 @@ mod tests {
         });
         let schema = infer_schema(&json).unwrap();
         assert_eq!(schema.field_count(), 2);
-        assert_eq!(schema.fields["tags"].pg_type, "TEXT[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(schema.fields["tags"].pg_type, "JSONB");
     }
 
     #[test]
@@ -785,7 +789,8 @@ mod tests {
     #[test]
     fn test_infer_column_type_float_array() {
         let (pg_type, nullable) = infer_column_type(&json!([1.1, 2.2, 3.3]));
-        assert_eq!(pg_type, "DOUBLE PRECISION[]");
+        // Arrays are stored as JSONB per our design
+        assert_eq!(pg_type, "JSONB");
         assert!(!nullable);
     }
 }

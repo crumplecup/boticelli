@@ -60,7 +60,7 @@ mod traits;
 pub use actor_traits::{
     ActorManager, ActorServer, ActorServerResult, ContentPoster, StatePersistence, TaskScheduler,
 };
-pub use api::{create_router as create_metrics_router, ApiState};
+pub use api::{ApiState, create_router as create_metrics_router};
 pub use bots::{
     BotServer, CurationBot, CurationBotArgs, CurationMessage, GenerationBot, GenerationBotArgs,
     GenerationMessage, PostingBot, PostingBotArgs, PostingMessage,
@@ -68,8 +68,10 @@ pub use bots::{
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
 pub use config::ServerConfig;
-pub use metrics::{BotMetrics, MetricsCollector, MetricsSnapshot, NarrativeMetrics, PipelineMetrics, ServerMetrics};
-pub use observability::{init_observability, shutdown_observability, ObservabilityConfig};
+pub use metrics::{
+    BotMetrics, MetricsCollector, MetricsSnapshot, NarrativeMetrics, PipelineMetrics, ServerMetrics,
+};
+pub use observability::{ObservabilityConfig, init_observability, shutdown_observability};
 pub use request::{ChatCompletionRequest, Message};
 pub use response::{
     ChatCompletionChunk, ChatCompletionResponse, Choice, ChoiceMessage, ChunkChoice, Delta, Usage,

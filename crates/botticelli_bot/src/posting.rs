@@ -96,7 +96,10 @@ impl<D: BotticelliDriver> PostingBot<D> {
         match result {
             Ok(_) => {
                 self.metrics.record_posting_success();
-                info!(duration_ms = duration.as_millis(), "Successfully posted content");
+                info!(
+                    duration_ms = duration.as_millis(),
+                    "Successfully posted content"
+                );
                 Ok(())
             }
             Err(e) => {

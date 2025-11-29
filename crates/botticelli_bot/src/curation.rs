@@ -1,9 +1,11 @@
 use crate::config::CurationConfig;
+use crate::metrics::BotMetrics;
 use botticelli_interface::BotticelliDriver;
 use botticelli_narrative::NarrativeExecutor;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, instrument};
 
@@ -21,6 +23,7 @@ pub struct CurationBot<D: BotticelliDriver> {
     config: CurationConfig,
     executor: Arc<NarrativeExecutor<D>>,
     database: Arc<Pool<ConnectionManager<PgConnection>>>,
+    metrics: Arc<BotMetrics>,
     rx: mpsc::Receiver<CurationMessage>,
 }
 
@@ -30,12 +33,14 @@ impl<D: BotticelliDriver> CurationBot<D> {
         config: CurationConfig,
         executor: Arc<NarrativeExecutor<D>>,
         database: Arc<Pool<ConnectionManager<PgConnection>>>,
+        metrics: Arc<BotMetrics>,
         rx: mpsc::Receiver<CurationMessage>,
     ) -> Self {
         Self {
             config,
             executor,
             database,
+            metrics,
             rx,
         }
     }
@@ -62,30 +67,55 @@ impl<D: BotticelliDriver> CurationBot<D> {
 
     #[instrument(skip(self))]
     async fn process_pending_content(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let start = Instant::now();
+        self.metrics.record_curation_execution();
+
         debug!("Checking for pending content");
 
-        loop {
-            let pending_count = self.check_pending_count().await?;
+        let result = async {
+            loop {
+                let pending_count = self.check_pending_count().await?;
 
-            if pending_count == 0 {
-                info!("No pending content to curate");
-                break;
+                if pending_count == 0 {
+                    info!("No pending content to curate");
+                    break;
+                }
+
+                debug!(pending_count, "Found pending content, processing batch");
+
+                // Process batch - the narrative will pull and delete content atomically
+                self.executor
+                    .execute_narrative_by_name(
+                        &self.config.narrative_path.to_string_lossy(),
+                        &self.config.narrative_name,
+                    )
+                    .await?;
+
+                info!(batch_size = self.config.batch_size, "Curated batch");
             }
 
-            debug!(pending_count, "Found pending content, processing batch");
-
-            // Process batch - the narrative will pull and delete content atomically
-            self.executor
-                .execute_narrative_by_name(
-                    &self.config.narrative_path.to_string_lossy(),
-                    &self.config.narrative_name,
-                )
-                .await?;
-
-            info!(batch_size = self.config.batch_size, "Curated batch");
+            Ok::<(), Box<dyn std::error::Error>>(())
         }
+        .await;
 
-        Ok(())
+        let duration = start.elapsed();
+
+        match result {
+            Ok(_) => {
+                self.metrics.record_curation_success();
+                info!(duration_ms = duration.as_millis(), "Curation completed");
+                Ok(())
+            }
+            Err(e) => {
+                self.metrics.record_curation_failure();
+                error!(
+                    duration_ms = duration.as_millis(),
+                    error = ?e,
+                    "Curation failed"
+                );
+                Err(e)
+            }
+        }
     }
 
     async fn check_pending_count(&self) -> Result<usize, Box<dyn std::error::Error>> {

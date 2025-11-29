@@ -1,6 +1,7 @@
 use crate::config::{BotConfig, BotSchedule};
 use crate::curation::{CurationBot, CurationMessage};
 use crate::generation::{GenerationBot, GenerationMessage};
+use crate::metrics::BotMetrics;
 use crate::posting::{PostingBot, PostingMessage};
 use botticelli_interface::BotticelliDriver;
 use botticelli_narrative::NarrativeExecutor;
@@ -18,6 +19,7 @@ pub struct BotServer<D: BotticelliDriver> {
     schedule: BotSchedule,
     executor: Arc<NarrativeExecutor<D>>,
     database: Arc<Pool<ConnectionManager<PgConnection>>>,
+    metrics: Arc<BotMetrics>,
 }
 
 impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
@@ -33,7 +35,13 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
             schedule,
             executor: Arc::new(executor),
             database: Arc::new(database),
+            metrics: Arc::new(BotMetrics::new()),
         }
+    }
+
+    /// Gets metrics for the bot server.
+    pub fn metrics(&self) -> &Arc<BotMetrics> {
+        &self.metrics
     }
 
     /// Starts the bot server and all bot actors.
@@ -50,6 +58,7 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
         let generation_bot = GenerationBot::new(
             self.config.generation.clone(),
             Arc::clone(&self.executor),
+            Arc::clone(&self.metrics),
             gen_rx,
         );
 
@@ -57,6 +66,7 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
             self.config.curation.clone(),
             Arc::clone(&self.executor),
             Arc::clone(&self.database),
+            Arc::clone(&self.metrics),
             cur_rx,
         );
 
@@ -64,6 +74,7 @@ impl<D: BotticelliDriver + Send + Sync + 'static> BotServer<D> {
             self.config.posting.clone(),
             Arc::clone(&self.executor),
             Arc::clone(&self.database),
+            Arc::clone(&self.metrics),
             post_rx,
         );
 

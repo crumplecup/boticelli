@@ -12,6 +12,7 @@ use std::sync::Arc;
 /// Bot-level metrics for tracking execution and health.
 #[derive(Clone)]
 pub struct BotMetrics {
+    #[allow(dead_code)]
     meter: Meter,
     /// Total bot executions
     pub executions: Counter<u64>,
@@ -87,6 +88,7 @@ impl Default for BotMetrics {
 /// Narrative-level metrics for tracking execution performance.
 #[derive(Clone)]
 pub struct NarrativeMetrics {
+    #[allow(dead_code)]
     meter: Meter,
     /// Narrative execution count
     pub executions: Counter<u64>,
@@ -168,6 +170,7 @@ impl Default for NarrativeMetrics {
 /// Content pipeline metrics.
 #[derive(Clone)]
 pub struct PipelineMetrics {
+    #[allow(dead_code)]
     meter: Meter,
     /// Posts generated
     pub generated: Counter<u64>,
@@ -260,4 +263,95 @@ impl Default for ServerMetrics {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Metrics collector for HTTP API snapshots.
+///
+/// Provides a simplified view of metrics for JSON export via HTTP API.
+/// Uses Arc internally so cloning is cheap.
+#[derive(Clone)]
+pub struct MetricsCollector {
+    #[allow(dead_code)]
+    metrics: Arc<ServerMetrics>,
+}
+
+impl MetricsCollector {
+    /// Create new metrics collector.
+    pub fn new() -> Self {
+        Self {
+            metrics: Arc::new(ServerMetrics::new()),
+        }
+    }
+
+    /// Create from existing server metrics.
+    pub fn from_server_metrics(metrics: Arc<ServerMetrics>) -> Self {
+        Self { metrics }
+    }
+
+    /// Get current metrics snapshot.
+    pub fn snapshot(&self) -> MetricsSnapshot {
+        MetricsSnapshot {
+            bots: BotMetricsSnapshot::default(),
+            narratives: NarrativeMetricsSnapshot::default(),
+            pipeline: PipelineMetricsSnapshot::default(),
+        }
+    }
+}
+
+impl Default for MetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Snapshot of metrics at a point in time.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MetricsSnapshot {
+    /// Bot metrics snapshot
+    pub bots: BotMetricsSnapshot,
+    /// Narrative metrics snapshot
+    pub narratives: NarrativeMetricsSnapshot,
+    /// Pipeline metrics snapshot
+    pub pipeline: PipelineMetricsSnapshot,
+}
+
+/// Bot metrics snapshot.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct BotMetricsSnapshot {
+    /// Total executions
+    pub executions: u64,
+    /// Total failures
+    pub failures: u64,
+    /// Average duration in seconds
+    pub avg_duration: f64,
+    /// Current queue depth
+    pub queue_depth: u64,
+}
+
+/// Narrative metrics snapshot.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct NarrativeMetricsSnapshot {
+    /// Total executions
+    pub executions: u64,
+    /// Average duration in seconds
+    pub avg_duration: f64,
+    /// JSON success count
+    pub json_success: u64,
+    /// JSON failure count
+    pub json_failures: u64,
+    /// JSON success rate
+    pub json_success_rate: f64,
+}
+
+/// Pipeline metrics snapshot.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct PipelineMetricsSnapshot {
+    /// Posts generated
+    pub generated: u64,
+    /// Posts curated
+    pub curated: u64,
+    /// Posts published
+    pub published: u64,
+    /// Average stage latency in seconds
+    pub avg_stage_latency: f64,
 }

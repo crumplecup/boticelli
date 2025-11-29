@@ -1,11 +1,12 @@
 use crate::config::PostingConfig;
+use crate::metrics::BotMetrics;
 use botticelli_interface::BotticelliDriver;
 use botticelli_narrative::NarrativeExecutor;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use rand::Rng;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, instrument};
 
@@ -23,6 +24,7 @@ pub struct PostingBot<D: BotticelliDriver> {
     config: PostingConfig,
     executor: Arc<NarrativeExecutor<D>>,
     database: Arc<Pool<ConnectionManager<PgConnection>>>,
+    metrics: Arc<BotMetrics>,
     rx: mpsc::Receiver<PostingMessage>,
 }
 
@@ -32,12 +34,14 @@ impl<D: BotticelliDriver> PostingBot<D> {
         config: PostingConfig,
         executor: Arc<NarrativeExecutor<D>>,
         database: Arc<Pool<ConnectionManager<PgConnection>>>,
+        metrics: Arc<BotMetrics>,
         rx: mpsc::Receiver<PostingMessage>,
     ) -> Self {
         Self {
             config,
             executor,
             database,
+            metrics,
             rx,
         }
     }
@@ -64,26 +68,47 @@ impl<D: BotticelliDriver> PostingBot<D> {
 
     #[instrument(skip(self))]
     async fn post_next_content(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let start = Instant::now();
+        self.metrics.record_posting_execution();
+
         debug!("Checking for approved content to post");
 
         let has_approved = self.check_approved_content().await?;
 
         if !has_approved {
             info!("No approved content available to post");
+            self.metrics.record_posting_success(); // Not a failure, just nothing to do
             return Ok(());
         }
 
         debug!("Found approved content, executing posting narrative");
 
-        self.executor
+        let result = self
+            .executor
             .execute_narrative_by_name(
                 &self.config.narrative_path.to_string_lossy(),
                 &self.config.narrative_name,
             )
-            .await?;
+            .await;
 
-        info!("Successfully posted content");
-        Ok(())
+        let duration = start.elapsed();
+
+        match result {
+            Ok(_) => {
+                self.metrics.record_posting_success();
+                info!(duration_ms = duration.as_millis(), "Successfully posted content");
+                Ok(())
+            }
+            Err(e) => {
+                self.metrics.record_posting_failure();
+                error!(
+                    duration_ms = duration.as_millis(),
+                    error = ?e,
+                    "Posting failed"
+                );
+                Err(e.into())
+            }
+        }
     }
 
     async fn check_approved_content(&self) -> Result<bool, Box<dyn std::error::Error>> {

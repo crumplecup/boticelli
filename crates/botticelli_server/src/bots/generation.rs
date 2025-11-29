@@ -1,4 +1,4 @@
-use botticelli_database::establish_connection;
+
 use botticelli_models::GeminiClient;
 use botticelli_narrative::{MultiNarrative, NarrativeExecutor, NarrativeProvider};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -44,12 +44,10 @@ impl GenerationBot {
     async fn run_generation_cycle(&self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Running generation cycle");
 
-        // Load narrative with database connection
-        let mut conn = establish_connection()?;
-        let multi_narrative = MultiNarrative::from_file_with_db(
+        // Load narrative
+        let multi_narrative = MultiNarrative::from_file(
             &self.args.narrative_path,
             &self.args.narrative_name,
-            &mut conn,
         )?;
 
         tracing::debug!(

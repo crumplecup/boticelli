@@ -921,17 +921,18 @@ async fn test_trace_propagation() {
 
 ## Rollout Plan
 
-### Week 1: Foundation
-- [ ] Add prometheus crate dependency
-- [ ] Implement core metrics structs
-- [ ] Add metrics to bot execution loops
-- [ ] Create /metrics HTTP endpoint
-- [ ] Set up local Prometheus instance
+### Phase 1: Foundation (Completed)
+- [x] Custom metrics module with atomic counters
+- [x] Execution, failure, and success tracking
+- [x] Time-since-last-success tracking
+- [x] Overall success rate calculation
 
-### Week 2: Bot & Narrative Metrics
-- [ ] Add metrics to ContentGenerationBot
-- [ ] Add metrics to ContentCurationBot
-- [ ] Add metrics to ContentPostingBot
+### Phase 2: Bot & Narrative Metrics (Completed)
+- [x] Add metrics to ContentGenerationBot
+- [x] Add metrics to ContentCurationBot
+- [x] Add metrics to ContentPostingBot
+- [x] Track execution duration for all bots
+- [x] Emit structured logs with timing data
 - [ ] Add metrics to narrative executor
 - [ ] Configure backend dashboard views
 

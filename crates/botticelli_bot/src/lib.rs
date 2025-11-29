@@ -11,11 +11,13 @@
 mod config;
 mod curation;
 mod generation;
+mod metrics;
 mod posting;
 mod server;
 
 pub use config::{BotConfig, BotSchedule, CurationConfig, GenerationConfig, PostingConfig};
 pub use curation::{CurationBot, CurationMessage};
 pub use generation::{GenerationBot, GenerationMessage};
+pub use metrics::BotMetrics;
 pub use posting::{PostingBot, PostingMessage};
 pub use server::BotServer;

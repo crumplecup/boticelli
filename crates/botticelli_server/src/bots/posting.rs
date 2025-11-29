@@ -1,4 +1,4 @@
-use botticelli_database::establish_connection;
+
 use botticelli_models::GeminiClient;
 use botticelli_narrative::{MultiNarrative, NarrativeExecutor};
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -66,12 +66,10 @@ impl PostingBot {
     async fn post_next_content(&self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Posting next approved content");
 
-        // Load narrative with database connection
-        let mut conn = establish_connection()?;
-        let narrative = MultiNarrative::from_file_with_db(
+        // Load narrative
+        let narrative = MultiNarrative::from_file(
             &self.args.narrative_path,
             &self.args.narrative_name,
-            &mut conn,
         )?;
 
         // Create executor with Gemini client

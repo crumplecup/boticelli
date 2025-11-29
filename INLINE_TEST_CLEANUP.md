@@ -20,8 +20,8 @@ Moving all `#[cfg(test)] mod tests` from src/ to tests/ directory per CLAUDE.md 
 - ✅ botticelli (top-level)
 
 ## In Progress
-- 🔄 botticelli_database (3 files)
-- 🔄 botticelli_narrative (5 files)
+- 🔄 botticelli_database (2 files remaining - schema_inference.rs 303 lines, schema_reflection.rs 51 lines)
+- 🔄 botticelli_narrative (5 files - varying sizes, largest is core.rs 335 lines)
 
 ## Files Remaining
 ### botticelli_database

@@ -134,6 +134,7 @@ impl ExecutionOptionsBuilder {
         ExecutionOptions {
             save: self.save,
             #[cfg(feature = "discord")]
+            #[cfg(feature = "discord")]
             process_discord: self.process_discord,
             #[cfg(feature = "database")]
             state_dir: self.state_dir,

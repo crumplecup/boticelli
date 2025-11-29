@@ -36,6 +36,7 @@ pub enum Commands {
         save: bool,
 
         /// Process Discord infrastructure (guilds, channels, etc.)
+        #[cfg(feature = "discord")]
         #[arg(long)]
         process_discord: bool,
 

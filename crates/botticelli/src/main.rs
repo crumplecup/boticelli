@@ -57,6 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             narrative,
             narrative_name,
             save,
+            #[cfg(feature = "discord")]
             process_discord,
             #[cfg(all(feature = "gemini", feature = "database"))]
             state_dir,
@@ -115,6 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     narrative,
                     narrative_name,
                     save,
+                    #[cfg(feature = "discord")]
                     process_discord,
                     rpm_multiplier,
                     tpm_multiplier,

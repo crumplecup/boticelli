@@ -221,6 +221,34 @@ test-coverage:
 # Run complete test suite including API tests (for pre-merge)
 test-pre-merge: test test-doc test-api-gemini
 
+# Observability
+# =============
+
+# Test observability stack (Jaeger, Prometheus, Grafana)
+test-observability:
+    @./scripts/test-observability.sh
+
+# Start observability stack
+obs-up:
+    podman-compose -f docker-compose.observability.yml up -d
+
+# Stop observability stack
+obs-down:
+    podman-compose -f docker-compose.observability.yml down
+
+# View observability logs
+obs-logs service="":
+    #!/usr/bin/env bash
+    if [ -z "{{service}}" ]; then
+        podman-compose -f docker-compose.observability.yml logs -f
+    else
+        podman logs -f botticelli-{{service}}
+    fi
+
+# Restart observability stack
+obs-restart:
+    podman-compose -f docker-compose.observability.yml restart
+
 # Code Quality
 # ============
 

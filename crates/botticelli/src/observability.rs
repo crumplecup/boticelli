@@ -1,5 +1,9 @@
 use opentelemetry::{global, trace::TracerProvider, KeyValue};
-use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+use opentelemetry_sdk::{
+    metrics::SdkMeterProvider,
+    trace::SdkTracerProvider,
+    Resource,
+};
 use opentelemetry_stdout::SpanExporter;
 use std::env;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
@@ -60,6 +64,8 @@ pub struct ObservabilityConfig {
     pub json_logs: bool,
     /// Exporter backend for traces
     pub exporter: ExporterBackend,
+    /// Enable metrics collection and export
+    pub enable_metrics: bool,
 }
 
 impl ObservabilityConfig {
@@ -69,6 +75,7 @@ impl ObservabilityConfig {
     /// - Exporter: Read from `OTEL_EXPORTER` env (default: stdout)
     /// - Log level: Read from `RUST_LOG` env (default: info)
     /// - JSON logs: false
+    /// - Metrics: enabled
     pub fn new(service_name: impl Into<String>) -> Self {
         Self {
             service_name: service_name.into(),
@@ -76,6 +83,7 @@ impl ObservabilityConfig {
             log_level: env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()),
             json_logs: false,
             exporter: ExporterBackend::from_env(),
+            enable_metrics: true,
         }
     }
 
@@ -100,6 +108,12 @@ impl ObservabilityConfig {
     /// Set the exporter backend.
     pub fn with_exporter(mut self, exporter: ExporterBackend) -> Self {
         self.exporter = exporter;
+        self
+    }
+
+    /// Enable or disable metrics collection.
+    pub fn with_metrics(mut self, enabled: bool) -> Self {
+        self.enable_metrics = enabled;
         self
     }
 }
@@ -147,7 +161,7 @@ pub fn init_observability_with_config(
             let exporter = SpanExporter::default();
             SdkTracerProvider::builder()
                 .with_simple_exporter(exporter)
-                .with_resource(resource)
+                .with_resource(resource.clone())
                 .build()
         }
         #[cfg(feature = "otel-otlp")]
@@ -163,13 +177,18 @@ pub fn init_observability_with_config(
 
             SdkTracerProvider::builder()
                 .with_batch_exporter(exporter)
-                .with_resource(resource)
+                .with_resource(resource.clone())
                 .build()
         }
     };
 
     // Set as global provider
     global::set_tracer_provider(provider.clone());
+
+    // Initialize metrics if enabled (before resource is moved)
+    if config.enable_metrics {
+        init_metrics(&resource, &config.exporter)?;
+    }
 
     // Create OpenTelemetry tracing layer
     let tracer = provider.tracer(config.service_name.clone());
@@ -203,12 +222,54 @@ pub fn init_observability_with_config(
     Ok(())
 }
 
+/// Initialize metrics provider based on exporter backend.
+fn init_metrics(resource: &Resource, exporter: &ExporterBackend) -> Result<(), Box<dyn std::error::Error>> {
+    match exporter {
+        ExporterBackend::Stdout => {
+            // Stdout exporter for metrics (development)
+            let exporter = opentelemetry_stdout::MetricExporter::default();
+            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
+                .build();
+
+            let meter_provider = SdkMeterProvider::builder()
+                .with_reader(reader)
+                .with_resource(resource.clone())
+                .build();
+
+            global::set_meter_provider(meter_provider);
+        }
+        #[cfg(feature = "otel-otlp")]
+        ExporterBackend::Otlp { endpoint } => {
+            use opentelemetry_otlp::WithExportConfig;
+
+            // Build OTLP metric exporter with tonic
+            let exporter = opentelemetry_otlp::MetricExporter::builder()
+                .with_tonic()
+                .with_endpoint(endpoint.clone())
+                .build()
+                .map_err(|e| format!("Failed to build OTLP metric exporter: {}", e))?;
+
+            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
+                .build();
+
+            let meter_provider = SdkMeterProvider::builder()
+                .with_reader(reader)
+                .with_resource(resource.clone())
+                .build();
+
+            global::set_meter_provider(meter_provider);
+        }
+    }
+
+    Ok(())
+}
+
 /// Shutdown OpenTelemetry gracefully
 ///
-/// This ensures all spans are flushed before exit.
+/// This ensures all spans and metrics are flushed before exit.
 /// In OpenTelemetry SDK v0.31+, providers flush automatically on drop,
 /// so this is primarily for API compatibility.
 pub fn shutdown_observability() {
     // Providers are dropped automatically and flush on drop
-    // No explicit shutdown needed for stdout exporter
+    // This includes both tracer and meter providers
 }

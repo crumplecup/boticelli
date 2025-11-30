@@ -168,7 +168,7 @@ test-api-gemini:
     rm -f "$LOG_FILE"
     
     if cargo test --workspace --features gemini,api 2>&1 | tee "$LOG_FILE"; then
-        if [ -s "$LOG_FILE" ] && grep -qE "(warning|error|FAILED)" "$LOG_FILE"; then
+        if [ -s "$LOG_FILE" ] && grep -qE "^(warning:|error:|\s+\^|error\[|test result:.*FAILED)" "$LOG_FILE"; then
             echo "⚠️  API tests completed with warnings/errors. See: $LOG_FILE"
             exit 1
         else
@@ -191,7 +191,7 @@ test-api-all:
     
     echo "🚀 Running all API tests (this will consume API quotas)..."
     if cargo test --workspace --all-features 2>&1 | tee "$LOG_FILE"; then
-        if [ -s "$LOG_FILE" ] && grep -qE "(warning|error|FAILED)" "$LOG_FILE"; then
+        if [ -s "$LOG_FILE" ] && grep -qE "^(warning:|error:|\s+\^|error\[|test result:.*FAILED)" "$LOG_FILE"; then
             echo "⚠️  API tests completed with warnings/errors. See: $LOG_FILE"
             exit 1
         else

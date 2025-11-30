@@ -457,4 +457,109 @@ impl NarrativeSource {
             Self::MultiWithContext { execute_name, .. } => execute_name,
         }
     }
+
+    /// Load a narrative from a TOML file, automatically detecting composition.
+    ///
+    /// If `narrative_name` is provided and the file contains multiple narratives,
+    /// this checks if the specified narrative uses composition. If it does, the
+    /// full MultiNarrative context is preserved. Otherwise, only the single
+    /// narrative is extracted.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the TOML file
+    /// * `narrative_name` - Optional narrative name for multi-narrative files
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read or parsed, or if the
+    /// specified narrative name is not found.
+    #[tracing::instrument(skip_all, fields(path = %path.as_ref().display(), narrative_name))]
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+        narrative_name: Option<&str>,
+    ) -> Result<Self, NarrativeError> {
+        let path_ref = path.as_ref();
+        let content = std::fs::read_to_string(path_ref).map_err(|e| {
+            NarrativeError::new(NarrativeErrorKind::FileRead(format!(
+                "Failed to read {}: {}",
+                path_ref.display(),
+                e
+            )))
+        })?;
+
+        Self::from_toml_str(&content, path_ref, narrative_name)
+    }
+
+    /// Parse a narrative from TOML string, automatically detecting composition.
+    fn from_toml_str(
+        content: &str,
+        source_path: &Path,
+        narrative_name: Option<&str>,
+    ) -> Result<Self, NarrativeError> {
+        use crate::toml_parser::TomlNarrativeFile;
+
+        // Try to parse as multi-narrative file first
+        if let Ok(toml_file) = toml::from_str::<TomlNarrativeFile>(content) {
+            if !toml_file.narratives.is_empty() {
+                // Multi-narrative file
+                let name = narrative_name.ok_or_else(|| {
+                    let available: Vec<_> = toml_file.narratives.keys().cloned().collect();
+                    NarrativeError::new(NarrativeErrorKind::TomlParse(format!(
+                        "Multiple narratives found. Specify one: {}",
+                        available.join(", ")
+                    )))
+                })?;
+
+                // Load full MultiNarrative
+                let multi = crate::MultiNarrative::from_file(source_path, name)?;
+
+                // Get the target narrative
+                let narrative = multi.get_narrative(name).ok_or_else(|| {
+                    NarrativeError::new(NarrativeErrorKind::TomlParse(format!(
+                        "Narrative '{}' not found in file",
+                        name
+                    )))
+                })?;
+
+                // Check if this narrative uses composition
+                if has_composition_acts(narrative) {
+                    tracing::debug!(
+                        narrative_name = name,
+                        "Detected composition acts, preserving full MultiNarrative context"
+                    );
+                    Ok(Self::MultiWithContext {
+                        multi,
+                        execute_name: name.to_string(),
+                    })
+                } else {
+                    tracing::debug!(
+                        narrative_name = name,
+                        "No composition acts detected, extracting single narrative"
+                    );
+                    Ok(Self::Single(narrative.clone()))
+                }
+            } else {
+                // Empty narratives table, try single narrative
+                let narrative = Narrative::from_toml_str(content, narrative_name)?;
+                Ok(Self::Single(narrative))
+            }
+        } else {
+            // Single narrative file
+            let narrative = Narrative::from_toml_str(content, narrative_name)?;
+            Ok(Self::Single(narrative))
+        }
+    }
+}
+
+/// Check if a narrative has any composition acts.
+///
+/// A composition act is one that references another narrative via the `narrative_ref` field.
+fn has_composition_acts(narrative: &Narrative) -> bool {
+    narrative.act_names().iter().any(|act_name| {
+        narrative
+            .get_act_config(act_name)
+            .map(|config| config.narrative_ref().is_some())
+            .unwrap_or(false)
+    })
 }

@@ -57,7 +57,7 @@ fn test_recoverable_errors_allow_continuation() {
 
 #[test]
 fn test_unrecoverable_errors_stop_execution() {
-    // Test that unrecoverable errors are properly classified  
+    // Test that unrecoverable errors are properly classified
     let unrecoverable_errors = vec![
         ActorError::new(ActorErrorKind::AuthenticationFailed("invalid".to_string())),
         ActorError::new(ActorErrorKind::InvalidConfiguration("bad".to_string())),

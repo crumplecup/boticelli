@@ -297,7 +297,7 @@ check-features:
 # Run all checks (lint, format check, tests)
 check-all package='':
     #!/usr/bin/env bash
-    set -euo pipefail
+    set -uo pipefail  # Removed -e so we can capture exit codes
     LOG_FILE="/tmp/botticelli_check_all.log"
     rm -f "$LOG_FILE"
     EXIT_CODE=0

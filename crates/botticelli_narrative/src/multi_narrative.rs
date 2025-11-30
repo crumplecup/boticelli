@@ -76,14 +76,24 @@ impl MultiNarrative {
         source_path: &Path,
         narrative_name: &str,
     ) -> Result<Self, NarrativeError> {
-        use crate::toml_parser::TomlNarrativeFile;
+        use crate::toml_parser::{TomlNarrativeData, TomlNarrativeFile};
 
         // Parse the TOML file
         let toml_file: TomlNarrativeFile = toml::from_str(s)
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::TomlParse(e.to_string())))?;
 
-        // Extract all narrative names from [narratives.name] sections
-        let narrative_names: Vec<String> = toml_file.narratives.keys().cloned().collect();
+        // Extract all narrative names from [narrative.name] or [narratives.name]
+        let narrative_names: Vec<String> = match &toml_file.narrative_data {
+            TomlNarrativeData::Multi { narrative } => narrative.keys().cloned().collect(),
+            TomlNarrativeData::Single { narrative, .. } => {
+                // Single narrative - get its name
+                if let Some(n) = narrative.as_ref() {
+                    vec![n.name.clone()]
+                } else {
+                    vec![]
+                }
+            }
+        };
 
         debug!(count = narrative_names.len(), names = ?narrative_names, "Found narratives in file");
 
@@ -119,14 +129,23 @@ impl MultiNarrative {
         narrative_name: &str,
         conn: &mut PgConnection,
     ) -> Result<Self, NarrativeError> {
-        use crate::toml_parser::TomlNarrativeFile;
+        use crate::toml_parser::{TomlNarrativeData, TomlNarrativeFile};
 
         // Parse the TOML file
         let toml_file: TomlNarrativeFile = toml::from_str(s)
             .map_err(|e| NarrativeError::new(NarrativeErrorKind::TomlParse(e.to_string())))?;
 
-        // Extract all narrative names
-        let narrative_names: Vec<String> = toml_file.narratives.keys().cloned().collect();
+        // Extract all narrative names from [narrative.name] or [narratives.name]
+        let narrative_names: Vec<String> = match &toml_file.narrative_data {
+            TomlNarrativeData::Multi { narrative } => narrative.keys().cloned().collect(),
+            TomlNarrativeData::Single { narrative, .. } => {
+                if let Some(n) = narrative.as_ref() {
+                    vec![n.name.clone()]
+                } else {
+                    vec![]
+                }
+            }
+        };
 
         debug!(count = narrative_names.len(), names = ?narrative_names, "Found narratives in file");
 

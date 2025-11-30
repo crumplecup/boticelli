@@ -15,6 +15,8 @@ use botticelli_database::create_pool;
 use botticelli_server::ActorServer;
 #[cfg(feature = "discord")]
 use botticelli_server::Schedule;
+#[cfg(feature = "discord")]
+use botticelli_server::ServerMetrics;
 use clap::Parser;
 #[cfg(feature = "discord")]
 use std::collections::HashMap;
@@ -67,13 +69,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize observability (tracing + metrics + optional OTLP export)
     #[cfg(feature = "observability")]
-    let _prometheus_server = {
+    {
         let config = botticelli::ObservabilityConfig::new("botticelli-actor-server")
             .with_version(env!("CARGO_PKG_VERSION"));
-        let server = botticelli::init_observability_with_config(config)?;
-        info!("Observability initialized (OTEL_EXPORTER={:?})", std::env::var("OTEL_EXPORTER").unwrap_or_else(|_| "stdout".to_string()));
-        server
-    };
+        botticelli::init_observability_with_config(config)?;
+        info!(
+            "Observability initialized (OTEL_EXPORTER={:?})",
+            std::env::var("OTEL_EXPORTER").unwrap_or_else(|_| "stdout".to_string())
+        );
+    }
 
     // Fallback to basic tracing if observability feature not enabled
     #[cfg(not(feature = "observability"))]
@@ -161,6 +165,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Track actors, their schedules, last run time, and execution trackers
         let mut actors: HashMap<String, ActorEntry> = HashMap::new();
+
+        // Initialize metrics for the server
+        let metrics = Arc::new(ServerMetrics::new());
+        info!("Server metrics initialized");
 
         // Load and register actors from configuration
         for actor_instance in &server_config.actors {
@@ -355,16 +363,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             };
 
                             // Execute the actor with database pool
+                            let start_time = std::time::Instant::now();
                             match actor.execute(&db_pool).await {
                                 Ok(result) => {
+                                    let duration = start_time.elapsed().as_secs_f64();
                                     info!(
                                         actor = %name,
                                         skills_succeeded = result.succeeded.len(),
                                         skills_failed = result.failed.len(),
                                         skills_skipped = result.skipped.len(),
+                                        duration_secs = duration,
                                         "Actor executed successfully"
                                     );
                                     *last_run = Some(Utc::now());
+
+                                    // Record metrics
+                                    metrics.bots.record_execution(name, duration);
 
                                     // Record success if tracker available
                                     if let Some(exec_id) = exec_id
@@ -389,6 +403,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                                 Err(e) => {
                                     error!(actor = %name, error = ?e, "Actor execution failed");
+
+                                    // Record failure metric
+                                    metrics.bots.record_failure(name);
 
                                     // Record failure if tracker available
                                     if let Some(exec_id) = exec_id

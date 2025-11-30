@@ -43,6 +43,8 @@ This index tracks all planning documents in the workspace. When documents are co
   - Explanation of why Jaeger alone doesn't support metrics
 - **NARRATIVE_COMPOSITION_LOADING_ISSUE.md** - `current` (2025-11-30)
   - Analysis and fix strategy for narrative composition loading
+- **PODMAN_CONTAINERIZATION.md** - `current` (2025-11-30)
+  - Strategy for containerizing bot-server with Podman
 
 ### Testing & Quality
 - **TESTING_PATTERNS.md** - `718bf35` (2025-11-22)
@@ -73,6 +75,8 @@ This index tracks all planning documents in the workspace. When documents are co
 ### Database & Storage
 - **POSTGRES.md** - `8937634` (2025-11-17)
   - PostgreSQL setup and configuration
+- **DATABASE_SYNC_STRATEGY.md** - `current` (2025-11-30)
+  - Strategy for synchronizing databases between host and containers
 - **DISCORD_SCHEMA.md** - `8937634` (2025-11-17)
   - Discord data schema definitions
 - **MEDIA_STORAGE.md** - `8937634` (2025-11-17)
@@ -190,13 +194,13 @@ This index tracks all planning documents in the workspace. When documents are co
 
 ## Document Categories Summary
 
-- **Active Planning**: 11 documents
-- **Setup & Configuration**: 12 documents (added OBSERVABILITY_SETUP.md)
+- **Active Planning**: 12 documents (added PODMAN_CONTAINERIZATION.md)
+- **Setup & Configuration**: 13 documents (added DATABASE_SYNC_STRATEGY.md)
 - **Crate Documentation**: 13 documents
 - **Narrative Guides**: 3 documents
-- **Archived**: 28 documents (added 2 observability docs)
+- **Archived**: 28 documents
 
-**Total**: 67 markdown documents tracked (39 active, 28 archived)
+**Total**: 69 markdown documents tracked (41 active, 28 archived)
 
 ---
 

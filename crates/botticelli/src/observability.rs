@@ -1,18 +1,14 @@
-use opentelemetry::{global, trace::TracerProvider, KeyValue};
-use opentelemetry_sdk::{
-    metrics::SdkMeterProvider,
-    trace::SdkTracerProvider,
-    Resource,
-};
+use opentelemetry::{KeyValue, global, trace::TracerProvider};
+use opentelemetry_sdk::{Resource, metrics::SdkMeterProvider, trace::SdkTracerProvider};
 use opentelemetry_stdout::SpanExporter;
 use std::env;
-use std::net::SocketAddr;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Exporter backend for traces.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum ExporterBackend {
     /// Export traces to stdout (development/debugging)
+    #[default]
     Stdout,
     /// Export traces via OTLP to a collector (production)
     #[cfg(feature = "otel-otlp")]
@@ -46,12 +42,6 @@ impl ExporterBackend {
     }
 }
 
-impl Default for ExporterBackend {
-    fn default() -> Self {
-        Self::Stdout
-    }
-}
-
 /// Configuration for OpenTelemetry observability.
 #[derive(Debug, Clone)]
 pub struct ObservabilityConfig {
@@ -67,9 +57,6 @@ pub struct ObservabilityConfig {
     pub exporter: ExporterBackend,
     /// Enable metrics collection and export
     pub enable_metrics: bool,
-    /// Prometheus metrics HTTP endpoint (e.g., "0.0.0.0:9464")
-    /// If None, Prometheus HTTP server is disabled
-    pub prometheus_endpoint: Option<SocketAddr>,
 }
 
 impl ObservabilityConfig {
@@ -80,13 +67,7 @@ impl ObservabilityConfig {
     /// - Log level: Read from `RUST_LOG` env (default: info)
     /// - JSON logs: false
     /// - Metrics: enabled
-    /// - Prometheus endpoint: Read from `PROMETHEUS_ENDPOINT` env (default: 0.0.0.0:9464)
     pub fn new(service_name: impl Into<String>) -> Self {
-        let prometheus_endpoint = env::var("PROMETHEUS_ENDPOINT")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .or_else(|| Some("0.0.0.0:9464".parse().expect("Valid default address")));
-        
         Self {
             service_name: service_name.into(),
             service_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -94,7 +75,6 @@ impl ObservabilityConfig {
             json_logs: false,
             exporter: ExporterBackend::from_env(),
             enable_metrics: true,
-            prometheus_endpoint,
         }
     }
 
@@ -127,13 +107,6 @@ impl ObservabilityConfig {
         self.enable_metrics = enabled;
         self
     }
-
-    /// Set the Prometheus HTTP endpoint for metrics scraping.
-    /// Pass None to disable the Prometheus HTTP server.
-    pub fn with_prometheus_endpoint(mut self, endpoint: Option<SocketAddr>) -> Self {
-        self.prometheus_endpoint = endpoint;
-        self
-    }
 }
 
 impl Default for ObservabilityConfig {
@@ -142,22 +115,16 @@ impl Default for ObservabilityConfig {
     }
 }
 
-/// Handle to the running Prometheus HTTP server
-#[derive(Debug)]
-pub struct PrometheusServer {
-    _handle: tokio::task::JoinHandle<()>,
-}
-
 /// Initialize OpenTelemetry observability stack with default configuration.
 ///
 /// This sets up:
 /// - Tracing with OpenTelemetry bridge
 /// - Stdout exporter for development
 /// - Service name and version metadata
-/// - Optional Prometheus HTTP server
+/// - Metrics collection via configured exporter
 ///
 /// For more control, use `init_observability_with_config()`.
-pub fn init_observability() -> Result<Option<PrometheusServer>, Box<dyn std::error::Error>> {
+pub fn init_observability() -> Result<(), Box<dyn std::error::Error>> {
     init_observability_with_config(ObservabilityConfig::default())
 }
 
@@ -168,13 +135,14 @@ pub fn init_observability() -> Result<Option<PrometheusServer>, Box<dyn std::err
 /// - Configurable exporter backend (stdout, OTLP)
 /// - Service name and version metadata
 /// - Configurable log format (text or JSON)
-/// - Optional Prometheus HTTP server for metrics scraping
+/// - Metrics collection via configured exporter
 ///
-/// Returns a PrometheusServer handle if Prometheus endpoint is configured.
-/// The server runs in a background task and stops when the handle is dropped.
+/// In v0.31+, metrics are exported via OTLP to an OpenTelemetry Collector,
+/// which then exposes them for Prometheus scraping. Direct Prometheus exporters
+/// have been deprecated.
 pub fn init_observability_with_config(
     config: ObservabilityConfig,
-) -> Result<Option<PrometheusServer>, Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     // Create resource with service metadata
     let resource = Resource::builder()
         .with_service_name(config.service_name.clone())
@@ -215,19 +183,17 @@ pub fn init_observability_with_config(
     global::set_tracer_provider(provider.clone());
 
     // Initialize metrics if enabled (before resource is moved)
-    let prometheus_server = if config.enable_metrics {
-        init_metrics(&resource, &config)?
-    } else {
-        None
-    };
+    if config.enable_metrics {
+        init_metrics(&resource, &config)?;
+    }
 
     // Create OpenTelemetry tracing layer
     let tracer = provider.tracer(config.service_name.clone());
     let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
     // Setup environment filter
-    let env_filter = EnvFilter::try_from_default_env()
-        .or_else(|_| EnvFilter::try_new(&config.log_level))?;
+    let env_filter =
+        EnvFilter::try_from_default_env().or_else(|_| EnvFilter::try_new(&config.log_level))?;
 
     // Create fmt layer based on configuration
     let fmt_layer = if config.json_logs {
@@ -250,41 +216,23 @@ pub fn init_observability_with_config(
         .with(otel_layer)
         .init();
 
-    Ok(prometheus_server)
+    Ok(())
 }
 
 /// Initialize metrics provider based on configuration.
+///
+/// Note: In OpenTelemetry v0.31+, direct Prometheus exporters are deprecated.
+/// Use OTLP exporter → OpenTelemetry Collector → Prometheus scraping instead.
 fn init_metrics(
     resource: &Resource,
     config: &ObservabilityConfig,
-) -> Result<Option<PrometheusServer>, Box<dyn std::error::Error>> {
-    // If Prometheus endpoint is configured, use Prometheus exporter
-    if let Some(endpoint) = config.prometheus_endpoint {
-        let prometheus_registry = prometheus::Registry::new();
-        let exporter = opentelemetry_prometheus::exporter()
-            .with_registry(prometheus_registry.clone())
-            .build()
-            .map_err(|e| format!("Failed to build Prometheus exporter: {}", e))?;
-
-        let meter_provider = SdkMeterProvider::builder()
-            .with_reader(exporter)
-            .with_resource(resource.clone())
-            .build();
-
-        global::set_meter_provider(meter_provider);
-
-        // Start Prometheus HTTP server
-        let server = start_prometheus_server(endpoint, prometheus_registry)?;
-        return Ok(Some(server));
-    }
-
-    // Otherwise, use the configured exporter backend
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Use the configured exporter backend
     match &config.exporter {
         ExporterBackend::Stdout => {
             // Stdout exporter for metrics (development)
             let exporter = opentelemetry_stdout::MetricExporter::default();
-            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
-                .build();
+            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
 
             let meter_provider = SdkMeterProvider::builder()
                 .with_reader(reader)
@@ -304,8 +252,7 @@ fn init_metrics(
                 .build()
                 .map_err(|e| format!("Failed to build OTLP metric exporter: {}", e))?;
 
-            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
-                .build();
+            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
 
             let meter_provider = SdkMeterProvider::builder()
                 .with_reader(reader)
@@ -316,85 +263,7 @@ fn init_metrics(
         }
     }
 
-    Ok(None)
-}
-
-/// Start Prometheus HTTP server for metrics scraping.
-fn start_prometheus_server(
-    addr: SocketAddr,
-    registry: prometheus::Registry,
-) -> Result<PrometheusServer, Box<dyn std::error::Error>> {
-    use http_body_util::Full;
-    use hyper::body::Bytes;
-    use hyper::server::conn::http1;
-    use hyper::service::service_fn;
-    use hyper::{Request, Response};
-    use hyper_util::rt::TokioIo;
-    use tokio::net::TcpListener;
-
-    let handle = tokio::spawn(async move {
-        let listener = match TcpListener::bind(addr).await {
-            Ok(l) => l,
-            Err(e) => {
-                tracing::error!("Failed to bind Prometheus server to {}: {}", addr, e);
-                return;
-            }
-        };
-        
-        tracing::info!("Prometheus metrics server listening on http://{}/metrics", addr);
-
-        loop {
-            let (stream, _) = match listener.accept().await {
-                Ok(conn) => conn,
-                Err(e) => {
-                    tracing::error!("Failed to accept connection: {}", e);
-                    continue;
-                }
-            };
-
-            let io = TokioIo::new(stream);
-            let registry = registry.clone();
-
-            tokio::spawn(async move {
-                let service = service_fn(move |req: Request<hyper::body::Incoming>| {
-                    let registry = registry.clone();
-                    async move {
-                        if req.uri().path() == "/metrics" {
-                            let metric_families = registry.gather();
-                            let encoder = prometheus::TextEncoder::new();
-                            match encoder.encode_to_string(&metric_families) {
-                                Ok(body) => Ok::<_, hyper::Error>(
-                                    Response::builder()
-                                        .status(200)
-                                        .header("Content-Type", encoder.format_type())
-                                        .body(Full::new(Bytes::from(body)))
-                                        .unwrap(),
-                                ),
-                                Err(e) => {
-                                    tracing::error!("Failed to encode metrics: {}", e);
-                                    Ok(Response::builder()
-                                        .status(500)
-                                        .body(Full::new(Bytes::from("Internal Server Error")))
-                                        .unwrap())
-                                }
-                            }
-                        } else {
-                            Ok(Response::builder()
-                                .status(404)
-                                .body(Full::new(Bytes::from("Not Found")))
-                                .unwrap())
-                        }
-                    }
-                });
-
-                if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
-                    tracing::error!("Error serving connection: {:?}", err);
-                }
-            });
-        }
-    });
-
-    Ok(PrometheusServer { _handle: handle })
+    Ok(())
 }
 
 /// Shutdown OpenTelemetry gracefully

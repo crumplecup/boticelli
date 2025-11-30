@@ -1,0 +1,46 @@
+# Ignore build artifacts
+target/
+*.log
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore documentation
+*.md
+!README.md
+
+# Ignore test files
+tests/
+coverage/
+
+# Ignore local configs
+.env
+.env.*
+!.env.example
+
+# Ignore state files
+.actor_server_state.json
+.narrative_state
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore CI/CD
+.github/
+
+# Ignore observability stack (runs separately)
+docker-compose*.yml
+prometheus.yml
+grafana/
+
+# Ignore scripts
+scripts/
+
+# Ignore examples
+examples/
+
+# Keep only what's needed for runtime

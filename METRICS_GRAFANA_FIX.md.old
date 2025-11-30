@@ -1,0 +1,436 @@
+# Metrics & Grafana Fix - Phase 1 Complete
+
+**Date:** 2025-11-30  
+**Status:** ✅ Metrics Recording Implemented  
+**Priority:** High
+
+---
+
+## Problem Summary
+
+Grafana dashboards showed no data despite:
+- ✅ Prometheus running at http://localhost:9090
+- ✅ Grafana running at http://localhost:3000  
+- ✅ Bot server exposing metrics endpoint at http://localhost:9464/metrics
+- ❌ No metrics data appearing in dashboards
+
+## Root Cause
+
+**Metrics instruments were created but never called during execution.**
+
+The `ServerMetrics` struct in `botticelli_server/src/metrics.rs` defined all OpenTelemetry v0.31 instruments (counters, histograms, gauges), but the actor execution loop never invoked the recording methods (`record_execution()`, `record_failure()`, etc.).
+
+---
+
+## Phase 1 Solution: Actor-Level Metrics
+
+Added metric recording to `crates/botticelli_actor/src/bin/actor-server.rs`:
+
+### Changes Made
+
+1. **Import ServerMetrics**:
+   ```rust
+   #[cfg(feature = "discord")]
+   use botticelli_server::ServerMetrics;
+   ```
+
+2. **Initialize metrics at startup**:
+   ```rust
+   let metrics = Arc::new(ServerMetrics::new());
+   info!("Server metrics initialized");
+   ```
+
+3. **Record execution duration and success**:
+   ```rust
+   let start_time = std::time::Instant::now();
+   match actor.execute(&db_pool).await {
+       Ok(result) => {
+           let duration = start_time.elapsed().as_secs_f64();
+           metrics.bots.record_execution(name, duration);
+           // ... existing success handling ...
+       }
+   }
+   ```
+
+4. **Record failures**:
+   ```rust
+   Err(e) => {
+       metrics.bots.record_failure(name);
+       // ... existing error handling ...
+   }
+   ```
+
+---
+
+## Verification Steps
+
+### 1. Rebuild and Deploy
+
+```bash
+# Rebuild container with metrics instrumentation
+just bot-build
+
+# Start observability stack (Prometheus + Grafana)
+just bot-up
+```
+
+### 2. Check Raw Metrics
+
+After the bot server runs for at least one actor execution cycle:
+
+```bash
+curl http://localhost:9464/metrics | grep -E "^bot_"
+```
+
+Expected output (after actors run):
+```
+bot_executions_total{bot_type="Content Generator"} 5
+bot_executions_total{bot_type="Content Curator"} 3
+bot_duration_seconds_bucket{bot_type="Content Generator",le="0.5"} 2
+bot_duration_seconds_bucket{bot_type="Content Generator",le="1"} 4
+bot_duration_seconds_sum{bot_type="Content Generator"} 4.23
+bot_duration_seconds_count{bot_type="Content Generator"} 5
+bot_failures_total{bot_type="Content Curator"} 1
+```
+
+### 3. Check Prometheus
+
+Open http://localhost:9090 and query:
+```promql
+bot_executions_total
+```
+
+Should show time-series data with labels `{bot_type="..."}`.
+
+### 4. Check Grafana Dashboards
+
+1. Open http://localhost:3000 (credentials: admin/admin)
+2. Navigate to "Botticelli Overview" dashboard
+3. Verify panels show data:
+   - **Bot Executions** - counter going up over time
+   - **Bot Execution Duration** - histogram showing latency distribution
+   - **Bot Failure Rate** - failures / total executions
+
+---
+
+## OpenTelemetry v0.31 Implementation
+
+### Metrics Architecture
+
+**Initialization** (`init_observability_with_config`):
+```rust
+// Create Prometheus exporter with HTTP server
+let prometheus_registry = prometheus::Registry::new();
+let exporter = opentelemetry_prometheus::exporter()
+    .with_registry(prometheus_registry.clone())
+    .build()?;
+
+let meter_provider = SdkMeterProvider::builder()
+    .with_reader(exporter)  // v0.31: Prometheus uses reader
+    .with_resource(resource.clone())
+    .build();
+
+global::set_meter_provider(meter_provider);
+```
+
+**Instrument Creation** (`ServerMetrics::new`):
+```rust
+let meter = global::meter("botticelli_bots");
+let executions = meter
+    .u64_counter("bot.executions")
+    .with_description("Total bot executions")
+    .build();
+```
+
+**Recording** (actor execution loop):
+```rust
+let labels = &[KeyValue::new("bot_type", name.to_string())];
+metrics.bots.executions.add(1, labels);
+metrics.bots.duration.record(duration_secs, labels);
+```
+
+### Key v0.31 Patterns
+
+- ✅ Prometheus exporter uses `.with_reader()` (not periodic)
+- ✅ OTLP/Stdout exporters use `.with_periodic_exporter()` 
+- ✅ Instruments created once via `global::meter()`
+- ✅ `.add()` / `.record()` called during execution with labels
+- ✅ HTTP server serves Prometheus format at `/metrics`
+
+---
+
+## Phase 2 Status: LLM Metrics - ✅ ALREADY IMPLEMENTED
+
+**Code Review Finding:** LLM metrics are already fully instrumented!
+
+### Implementation Details
+
+**File:** `crates/botticelli_models/src/metrics.rs`
+
+Metrics defined:
+- ✅ `llm.requests` - Counter for total API requests
+- ✅ `llm.errors` - Counter for failed requests
+- ✅ `llm.duration` - Histogram for call latency (seconds)
+- ✅ `llm.tokens` - Counter for total tokens used
+- ✅ `llm.tokens.prompt` - Counter for prompt tokens
+- ✅ `llm.tokens.completion` - Counter for completion tokens
+
+Labels:
+- ✅ `provider` (e.g., "gemini")
+- ✅ `model` (e.g., "gemini-2.0-flash-lite")
+- ✅ `error_type` (rate_limit, auth, network, timeout, invalid_request, unknown)
+
+**File:** `crates/botticelli_models/src/gemini/client.rs`
+
+Recording in `generate_internal()`:
+```rust
+// Record request
+metrics.requests.add(1, &[
+    KeyValue::new("provider", "gemini"),
+    KeyValue::new("model", model_name.to_string()),
+]);
+
+// On success
+metrics.record_request("gemini", model_name, duration);
+
+// On error
+metrics.record_error("gemini", model_name, error_type);
+```
+
+**Conclusion:** No code changes needed for LLM metrics. They should already appear at `/metrics` endpoint.
+
+---
+
+## Remaining Work
+
+### Phase 3: Narrative-Level Metrics
+
+Add recording in `botticelli_narrative/src/executor.rs`:
+- `narrative.executions` counter
+- `narrative.duration` histogram
+- `narrative.act.duration` histogram
+- `narrative.json.success` / `narrative.json.failures` counters
+
+### Phase 4: Pipeline Metrics
+
+Add recording in content generation/curation/posting flow:
+- `pipeline.generated` counter
+- `pipeline.curated` counter
+- `pipeline.published` counter
+- `pipeline.stage.latency` histogram
+
+---
+
+## Configuration
+
+### Prometheus Endpoint
+
+Controlled by `PROMETHEUS_ENDPOINT` environment variable:
+- **Default:** `0.0.0.0:9464`
+- **Format:** `host:port` (e.g., `0.0.0.0:9464`, `127.0.0.1:8080`)
+- **Metrics Path:** `/metrics`
+
+Set in `.env` file or docker-compose:
+```bash
+PROMETHEUS_ENDPOINT=0.0.0.0:9464
+```
+
+### Observability Features
+
+Built with:
+```bash
+cargo build --features observability,discord
+```
+
+Container build automatically includes `observability` feature.
+
+---
+
+## Verification Checklist
+
+### 1. ✅ Check Actor Server Startup
+
+Look for these log lines:
+```
+Observability initialized (OTEL_EXPORTER="stdout")
+Prometheus metrics server listening on http://0.0.0.0:9464/metrics
+```
+
+If missing: `observability` feature not enabled or initialization failed
+
+### 2. ✅ Check Metrics Endpoint
+
+```bash
+curl http://localhost:9464/metrics
+```
+
+Should return Prometheus exposition format with all metrics:
+```prometheus
+# HELP bot_executions_total Total bot executions
+# TYPE bot_executions_total counter
+bot_executions_total{bot_type="Content Generator"} 5
+
+# HELP llm_requests_total Total LLM API requests  
+# TYPE llm_requests_total counter
+llm_requests_total{provider="gemini",model="gemini-2.0-flash-lite"} 10
+
+# HELP llm_duration_seconds LLM API call duration
+# TYPE llm_duration_seconds histogram
+llm_duration_seconds_bucket{provider="gemini",model="gemini-2.0-flash-lite",le="0.1"} 0
+llm_duration_seconds_bucket{provider="gemini",model="gemini-2.0-flash-lite",le="0.5"} 5
+...
+```
+
+### 3. ✅ Check Prometheus Scraping
+
+Open http://localhost:9090/targets
+
+Should show:
+- **Target:** `botticelli-actor-server`  
+- **Endpoint:** `http://host.docker.internal:9464/metrics` (or container IP)
+- **State:** UP (green)
+- **Last Scrape:** < 30s ago
+
+If DOWN: Check `prometheus.yml` scrape config and networking
+
+### 4. ✅ Query Prometheus Directly
+
+Open http://localhost:9090/graph
+
+Test queries:
+```promql
+# Should return data with labels
+llm_requests_total
+
+# Should show request rate over time
+rate(llm_requests_total[5m])
+
+# Should show p95 latency
+histogram_quantile(0.95, rate(llm_duration_seconds_bucket[5m]))
+
+# Should show error rate
+rate(llm_errors_total[5m]) / rate(llm_requests_total[5m])
+```
+
+### 5. ✅ Check Grafana Data Source
+
+1. Login to http://localhost:3000 (admin/admin)
+2. Configuration → Data Sources → Prometheus
+3. Click "Save & Test"
+4. Should see: ✅ "Data source is working"
+
+If failing: Check Grafana → Prometheus networking
+
+### 6. ✅ View Dashboards
+
+Import provided dashboards:
+- **LLM Metrics** - Request rates, errors, latency, tokens
+- **Bot Metrics** - Execution counts, durations, failures
+- **System Overview** - Combined view
+
+Select time range and ensure data appears.
+
+---
+
+## Troubleshooting
+
+### No Metrics at /metrics Endpoint
+
+**Symptoms:** `curl http://localhost:9464/metrics` returns connection refused or empty
+
+**Causes:**
+1. Actor server not running
+2. `PROMETHEUS_ENDPOINT` not set (defaults to 0.0.0.0:9464)
+3. `observability` feature not enabled in build
+4. Metrics initialization failed (check logs)
+
+**Fix:**
+```bash
+# Check if server is running
+podman ps | grep botticelli-actor
+
+# Check logs for initialization
+podman logs botticelli-actor | grep -i "prometheus\|observability"
+
+# Rebuild with observability feature
+just bot-build
+
+# Set endpoint explicitly
+echo "PROMETHEUS_ENDPOINT=0.0.0.0:9464" >> .env
+```
+
+### Metrics Present but Grafana Shows No Data
+
+**Symptoms:** `/metrics` returns data, Prometheus scrapes successfully, but Grafana panels empty
+
+**Causes:**
+1. Grafana data source not configured
+2. Data source URL incorrect
+3. Dashboard queries don't match metric names
+4. Time range too narrow
+
+**Fix:**
+```bash
+# Test Grafana → Prometheus connection
+# In Grafana UI: Configuration → Data Sources → Prometheus → Test
+
+# Verify metric names match
+curl http://localhost:9464/metrics | grep "^llm_"
+# Compare with dashboard queries
+
+# Check Prometheus has data
+# http://localhost:9090/graph?g0.expr=llm_requests_total
+
+# Expand time range in Grafana (try "Last 24 hours")
+```
+
+### Prometheus Target Shows DOWN
+
+**Symptoms:** http://localhost:9090/targets shows red "DOWN" state
+
+**Causes:**
+1. Actor server not reachable from Prometheus container
+2. Wrong host in `prometheus.yml` scrape config
+3. Firewall blocking port 9464
+
+**Fix:**
+```yaml
+# prometheus.yml scrape config should use:
+scrape_configs:
+  - job_name: 'botticelli-actor'
+    static_configs:
+      - targets: ['host.docker.internal:9464']  # For Docker/Podman
+```
+
+```bash
+# Check from Prometheus container
+podman exec botticelli-prometheus wget -O- http://host.docker.internal:9464/metrics
+
+# If that fails, try container IP
+podman inspect botticelli-actor | grep IPAddress
+```
+
+---
+
+## Testing
+
+```bash
+# Run with observability enabled
+PROMETHEUS_ENDPOINT=0.0.0.0:9464 cargo run --bin actor-server --features discord,observability
+
+# Check metrics appear
+curl -s http://localhost:9464/metrics | grep bot_executions_total
+
+# Query in Prometheus
+open http://localhost:9090/graph?g0.expr=rate(bot_executions_total[5m])
+```
+
+---
+
+## References
+
+- **Implementation**: `crates/botticelli_server/src/metrics.rs`
+- **Usage**: `crates/botticelli_actor/src/bin/actor-server.rs`
+- **Config**: `crates/botticelli/src/observability.rs`
+- **OpenTelemetry v0.31 Metrics API**: https://docs.rs/opentelemetry/0.31.0/opentelemetry/metrics/
+- **Prometheus Exporter**: https://docs.rs/opentelemetry-prometheus/latest/

@@ -69,7 +69,7 @@ pub use bots::{
 };
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
-pub use config::{ServerConfig, ServerConfigBuilder};
+pub use config::{DatabaseConfig, ServerConfig, ServerConfigBuilder};
 pub use metrics::{
     BotMetrics, MetricsCollector, MetricsSnapshot, NarrativeMetrics, PipelineMetrics, ServerMetrics,
 };

@@ -35,18 +35,68 @@ docker ps
 
 ## Start Your Bot Server
 
+### Configure Environment (.env file)
+
+Create a `.env` file in the project root with these required variables:
+
 ```bash
-# Configure environment
-export OTEL_EXPORTER=otlp
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-export PROMETHEUS_ENDPOINT=0.0.0.0:9464
+# Discord (required)
+DISCORD_TOKEN=your_bot_token_here
 
-# Load other env vars from .env
-set -a; source .env; set +a
+# LLM Provider (at least one required)
+GEMINI_API_KEY=your_gemini_key_here
+# or
+ANTHROPIC_API_KEY=your_anthropic_key_here
 
-# Run bot server
-cargo run --bin actor-server --release
+# Observability (required for metrics/traces)
+OTEL_EXPORTER=otlp
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+PROMETHEUS_ENDPOINT=0.0.0.0:9464
+
+# Database (optional - has deployment-aware defaults)
+# Local dev default: postgresql://postgres:postgres@localhost:5432/botticelli
+# Container default: postgresql://botticelli:botticelli@postgres:5432/botticelli
+# DATABASE_URL=postgresql://custom:custom@host:5432/db
+
+# Deployment environment (optional - set automatically in containers)
+# DEPLOYMENT_ENV=container  # Uses container database defaults
+# DEPLOYMENT_ENV=local      # Uses local dev database defaults (default)
 ```
+
+**Note on Database Configuration:**
+- Local runs default to `postgresql://postgres:postgres@localhost:5432/botticelli`
+- Container runs default to `postgresql://botticelli:botticelli@postgres:5432/botticelli`
+- Container uses PostgreSQL from observability stack (`docker-compose.observability.yml`)
+- Explicitly set `DATABASE_URL` to override defaults
+- See [DATABASE_SYNC_STRATEGY.md](DATABASE_SYNC_STRATEGY.md) for syncing between environments
+- See [DEPLOYMENT_CONFIG.md](DEPLOYMENT_CONFIG.md) for configuration details
+
+### Run the Bot Server
+
+The bot server automatically loads `.env` on startup.
+
+**Using just with Podman (recommended):**
+```bash
+just bot-build    # Build container image (includes migrations)
+just bot-up       # Start bot server container
+just bot-logs     # View bot server logs
+```
+
+**Using just locally (without container):**
+```bash
+just run-actor-server
+```
+
+**Using cargo directly:**
+```bash
+cargo run --bin actor-server --release --features discord
+```
+
+**Note:** Container deployment is recommended because:
+- Includes all runtime dependencies (TOML configs, narratives, migrations)
+- Connects to observability stack via shared `botticelli` network
+- Automatically runs database migrations on startup
+- Production-like environment
 
 ## Access the UIs
 
@@ -62,33 +112,46 @@ cargo run --bin actor-server --release
 - What to check:
   - Status > Targets: Verify "actor-server" is UP
   - Graph tab, try queries:
-    - `llm_requests_total` - Total LLM requests
-    - `llm_errors_total` - Failed requests
-    - `rate(llm_requests_total[5m])` - Request rate
+    - `bot_executions_total` - Total bot executions by type
+    - `bot_failures_total` - Failed executions by bot type
+    - `rate(bot_executions_total[5m])` - Execution rate per 5 minutes
+    - `bot_duration_seconds` - Execution duration histogram
 
 ### Grafana (Dashboards)
 - URL: http://localhost:3000
 - Login: `admin` / `admin`
 - Pre-configured dashboards:
-  - **LLM API Health**: Error rates, latency, token usage
-  - **Bot Health**: Overall system health
-  - **Narrative Performance**: Execution times
-  - **Botticelli Overview**: High-level metrics
+  - **Botticelli Overview**: Bot execution counts, durations, failure rates
+  - **Bot Health**: Overall system health (Phase 1: bot-level metrics only)
+  
+**Note:** Dashboard panels for LLM and narrative metrics will show "No data" until Phase 2/3 implementation. Currently available:
+  - Bot execution counts by type
+  - Bot execution duration histograms
+  - Bot failure rates
+  - Queue depth gauges
 
 ## Verify Everything Works
 
 ### 1. Check Metrics Endpoint
 
 ```bash
-curl http://localhost:9464/metrics | grep llm_requests
+curl http://localhost:9464/metrics | grep -E "^bot_"
 ```
 
-Should see output like:
+Should see output like (after actors execute at least once):
 ```
-# HELP llm_requests Total LLM API requests
-# TYPE llm_requests counter
-llm_requests{model="gemini-1.5-flash",provider="gemini"} 42
+# HELP bot_executions_total Total bot executions
+# TYPE bot_executions_total counter
+bot_executions_total{bot_type="Content Generator"} 5
+bot_executions_total{bot_type="Content Curator"} 3
+# HELP bot_duration_seconds Bot execution duration
+# TYPE bot_duration_seconds histogram
+bot_duration_seconds_bucket{bot_type="Content Generator",le="0.5"} 2
+bot_duration_seconds_sum{bot_type="Content Generator"} 4.23
+bot_duration_seconds_count{bot_type="Content Generator"} 5
 ```
+
+**Note:** Currently only bot-level metrics are implemented (Phase 1). LLM and narrative metrics coming in future phases. See [METRICS_GRAFANA_FIX.md](METRICS_GRAFANA_FIX.md) for implementation status.
 
 ### 2. Check Prometheus Scraping
 
@@ -163,9 +226,16 @@ echo $PROMETHEUS_ENDPOINT
 # Should show: "Data source is working"
 ```
 
-### Podman Host Networking
+### Container Networking
 
-If Prometheus can't scrape bot server:
+**If bot-server is containerized** (using `just bot-up`) - **RECOMMENDED**:
+- Bot server and observability stack share the `botticelli` network
+- Bot connects to PostgreSQL at `postgres:5432` (container name)
+- Bot connects to Jaeger at `jaeger:4317` (container name)
+- Prometheus scrapes from `bot-server:9464` (container name)
+- No networking issues - everything just works!
+
+**If bot-server runs locally** (using `just run-actor-server` or `cargo run`):
 
 1. Check if `host.containers.internal` works:
    ```bash
@@ -281,29 +351,57 @@ podman-compose -f docker-compose.jaeger-only.yml down -v
 
 ## Architecture Summary
 
+### Containerized Setup (Recommended)
+
 ```
-┌────────────────┐
-│  Bot Server    │
-│                │
-│ - Emits traces │ ──OTLP:4317──▶ ┌─────────┐
-│ - Emits metrics│ ──HTTP:9464──▶ │ Jaeger  │
-└────────────────┘                 └─────────┘
-                                        │
-                                   (storage)
-                                        ↓
-                   ┌──────────────┐ ┌──────────┐
-                   │ Prometheus   │ │ Jaeger   │
-                   │ (scrapes     │ │ (stores  │
-                   │  metrics)    │ │  traces) │
-                   └──────┬───────┘ └────┬─────┘
-                          │              │
-                          └────┬─────────┘
-                               ↓
-                        ┌──────────┐
-                        │ Grafana  │
-                        │ (dashboards,│
-                        │  queries)  │
-                        └──────────┘
+┌───────────────────────────────────────────────────────┐
+│              botticelli network                       │
+│                                                       │
+│  ┌──────────────┐                                    │
+│  │ bot-server   │                                    │
+│  │ (container)  │                                    │
+│  │              │─────OTLP 4317────▶┌──────────┐    │
+│  │  Reads:      │                    │  Jaeger  │    │
+│  │  - .env      │                    │  :16686  │    │
+│  │  - *.toml    │                    └──────────┘    │
+│  │  - narratives│                                    │
+│  │              │                                    │
+│  │  Runs:       │                    ┌──────────┐    │
+│  │  - migrations│────connects to─────│PostgreSQL│    │
+│  │  on startup  │    postgres:5432   │  :5432   │    │
+│  │              │                    └──────────┘    │
+│  │  Exposes:    │                                    │
+│  │  - :9464     │                    ┌──────────┐    │
+│  └──────────────┘                    │Prometheus│    │
+│        │                             │  :9090   │    │
+│        └────HTTP :9464──scrapes─────▶│          │    │
+│                                      └────┬─────┘    │
+│                                           │          │
+│                                           ▼          │
+│                                    ┌──────────┐      │
+│                                    │ Grafana  │      │
+│                                    │  :3000   │      │
+│                                    └──────────┘      │
+└───────────────────────────────────────────────────────┘
+```
+
+### Local Setup (Development)
+
+```
+┌─────────────┐                ┌─────────────────┐
+│ bot-server  │                │ Docker/Podman   │
+│  (local)    │                │   Containers    │
+│             │                │                 │
+│ Emits       │──OTLP:4317────▶│   Jaeger        │
+│ traces      │                │                 │
+│             │                │   Prometheus    │
+│ Exposes     │──HTTP:9464────▶│   (scrapes via  │
+│ metrics     │                │    host.        │
+│             │                │    containers.  │
+└─────────────┘                │    internal)    │
+                               │                 │
+                               │   Grafana       │
+                               └─────────────────┘
 ```
 
 ## Documentation

@@ -6,31 +6,28 @@
 #   Single post:  just narrate generation_carousel.feature
 #   Batch of 50:  just narrate generation_carousel.batch_generate
 
-# === Batch Generator: Run all five narratives 10 times (50 posts) ===
-[narratives.batch_generate]
-name = "generation_batch_50"
-description = "Run all five generation narratives 10 times using carousel mode"
-
-[narratives.batch_generate.carousel]
-iterations = 3
-
-[narratives.batch_generate.toc]
-order = ["feature", "usecase", "tutorial", "community", "problem"]
-
-[narratives.batch_generate.acts.feature]
+# === Shared Composition Acts (reference other narratives) ===
+[acts.feature]
 narrative = "feature"
 
-[narratives.batch_generate.acts.usecase]
+[acts.usecase]
 narrative = "usecase"
 
-[narratives.batch_generate.acts.tutorial]
+[acts.tutorial]
 narrative = "tutorial"
 
-[narratives.batch_generate.acts.community]
+[acts.community]
 narrative = "community"
 
-[narratives.batch_generate.acts.problem]
+[acts.problem]
 narrative = "problem"
+
+# === Batch Generator: Run all five narratives in carousel mode ===
+[narrative.batch_generate]
+toc = ["feature", "usecase", "tutorial", "community", "problem"]
+
+[narrative.batch_generate.carousel]
+iterations = 3
 
 # === Shared Model Configuration ===
 [config.gemini]
@@ -176,25 +173,17 @@ Example valid output:
 Now audit the JSON above and output the valid/corrected version.
 """
 
-# === Narrative 1: Feature Showcase ===
-[narratives.feature]
-name = "feature_showcase"
-description = "Generate Discord post showcasing a Botticelli feature"
-target = "potential_discord_posts"
-
-[narratives.feature.toc]
-order = ["generate", "critique", "refine", "format_json", "audit_json"]
-
-[narratives.feature.acts.generate]
+# === Shared Act: Feature Generate ===
+[acts.feature_generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
 max_tokens = 2000
 
-[[narratives.feature.acts.generate.input]]
+[[acts.feature_generate.input]]
 type = "text"
 file = "BOTTICELLI_CONTEXT.md"
 
-[[narratives.feature.acts.generate.input]]
+[[acts.feature_generate.input]]
 type = "text"
 content = """
 Read the Botticelli context document above. Use this information to create an engaging Discord post.
@@ -212,25 +201,22 @@ Requirements:
 Write the post text (plain text, we'll format as JSON later):
 """
 
-# === Narrative 2: Use Cases ===
-[narratives.usecase]
-name = "usecase_showcase"
-description = "Generate Discord post about real-world Botticelli use cases"
+# === Narrative 1: Feature Showcase ===
+[narrative.feature]
 target = "potential_discord_posts"
+toc = ["feature_generate", "critique", "refine", "format_json", "audit_json"]
 
-[narratives.usecase.toc]
-order = ["generate", "critique", "refine", "format_json", "audit_json"]
-
-[narratives.usecase.acts.generate]
+# === Shared Act: Usecase Generate ===
+[acts.usecase_generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
 max_tokens = 2000
 
-[[narratives.usecase.acts.generate.input]]
+[[acts.usecase_generate.input]]
 type = "text"
 file = "BOTTICELLI_CONTEXT.md"
 
-[[narratives.usecase.acts.generate.input]]
+[[acts.usecase_generate.input]]
 type = "text"
 content = """
 Read the Botticelli context document above. Use this information to create an engaging Discord post.
@@ -248,25 +234,22 @@ Requirements:
 Write the post text (plain text, we'll format as JSON later):
 """
 
-# === Narrative 3: Tutorial ===
-[narratives.tutorial]
-name = "tutorial_guide"
-description = "Generate Discord post with tutorial or how-to content"
+# === Narrative 2: Use Cases ===
+[narrative.usecase]
 target = "potential_discord_posts"
+toc = ["usecase_generate", "critique", "refine", "format_json", "audit_json"]
 
-[narratives.tutorial.toc]
-order = ["generate", "critique", "refine", "format_json", "audit_json"]
-
-[narratives.tutorial.acts.generate]
+# === Shared Act: Tutorial Generate ===
+[acts.tutorial_generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
 max_tokens = 2000
 
-[[narratives.tutorial.acts.generate.input]]
+[[acts.tutorial_generate.input]]
 type = "text"
 file = "BOTTICELLI_CONTEXT.md"
 
-[[narratives.tutorial.acts.generate.input]]
+[[acts.tutorial_generate.input]]
 type = "text"
 content = """
 Read the Botticelli context document above. Use this information to create an engaging Discord post.
@@ -284,25 +267,22 @@ Requirements:
 Write the post text (plain text, we'll format as JSON later):
 """
 
-# === Narrative 4: Community ===
-[narratives.community]
-name = "community_engagement"
-description = "Generate Discord post for community engagement"
+# === Narrative 3: Tutorial ===
+[narrative.tutorial]
 target = "potential_discord_posts"
+toc = ["tutorial_generate", "critique", "refine", "format_json", "audit_json"]
 
-[narratives.community.toc]
-order = ["generate", "critique", "refine", "format_json", "audit_json"]
-
-[narratives.community.acts.generate]
+# === Shared Act: Community Generate ===
+[acts.community_generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
 max_tokens = 2000
 
-[[narratives.community.acts.generate.input]]
+[[acts.community_generate.input]]
 type = "text"
 file = "BOTTICELLI_CONTEXT.md"
 
-[[narratives.community.acts.generate.input]]
+[[acts.community_generate.input]]
 type = "text"
 content = """
 Read the Botticelli context document above. Use this information to create an engaging Discord post.
@@ -320,25 +300,22 @@ Requirements:
 Write the post text (plain text, we'll format as JSON later):
 """
 
-# === Narrative 5: Problem-Solution ===
-[narratives.problem]
-name = "problem_solution"
-description = "Generate Discord post about problems Botticelli solves"
+# === Narrative 4: Community ===
+[narrative.community]
 target = "potential_discord_posts"
+toc = ["community_generate", "critique", "refine", "format_json", "audit_json"]
 
-[narratives.problem.toc]
-order = ["generate", "critique", "refine", "format_json", "audit_json"]
-
-[narratives.problem.acts.generate]
+# === Shared Act: Problem Generate ===
+[acts.problem_generate]
 model = "gemini-2.5-flash-lite"
 temperature = 0.8
 max_tokens = 2000
 
-[[narratives.problem.acts.generate.input]]
+[[acts.problem_generate.input]]
 type = "text"
 file = "BOTTICELLI_CONTEXT.md"
 
-[[narratives.problem.acts.generate.input]]
+[[acts.problem_generate.input]]
 type = "text"
 content = """
 Read the Botticelli context document above. Use this information to create an engaging Discord post.
@@ -355,3 +332,8 @@ Requirements:
 
 Write the post text (plain text, we'll format as JSON later):
 """
+
+# === Narrative 5: Problem-Solution ===
+[narrative.problem]
+target = "potential_discord_posts"
+toc = ["problem_generate", "critique", "refine", "format_json", "audit_json"]

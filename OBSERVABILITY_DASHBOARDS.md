@@ -28,13 +28,19 @@ This starts:
 
 ### 3. Run Your Bot with Tracing
 
+**Containerized (recommended):**
 ```bash
-# Bot server
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
-cargo run --release -p botticelli_server --bin bot-server --features otel-otlp
+just bot-build    # Build image
+just bot-up       # Start container
+just bot-logs     # View logs
+```
 
-# Actor server
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
+**Local development:**
+```bash
+# Bot automatically loads .env with OTEL_EXPORTER settings
+just run-actor-server
+
+# Or with cargo directly
 cargo run --release -p botticelli_actor --bin actor-server --features otel-otlp,discord
 ```
 
@@ -440,13 +446,16 @@ expr: (rate(llm_errors_total[5m]) / rate(llm_requests_total[5m])) * 100 > 10
 # Start the full stack
 podman-compose -f docker-compose.observability.yml up -d
 
-# Run bot with OTLP export
-OTEL_EXPORTER=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
-cargo run --release --features otel-otlp -p botticelli_server --bin bot-server
+# Build and run bot container
+just bot-build
+just bot-up
 
 # Check metrics are flowing
 open http://localhost:9090  # Query: narrative_json_failures
 open http://localhost:3000  # Grafana dashboards
+
+# View bot logs
+just bot-logs
 ```
 
 ### Short Term (1-2 hours):

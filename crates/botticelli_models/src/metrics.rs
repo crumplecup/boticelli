@@ -4,9 +4,8 @@
 //! errors, and token usage across all provider implementations.
 
 use opentelemetry::{
-    global,
+    KeyValue, global,
     metrics::{Counter, Histogram, Meter},
-    KeyValue,
 };
 use std::sync::OnceLock;
 
@@ -122,8 +121,7 @@ pub fn classify_error(error: &dyn std::error::Error) -> &'static str {
 
     if error_str.contains("rate limit") || error_str.contains("429") {
         "rate_limit"
-    } else if error_str.contains("auth") || error_str.contains("401") || error_str.contains("403")
-    {
+    } else if error_str.contains("auth") || error_str.contains("401") || error_str.contains("403") {
         "auth"
     } else if error_str.contains("network")
         || error_str.contains("connection")

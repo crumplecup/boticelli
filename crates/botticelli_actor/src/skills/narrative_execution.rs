@@ -173,12 +173,15 @@ impl Skill for NarrativeExecutionSkill {
             "Executing narrative"
         );
 
-        let result = executor.execute_from_source(&narrative_source).await.map_err(|e| {
-            ActorError::new(ActorErrorKind::Narrative(format!(
-                "Narrative execution failed: {}",
-                e
-            )))
-        })?;
+        let result = executor
+            .execute_from_source(&narrative_source)
+            .await
+            .map_err(|e| {
+                ActorError::new(ActorErrorKind::Narrative(format!(
+                    "Narrative execution failed: {}",
+                    e
+                )))
+            })?;
 
         let executed_narrative_name = narrative_source.name().to_string();
         let executed_act_count = narrative_source

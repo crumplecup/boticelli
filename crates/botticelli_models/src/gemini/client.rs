@@ -619,7 +619,7 @@ impl GeminiClient {
 
     /// Internal generate method that returns Gemini-specific errors.
     async fn generate_internal(&self, req: &GenerateRequest) -> GeminiResult<GenerateResponse> {
-        use crate::{classify_error, LlmMetrics};
+        use crate::{LlmMetrics, classify_error};
 
         // Start timing for metrics
         let start = std::time::Instant::now();

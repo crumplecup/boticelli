@@ -50,11 +50,12 @@ fn test_multi_narrative_without_composition_extracts_single() {
     // should extract as Single (no context overhead)
     let toml = r#"
 [narratives.first]
-name = "first_narrative"
 description = "First narrative without composition"
+toc = ["act1"]
 
-[narratives.first.toc]
-order = ["act1"]
+[narratives.second]
+description = "Second narrative"
+toc = ["act2"]
 
 [acts.act1]
 model = "gemini-2.0-flash-exp"
@@ -64,13 +65,6 @@ max_tokens = 100
 [[acts.act1.input]]
 type = "text"
 content = "Do something"
-
-[narratives.second]
-name = "second_narrative"
-description = "Second narrative"
-
-[narratives.second.toc]
-order = ["act2"]
 
 [acts.act2]
 model = "gemini-2.0-flash-exp"
@@ -90,7 +84,7 @@ content = "Do something else"
 
     match &source {
         NarrativeSource::Single(narrative) => {
-            assert_eq!(narrative.name(), "first_narrative");
+            assert_eq!(narrative.name(), "first");
         }
         NarrativeSource::MultiWithContext { .. } => {
             panic!("Expected Single, got MultiWithContext");
@@ -103,22 +97,8 @@ fn test_multi_narrative_with_composition_preserves_context() {
     // Multi-narrative file where the specified narrative uses composition
     // should preserve full MultiWithContext
     let toml = r#"
-[narratives.orchestrator]
-name = "orchestrator"
-description = "Main narrative that composes others"
-
-[narratives.orchestrator.toc]
-order = ["call_worker"]
-
 [acts.call_worker]
 narrative_ref = "worker"
-
-[narratives.worker]
-name = "worker"
-description = "Worker narrative"
-
-[narratives.worker.toc]
-order = ["work"]
 
 [acts.work]
 model = "gemini-2.0-flash-exp"
@@ -128,6 +108,16 @@ max_tokens = 50
 [[acts.work.input]]
 type = "text"
 content = "Do the work"
+
+[narrative.orchestrator]
+name = "orchestrator"
+description = "Main narrative that composes others"
+toc = ["call_worker"]
+
+[narrative.worker]
+name = "worker"
+description = "Worker narrative"
+toc = ["work"]
 "#;
 
     let temp_dir = tempfile::tempdir().unwrap();
@@ -159,13 +149,6 @@ content = "Do the work"
 fn test_composition_with_multiple_references() {
     // Narrative with multiple composition acts should preserve context
     let toml = r#"
-[narratives.main]
-name = "main"
-description = "Main with multiple composition acts"
-
-[narratives.main.toc]
-order = ["step1", "step2", "step3"]
-
 [acts.step1]
 narrative_ref = "sub1"
 
@@ -175,25 +158,29 @@ narrative_ref = "sub2"
 [acts.step3]
 narrative_ref = "sub3"
 
-[narratives.sub1]
-name = "sub1"
-[narratives.sub1.toc]
-order = ["work"]
 [acts.work]
 model = "gemini-2.0-flash-exp"
+
 [[acts.work.input]]
 type = "text"
 content = "Sub1 work"
 
-[narratives.sub2]
-name = "sub2"
-[narratives.sub2.toc]
-order = ["work"]
+[narrative.main]
+name = "main"
+description = "Main with multiple composition acts"
+toc = ["step1", "step2", "step3"]
 
-[narratives.sub3]
+[narrative.sub1]
+name = "sub1"
+toc = ["work"]
+
+[narrative.sub2]
+name = "sub2"
+toc = ["work"]
+
+[narrative.sub3]
 name = "sub3"
-[narratives.sub3.toc]
-order = ["work"]
+toc = ["work"]
 "#;
 
     let temp_dir = tempfile::tempdir().unwrap();
@@ -219,15 +206,9 @@ order = ["work"]
 fn test_mixed_acts_with_composition() {
     // Narrative with both regular acts and composition acts should preserve context
     let toml = r#"
-[narratives.mixed]
-name = "mixed"
-description = "Has both regular and composition acts"
-
-[narratives.mixed.toc]
-order = ["regular1", "composed", "regular2"]
-
 [acts.regular1]
 model = "gemini-2.0-flash-exp"
+
 [[acts.regular1.input]]
 type = "text"
 content = "Regular act 1"
@@ -237,19 +218,26 @@ narrative_ref = "helper"
 
 [acts.regular2]
 model = "gemini-2.0-flash-exp"
+
 [[acts.regular2.input]]
 type = "text"
 content = "Regular act 2"
 
-[narratives.helper]
-name = "helper"
-[narratives.helper.toc]
-order = ["help"]
 [acts.help]
 model = "gemini-2.0-flash-exp"
+
 [[acts.help.input]]
 type = "text"
 content = "Helper work"
+
+[narrative.mixed]
+name = "mixed"
+description = "Has both regular and composition acts"
+toc = ["regular1", "composed", "regular2"]
+
+[narrative.helper]
+name = "helper"
+toc = ["help"]
 "#;
 
     let temp_dir = tempfile::tempdir().unwrap();
@@ -265,12 +253,10 @@ content = "Helper work"
 #[test]
 fn test_narrative_source_get_narrative() {
     let toml = r#"
-[narratives.test]
+[narrative.test]
 name = "test_narrative"
 description = "Test"
-
-[narratives.test.toc]
-order = ["act"]
+toc = ["act"]
 
 [acts.act]
 model = "gemini-2.0-flash-exp"
@@ -318,21 +304,20 @@ content = "Test"
 #[test]
 fn test_multi_narrative_requires_name() {
     let toml = r#"
-[narratives.first]
-name = "first"
-[narratives.first.toc]
-order = ["act"]
-
-[narratives.second]
-name = "second"
-[narratives.second.toc]
-order = ["act"]
-
 [acts.act]
 model = "gemini-2.0-flash-exp"
+
 [[acts.act.input]]
 type = "text"
 content = "Test"
+
+[narrative.first]
+name = "first"
+toc = ["act"]
+
+[narrative.second]
+name = "second"
+toc = ["act"]
 "#;
 
     let temp_dir = tempfile::tempdir().unwrap();
@@ -344,9 +329,11 @@ content = "Test"
     assert!(result.is_err());
 
     let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("Multiple narratives found"));
-    assert!(err_msg.contains("first"));
-    assert!(err_msg.contains("second"));
+    assert!(
+        err_msg.contains("Multiple narratives found"),
+        "Error message: {}",
+        err_msg
+    );
 }
 
 #[test]
@@ -378,22 +365,23 @@ content = "Test"
 #[test]
 fn test_get_multi_context_returns_some_for_composition() {
     let toml = r#"
-[narratives.main]
-name = "main"
-[narratives.main.toc]
-order = ["comp"]
 [acts.comp]
 narrative_ref = "sub"
 
-[narratives.sub]
-name = "sub"
-[narratives.sub.toc]
-order = ["work"]
 [acts.work]
 model = "gemini-2.0-flash-exp"
+
 [[acts.work.input]]
 type = "text"
 content = "Work"
+
+[narrative.main]
+name = "main"
+toc = ["comp"]
+
+[narrative.sub]
+name = "sub"
+toc = ["work"]
 "#;
 
     let temp_dir = tempfile::tempdir().unwrap();

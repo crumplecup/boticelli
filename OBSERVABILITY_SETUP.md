@@ -61,43 +61,50 @@ Expected output:
 
 ### 3. Configure Environment
 
-Copy the example environment file:
-```bash
-cp .env.example .env
-```
+Create a `.env` file in the project root:
 
-Edit `.env` and set:
 ```bash
-# Enable OTLP exporter for traces + metrics
+# Discord (required)
+DISCORD_TOKEN=your_bot_token_here
+
+# LLM Provider (at least one required)
+GEMINI_API_KEY=your_gemini_key_here
+
+# Observability (required for metrics/traces)
 OTEL_EXPORTER=otlp
-
-# Point to Jaeger collector
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+PROMETHEUS_ENDPOINT=0.0.0.0:9464
 
 # Optional: Increase log verbosity
 RUST_LOG=info,botticelli=debug
+
+# Database (optional - uses smart defaults)
+# See DEPLOYMENT_CONFIG.md for details
 ```
 
-### 4. Build with Observability
+### 4. Build and Run
 
+**Containerized (recommended):**
 ```bash
-# Build with OTLP support
-cargo build --release --features otel-otlp
-
-# Or for actor server
-cargo build --release -p botticelli_actor --bin actor-server --features otel-otlp,discord
+just bot-build    # Build container image (includes migrations)
+just bot-up       # Start bot server
+just bot-logs     # View logs
 ```
 
-### 5. Run and View Data
-
-Run your bot:
+**Local development:**
 ```bash
-# Load environment variables
-source .env
+# Bot automatically loads .env
+just run-actor-server
 
-# Run actor server with observability
-cargo run --release -p botticelli_actor --bin actor-server --features otel-otlp,discord
+# Or with cargo directly
+cargo run --release -p botticelli_actor --bin actor-server --features discord
 ```
+
+**Why containerized is recommended:**
+- Includes all runtime dependencies (TOML configs, narratives, migrations)
+- Connects to observability stack via shared `botticelli` network
+- Automatically runs database migrations on startup
+- Production-like environment
 
 **View Traces in Jaeger:**
 1. Open http://localhost:16686
@@ -124,45 +131,69 @@ See [OBSERVABILITY_DASHBOARDS.md](OBSERVABILITY_DASHBOARDS.md) for dashboard det
 
 ## Architecture
 
+### Containerized Setup (Recommended)
+
 ```
-┌─────────────────────────────────────────────────┐
-│         Botticelli Application                  │
-│  (#[instrument] + metrics::counter!())          │
-└──────────────┬──────────────────────────────────┘
-               │ OpenTelemetry SDK
-               │ (traces + metrics)
-               ▼
-┌──────────────────────────────────────────────────┐
-│           OTLP Exporter (gRPC)                   │
-└──────────────┬───────────────────────────────────┘
-               │ Port 4317
-               ▼
-       ┌───────────────┐
-       │               │
-       ▼               ▼
-┌─────────────┐  ┌─────────────┐
-│   Jaeger    │  │ Prometheus  │
-│ (Traces)    │  │ (Metrics)   │
-│ Port 16686  │  │ Port 9090   │
-└──────┬──────┘  └──────┬──────┘
-       │                │
-       │                │ Scrapes Jaeger metrics
-       │                └─────────┐
-       │                          │
-       ▼                          ▼
-┌──────────────────────────────────────┐
-│         Grafana Dashboards           │
-│  Jaeger Datasource + Prometheus      │
-│            Port 3000                 │
-└──────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│              botticelli network                        │
+│                                                        │
+│  ┌──────────────────────────────────────┐            │
+│  │     Bot Server Container             │            │
+│  │  - Loads .env, *.toml, narratives    │            │
+│  │  - Runs migrations on startup        │            │
+│  │  - #[instrument] + metrics!          │            │
+│  └─────────────┬──────────┬─────────────┘            │
+│                │          │                           │
+│                │          └──connects to─┐            │
+│                │                          ▼            │
+│                │                   ┌────────────┐     │
+│                │                   │ PostgreSQL │     │
+│                │                   │   :5432    │     │
+│                │                   └────────────┘     │
+│                │ OpenTelemetry SDK                    │
+│                │ (traces + metrics)                   │
+│                ▼                                      │
+│  ┌──────────────────────────────────────┐            │
+│  │      OTLP Exporter (gRPC)            │            │
+│  └─────────────┬────────────────────────┘            │
+│                │ Port 4317                            │
+│                ▼                                      │
+│       ┌────────────────┐                             │
+│       │                │                             │
+│       ▼                ▼                             │
+│  ┌─────────┐    ┌─────────────┐                     │
+│  │ Jaeger  │    │ Prometheus  │                     │
+│  │ :16686  │    │ :9090       │                     │
+│  │         │    │ (scrapes    │                     │
+│  │         │    │  bot:9464)  │                     │
+│  └────┬────┘    └──────┬──────┘                     │
+│       │                │                             │
+│       └────────┬───────┘                             │
+│                ▼                                      │
+│         ┌─────────────┐                              │
+│         │  Grafana    │                              │
+│         │  :3000      │                              │
+│         └─────────────┘                              │
+└────────────────────────────────────────────────────────┘
 ```
 
 **Data Flow:**
-1. Application emits traces → OTLP → Jaeger
-2. Application emits metrics → OTLP → Prometheus (via scraping)
-3. Prometheus scrapes Jaeger's internal metrics
-4. Grafana queries both Prometheus + Jaeger datasources
-5. Pre-configured dashboards visualize everything
+1. Bot container connects to PostgreSQL at postgres:5432
+2. Bot runs database migrations on startup
+3. Bot emits traces → OTLP (gRPC:4317) → Jaeger
+4. Bot exposes metrics HTTP endpoint (:9464)
+5. Prometheus scrapes bot metrics from bot-server:9464
+6. Prometheus also scrapes Jaeger's internal metrics
+7. Grafana queries both Prometheus + Jaeger datasources
+8. Pre-configured dashboards visualize everything
+
+**Benefits:**
+- ✅ No host networking issues
+- ✅ Containers communicate via shared network
+- ✅ Clean isolation and portability
+- ✅ Production-like environment
+- ✅ All runtime dependencies included
+- ✅ Automatic database migrations
 
 ## Feature Flags
 
@@ -425,21 +456,36 @@ If you see "Connection refused" errors:
 
 ## Production Deployment
 
-### Docker/Podman Container
+### Podman Container (Recommended)
 
-```dockerfile
-FROM rust:1.75 as builder
-WORKDIR /app
-COPY . .
-RUN cargo build --release --features otel-otlp -p botticelli_actor --bin actor-server
+See `Containerfile` in project root and `PODMAN_CONTAINERIZATION.md` for details.
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/actor-server /usr/local/bin/
-ENV OTEL_EXPORTER=otlp
-ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-CMD ["actor-server"]
+**Quick start:**
+```bash
+# Build bot server image
+just bot-build
+
+# Start bot server container
+just bot-up
+
+# View logs
+just bot-logs
+
+# Stop bot server
+just bot-down
 ```
+
+The bot server container:
+- Automatically loads `.env` file
+- Includes all runtime dependencies:
+  - TOML configuration files
+  - Narrative TOML files
+  - Database migrations
+- Connects to observability stack via `botticelli` network
+- Connects to PostgreSQL at `postgres:5432`
+- Runs database migrations on startup
+- Exports traces to Jaeger at `jaeger:4317`
+- Exposes metrics at `:9464` for Prometheus scraping
 
 ### Kubernetes
 

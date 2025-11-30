@@ -296,7 +296,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         match source {
             crate::NarrativeSource::Single(narrative) => {
                 // No composition context needed
-                self.execute_impl(narrative).await
+                self.execute_impl(narrative.as_ref()).await
             }
             crate::NarrativeSource::MultiWithContext {
                 multi,

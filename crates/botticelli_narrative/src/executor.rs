@@ -280,6 +280,42 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         Box::pin(async move { self.execute_impl(narrative).await })
     }
 
+    /// Execute a narrative from a NarrativeSource.
+    ///
+    /// This is the preferred method for executing narratives as it automatically
+    /// handles composition context. The NarrativeSource enum encapsulates whether
+    /// the narrative needs MultiNarrative context for composition.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if execution fails.
+    pub async fn execute_from_source(
+        &self,
+        source: &crate::NarrativeSource,
+    ) -> BotticelliResult<NarrativeExecution> {
+        match source {
+            crate::NarrativeSource::Single(narrative) => {
+                // No composition context needed
+                self.execute_impl(narrative).await
+            }
+            crate::NarrativeSource::MultiWithContext {
+                multi,
+                execute_name,
+            } => {
+                // Get the narrative to execute
+                let narrative = multi.get_narrative(execute_name).ok_or_else(|| {
+                    NarrativeError::new(NarrativeErrorKind::TomlParse(format!(
+                        "Narrative '{}' not found in MultiNarrative",
+                        execute_name
+                    )))
+                })?;
+
+                // Execute with full MultiNarrative context for composition
+                self.execute_impl_with_multi(narrative, Some(multi)).await
+            }
+        }
+    }
+
     /// Execute a narrative by loading it from a TOML file and selecting a specific narrative by name.
     ///
     /// This is a convenience method for bots that need to execute narratives dynamically.

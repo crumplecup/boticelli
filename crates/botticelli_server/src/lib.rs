@@ -54,7 +54,6 @@ mod client;
 mod config;
 mod convert;
 mod metrics;
-mod observability;
 mod request;
 mod response;
 mod schedule;
@@ -63,6 +62,7 @@ mod traits;
 pub use actor_traits::{
     ActorManager, ActorServer, ActorServerResult, ContentPoster, StatePersistence, TaskScheduler,
 };
+#[cfg(feature = "metrics")]
 pub use api::{ApiState, create_router as create_metrics_router};
 pub use bots::{
     BotServer, CurationBot, CurationBotArgs, CurationMessage, GenerationBot, GenerationBotArgs,
@@ -70,11 +70,11 @@ pub use bots::{
 };
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
-pub use config::{ServerConfig, ServerConfigBuilder};
+pub use config::{DatabaseConfig, ServerConfig, ServerConfigBuilder};
+#[cfg(feature = "metrics")]
 pub use metrics::{
     BotMetrics, MetricsCollector, MetricsSnapshot, NarrativeMetrics, PipelineMetrics, ServerMetrics,
 };
-pub use observability::{ObservabilityConfig, init_observability, shutdown_observability};
 pub use request::{ChatCompletionRequest, Message};
 pub use response::{
     ChatCompletionChunk, ChatCompletionResponse, Choice, ChoiceMessage, ChunkChoice, Delta, Usage,

@@ -5,13 +5,10 @@
 # 
 # Uses same JSON compliance workflow as generation_carousel
 
-[narratives.curate_content]
-name = "curate_and_approve"
+[narrative.curate_content]
 description = "Curate potential Discord posts and auto-store approved ones"
 target = "approved_discord_posts"
-
-[narratives.curate_content.toc]
-order = ["analyze", "select", "format_json", "audit_json"]
+toc = ["analyze", "select", "format_json", "audit_json"]
 
 # Act 1: Analyze all posts (plain text output)
 # Uses pull_and_delete to atomically fetch and remove posts from potential table

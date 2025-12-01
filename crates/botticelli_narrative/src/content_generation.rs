@@ -144,9 +144,7 @@ impl ActProcessor for ContentGenerationProcessor {
                                     table_name: table_name.clone(),
                                     template: template.clone(),
                                     narrative_name: Some(context.narrative_name.to_string()),
-                                    description: Some(
-                                        context.narrative_metadata.description().to_string(),
-                                    ),
+                                    description: context.narrative_metadata.description().clone(),
                                     reply,
                                 },
                                 None,
@@ -162,9 +160,7 @@ impl ActProcessor for ContentGenerationProcessor {
                                     table_name: table_name.clone(),
                                     json_sample: parsed_json.clone(),
                                     narrative_name: Some(context.narrative_name.to_string()),
-                                    description: Some(
-                                        context.narrative_metadata.description().to_string(),
-                                    ),
+                                    description: context.narrative_metadata.description().clone(),
                                     reply,
                                 },
                                 None,

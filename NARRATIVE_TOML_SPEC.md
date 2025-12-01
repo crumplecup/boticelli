@@ -374,9 +374,9 @@ Note: Use `ref = "resource.name"` in verbose syntax to reference friendly resour
 
 Required fields:
 - `name` (string): Unique identifier for this narrative
-- `description` (string): Human-readable description
 
 Optional fields:
+- `description` (string): Human-readable description (optional but recommended)
 - `template` (string): Name of database table to use as schema source for content generation (see [Content Generation](#content-generation))
 - `target` (string): Target table name for storing generated content. When set, all acts write to this table instead of creating timestamped tables
 - `skip_content_generation` (boolean): Skip automatic content generation to custom tables (default: `false`)

@@ -158,6 +158,11 @@ test-package package test_name="":
         fi
     fi
 
+# Quick test that metrics API is functional (no container/network required)
+test-metrics:
+    @echo "🔍 Testing metrics API..."
+    cargo test --package botticelli_actor --test metrics_collection_test -- --nocapture
+
 # Run API tests for Gemini (requires GEMINI_API_KEY)
 test-api-gemini:
     #!/usr/bin/env bash
@@ -220,6 +225,117 @@ test-coverage:
 
 # Run complete test suite including API tests (for pre-merge)
 test-pre-merge: test test-doc test-api-gemini
+
+# Observability
+# =============
+
+# Test observability stack (Jaeger, Prometheus, Grafana)
+test-observability:
+    @./scripts/test-observability.sh
+
+# Verify metrics pipeline is working (Application → Prometheus → Grafana)
+verify-metrics:
+    @./scripts/verify-metrics.sh
+
+# Start observability stack
+obs-up:
+    podman-compose -f docker-compose.observability.yml up -d
+
+# Stop observability stack
+obs-down:
+    podman-compose -f docker-compose.observability.yml down
+
+# View observability logs
+obs-logs service="":
+    #!/usr/bin/env bash
+    if [ -z "{{service}}" ]; then
+        podman-compose -f docker-compose.observability.yml logs -f
+    else
+        podman logs -f botticelli-{{service}}
+    fi
+
+# Restart observability stack
+obs-restart:
+    podman-compose -f docker-compose.observability.yml restart
+
+# Run actor server with observability enabled (reads .env automatically)
+run-actor-server:
+    cargo run --bin actor-server --release --features "discord,otel-otlp"
+
+# Container Management
+# ===================
+
+# Build the actor-server container image (alias: bot-build)
+container-build:
+    @echo "🐳 Building actor-server container..."
+    podman build -t botticelli-actor-server:latest -f Containerfile .
+
+# Alias for container-build
+alias bot-build := container-build
+
+# Run the actor-server container (requires .env file and observability stack) (alias: bot-run)
+container-run:
+    @echo "🚀 Starting actor-server container..."
+    podman run -d \
+        --name botticelli-actor-server \
+        --env-file .env \
+        -e OTEL_EXPORTER=otlp \
+        -e OTEL_EXPORTER_OTLP_ENDPOINT=http://host.containers.internal:4318 \
+        -p 9090:9090 \
+        --network host \
+        botticelli-actor-server:latest
+
+# Alias for container-run
+alias bot-run := container-run
+
+# Start all services (observability + actor-server) with docker-compose
+bot-up:
+    @echo "🚀 Starting all Botticelli services..."
+    podman-compose up -d
+
+# Stop all services
+bot-down:
+    @echo "🛑 Stopping all Botticelli services..."
+    podman-compose down
+
+# Restart actor-server service only
+bot-restart:
+    @echo "🔄 Restarting actor-server..."
+    podman-compose restart actor-server
+
+# View actor-server logs
+bot-logs:
+    @echo "📋 Actor-server logs:"
+    podman logs -f botticelli-actor-server
+
+# Rebuild and restart actor-server
+bot-rebuild: container-build
+    @echo "🔄 Rebuilding and restarting actor-server..."
+    podman-compose up -d --force-recreate actor-server
+
+# Stop and remove the actor-server container
+container-stop:
+    @echo "🛑 Stopping actor-server container..."
+    podman stop botticelli-actor-server || true
+    podman rm botticelli-actor-server || true
+
+# View actor-server container logs
+container-logs:
+    podman logs -f botticelli-actor-server
+
+# Restart the actor-server container
+container-restart: container-stop container-run
+
+# Rebuild and restart the actor-server container
+container-rebuild: container-build container-restart
+
+# Complete container setup: build image and start with observability
+container-setup: obs-up container-build container-run
+    @echo "✅ Actor server container running with observability"
+    @echo "📊 Grafana: http://localhost:3000"
+    @echo "📈 Prometheus: http://localhost:9091"
+    @echo "🔍 Jaeger: http://localhost:16686"
+    @echo "📊 Metrics: http://localhost:9090/metrics"
 
 # Code Quality
 # ============
@@ -306,9 +422,7 @@ check-all package='':
         echo "🔍 Running all checks on entire workspace..."
         
         # Run fmt (errors only)
-        if ! cargo fmt --all -- --check 2>&1 | tee -a "$LOG_FILE"; then
-            EXIT_CODE=1
-        fi
+        cargo fmt --all
         
         # Run lint (show output and log warnings/errors)
         echo "🔍 Linting entire workspace with local features"
@@ -872,3 +986,74 @@ test-timings:
 # Install nextest if not present
 install-nextest:
     cargo install cargo-nextest --locked
+
+# Database Management
+# ===================
+
+# Export host database to SQL file
+db-export output="botticelli_backup.sql":
+    @echo "📦 Exporting host database to {{output}}..."
+    pg_dump -U botticelli -h localhost -d botticelli -f {{output}}
+    @echo "✅ Database exported"
+
+# Import SQL file to host database
+db-import input="botticelli_backup.sql":
+    @echo "📥 Importing {{input}} to host database..."
+    psql -U botticelli -h localhost -d botticelli -f {{input}}
+    @echo "✅ Database imported"
+
+# Snapshot container database to stdout
+db-snapshot-container:
+    @echo "📸 Creating container database snapshot..." >&2
+    podman exec botticelli-bot-server pg_dump -U botticelli -d botticelli
+
+# Restore snapshot to container from file
+db-restore-container input="botticelli_backup.sql":
+    @echo "♻️  Restoring {{input}} to container database..."
+    cat {{input}} | podman exec -i botticelli-bot-server psql -U botticelli -d botticelli
+    @echo "✅ Database restored"
+
+# Sync host database to container
+db-sync-to-container:
+    @echo "🔄 Syncing host database to container..."
+    @echo "⚠️  This will overwrite container database!"
+    @read -p "Continue? [y/N] " -n 1 -r; \
+    if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+        pg_dump -U botticelli -h localhost -d botticelli | \
+            podman exec -i botticelli-bot-server psql -U botticelli -d botticelli; \
+        echo "✅ Sync complete"; \
+    else \
+        echo "❌ Cancelled"; \
+    fi
+
+# Sync container database to host
+db-sync-from-container:
+    @echo "🔄 Syncing container database to host..."
+    @echo "⚠️  This will overwrite host database!"
+    @read -p "Continue? [y/N] " -n 1 -r; \
+    if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+        podman exec botticelli-bot-server pg_dump -U botticelli -d botticelli | \
+            psql -U botticelli -h localhost -d botticelli; \
+        echo "✅ Sync complete"; \
+    else \
+        echo "❌ Cancelled"; \
+    fi
+
+# Compare row counts between host and container databases
+db-compare:
+    @echo "📊 Comparing databases..."
+    @echo "\n🏠 Host database (localhost:5432):"
+    @psql -U botticelli -h localhost -d botticelli -c "SELECT 'narrative_executions' as table, COUNT(*) FROM narrative_executions UNION ALL SELECT 'act_executions', COUNT(*) FROM act_executions UNION ALL SELECT 'media_references', COUNT(*) FROM media_references;"
+    @echo "\n📦 Container database:"
+    @podman exec botticelli-bot-server psql -U botticelli -d botticelli -c "SELECT 'narrative_executions' as table, COUNT(*) FROM narrative_executions UNION ALL SELECT 'act_executions', COUNT(*) FROM act_executions UNION ALL SELECT 'media_references', COUNT(*) FROM media_references;"
+
+# Backup both host and container databases with timestamp
+db-backup-all:
+    #!/usr/bin/env bash
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    echo "💾 Creating timestamped backups..."
+    just db-export "backup_host_${timestamp}.sql"
+    just db-snapshot-container > "backup_container_${timestamp}.sql"
+    echo "✅ Backups created:"
+    echo "   - backup_host_${timestamp}.sql"
+    echo "   - backup_container_${timestamp}.sql"

@@ -166,8 +166,12 @@ pub struct TomlNarrative {
 /// Intermediate structure for deserializing individual [narratives.name] sections.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TomlNarrativeDefinition {
-    pub name: String,
-    pub description: String,
+    /// Name is optional here because it comes from the table key [narratives.NAME]
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Description is now optional
+    #[serde(default)]
+    pub description: Option<String>,
     /// Optional template table to use as schema source for content generation
     pub template: Option<String>,
     /// Optional target table name for content generation (overrides narrative name)
@@ -190,17 +194,31 @@ pub struct TomlNarrativeDefinition {
     /// Optional budget multipliers
     #[serde(default)]
     pub budget: Option<botticelli_core::BudgetConfig>,
-    /// Table of contents for this narrative
-    pub toc: TomlToc,
+    /// Table of contents for this narrative (just an array of act names)
+    pub toc: Vec<String>,
     /// Optional narrative-specific acts (override shared acts)
     #[serde(default)]
     pub acts: HashMap<String, TomlAct>,
 }
 
-/// Intermediate structure for deserializing the [toc] section.
+/// Intermediate structure for deserializing the [toc] section (backwards compat).
 #[derive(Debug, Clone, Deserialize)]
-pub struct TomlToc {
-    pub order: Vec<String>,
+#[serde(untagged)]
+pub enum TomlToc {
+    /// Simple array: toc = ["one", "two"]
+    Array(Vec<String>),
+    /// Structured: [toc] with order field
+    Structured { order: Vec<String> },
+}
+
+impl TomlToc {
+    /// Get the order vector regardless of variant.
+    pub fn order(&self) -> &[String] {
+        match self {
+            TomlToc::Array(v) => v,
+            TomlToc::Structured { order } => order,
+        }
+    }
 }
 
 /// Bot command definition from [bots.name] section.
@@ -280,7 +298,7 @@ pub struct TomlActConfig {
     pub input: Vec<TomlInput>,
 
     /// Reference to another narrative to execute as this act
-    #[serde(default)]
+    #[serde(default, alias = "narrative_ref")]
     pub narrative: Option<String>,
 
     /// Optional model override
@@ -355,14 +373,6 @@ pub struct TomlInput {
 /// Root TOML structure supporting both single and multi-narrative files.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TomlNarrativeFile {
-    /// Single narrative (backwards compatible)
-    #[serde(default)]
-    pub narrative: Option<TomlNarrative>,
-
-    /// TOC for single narrative (backwards compatible)
-    #[serde(default)]
-    pub toc: Option<TomlToc>,
-
     /// Shared act definitions (available to all narratives)
     #[serde(default)]
     pub acts: HashMap<String, TomlAct>,
@@ -379,9 +389,31 @@ pub struct TomlNarrativeFile {
     #[serde(default)]
     pub media: HashMap<String, TomlMediaDefinition>,
 
-    /// Narratives section - can be either references or inline definitions
+    /// Flattened narrative field - can be single TomlNarrative or HashMap<String, TomlNarrativeEntry>
+    #[serde(flatten)]
+    pub narrative_data: TomlNarrativeData,
+
+    /// Legacy support for [narratives.name] syntax (deprecated)
     #[serde(default)]
     pub narratives: HashMap<String, TomlNarrativeEntry>,
+}
+
+/// Wrapper for either single narrative or multi-narrative format
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum TomlNarrativeData {
+    /// Single narrative with optional TOC at root
+    Single {
+        #[serde(default)]
+        narrative: Box<Option<TomlNarrative>>,
+        #[serde(default)]
+        toc: Option<TomlToc>,
+    },
+    /// Multi-narrative with [narrative.name] entries
+    Multi {
+        #[serde(default)]
+        narrative: HashMap<String, TomlNarrativeEntry>,
+    },
 }
 
 /// Entry in [narratives.name] can be either a reference or inline definition.
@@ -395,9 +427,17 @@ pub enum TomlNarrativeEntry {
 }
 
 impl TomlNarrativeFile {
+    /// Check if this file contains multiple narratives.
+    pub fn is_multi_narrative(&self) -> bool {
+        match &self.narrative_data {
+            TomlNarrativeData::Single { .. } => false,
+            TomlNarrativeData::Multi { .. } => true,
+        }
+    }
+
     /// Resolve a narrative from this file.
     ///
-    /// If `narrative_name` is provided, looks for it in [narratives.name].
+    /// If `narrative_name` is provided, looks for it in [narrative.name] or [narratives.name].
     /// Otherwise, uses the single [narrative] section if present.
     ///
     /// Returns a tuple of (metadata fields, toc, acts map, shared resources).
@@ -405,58 +445,66 @@ impl TomlNarrativeFile {
         &self,
         narrative_name: Option<&str>,
     ) -> Result<(TomlNarrative, TomlToc, HashMap<String, TomlAct>), String> {
-        match (narrative_name, &self.narrative, &self.narratives) {
-            // Explicit name provided - look in [narratives.name]
-            (Some(name), _, narratives) if !narratives.is_empty() => {
-                let entry = narratives.get(name).ok_or_else(|| {
-                    let available: Vec<_> = narratives.keys().cloned().collect();
+        // Extract the narrative map from narrative_data
+        let (single_narrative, single_toc, multi_map) = match &self.narrative_data {
+            TomlNarrativeData::Single { narrative, toc } => {
+                (narrative.as_ref().as_ref(), toc.as_ref(), None)
+            }
+            TomlNarrativeData::Multi { narrative } => (None, None, Some(narrative)),
+        };
+
+        match (
+            narrative_name,
+            single_narrative,
+            multi_map,
+            &self.narratives,
+        ) {
+            // Explicit name provided - look in [narrative.name] first, then [narratives.name]
+            (Some(name), _, Some(multi), _) if !multi.is_empty() => {
+                let entry = multi.get(name).ok_or_else(|| {
+                    let available: Vec<_> = multi.keys().cloned().collect();
                     format!(
-                        "Narrative '{}' not found. Available: {}",
+                        "Narrative '{}' not found in [narrative.X]. Available: {}",
                         name,
                         available.join(", ")
                     )
                 })?;
 
-                match entry {
-                    TomlNarrativeEntry::Definition(def) => {
-                        // Convert definition to TomlNarrative format
-                        let meta = TomlNarrative {
-                            name: def.name.clone(),
-                            description: def.description.clone(),
-                            template: def.template.clone(),
-                            target: def.target.clone(),
-                            skip_content_generation: def.skip_content_generation,
-                            carousel: def.carousel.clone(),
-                            model: def.model.clone(),
-                            temperature: def.temperature,
-                            max_tokens: def.max_tokens,
-                            budget: def.budget.clone(),
-                        };
+                self.process_narrative_entry(name, entry)
+            }
 
-                        // Merge shared acts with definition-specific acts
-                        let mut acts = self.acts.clone();
-                        acts.extend(def.acts.clone()); // Definition acts override shared
+            // Explicit name, check legacy [narratives.name]
+            (Some(name), _, _, narratives) if !narratives.is_empty() => {
+                let entry = narratives.get(name).ok_or_else(|| {
+                    let available: Vec<_> = narratives.keys().cloned().collect();
+                    format!(
+                        "Narrative '{}' not found in [narratives.X]. Available: {}",
+                        name,
+                        available.join(", ")
+                    )
+                })?;
 
-                        Ok((meta, def.toc.clone(), acts))
-                    }
-                    TomlNarrativeEntry::Reference(_) => Err(format!(
-                        "Narrative '{}' is a file reference, not an inline definition",
-                        name
-                    )),
-                }
+                self.process_narrative_entry(name, entry)
             }
 
             // No name provided, use single [narrative] (backwards compat)
-            (None, Some(single), _) => {
-                let toc = self
-                    .toc
-                    .clone()
-                    .ok_or_else(|| "Single narrative requires [toc] section".to_string())?;
-                Ok((single.clone(), toc, self.acts.clone()))
+            (None, Some(single), _, _) => {
+                let toc =
+                    single_toc.ok_or_else(|| "Single narrative requires toc field".to_string())?;
+                Ok((single.clone(), toc.clone(), self.acts.clone()))
             }
 
             // No name, multiple definitions exist - ambiguous
-            (None, _, narratives) if !narratives.is_empty() => {
+            (None, _, Some(multi), _) if !multi.is_empty() => {
+                let available: Vec<_> = multi.keys().cloned().collect();
+                Err(format!(
+                    "Multiple narratives found. Specify one: {}",
+                    available.join(", ")
+                ))
+            }
+
+            // No name, multiple definitions in legacy field - ambiguous
+            (None, _, _, narratives) if !narratives.is_empty() => {
                 let available: Vec<_> = narratives.keys().cloned().collect();
                 Err(format!(
                     "Multiple narratives found. Specify one: {}",
@@ -466,6 +514,46 @@ impl TomlNarrativeFile {
 
             // No narrative found at all
             _ => Err("No narrative found in file".to_string()),
+        }
+    }
+
+    fn process_narrative_entry(
+        &self,
+        name: &str,
+        entry: &TomlNarrativeEntry,
+    ) -> Result<(TomlNarrative, TomlToc, HashMap<String, TomlAct>), String> {
+        match entry {
+            TomlNarrativeEntry::Definition(def) => {
+                // Use table key as name if not specified inline
+                let narrative_name = def.name.clone().unwrap_or_else(|| name.to_string());
+                let narrative_desc = def.description.clone().unwrap_or_default();
+
+                // Convert definition to TomlNarrative format
+                let meta = TomlNarrative {
+                    name: narrative_name,
+                    description: narrative_desc,
+                    template: def.template.clone(),
+                    target: def.target.clone(),
+                    skip_content_generation: def.skip_content_generation,
+                    carousel: def.carousel.clone(),
+                    model: def.model.clone(),
+                    temperature: def.temperature,
+                    max_tokens: def.max_tokens,
+                    budget: def.budget.clone(),
+                };
+
+                // Merge shared acts with definition-specific acts
+                let mut acts = self.acts.clone();
+                acts.extend(def.acts.clone()); // Definition acts override shared
+
+                // Convert toc Vec to TomlToc::Array
+                let toc = TomlToc::Array(def.toc.clone());
+                Ok((meta, toc, acts))
+            }
+            TomlNarrativeEntry::Reference(_) => Err(format!(
+                "Narrative '{}' is a file reference, not an inline definition",
+                name
+            )),
         }
     }
 }

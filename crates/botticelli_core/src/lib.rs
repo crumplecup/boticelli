@@ -9,16 +9,19 @@ mod budget;
 mod input;
 mod media;
 mod message;
+mod observability;
 mod output;
 mod request;
 mod role;
-mod telemetry;
 
 pub use budget::{BudgetConfig, BudgetConfigBuilder};
 pub use input::{HistoryRetention, Input, TableFormat};
 pub use media::MediaSource;
 pub use message::{Message, MessageBuilder};
+pub use observability::{
+    ExporterBackend, ObservabilityConfig, init_observability, init_observability_with_config,
+    shutdown_observability,
+};
 pub use output::{Output, ToolCall, ToolCallBuilder};
 pub use request::{GenerateRequest, GenerateRequestBuilder, GenerateResponse};
 pub use role::Role;
-pub use telemetry::{init_telemetry, shutdown_telemetry};

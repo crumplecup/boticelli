@@ -38,8 +38,13 @@ Fix all issues before committing, even if "unrelated":
 
 ```bash
 # only run these after code changes:
-cargo check                    # Basic compilation
+# prefer running on package when possible
+just check [package]                    # Basic compilation
+# check-all recipe takes too long on full workspace
+# prefer testing the package in isolation
+just test-package [package]
 just check-all [package]                 # clippy, fmt & test
+
 # only run this if markdown files changed:
 markdownlint-cli2 "**/*.md"   # Markdown (if changed)
 ```
@@ -761,11 +766,13 @@ just check-features                  # All combinations
 Never use `#[allow(dead_code)]` or any `#[allow(...)]` directive. Fix the root cause instead.
 
 Why this matters:
+
 - `dead_code` warnings expose missing `#[cfg(feature)]` gates
 - Unused code = design problem or missing functionality
 - Each `allow` postpones a real problem
 
 Fix it properly:
+
 ```rust
 // ❌ Never do this
 #[allow(dead_code)]
@@ -783,7 +790,7 @@ Solutions (in order):
 
 1. **Feature gate the code**: `#[cfg(feature = "...")]` if truly conditional
 2. **Make it public with getters**: Expose via proper encapsulation
-3. **Use `pub(crate)`**: Limit visibility appropriately  
+3. **Use `pub(crate)`**: Limit visibility appropriately
 4. **Delete it**: If genuinely unused, remove it
 
 #### No Exceptions
@@ -795,6 +802,7 @@ Solutions (in order):
 AI systems operate on probabilistic pattern matching, not deterministic rules. `#[allow(dead_code)]` appears frequently in Rust training data, creating strong learned associations. This documentation shifts probability distributions but cannot guarantee compliance - the AI will still reach for anti-patterns when trained heuristics dominate.
 
 **Human review is critical:**
+
 - Search for `#[allow` in diffs - reject any occurrence
 - Run `just check-features` to catch hidden feature gate issues
 - Verify `#[cfg]` usage over suppression

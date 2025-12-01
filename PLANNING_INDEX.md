@@ -31,10 +31,20 @@ This index tracks all planning documents in the workspace. When documents are co
 ### Infrastructure & Configuration
 - **BUDGET_MULTIPLIER_DESIGN.md** - `e0a7ebc` (2025-11-24)
   - Design for API rate limit budget multipliers
-- **OPENTELEMETRY_INTEGRATION_PLAN.md** - `current` (2025-11-29)
-  - Comprehensive OpenTelemetry observability integration plan
-- **BOT_SERVER_OBSERVABILITY_STRATEGY.md** - `current` (2025-11-28)
-  - Original observability strategy (pre-OpenTelemetry research)
+- **OPENTELEMETRY_INTEGRATION_ISSUES.md** - `current` (2025-11-30)
+  - OpenTelemetry integration analysis and resolution strategy
+- **OBSERVABILITY_SETUP.md** - `current` (2025-11-30)
+  - Complete guide for setting up observability with Jaeger and Podman
+- **QUICK_START_OBSERVABILITY.md** - `current` (2025-11-30)
+  - Quick start guide for running full observability stack
+- **OBSERVABILITY_SUMMARY.md** - `current` (2025-11-30)
+  - Summary of observability stack implementation and setup
+- **OBSERVABILITY_METRICS_JAEGER_ISSUE.md** - `current` (2025-11-30)
+  - Explanation of why Jaeger alone doesn't support metrics
+- **NARRATIVE_COMPOSITION_LOADING_ISSUE.md** - `current` (2025-11-30)
+  - Analysis and fix strategy for narrative composition loading
+- **PODMAN_CONTAINERIZATION.md** - `current` (2025-11-30)
+  - Strategy for containerizing bot-server with Podman
 
 ### Testing & Quality
 - **TESTING_PATTERNS.md** - `718bf35` (2025-11-22)
@@ -65,6 +75,8 @@ This index tracks all planning documents in the workspace. When documents are co
 ### Database & Storage
 - **POSTGRES.md** - `8937634` (2025-11-17)
   - PostgreSQL setup and configuration
+- **DATABASE_SYNC_STRATEGY.md** - `current` (2025-11-30)
+  - Strategy for synchronizing databases between host and containers
 - **DISCORD_SCHEMA.md** - `8937634` (2025-11-17)
   - Discord data schema definitions
 - **MEDIA_STORAGE.md** - `8937634` (2025-11-17)
@@ -155,6 +167,10 @@ This index tracks all planning documents in the workspace. When documents are co
   - Database connection pool integration strategy
 - **CONVERSATION_HISTORY_RETENTION_PLAN.md** - `4bdd0b1` (2025-11-27)
   - Plan for conversation history management
+- **OPENTELEMETRY_INTEGRATION_PLAN.md** - `68ba55c` (2025-11-30)
+  - Comprehensive OpenTelemetry observability integration plan (COMPLETED)
+- **BOT_SERVER_OBSERVABILITY_STRATEGY.md** - `68ba55c` (2025-11-30)
+  - Original observability strategy (superseded by OpenTelemetry implementation)
 
 ### State Management (Completed)
 - **BOT_COMMAND_STATE_INTEGRATION.md** - `2f6af15` (2025-11-22)
@@ -178,15 +194,16 @@ This index tracks all planning documents in the workspace. When documents are co
 
 ## Document Categories Summary
 
-- **Active Planning**: 11 documents
-- **Setup & Configuration**: 11 documents
+- **Active Planning**: 12 documents (added PODMAN_CONTAINERIZATION.md)
+- **Setup & Configuration**: 13 documents (added DATABASE_SYNC_STRATEGY.md)
 - **Crate Documentation**: 13 documents
 - **Narrative Guides**: 3 documents
-- **Archived**: 26 documents
+- **Archived**: 28 documents
 
-**Total**: 64 markdown documents tracked (38 active, 26 archived)
+**Total**: 69 markdown documents tracked (41 active, 28 archived)
 
 ---
 
-*Last Updated: 2025-11-29*
+*Last Updated: 2025-11-30*
+*OpenTelemetry Integration: COMPLETE (Phases 1-6)*
 *Generated automatically - see git log for detailed history*

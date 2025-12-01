@@ -229,25 +229,104 @@ pub fn parse_json<T>(json_str: &str) -> BotticelliResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    serde_json::from_str(json_str).map_err(|e| {
-        let preview = json_str
-            .chars()
-            .take(100)
-            .collect::<String>();
+    use tracing::{debug, error, info, warn};
 
-        tracing::error!(
-            error = %e,
-            json_preview = %preview,
-            "JSON parsing failed"
-        );
+    let trimmed = json_str.trim();
+    let preview = trimmed.chars().take(100).collect::<String>();
 
-        botticelli_error::BackendError::new(format!(
-            "Failed to parse JSON: {} (JSON: {}...). Hint: Ensure the LLM outputs valid JSON without syntax errors.",
-            e,
-            preview
-        ))
-        .into()
-    })
+    debug!(
+        json_length = trimmed.len(),
+        starts_with = trimmed.chars().take(5).collect::<String>(),
+        "Attempting JSON parse"
+    );
+
+    // Try parsing as-is first
+    match serde_json::from_str::<T>(trimmed) {
+        Ok(parsed) => {
+            debug!("JSON parsed successfully on first attempt");
+            Ok(parsed)
+        }
+        Err(e) => {
+            let err_msg = e.to_string();
+
+            warn!(
+                error = %e,
+                json_preview = %preview,
+                error_contains_trailing = err_msg.contains("trailing characters"),
+                starts_with_brace = trimmed.starts_with('{'),
+                starts_with_bracket = trimmed.starts_with('['),
+                "Initial JSON parse failed"
+            );
+
+            // Check for "trailing characters" error - usually means missing opening delimiter
+            if err_msg.contains("trailing characters") {
+                info!("Detected trailing characters error, attempting repair");
+
+                // Only try repair if missing opening delimiter
+                if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+                    // Step 1: Try adding just opening brace
+                    let with_opening = format!("{{{}", trimmed);
+
+                    debug!(
+                        original_start = &preview[..20.min(preview.len())],
+                        repaired_start = &with_opening.chars().take(20).collect::<String>(),
+                        "Attempting repair: adding opening brace only"
+                    );
+
+                    match serde_json::from_str::<T>(&with_opening) {
+                        Ok(parsed) => {
+                            info!("✅ Successfully repaired JSON by adding opening brace");
+                            return Ok(parsed);
+                        }
+                        Err(repair_err) => {
+                            debug!(
+                                error = %repair_err,
+                                "Opening brace only failed, trying both braces"
+                            );
+                        }
+                    }
+
+                    // Step 2: Try adding both opening and closing brace
+                    let with_both = format!("{{{}}}", trimmed);
+
+                    debug!(
+                        repaired_start = &with_both.chars().take(20).collect::<String>(),
+                        "Attempting repair: adding both braces"
+                    );
+
+                    match serde_json::from_str::<T>(&with_both) {
+                        Ok(parsed) => {
+                            info!(
+                                "✅ Successfully repaired JSON by adding opening and closing braces"
+                            );
+                            return Ok(parsed);
+                        }
+                        Err(repair_err) => {
+                            warn!(
+                                error = %repair_err,
+                                "Both repair attempts failed, giving up"
+                            );
+                        }
+                    }
+                } else {
+                    debug!("JSON already starts with delimiter, skipping repair");
+                }
+            }
+
+            // Repair failed or different error, return original error
+            error!(
+                error = %e,
+                json_preview = %preview,
+                "JSON parsing failed after repair attempts"
+            );
+
+            Err(botticelli_error::BackendError::new(format!(
+                "Failed to parse JSON: {} (JSON: {}...). Hint: Ensure the LLM outputs valid JSON without syntax errors.",
+                e,
+                preview
+            )).into())
+        }
+    }
 }
 
 /// Parse and validate TOML, returning a specific type.

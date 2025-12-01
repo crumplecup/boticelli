@@ -1,4 +1,4 @@
-//! Configuration for local inference server connection
+//! Configuration for local inference server and database connection
 
 use crate::{ServerError, ServerErrorKind};
 use derive_getters::Getters;
@@ -39,5 +39,42 @@ impl ServerConfig {
             .api_key(api_key)
             .build()
             .expect("Valid ServerConfig"))
+    }
+}
+
+/// Database configuration with environment-aware defaults
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Getters)]
+pub struct DatabaseConfig {
+    /// Database URL
+    url: String,
+}
+
+impl DatabaseConfig {
+    /// Create config from environment variables
+    ///
+    /// Reads `DATABASE_URL` with deployment-aware defaults:
+    /// - Container: `postgresql://botticelli:botticelli@localhost:5432/botticelli`
+    /// - Local dev: `postgresql://postgres:postgres@localhost:5432/botticelli`
+    ///
+    /// Set `DEPLOYMENT_ENV=container` to use container defaults
+    pub fn from_env() -> Result<Self, ServerError> {
+        let url = if let Ok(url) = std::env::var("DATABASE_URL") {
+            url
+        } else {
+            let deployment = std::env::var("DEPLOYMENT_ENV").unwrap_or_default();
+            match deployment.as_str() {
+                "container" => {
+                    "postgresql://botticelli:botticelli@localhost:5432/botticelli".to_string()
+                }
+                _ => "postgresql://postgres:postgres@localhost:5432/botticelli".to_string(),
+            }
+        };
+
+        Ok(Self { url })
+    }
+
+    /// Create config with explicit URL
+    pub fn new(url: impl Into<String>) -> Self {
+        Self { url: url.into() }
     }
 }

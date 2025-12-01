@@ -1,0 +1,37 @@
+# Prometheus Configuration for Botticelli Observability
+#
+# This configuration scrapes metrics from:
+# - Jaeger (trace-derived metrics)
+# - Botticelli services (when metrics export is enabled)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'botticelli-dev'
+    environment: 'development'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Jaeger metrics endpoint
+  # Jaeger exposes Prometheus metrics about trace collection
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+    metric_relabel_configs:
+      # Keep only interesting Jaeger metrics
+      - source_labels: [__name__]
+        regex: '(jaeger_collector_.*|jaeger_query_.*|jaeger_tracer_.*)'
+        action: keep
+
+  # Botticelli Actor Server metrics
+  # Use host.containers.internal for Podman, host.docker.internal for Docker
+  - job_name: 'actor-server'
+    static_configs:
+      - targets: ['host.containers.internal:9464']
+    metrics_path: '/metrics'

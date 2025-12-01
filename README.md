@@ -31,6 +31,7 @@ Botticelli enables you to define complex, multi-step LLM workflows in TOML files
 - 💾 **Database Integration**: PostgreSQL storage with automatic schema inference
 - 🤖 **Bot Server**: Automated content generation, curation, and posting actors
 - 📱 **Social Platforms**: Discord integration (Twitter, Reddit planned)
+- 📊 **Observability**: OpenTelemetry tracing and metrics with Jaeger integration
 - 🖥️ **CLI Interface**: Flexible command-line execution with Just recipes
 - ⚡ **Rate Limiting**: Intelligent rate limiting with budget multipliers
 - 🦀 **Type-Safe**: Full Rust type safety throughout
@@ -298,6 +299,79 @@ diesel migration run
 # View execution details
 ./target/release/botticelli show 1
 ```
+
+## Observability & Monitoring
+
+Botticelli includes production-ready OpenTelemetry integration for distributed tracing and metrics collection.
+
+### Quick Start with Jaeger
+
+Start the observability stack with Podman:
+
+```bash
+# If you already have PostgreSQL running locally (port 5432):
+podman-compose -f docker-compose.jaeger-only.yml up -d
+
+# OR, if you need both Jaeger and PostgreSQL:
+podman-compose up -d  # PostgreSQL on port 5433
+
+# Configure environment
+export OTEL_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# Build with observability
+cargo build --release --features otel-otlp
+
+# Run actor server
+cargo run --release -p botticelli_actor --bin actor-server \
+  --features otel-otlp,discord
+```
+
+Access Jaeger UI at **http://localhost:16686** to view traces!
+
+### What You Get
+
+**Distributed Tracing:**
+- See execution flow across narrative acts
+- Trace API calls to LLM providers
+- Track database queries and social media operations
+- Measure latency at each step
+
+**Metrics Collection:**
+- Bot execution counts and failures
+- Narrative execution duration
+- API call counts by provider
+- Queue depth and throughput
+
+**Two Modes:**
+
+| Mode | Feature | Output | Use Case |
+|------|---------|--------|----------|
+| **Development** | `observability` | Stdout | Local debugging |
+| **Production** | `otel-otlp` | OTLP → Jaeger/Tempo | Production monitoring |
+
+### Environment Variables
+
+```bash
+# Exporter type
+OTEL_EXPORTER=stdout          # Development (default)
+OTEL_EXPORTER=otlp            # Production
+
+# OTLP endpoint
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# Log verbosity
+RUST_LOG=info,botticelli=debug
+```
+
+### Docker/Podman Stack
+
+The included `docker-compose.yml` provides:
+- **Jaeger**: All-in-one collector, query, and UI
+- **PostgreSQL**: Database for bot state
+- Automatic networking and persistence
+
+📖 **For detailed setup, troubleshooting, and production deployment:** See [OBSERVABILITY_SETUP.md](OBSERVABILITY_SETUP.md)
 
 ## Creating Narratives
 

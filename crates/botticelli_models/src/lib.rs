@@ -36,6 +36,10 @@
 //! # }
 //! ```
 
+mod metrics;
+
+pub use metrics::{LlmMetrics, classify_error};
+
 #[cfg(feature = "gemini")]
 mod gemini;
 

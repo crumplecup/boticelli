@@ -6,9 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use botticelli_database::{DatabaseTableQueryRegistry, TableQueryExecutor, establish_connection};
 use botticelli_models::GeminiClient;
-use botticelli_narrative::{
-    MultiNarrative, Narrative, NarrativeExecutor, NarrativeProvider, ProcessorRegistry,
-};
+use botticelli_narrative::{NarrativeExecutor, ProcessorRegistry};
 use ractor::Actor;
 use serde_json::json;
 use std::path::Path;
@@ -62,62 +60,24 @@ impl Skill for NarrativeExecutionSkill {
             "Loading narrative for execution"
         );
 
-        // Load narrative from file
+        // Load narrative from file - automatically detects composition
         let path = Path::new(narrative_path);
+        let narrative_source = botticelli_narrative::NarrativeSource::from_file(
+            path,
+            narrative_name.as_ref().map(|s| s.as_str()),
+        )
+        .map_err(|e| {
+            ActorError::new(ActorErrorKind::FileIo {
+                path: path.to_path_buf(),
+                message: format!("Failed to load narrative: {}", e),
+            })
+        })?;
 
-        // Determine which type of narrative to load
-        // MultiNarrative preserves composition context for carousel mode
-        let use_multi_narrative = narrative_name.is_some();
-
-        let (narrative_for_single, multi_for_composition) = if use_multi_narrative {
-            let name = narrative_name.as_ref().unwrap();
-
-            // Load multi-narrative file - preserves composition context
-            tracing::debug!(
-                narrative_name = name,
-                "Loading multi-narrative file with composition context"
-            );
-
-            let multi = MultiNarrative::from_file(path, name).map_err(|e| {
-                ActorError::new(ActorErrorKind::FileIo {
-                    path: path.to_path_buf(),
-                    message: format!("Failed to load multi-narrative file: {}", e),
-                })
-            })?;
-
-            // Verify target narrative exists
-            let target = multi.get_narrative(name).ok_or_else(|| {
-                ActorError::new(ActorErrorKind::InvalidConfiguration(format!(
-                    "Narrative '{}' not found in file",
-                    name
-                )))
-            })?;
-
-            tracing::debug!(
-                narrative_name = target.name(),
-                act_count = target.acts().len(),
-                "Multi-narrative loaded successfully with composition context"
-            );
-
-            (None, Some(multi))
-        } else {
-            // Load single narrative file
-            tracing::debug!("Loading single narrative from file");
-            let narrative = Narrative::from_file(path).map_err(|e| {
-                ActorError::new(ActorErrorKind::FileIo {
-                    path: path.to_path_buf(),
-                    message: format!("Failed to load narrative: {}", e),
-                })
-            })?;
-
-            tracing::debug!(
-                narrative_name = narrative.name(),
-                act_count = narrative.acts().len(),
-                "Narrative loaded successfully"
-            );
-
-            (Some(narrative), None)
-        };
+        tracing::debug!(
+            narrative_name = narrative_source.name(),
+            has_composition_context = narrative_source.has_composition_context(),
+            "Narrative loaded successfully"
+        );
 
         // Create Gemini client for narrative execution
         // TODO: Make this configurable to support other LLM providers
@@ -206,47 +166,28 @@ impl Skill for NarrativeExecutionSkill {
             tracing::debug!("Bot command registry configured");
         }
 
-        // Execute narrative with appropriate type (MultiNarrative or single Narrative)
-        // Both implement NarrativeProvider trait
-        let (result, executed_narrative_name, executed_act_count) =
-            if let Some(multi) = multi_for_composition {
-                // Get target narrative name from original parameter
-                let target_name = narrative_name
-                    .as_ref()
-                    .expect("multi_for_composition implies narrative_name is Some");
+        // Execute narrative - automatically handles composition context
+        tracing::info!(
+            narrative_name = narrative_source.name(),
+            has_composition = narrative_source.has_composition_context(),
+            "Executing narrative"
+        );
 
-                tracing::info!(
-                    narrative_name = target_name,
-                    "Executing multi-narrative with composition context"
-                );
+        let result = executor
+            .execute_from_source(&narrative_source)
+            .await
+            .map_err(|e| {
+                ActorError::new(ActorErrorKind::Narrative(format!(
+                    "Narrative execution failed: {}",
+                    e
+                )))
+            })?;
 
-                let result = executor.execute(&multi).await.map_err(|e| {
-                    ActorError::new(ActorErrorKind::Narrative(format!(
-                        "Multi-narrative execution failed: {}",
-                        e
-                    )))
-                })?;
-
-                let act_count = multi
-                    .get_narrative(target_name)
-                    .map(|n| n.acts().len())
-                    .unwrap_or(0);
-
-                (result, target_name.to_string(), act_count)
-            } else if let Some(narrative) = narrative_for_single {
-                tracing::info!(narrative_name = narrative.name(), "Executing narrative");
-
-                let result = executor.execute(&narrative).await.map_err(|e| {
-                    ActorError::new(ActorErrorKind::Narrative(format!(
-                        "Narrative execution failed: {}",
-                        e
-                    )))
-                })?;
-
-                (result, narrative.name().to_string(), narrative.acts().len())
-            } else {
-                unreachable!("Either narrative_for_single or multi_for_composition must be Some");
-            };
+        let executed_narrative_name = narrative_source.name().to_string();
+        let executed_act_count = narrative_source
+            .get_narrative()
+            .map(|n| n.acts().len())
+            .unwrap_or(0);
 
         // Shutdown the storage actor
         tracing::debug!("Shutting down storage actor");

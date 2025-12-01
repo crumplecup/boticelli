@@ -11,7 +11,7 @@ use botticelli_error::{BotticelliError, BotticelliResult, ConfigError};
 use config::{Config, File, FileFormat};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument, warn};
 
 /// Model-specific rate limit overrides.
 ///
@@ -416,6 +416,37 @@ impl BotticelliConfig {
 
         debug!(provider, tier, "Looking up tier configuration");
 
-        provider_config.tiers.get(tier).cloned()
+        let mut tier_config = provider_config.tiers.get(tier).cloned()?;
+
+        // Apply budget multipliers if configured
+        if let Some(budget) = &self.budget {
+            let original_rpm = tier_config.rpm;
+            if let Some(rpm) = tier_config.rpm {
+                tier_config.rpm = Some(budget.apply_rpm(rpm as u64) as u32);
+            }
+            if let Some(tpm) = tier_config.tpm {
+                tier_config.tpm = Some(budget.apply_tpm(tpm));
+            }
+            if let Some(rpd) = tier_config.rpd {
+                tier_config.rpd = Some(budget.apply_rpd(rpd as u64) as u32);
+            }
+
+            info!(
+                provider = provider,
+                tier = tier,
+                original_rpm = ?original_rpm,
+                adjusted_rpm = ?tier_config.rpm,
+                rpm_multiplier = budget.rpm_multiplier(),
+                "Applied budget multipliers to tier"
+            );
+        } else {
+            warn!(
+                provider = provider,
+                tier = tier,
+                "No budget configuration found - using full tier limits"
+            );
+        }
+
+        Some(tier_config)
     }
 }

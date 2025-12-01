@@ -428,17 +428,17 @@ impl Driver for OllamaClient {
 ```rust
 // Core types and traits (gated by "models")
 #[cfg(feature = "models")]
-pub mod driver;
+mod driver;
 
 #[cfg(feature = "models")]
-pub mod types;
+mod types;
 
-// Provider-specific modules
+// Provider-specific modules (private)
 #[cfg(feature = "gemini")]
-pub mod gemini;
+mod gemini;
 
 #[cfg(feature = "ollama")]
-pub mod ollama;
+mod ollama;
 
 // Re-export core types (available when "models" enabled)
 #[cfg(feature = "models")]

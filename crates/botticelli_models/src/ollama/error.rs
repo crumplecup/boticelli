@@ -2,24 +2,8 @@
 
 use derive_more::{Display, Error};
 
-/// Ollama-specific error conditions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
-pub enum OllamaErrorKind {
-    #[display("Ollama server not running at {}", _0)]
-    ServerNotRunning(String),
-
-    #[display("Model not found: {}", _0)]
-    ModelNotFound(String),
-
-    #[display("Failed to pull model: {}", _0)]
-    ModelPullFailed(String),
-
-    #[display("API error: {}", _0)]
-    ApiError(String),
-
-    #[display("Invalid configuration: {}", _0)]
-    InvalidConfiguration(String),
-}
+// Re-export the shared OllamaErrorKind from botticelli_error
+pub use botticelli_error::OllamaErrorKind;
 
 /// Ollama error with location tracking.
 #[derive(Debug, Clone, Display, Error)]
@@ -43,3 +27,12 @@ impl OllamaError {
 }
 
 pub type OllamaResult<T> = Result<T, OllamaError>;
+
+/// Conversion from OllamaError to BotticelliError.
+impl From<OllamaError> for botticelli_error::BotticelliError {
+    fn from(err: OllamaError) -> Self {
+        botticelli_error::BotticelliError::from(botticelli_error::ModelsError::new(
+            botticelli_error::ModelsErrorKind::Ollama(err.kind),
+        ))
+    }
+}

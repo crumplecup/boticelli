@@ -38,7 +38,7 @@ async fn test_gemini_2_0_flash() -> BotticelliResult<()> {
         })?;
 
     let response = client.generate(&request).await?;
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     Ok(())
 }
 
@@ -70,7 +70,7 @@ async fn test_gemini_2_0_flash_lite() -> BotticelliResult<()> {
         })?;
 
     let response = client.generate(&request).await?;
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     Ok(())
 }
 
@@ -128,7 +128,7 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         })?;
 
     let response2 = client.generate(&request2).await?;
-    assert!(!response2.outputs.is_empty());
+    assert!(!response2.outputs().is_empty());
 
     // Request 3: Use Gemini 2.0 Flash Lite
     let message3 = MessageBuilder::default()
@@ -185,6 +185,6 @@ async fn test_explicit_models_prefix() -> BotticelliResult<()> {
         })?;
 
     let response = client.generate(&request).await?;
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     Ok(())
 }

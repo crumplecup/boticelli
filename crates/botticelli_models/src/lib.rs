@@ -38,7 +38,7 @@
 
 mod metrics;
 
-pub use metrics::{classify_error, LlmMetrics};
+pub use metrics::{LlmMetrics, classify_error};
 
 #[cfg(feature = "gemini")]
 mod gemini;
@@ -58,4 +58,3 @@ pub use gemini::{
 
 #[cfg(feature = "ollama")]
 pub use ollama::{OllamaClient, OllamaError, OllamaErrorKind, OllamaResult};
-

@@ -23,11 +23,13 @@ async fn test_ollama_basic_generation() {
         .await
         .expect("Ollama server not available");
 
-    let messages = vec![Message::builder()
-        .role(Role::User)
-        .content(vec![Input::Text("Say hello".to_string())])
-        .build()
-        .expect("Valid message")];
+    let messages = vec![
+        Message::builder()
+            .role(Role::User)
+            .content(vec![Input::Text("Say hello".to_string())])
+            .build()
+            .expect("Valid message"),
+    ];
 
     let request = GenerateRequest::builder()
         .messages(messages)

@@ -237,6 +237,17 @@ impl RateLimitConfig {
             tokens_per_day: tier.tpm.unwrap_or(u64::MAX) * 1440, // Estimate: TPM * minutes per day
         }
     }
+
+    /// Creates an unlimited rate limit configuration (for local execution).
+    pub fn unlimited(name: &str) -> Self {
+        debug!(name, "Creating unlimited rate limit config");
+        Self {
+            requests_per_minute: u64::MAX,
+            tokens_per_minute: u64::MAX,
+            requests_per_day: u64::MAX,
+            tokens_per_day: u64::MAX,
+        }
+    }
 }
 
 /// Configuration for a specific provider.

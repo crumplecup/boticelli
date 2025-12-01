@@ -20,3 +20,4 @@ serde_json = { workspace = true, optional = true }
 default = []
 database = ["dep:diesel", "dep:serde_json"]
 tui = []
+ollama = []

@@ -10,7 +10,7 @@ pub fn messages_to_prompt(messages: &[Message]) -> String {
     for msg in messages {
         let role_prefix = match msg.role() {
             Role::User => "User: ",
-            Role::Model => "Assistant: ",
+            Role::Assistant => "Assistant: ",
             Role::System => "System: ",
         };
 
@@ -22,9 +22,15 @@ pub fn messages_to_prompt(messages: &[Message]) -> String {
                     prompt.push_str(text);
                     prompt.push('\n');
                 }
-                Input::Image(_) => {
+                Input::Image { .. }
+                | Input::Audio { .. }
+                | Input::Video { .. }
+                | Input::Document { .. }
+                | Input::BotCommand { .. }
+                | Input::Table { .. }
+                | Input::Narrative { .. } => {
                     // Ollama supports vision models, but handle separately
-                    prompt.push_str("[Image content]\n");
+                    prompt.push_str("[Media/Data content]\n");
                 }
             }
         }

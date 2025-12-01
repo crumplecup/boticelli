@@ -347,8 +347,15 @@ check package="":
         echo "🔍 Checking all packages with all features..."
         cargo check --all-features
     else
-        echo "🔍 Checking package: {{package}}"
-        cargo check -p "{{package}}"
+        # Check if package has a 'local' feature, use it if available
+        if cargo metadata --format-version 1 --no-deps 2>/dev/null | \
+           jq -e ".packages[] | select(.name == \"{{package}}\") | .features | has(\"local\")" >/dev/null 2>&1; then
+            echo "🔍 Checking package: {{package}} with local features"
+            cargo check -p "{{package}}" --features local
+        else
+            echo "🔍 Checking package: {{package}}"
+            cargo check -p "{{package}}"
+        fi
     fi
 
 # Run clippy linter (no warnings allowed)

@@ -210,7 +210,7 @@ async fn test_unified_client_handles_live_model_errors() {
     // May succeed with minimal output or fail - either is acceptable
     match result {
         Ok(response) => {
-            println!("Zero max_tokens handled: {:?}", response.outputs);
+            println!("Zero max_tokens handled: {:?}", response.outputs());
         }
         Err(e) => {
             println!("Zero max_tokens rejected: {}", e);

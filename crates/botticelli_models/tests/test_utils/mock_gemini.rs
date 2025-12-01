@@ -135,9 +135,10 @@ impl MockGeminiClient {
         *count += 1;
 
         match &self.behavior {
-            MockBehavior::Success(text) => Ok(GenerateResponse {
-                outputs: vec![Output::Text(text.clone())],
-            }),
+            MockBehavior::Success(text) => Ok(GenerateResponse::builder()
+                .outputs(vec![Output::Text(text.clone())])
+                .build()
+                .expect("Valid response")),
             MockBehavior::Error(error_kind) => {
                 Err(BotticelliError::from(GeminiError::new(error_kind.clone())))
             }
@@ -149,9 +150,10 @@ impl MockGeminiClient {
                 if current_count < *fail_count {
                     Err(BotticelliError::from(GeminiError::new(error.clone())))
                 } else {
-                    Ok(GenerateResponse {
-                        outputs: vec![Output::Text(success_text.clone())],
-                    })
+                    Ok(GenerateResponse::builder()
+                        .outputs(vec![Output::Text(success_text.clone())])
+                        .build()
+                        .expect("Valid response"))
                 }
             }
             MockBehavior::Sequence(responses) => {
@@ -166,9 +168,10 @@ impl MockGeminiClient {
                     )))
                 } else {
                     match &responses[current_count] {
-                        MockResponse::Success(text) => Ok(GenerateResponse {
-                            outputs: vec![Output::Text(text.clone())],
-                        }),
+                        MockResponse::Success(text) => Ok(GenerateResponse::builder()
+                            .outputs(vec![Output::Text(text.clone())])
+                            .build()
+                            .expect("Valid response")),
                         MockResponse::Error(error_kind) => {
                             Err(BotticelliError::from(GeminiError::new(error_kind.clone())))
                         }
@@ -250,9 +253,9 @@ impl Streaming for MockGeminiClient {
         let response = self.next_response()?;
 
         // Convert to a single-chunk stream
-        let chunks = response.outputs.into_iter().map(|output| {
+        let chunks = response.outputs().iter().map(|output| {
             Ok(StreamChunk {
-                content: output,
+                content: output.clone(),
                 is_final: true,
                 finish_reason: Some(FinishReason::Stop),
             })
@@ -274,7 +277,7 @@ mod tests {
         let response = mock.generate(&request).await.unwrap();
         assert_eq!(mock.call_count(), 1);
 
-        match &response.outputs[0] {
+        match &response.outputs()[0] {
             Output::Text(text) => assert_eq!(text, "test response"),
             _ => panic!("Expected text output"),
         }
@@ -316,7 +319,7 @@ mod tests {
         let response = mock.generate(&request).await.unwrap();
         assert_eq!(mock.call_count(), 3);
 
-        match &response.outputs[0] {
+        match &response.outputs()[0] {
             Output::Text(text) => assert_eq!(text, "success"),
             _ => panic!("Expected text output"),
         }
@@ -336,7 +339,7 @@ mod tests {
 
         // First call succeeds
         let response = mock.generate(&request).await.unwrap();
-        match &response.outputs[0] {
+        match &response.outputs()[0] {
             Output::Text(text) => assert_eq!(text, "first"),
             _ => panic!("Expected text output"),
         }
@@ -346,7 +349,7 @@ mod tests {
 
         // Third call succeeds
         let response = mock.generate(&request).await.unwrap();
-        match &response.outputs[0] {
+        match &response.outputs()[0] {
             Output::Text(text) => assert_eq!(text, "third"),
             _ => panic!("Expected text output"),
         }

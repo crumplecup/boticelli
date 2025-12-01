@@ -497,9 +497,10 @@ impl GeminiClient {
             let response_text = session.send_text(&combined_text).await?;
             let _ = session.close().await;
 
-            return Ok(GenerateResponse {
-                outputs: vec![Output::Text(response_text)],
-            });
+            return Ok(GenerateResponse::builder()
+                .outputs(vec![Output::Text(response_text)])
+                .build()
+                .expect("Valid response"));
         }
 
         // Determine retry strategy from first error or use defaults
@@ -518,9 +519,10 @@ impl GeminiClient {
                 let response_text = session.send_text(&combined_text).await?;
                 let _ = session.close().await;
 
-                return Ok(GenerateResponse {
-                    outputs: vec![Output::Text(response_text)],
-                });
+                return Ok(GenerateResponse::builder()
+                    .outputs(vec![Output::Text(response_text)])
+                    .build()
+                    .expect("Valid response"));
             }
             Err(e) => {
                 if !e.kind.is_retryable() {
@@ -594,9 +596,10 @@ impl GeminiClient {
         let _ = session.close().await; // Ignore close errors
 
         // Return response in GenerateResponse format
-        Ok(GenerateResponse {
-            outputs: vec![Output::Text(response_text)],
-        })
+        Ok(GenerateResponse::builder()
+            .outputs(vec![Output::Text(response_text)])
+            .build()
+            .expect("Valid response"))
     }
 
     /// Helper to combine all message content into a single text string.
@@ -786,9 +789,10 @@ impl GeminiClient {
                 // The gemini-rust crate doesn't currently expose UsageMetadata in REST API responses
                 // This would require updating the gemini-rust dependency or using direct API calls
 
-                Ok(GenerateResponse {
-                    outputs: vec![Output::Text(text)],
-                })
+                Ok(GenerateResponse::builder()
+                    .outputs(vec![Output::Text(text)])
+                    .build()
+                    .expect("Valid response"))
             }
             Err(e) => {
                 // Record error

@@ -1,11 +1,12 @@
 //! Ollama LLM client implementation.
 
-use ollama_rs::generation::completion::request::GenerationRequest as OllamaRequest;
 use ollama_rs::Ollama;
+use ollama_rs::generation::completion::request::GenerationRequest as OllamaRequest;
 
 use super::conversion::{messages_to_prompt, response_to_output};
 use super::{OllamaError, OllamaErrorKind, OllamaResult};
 use botticelli_core::{GenerateRequest, GenerateResponse};
+use botticelli_error::BotticelliResult;
 use botticelli_interface::BotticelliDriver;
 use tracing::{debug, info, instrument, warn};
 
@@ -24,13 +25,13 @@ pub struct OllamaClient {
 
 impl OllamaClient {
     /// Create a new Ollama client with default localhost connection.
-    #[instrument(name = "ollama_client_new")]
+    #[instrument(skip_all, fields(model_name))]
     pub fn new(model_name: impl Into<String>) -> OllamaResult<Self> {
         Self::new_with_url(model_name, "http://localhost:11434")
     }
 
     /// Create a new Ollama client with custom server URL.
-    #[instrument(name = "ollama_client_new_with_url")]
+    #[instrument(skip_all, fields(model_name, base_url))]
     pub fn new_with_url(
         model_name: impl Into<String>,
         base_url: impl Into<String>,
@@ -120,10 +121,7 @@ impl OllamaClient {
 #[async_trait::async_trait]
 impl BotticelliDriver for OllamaClient {
     #[instrument(skip(self, request))]
-    async fn generate(
-        &self,
-        request: &GenerateRequest,
-    ) -> Result<GenerateResponse, Box<dyn std::error::Error + Send + Sync>> {
+    async fn generate(&self, request: &GenerateRequest) -> BotticelliResult<GenerateResponse> {
         debug!("Generating with Ollama");
 
         // Convert messages to prompt
@@ -135,11 +133,11 @@ impl BotticelliDriver for OllamaClient {
         let ollama_req = OllamaRequest::new(self.model_name.clone(), prompt);
 
         // Execute generation (no rate limiting needed for local)
-        let response = self
-            .client
-            .generate(ollama_req)
-            .await
-            .map_err(|e| OllamaError::new(OllamaErrorKind::ApiError(e.to_string())))?;
+        let response = self.client.generate(ollama_req).await.map_err(|e| {
+            botticelli_error::BotticelliError::from(OllamaError::new(OllamaErrorKind::ApiError(
+                e.to_string(),
+            )))
+        })?;
 
         debug!(
             response_length = response.response.len(),
@@ -151,5 +149,21 @@ impl BotticelliDriver for OllamaClient {
             .outputs(vec![output])
             .build()
             .expect("Valid response"))
+    }
+
+    fn provider_name(&self) -> &'static str {
+        "ollama"
+    }
+
+    fn model_name(&self) -> &str {
+        &self.model_name
+    }
+
+    fn rate_limits(&self) -> &botticelli_rate_limit::RateLimitConfig {
+        // No rate limits for local execution
+        static DEFAULT_CONFIG: std::sync::OnceLock<botticelli_rate_limit::RateLimitConfig> =
+            std::sync::OnceLock::new();
+        DEFAULT_CONFIG
+            .get_or_init(|| botticelli_rate_limit::RateLimitConfig::unlimited("ollama-local"))
     }
 }

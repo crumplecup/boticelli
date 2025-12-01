@@ -36,6 +36,7 @@ mod error;
 mod gemini;
 mod http;
 mod json;
+mod models;
 mod narrative;
 mod not_implemented;
 mod server;
@@ -52,6 +53,9 @@ pub use error::{BotticelliError, BotticelliErrorKind, BotticelliResult};
 pub use gemini::{GeminiError, GeminiErrorKind, RetryableError};
 pub use http::HttpError;
 pub use json::JsonError;
+#[cfg(feature = "ollama")]
+pub use models::OllamaErrorKind;
+pub use models::{ModelsError, ModelsErrorKind, ModelsResult};
 pub use narrative::{NarrativeError, NarrativeErrorKind};
 pub use not_implemented::NotImplementedError;
 pub use server::{ServerError, ServerErrorKind};

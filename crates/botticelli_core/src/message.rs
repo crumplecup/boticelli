@@ -36,4 +36,9 @@ impl Message {
     pub fn new(role: Role, content: Vec<Input>) -> Self {
         Self { role, content }
     }
+
+    /// Returns a builder for constructing a Message.
+    pub fn builder() -> MessageBuilder {
+        MessageBuilder::default()
+    }
 }

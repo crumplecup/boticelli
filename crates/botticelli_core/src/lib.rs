@@ -23,5 +23,7 @@ pub use observability::{
     shutdown_observability,
 };
 pub use output::{Output, ToolCall, ToolCallBuilder};
-pub use request::{GenerateRequest, GenerateRequestBuilder, GenerateResponse};
+pub use request::{
+    GenerateRequest, GenerateRequestBuilder, GenerateResponse, GenerateResponseBuilder,
+};
 pub use role::Role;

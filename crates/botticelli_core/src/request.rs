@@ -106,14 +106,30 @@ impl GenerateRequestBuilder {
 /// ```
 /// use botticelli_core::{GenerateResponse, Output};
 ///
-/// let response = GenerateResponse {
-///     outputs: vec![Output::Text("Hello! How can I help?".to_string())],
-/// };
+/// let response = GenerateResponse::builder()
+///     .outputs(vec![Output::Text("Hello! How can I help?".to_string())])
+///     .build();
 ///
-/// assert_eq!(response.outputs.len(), 1);
+/// assert_eq!(response.outputs().len(), 1);
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    derive_builder::Builder,
+    derive_getters::Getters,
+)]
+#[builder(setter(into))]
 pub struct GenerateResponse {
     /// The generated outputs from the model
-    pub outputs: Vec<Output>,
+    outputs: Vec<Output>,
+}
+
+impl GenerateResponse {
+    /// Creates a builder for GenerateResponse.
+    pub fn builder() -> GenerateResponseBuilder {
+        GenerateResponseBuilder::default()
+    }
 }

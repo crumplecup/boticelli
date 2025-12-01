@@ -25,6 +25,9 @@ reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+# Error handling
+derive_more = { workspace = true, features = ["display", "error"] }
+
 # Logging and metrics
 tracing = { workspace = true }
 opentelemetry = { workspace = true }
@@ -50,7 +53,7 @@ models = []
 
 # Provider-specific features (each implies models)
 gemini = ["dep:gemini-rust", "botticelli_rate_limit/gemini", "models"]
-ollama = ["dep:ollama-rs", "models"]
+ollama = ["dep:ollama-rs", "botticelli_error/ollama", "models"]
 
 # Other providers (future - not yet implemented)
 anthropic = ["botticelli_rate_limit/anthropic"]

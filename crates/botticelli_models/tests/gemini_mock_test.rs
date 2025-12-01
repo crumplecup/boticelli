@@ -169,14 +169,14 @@ async fn test_mock_sequence_mixed_responses() -> anyhow::Result<()> {
 
     // First succeeds
     let response1 = mock.generate(&request).await?;
-    assert!(!response1.outputs.is_empty());
+    assert!(!response1.outputs().is_empty());
 
     // Second fails
     assert!(mock.generate(&request).await.is_err());
 
     // Third succeeds
     let response3 = mock.generate(&request).await?;
-    assert!(!response3.outputs.is_empty());
+    assert!(!response3.outputs().is_empty());
 
     assert_eq!(mock.call_count(), 3);
     Ok(())

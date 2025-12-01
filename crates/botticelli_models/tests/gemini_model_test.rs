@@ -179,7 +179,7 @@ async fn test_multiple_model_requests() -> BotticelliResult<()> {
         .map_err(|e| BuilderError::new(BuilderErrorKind::ValidationFailed(e)))?;
 
     let response1 = client.generate(&request1).await?;
-    assert!(!response1.outputs.is_empty());
+    assert!(!response1.outputs().is_empty());
 
     // Request 2: Use standard model
     let message2 = MessageBuilder::default()

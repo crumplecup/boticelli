@@ -1,0 +1,113 @@
+use botticelli_core::{GenerateRequest, GenerateResponse, Message, Output, Role};
+use botticelli_error::{BotticelliError, ModelsError, ModelsErrorKind};
+use botticelli_interface::BotticelliDriver;
+use botticelli_rate_limit::RateLimitConfig;
+use serde::{Deserialize, Serialize};
+use tracing::{debug, instrument};
+
+/// Anthropic Claude API client adapter
+#[derive(Debug, Clone)]
+pub struct AnthropicClient {
+    client: ClaudeClient,
+    model: String,
+}
+
+impl AnthropicClient {
+    /// Create a new Anthropic client
+    #[instrument(skip(api_key))]
+    pub fn new(api_key: String, model: String) -> Self {
+        debug!("Creating Anthropic client");
+        let client = ClaudeClient::new(api_key);
+        Self { client, model }
+    }
+
+    /// Convert Botticelli Message to Claude Message
+    fn convert_message(msg: &Message) -> Result<ClaudeMessage, BotticelliError> {
+        let role = match msg.role() {
+            Role::User => MessageRole::User,
+            Role::Assistant => MessageRole::Assistant,
+            Role::System => {
+                return Err(ModelsError::new(ModelsErrorKind::Builder(
+                    "System messages not supported in message array".to_string(),
+                ))
+                .into())
+            }
+        };
+
+        let content = msg
+            .content()
+            .iter()
+            .filter_map(|input| match input {
+                botticelli_core::Input::Text(text) => Some(Content::text(text.clone())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        if content.is_empty() {
+            return Err(ModelsError::new(ModelsErrorKind::Builder(
+                "No text content in message".to_string(),
+            ))
+            .into());
+        }
+
+        Ok(ClaudeMessage { role, content })
+    }
+
+    /// Convert Claude response to Botticelli Output
+    fn convert_output(content: &Content) -> Output {
+        match content {
+            Content::Text { text } => Output::Text(text.clone()),
+            _ => Output::Text("".to_string()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl BotticelliDriver for AnthropicClient {
+    fn provider_name(&self) -> &'static str {
+        "anthropic"
+    }
+
+    fn model_name(&self) -> &str {
+        &self.model
+    }
+
+    fn rate_limits(&self) -> &RateLimitConfig {
+        // TODO: Return actual rate limit config from botticelli_rate_limit
+        static UNLIMITED: RateLimitConfig = RateLimitConfig::unlimited("anthropic");
+        &UNLIMITED
+    }
+
+    #[instrument(skip(self, request))]
+    async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, BotticelliError> {
+        let messages = request.messages();
+        debug!(count = messages.len(), "Generating with Anthropic");
+
+        let claude_messages = messages
+            .iter()
+            .map(Self::convert_message)
+            .collect::<Result<Vec<_>, BotticelliError>>()?;
+
+        let model = Model::new(&self.model);
+
+        let response = self
+            .client
+            .messages()
+            .create(model, claude_messages, None)
+            .await
+            .map_err(|e| {
+                ModelsError::new(ModelsErrorKind::Builder(e.to_string())).into()
+            })?;
+
+        let outputs = response
+            .content
+            .iter()
+            .map(Self::convert_output)
+            .collect();
+
+        GenerateResponse::builder()
+            .outputs(outputs)
+            .build()
+            .map_err(Into::into)
+    }
+}

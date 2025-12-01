@@ -16,12 +16,10 @@ derive_more = { workspace = true, features = ["from", "display", "error"] }
 diesel = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 
-# Optional models error conversions
-botticelli_core = { workspace = true, optional = true }
-
 [features]
 default = []
 database = ["dep:diesel", "dep:serde_json"]
 tui = []
-models = ["dep:botticelli_core"]
+models = []
 ollama = ["models"]
+anthropic = ["models"]

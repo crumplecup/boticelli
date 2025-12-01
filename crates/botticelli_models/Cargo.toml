@@ -46,6 +46,8 @@ tokio-tungstenite = { workspace = true }
 # Feature-gated provider SDKs
 gemini-rust = { workspace = true, optional = true }
 ollama-rs = { version = "0.3", optional = true, features = ["stream"] }
+claude-client = { version = "0.3", optional = true }
+futures = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -56,9 +58,9 @@ models = []
 # Provider-specific features (each implies models)
 gemini = ["dep:gemini-rust", "botticelli_rate_limit/gemini", "models"]
 ollama = ["dep:ollama-rs", "botticelli_error/ollama", "models"]
+anthropic = ["dep:claude-client", "dep:futures", "botticelli_rate_limit/anthropic", "botticelli_error/anthropic", "models"]
 
 # Other providers (future - not yet implemented)
-anthropic = ["botticelli_rate_limit/anthropic"]
 huggingface = []
 groq = []
 perplexity = []

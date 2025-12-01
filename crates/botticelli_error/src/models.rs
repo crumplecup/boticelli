@@ -2,9 +2,6 @@
 
 use crate::GeminiErrorKind;
 
-#[cfg(feature = "models")]
-use botticelli_core::GenerateResponseBuilderError;
-
 /// Ollama-specific error conditions (re-exported when ollama feature is enabled).
 #[cfg(feature = "ollama")]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
@@ -38,6 +35,39 @@ pub enum OllamaErrorKind {
     Builder(String),
 }
 
+/// Anthropic-specific error conditions (re-exported when anthropic feature is enabled).
+#[cfg(feature = "anthropic")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
+pub enum AnthropicErrorKind {
+    /// Anthropic API returned an error
+    #[display("API error: {}", _0)]
+    ApiError(String),
+
+    /// Invalid API key
+    #[display("Invalid API key")]
+    InvalidApiKey,
+
+    /// Rate limit exceeded
+    #[display("Rate limit exceeded: {}", _0)]
+    RateLimitExceeded(String),
+
+    /// Model not found
+    #[display("Model not found: {}", _0)]
+    ModelNotFound(String),
+
+    /// Invalid Anthropic client configuration
+    #[display("Invalid configuration: {}", _0)]
+    InvalidConfiguration(String),
+
+    /// Error converting between Anthropic and Botticelli types
+    #[display("Conversion error: {}", _0)]
+    ConversionError(String),
+
+    /// Builder error when constructing responses
+    #[display("Builder error: {}", _0)]
+    Builder(String),
+}
+
 /// Model provider-specific error conditions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
 pub enum ModelsErrorKind {
@@ -53,6 +83,11 @@ pub enum ModelsErrorKind {
     #[cfg(feature = "ollama")]
     #[display("Ollama: {}", _0)]
     Ollama(OllamaErrorKind),
+
+    /// Anthropic-specific error (will be populated when anthropic feature is enabled)
+    #[cfg(feature = "anthropic")]
+    #[display("Anthropic: {}", _0)]
+    Anthropic(AnthropicErrorKind),
 }
 
 /// Model provider error with location tracking.
@@ -77,15 +112,6 @@ impl ModelsError {
             line: loc.line(),
             file: loc.file(),
         }
-    }
-}
-
-#[cfg(feature = "models")]
-impl From<GenerateResponseBuilderError> for ModelsError {
-    #[track_caller]
-    fn from(err: GenerateResponseBuilderError) -> Self {
-        let kind = ModelsErrorKind::Builder(err.to_string());
-        Self::new(kind)
     }
 }
 

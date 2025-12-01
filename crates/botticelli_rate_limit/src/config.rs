@@ -416,6 +416,30 @@ impl BotticelliConfig {
 
         debug!(provider, tier, "Looking up tier configuration");
 
-        provider_config.tiers.get(tier).cloned()
+        let mut tier_config = provider_config.tiers.get(tier).cloned()?;
+        
+        // Apply budget multipliers if configured
+        if let Some(budget) = &self.budget {
+            if let Some(rpm) = tier_config.rpm {
+                tier_config.rpm = Some(budget.apply_rpm(rpm as u64) as u32);
+            }
+            if let Some(tpm) = tier_config.tpm {
+                tier_config.tpm = Some(budget.apply_tpm(tpm));
+            }
+            if let Some(rpd) = tier_config.rpd {
+                tier_config.rpd = Some(budget.apply_rpd(rpd as u64) as u32);
+            }
+            
+            debug!(
+                provider = provider,
+                tier = tier,
+                rpm_multiplier = budget.rpm_multiplier(),
+                tpm_multiplier = budget.tpm_multiplier(),
+                rpd_multiplier = budget.rpd_multiplier(),
+                "Applied budget multipliers to tier"
+            );
+        }
+        
+        Some(tier_config)
     }
 }

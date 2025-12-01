@@ -229,25 +229,53 @@ pub fn parse_json<T>(json_str: &str) -> BotticelliResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    serde_json::from_str(json_str).map_err(|e| {
-        let preview = json_str
-            .chars()
-            .take(100)
-            .collect::<String>();
+    let trimmed = json_str.trim();
+    
+    // Try parsing as-is first
+    match serde_json::from_str::<T>(trimmed) {
+        Ok(parsed) => return Ok(parsed),
+        Err(e) => {
+            // Check for "trailing characters" error - usually means missing opening delimiter
+            let err_msg = e.to_string();
+            if err_msg.contains("trailing characters") {
+                tracing::warn!(
+                    error = %e,
+                    "JSON parse failed with trailing characters, attempting repair"
+                );
+                
+                // Try adding opening brace for object
+                if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+                    let repaired_obj = format!("{{{}}}", trimmed);
+                    if let Ok(parsed) = serde_json::from_str::<T>(&repaired_obj) {
+                        tracing::info!("Successfully repaired JSON by adding opening/closing braces");
+                        return Ok(parsed);
+                    }
+                    
+                    // Try adding opening bracket for array
+                    let repaired_arr = format!("[{{{}}}]", trimmed);
+                    if let Ok(parsed) = serde_json::from_str::<T>(&repaired_arr) {
+                        tracing::info!("Successfully repaired JSON by wrapping in array with braces");
+                        return Ok(parsed);
+                    }
+                }
+            }
+            
+            // Repair failed or different error, return original error
+            let preview = trimmed.chars().take(100).collect::<String>();
+            
+            tracing::error!(
+                error = %e,
+                json_preview = %preview,
+                "JSON parsing failed after repair attempts"
+            );
 
-        tracing::error!(
-            error = %e,
-            json_preview = %preview,
-            "JSON parsing failed"
-        );
-
-        botticelli_error::BackendError::new(format!(
-            "Failed to parse JSON: {} (JSON: {}...). Hint: Ensure the LLM outputs valid JSON without syntax errors.",
-            e,
-            preview
-        ))
-        .into()
-    })
+            Err(botticelli_error::BackendError::new(format!(
+                "Failed to parse JSON: {} (JSON: {}...). Hint: Ensure the LLM outputs valid JSON without syntax errors.",
+                e,
+                preview
+            )).into())
+        }
+    }
 }
 
 /// Parse and validate TOML, returning a specific type.

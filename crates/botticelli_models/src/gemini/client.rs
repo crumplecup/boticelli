@@ -230,7 +230,8 @@ impl GeminiClient {
     /// ```
     #[instrument(name = "gemini_client_new")]
     pub fn new() -> BotticelliResult<Self> {
-        Self::new_with_tier(None)
+        // Use new_with_config to ensure budget multipliers are applied
+        Self::new_with_config(None)
     }
 
     /// Create a new Gemini client with rate limiting.

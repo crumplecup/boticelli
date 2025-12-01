@@ -15,7 +15,7 @@ use botticelli_database::create_pool;
 use botticelli_server::ActorServer;
 #[cfg(feature = "discord")]
 use botticelli_server::Schedule;
-#[cfg(feature = "discord")]
+#[cfg(all(feature = "discord", feature = "metrics"))]
 use botticelli_server::ServerMetrics;
 use clap::Parser;
 #[cfg(feature = "discord")]
@@ -166,9 +166,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Track actors, their schedules, last run time, and execution trackers
         let mut actors: HashMap<String, ActorEntry> = HashMap::new();
 
-        // Initialize metrics for the server
-        let metrics = Arc::new(ServerMetrics::new());
-        info!("Server metrics initialized");
+        // Initialize metrics for the server (if enabled)
+        #[cfg(feature = "metrics")]
+        let metrics = {
+            let m = Arc::new(ServerMetrics::new());
+            info!("Server metrics initialized");
+            info!("Metrics enabled - exporting via OTLP");
+            m
+        };
+
+        #[cfg(not(feature = "metrics"))]
+        info!("Metrics disabled");
 
         // Load and register actors from configuration
         for actor_instance in &server_config.actors {
@@ -305,6 +313,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         info!("Actor server running. Press CTRL+C to shutdown.");
 
+        // Test metric: Record server startup (if metrics enabled)
+        #[cfg(feature = "metrics")]
+        {
+            info!("Recording test startup metric");
+            metrics.bots.record_execution("test_startup", 0.0);
+            info!("Test startup metric recorded");
+        }
+
         // Main execution loop
         let check_interval =
             std::time::Duration::from_secs(server_config.server.check_interval_seconds);
@@ -377,7 +393,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     );
                                     *last_run = Some(Utc::now());
 
-                                    // Record metrics
+                                    // Record metrics (if enabled)
+                                    #[cfg(feature = "metrics")]
                                     metrics.bots.record_execution(name, duration);
 
                                     // Record success if tracker available
@@ -404,7 +421,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 Err(e) => {
                                     error!(actor = %name, error = ?e, "Actor execution failed");
 
-                                    // Record failure metric
+                                    // Record failure metric (if enabled)
+                                    #[cfg(feature = "metrics")]
                                     metrics.bots.record_failure(name);
 
                                     // Record failure if tracker available

@@ -158,6 +158,11 @@ test-package package test_name="":
         fi
     fi
 
+# Quick test that metrics API is functional (no container/network required)
+test-metrics:
+    @echo "🔍 Testing metrics API..."
+    cargo test --package botticelli_actor --test metrics_collection_test -- --nocapture
+
 # Run API tests for Gemini (requires GEMINI_API_KEY)
 test-api-gemini:
     #!/usr/bin/env bash

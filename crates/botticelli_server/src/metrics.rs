@@ -1,13 +1,21 @@
 //! Metrics collection for Botticelli bot server.
 //!
 //! Provides OpenTelemetry-based metrics for bots, narratives, and the content pipeline.
+//!
+//! Available with the `metrics` feature.
+
+#[cfg(feature = "metrics")]
 use opentelemetry::{
     KeyValue, global,
     metrics::{Counter, Gauge, Histogram, Meter},
 };
+#[cfg(feature = "metrics")]
 use std::sync::Arc;
 
 /// Bot-level metrics for tracking execution and health.
+///
+/// Available with the `metrics` feature.
+#[cfg(feature = "metrics")]
 #[derive(Clone)]
 pub struct BotMetrics {
     /// Meter handle kept alive for metric instruments
@@ -24,50 +32,80 @@ pub struct BotMetrics {
     pub time_since_success: Gauge<u64>,
 }
 
+#[cfg(feature = "metrics")]
 impl BotMetrics {
     /// Create new bot metrics.
     pub fn new() -> Self {
+        use tracing::debug;
+        debug!("Getting global meter for botticelli_bots");
         let meter = global::meter("botticelli_bots");
+        debug!("Building bot metrics instruments");
 
+        let executions = meter
+            .u64_counter("bot.executions")
+            .with_description("Total bot executions")
+            .build();
+        debug!("Created bot.executions counter");
+
+        let failures = meter
+            .u64_counter("bot.failures")
+            .with_description("Total bot failures")
+            .build();
+        debug!("Created bot.failures counter");
+
+        let duration = meter
+            .f64_histogram("bot.duration")
+            .with_unit("seconds")
+            .with_description("Bot execution duration")
+            .build();
+        debug!("Created bot.duration histogram");
+
+        let queue_depth = meter
+            .u64_gauge("bot.queue_depth")
+            .with_description("Pending content count in queue")
+            .build();
+        debug!("Created bot.queue_depth gauge");
+
+        let time_since_success = meter
+            .u64_gauge("bot.time_since_success")
+            .with_unit("seconds")
+            .with_description("Time since last successful execution")
+            .build();
+        debug!("Created bot.time_since_success gauge");
+
+        debug!("BotMetrics instruments created successfully");
         Self {
             _meter: meter.clone(),
-            executions: meter
-                .u64_counter("bot.executions")
-                .with_description("Total bot executions")
-                .build(),
-            failures: meter
-                .u64_counter("bot.failures")
-                .with_description("Total bot failures")
-                .build(),
-            duration: meter
-                .f64_histogram("bot.duration")
-                .with_unit("seconds")
-                .with_description("Bot execution duration")
-                .build(),
-            queue_depth: meter
-                .u64_gauge("bot.queue_depth")
-                .with_description("Pending content count in queue")
-                .build(),
-            time_since_success: meter
-                .u64_gauge("bot.time_since_success")
-                .with_unit("seconds")
-                .with_description("Time since last successful execution")
-                .build(),
+            executions,
+            failures,
+            duration,
+            queue_depth,
+            time_since_success,
         }
     }
 
     /// Record a successful execution.
     pub fn record_execution(&self, bot_type: &str, duration_secs: f64) {
+        use tracing::debug;
         let labels = &[KeyValue::new("bot_type", bot_type.to_string())];
+        debug!(
+            bot_type = bot_type,
+            duration_secs = duration_secs,
+            "Recording bot execution metrics"
+        );
         self.executions.add(1, labels);
         self.duration.record(duration_secs, labels);
         self.time_since_success.record(0, labels);
+        debug!("Bot execution metrics recorded");
     }
 
     /// Record a failed execution.
     pub fn record_failure(&self, bot_type: &str) {
+        use tracing::debug;
         let labels = &[KeyValue::new("bot_type", bot_type.to_string())];
+        debug!(bot_type = bot_type, "Recording bot failure metric");
         self.failures.add(1, labels);
+        debug!("Bot failure metric recorded");
     }
 
     /// Update queue depth.
@@ -77,6 +115,7 @@ impl BotMetrics {
     }
 }
 
+#[cfg(feature = "metrics")]
 impl Default for BotMetrics {
     fn default() -> Self {
         Self::new()
@@ -84,6 +123,9 @@ impl Default for BotMetrics {
 }
 
 /// Narrative-level metrics for tracking execution performance.
+///
+/// Available with the `metrics` feature.
+#[cfg(feature = "metrics")]
 #[derive(Clone)]
 pub struct NarrativeMetrics {
     /// Meter handle kept alive for metric instruments
@@ -100,6 +142,7 @@ pub struct NarrativeMetrics {
     pub json_failures: Counter<u64>,
 }
 
+#[cfg(feature = "metrics")]
 impl NarrativeMetrics {
     /// Create new narrative metrics.
     pub fn new() -> Self {
@@ -159,6 +202,7 @@ impl NarrativeMetrics {
     }
 }
 
+#[cfg(feature = "metrics")]
 impl Default for NarrativeMetrics {
     fn default() -> Self {
         Self::new()
@@ -166,6 +210,9 @@ impl Default for NarrativeMetrics {
 }
 
 /// Content pipeline metrics.
+///
+/// Available with the `metrics` feature.
+#[cfg(feature = "metrics")]
 #[derive(Clone)]
 pub struct PipelineMetrics {
     /// Meter handle kept alive for metric instruments
@@ -180,6 +227,7 @@ pub struct PipelineMetrics {
     pub stage_latency: Histogram<f64>,
 }
 
+#[cfg(feature = "metrics")]
 impl PipelineMetrics {
     /// Create new pipeline metrics.
     pub fn new() -> Self {
@@ -229,6 +277,7 @@ impl PipelineMetrics {
     }
 }
 
+#[cfg(feature = "metrics")]
 impl Default for PipelineMetrics {
     fn default() -> Self {
         Self::new()
@@ -236,6 +285,9 @@ impl Default for PipelineMetrics {
 }
 
 /// Aggregated metrics for the entire bot server.
+///
+/// Available with the `metrics` feature.
+#[cfg(feature = "metrics")]
 #[derive(Clone)]
 pub struct ServerMetrics {
     /// Bot-level metrics
@@ -246,17 +298,28 @@ pub struct ServerMetrics {
     pub pipeline: Arc<PipelineMetrics>,
 }
 
+#[cfg(feature = "metrics")]
 impl ServerMetrics {
     /// Create new server metrics.
     pub fn new() -> Self {
+        use tracing::{debug, info};
+        info!("Initializing ServerMetrics");
+        debug!("Creating BotMetrics");
+        let bots = Arc::new(BotMetrics::new());
+        debug!("Creating NarrativeMetrics");
+        let narratives = Arc::new(NarrativeMetrics::new());
+        debug!("Creating PipelineMetrics");
+        let pipeline = Arc::new(PipelineMetrics::new());
+        info!("ServerMetrics initialized successfully");
         Self {
-            bots: Arc::new(BotMetrics::new()),
-            narratives: Arc::new(NarrativeMetrics::new()),
-            pipeline: Arc::new(PipelineMetrics::new()),
+            bots,
+            narratives,
+            pipeline,
         }
     }
 }
 
+#[cfg(feature = "metrics")]
 impl Default for ServerMetrics {
     fn default() -> Self {
         Self::new()
@@ -267,12 +330,16 @@ impl Default for ServerMetrics {
 ///
 /// Provides a simplified view of metrics for JSON export via HTTP API.
 /// Uses Arc internally so cloning is cheap.
+///
+/// Available with the `metrics` feature.
+#[cfg(feature = "metrics")]
 #[derive(Clone)]
 pub struct MetricsCollector {
     /// Server metrics handle kept alive
     _metrics: Arc<ServerMetrics>,
 }
 
+#[cfg(feature = "metrics")]
 impl MetricsCollector {
     /// Create new metrics collector.
     pub fn new() -> Self {
@@ -296,6 +363,7 @@ impl MetricsCollector {
     }
 }
 
+#[cfg(feature = "metrics")]
 impl Default for MetricsCollector {
     fn default() -> Self {
         Self::new()
@@ -304,6 +372,9 @@ impl Default for MetricsCollector {
 
 /// Snapshot of metrics at a point in time.
 /// Metrics snapshot for serialization.
+///
+/// Available with the `metrics` feature.
+#[cfg(feature = "metrics")]
 #[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct MetricsSnapshot {
     /// Bot metrics snapshot
@@ -315,6 +386,7 @@ pub struct MetricsSnapshot {
 }
 
 /// Bot metrics snapshot.
+#[cfg(feature = "metrics")]
 #[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct BotMetricsSnapshot {
     /// Total executions
@@ -328,6 +400,7 @@ pub struct BotMetricsSnapshot {
 }
 
 /// Narrative metrics snapshot.
+#[cfg(feature = "metrics")]
 #[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct NarrativeMetricsSnapshot {
     /// Total executions
@@ -343,6 +416,7 @@ pub struct NarrativeMetricsSnapshot {
 }
 
 /// Pipeline metrics snapshot.
+#[cfg(feature = "metrics")]
 #[derive(Debug, Clone, Default, serde::Serialize, derive_getters::Getters)]
 pub struct PipelineMetricsSnapshot {
     /// Posts generated

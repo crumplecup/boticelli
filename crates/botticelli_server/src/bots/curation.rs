@@ -72,6 +72,7 @@ pub struct CurationBotState {
 }
 
 #[async_trait::async_trait]
+#[async_trait::async_trait]
 impl Actor for CurationBot {
     type Msg = CurationMessage;
     type State = CurationBotState;

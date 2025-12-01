@@ -62,6 +62,7 @@ mod traits;
 pub use actor_traits::{
     ActorManager, ActorServer, ActorServerResult, ContentPoster, StatePersistence, TaskScheduler,
 };
+#[cfg(feature = "metrics")]
 pub use api::{ApiState, create_router as create_metrics_router};
 pub use bots::{
     BotServer, CurationBot, CurationBotArgs, CurationMessage, GenerationBot, GenerationBotArgs,
@@ -70,6 +71,7 @@ pub use bots::{
 pub use botticelli_error::{ServerError, ServerErrorKind};
 pub use client::ServerClient;
 pub use config::{DatabaseConfig, ServerConfig, ServerConfigBuilder};
+#[cfg(feature = "metrics")]
 pub use metrics::{
     BotMetrics, MetricsCollector, MetricsSnapshot, NarrativeMetrics, PipelineMetrics, ServerMetrics,
 };

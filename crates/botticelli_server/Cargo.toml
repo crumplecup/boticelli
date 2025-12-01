@@ -46,3 +46,4 @@ tracing-opentelemetry = { workspace = true }
 [features]
 default = []
 api = []
+metrics = []

@@ -36,7 +36,7 @@ botticelli_interface = { path = "crates/botticelli_interface", version = "0.2.0"
 
 # Observability (OpenTelemetry)
 opentelemetry = "0.31"
-opentelemetry-otlp = { version = "0.31", features = ["tokio", "metrics"] }
+opentelemetry-otlp = { version = "0.31", features = ["tokio", "metrics", "http-proto", "reqwest-client"] }
 opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 opentelemetry-stdout = { version = "0.31", features = ["trace", "metrics"] }
 tracing-opentelemetry = "0.32"
@@ -95,12 +95,16 @@ strum = { version = "0.27", features = ["derive"] }
 governor = "0.10"
 tokio-retry2 = { version = "0.7", features = ["jitter"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+tracing-subscriber = { version = "0.3", features = [
+  "env-filter",
+  "fmt",
+  "json",
+] }
 regex = "1"
 anyhow = "1"
 
 # Actor system
-ractor = "0.12"
+ractor = { version = "0.15", features = ["async-trait"] }
 
 # Configuration and HTTP
 config = { version = "0.15", features = ["toml"] }

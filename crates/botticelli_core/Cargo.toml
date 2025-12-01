@@ -9,6 +9,10 @@ description = "Core data types for the Botticelli LLM API library"
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+metrics = []
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -19,5 +23,7 @@ derive_builder = { workspace = true }
 opentelemetry = "0.31"
 opentelemetry_sdk = "0.31"
 opentelemetry-stdout = "0.31"
+opentelemetry-otlp = { version = "0.31", features = ["http-proto", "reqwest-client"] }
+tracing = { workspace = true }
 tracing-opentelemetry = "0.32"
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

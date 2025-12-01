@@ -74,6 +74,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-otlp-receiver'  # Enable native OTLP metrics ingestion (v0.31)
     restart: unless-stopped
     networks:
       - botticelli
@@ -106,7 +107,9 @@ services:
     environment:
       - RUST_LOG=info
       - DATABASE_URL=postgresql://botticelli:botticelli@postgres:5432/botticelli
+      - OTEL_EXPORTER=otlp
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://prometheus:9090/api/v1/otlp/v1/metrics
     volumes:
       - ./.env:/app/.env:ro
       - ./actor_server.toml:/app/actor_server.toml:ro

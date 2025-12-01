@@ -1,22 +1,29 @@
 use crate::{
     CurationBot, CurationBotArgs, CurationMessage, GenerationBot, GenerationBotArgs,
-    GenerationMessage, MetricsCollector, PostingBot, PostingBotArgs, PostingMessage,
-    create_metrics_router,
+    GenerationMessage, PostingBot, PostingBotArgs, PostingMessage,
 };
+#[cfg(feature = "metrics")]
+use crate::{MetricsCollector, create_metrics_router};
 use botticelli_error::{BotticelliError, BotticelliResult, ServerError, ServerErrorKind};
 use ractor::{Actor, ActorRef};
 use std::path::PathBuf;
+#[cfg(feature = "metrics")]
 use std::sync::Arc;
 use std::time::Duration;
+#[cfg(feature = "metrics")]
 use tokio::task::JoinHandle;
 use tracing::{error, info, instrument};
+#[cfg(not(feature = "metrics"))]
+use tracing::warn;
 
 /// Bot server that orchestrates generation, curation, and posting actors.
 pub struct BotServer {
     generation_ref: Option<ActorRef<GenerationMessage>>,
     curation_ref: Option<ActorRef<CurationMessage>>,
     posting_ref: Option<ActorRef<PostingMessage>>,
+    #[cfg(feature = "metrics")]
     metrics_collector: Arc<MetricsCollector>,
+    #[cfg(feature = "metrics")]
     metrics_server_handle: Option<JoinHandle<()>>,
 }
 
@@ -27,12 +34,15 @@ impl BotServer {
             generation_ref: None,
             curation_ref: None,
             posting_ref: None,
+            #[cfg(feature = "metrics")]
             metrics_collector: Arc::new(MetricsCollector::new()),
+            #[cfg(feature = "metrics")]
             metrics_server_handle: None,
         }
     }
 
     /// Gets a reference to the metrics collector.
+    #[cfg(feature = "metrics")]
     pub fn metrics(&self) -> Arc<MetricsCollector> {
         Arc::clone(&self.metrics_collector)
     }
@@ -49,6 +59,7 @@ impl BotServer {
         info!("Starting bot server");
 
         // Start metrics HTTP server if port is provided
+        #[cfg(feature = "metrics")]
         if let Some(port) = metrics_port {
             info!(port = port, "Starting metrics HTTP server");
             let app = create_metrics_router(Arc::clone(&self.metrics_collector));
@@ -69,6 +80,11 @@ impl BotServer {
 
             self.metrics_server_handle = Some(handle);
             info!(port = port, "Metrics HTTP server started");
+        }
+        
+        #[cfg(not(feature = "metrics"))]
+        if metrics_port.is_some() {
+            warn!("Metrics port specified but metrics feature not enabled");
         }
 
         // Define narrative paths (relative to workspace root)

@@ -61,6 +61,22 @@ impl Actor {
     /// - Knowledge tables cannot be loaded
     /// - Unrecoverable error occurs with stop_on_unrecoverable=true
     #[tracing::instrument(skip(self, pool), fields(actor_name = %self.config.name()))]
+    #[tracing::instrument(
+        skip(self, pool),
+        fields(
+            actor_name = %self.config.name(),
+            skill_count = self.config.skills().len(),
+            knowledge_tables = self.config.knowledge().len(),
+        )
+    )]
+    #[tracing::instrument(
+        skip(self, pool),
+        fields(
+            actor_name = %self.config.name(),
+            skill_count = self.config.skills().len(),
+            knowledge_tables = self.config.knowledge().len(),
+        )
+    )]
     pub async fn execute(
         &self,
         pool: &Pool<ConnectionManager<PgConnection>>,
@@ -76,7 +92,14 @@ impl Actor {
         })?;
 
         // Load knowledge from configured tables
-        let knowledge = self.load_knowledge(&mut conn)?;
+        let knowledge_span = tracing::debug_span!(
+            "load_knowledge",
+            table_count = self.config.knowledge().len()
+        );
+        let knowledge = {
+            let _enter = knowledge_span.enter();
+            self.load_knowledge(&mut conn)?
+        };
 
         let mut result = ExecutionResultBuilder::default()
             .build()
@@ -84,7 +107,10 @@ impl Actor {
 
         // Execute each configured skill
         for skill_name in self.config.skills() {
-            tracing::debug!(skill = %skill_name, "Preparing skill execution");
+            let skill_span = tracing::info_span!("execute_skill", skill = %skill_name);
+            let _enter = skill_span.enter();
+
+            tracing::debug!("Preparing skill execution");
 
             // Check if skill is enabled in configuration
             if let Some(skill_config) = self.config.skill_configs().get(skill_name)
@@ -201,7 +227,14 @@ impl Actor {
     }
 
     /// Execute a skill with retry logic for recoverable errors.
-    #[tracing::instrument(skip(self, context), fields(skill_name))]
+    #[tracing::instrument(
+        skip(self, context),
+        fields(
+            skill_name = %skill_name,
+            max_retries = %self.config.execution().max_retries(),
+            has_config = self.config.skill_configs().contains_key(skill_name),
+        )
+    )]
     async fn execute_skill_with_retry(
         &self,
         skill_name: &str,
@@ -221,10 +254,21 @@ impl Actor {
             }
 
             match self.skills.execute(skill_name, context).await {
-                Ok(output) => return Ok(output),
+                Ok(output) => {
+                    if attempt > 0 {
+                        tracing::info!(attempt, "Skill succeeded after retry");
+                    }
+                    return Ok(output);
+                }
                 Err(error) => {
+                    tracing::Span::current().record("error", format!("{}", error));
+                    tracing::Span::current().record("error_recoverable", error.is_recoverable());
+
                     if !error.is_recoverable() {
-                        tracing::error!("Unrecoverable error, cannot retry");
+                        tracing::error!(
+                            error = %error,
+                            "Unrecoverable error, cannot retry"
+                        );
                         return Err(error);
                     }
 

@@ -48,6 +48,7 @@ discord = ["serenity", "botticelli_social"]
 local = ["discord"]
 observability = ["botticelli", "botticelli/observability"]
 otel-otlp = ["observability", "botticelli/otel-otlp"]
+metrics = ["botticelli_server/metrics"]
 
 [[example]]
 name = "discord_poster"
@@ -59,6 +60,8 @@ required-features = ["discord"]
 
 [dev-dependencies]
 dotenvy = { workspace = true }
+opentelemetry = "0.31"
+opentelemetry_sdk = "0.31"
 tempfile = "3"
 tracing-subscriber = "0.3"
 uuid = { workspace = true, features = ["v4"] }

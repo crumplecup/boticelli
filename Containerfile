@@ -33,7 +33,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Cacher stage - build dependencies only (cached layer)
 FROM base AS cacher
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json --bin actor-server --features discord,observability
+RUN cargo chef cook --release --recipe-path recipe.json --bin actor-server --features discord,observability,otel-otlp
 
 # Builder stage - build application code
 FROM base AS builder
@@ -55,7 +55,7 @@ COPY diesel.toml ./
 COPY botticelli.toml actor_server.toml bot_server.toml actor.toml ./
 
 # Build release binary (dependencies already built)
-RUN cargo build --release --bin actor-server --features discord,observability
+RUN cargo build --release --bin actor-server --features discord,observability,otel-otlp
 
 # Runtime stage
 FROM registry.fedoraproject.org/fedora:latest
@@ -99,8 +99,12 @@ USER botticelli
 
 # Environment variables (overridden at runtime)
 ENV RUST_LOG=info
+# Traces: OTLP to Jaeger (working)
 ENV OTEL_EXPORTER=otlp
 ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+
+# Metrics: Disabled (stdout only) - See METRICS_GRAFANA_FIX.md
+# ENV OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://prometheus:9090/api/v1/otlp/v1/metrics
 
 # Expose metrics port
 EXPOSE 9464

@@ -348,24 +348,54 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         self.execute_impl_with_multi(narrative, Some(&multi)).await
     }
 
-    #[tracing::instrument(skip(self, narrative), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]
+    #[tracing::instrument(
+        skip(self, narrative),
+        fields(
+            narrative_name = narrative.name(),
+            act_count = narrative.act_names().len(),
+            has_processors = self.processor_registry.is_some(),
+            has_bot_registry = self.bot_registry.is_some(),
+            has_table_registry = self.table_registry.is_some(),
+            has_state_manager = self.state_manager.is_some(),
+        )
+    )]
     async fn execute_impl<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
     ) -> BotticelliResult<NarrativeExecution> {
+        tracing::info!("Starting narrative execution");
         self.execute_impl_with_multi(narrative, None).await
     }
 
-    #[tracing::instrument(skip(self, narrative, multi), fields(narrative_name = narrative.name(), act_count = narrative.act_names().len()))]
+    #[tracing::instrument(
+        skip(self, narrative, multi),
+        fields(
+            narrative_name = narrative.name(),
+            act_count = narrative.act_names().len(),
+            has_multi_context = multi.is_some(),
+            has_processors = self.processor_registry.is_some(),
+            has_bot_registry = self.bot_registry.is_some(),
+            has_table_registry = self.table_registry.is_some(),
+            has_state_manager = self.state_manager.is_some(),
+        )
+    )]
     async fn execute_impl_with_multi<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
         multi: Option<&MultiNarrative>,
     ) -> BotticelliResult<NarrativeExecution> {
+        tracing::info!("Starting narrative execution with multi-narrative context");
         let mut act_executions = Vec::new();
         let mut conversation_history: Vec<Message> = Vec::new();
 
         for (sequence_number, act_name) in narrative.act_names().iter().enumerate() {
+            let span = tracing::info_span!(
+                "execute_act",
+                act = %act_name,
+                sequence = sequence_number,
+                total_acts = narrative.act_names().len(),
+            );
+            let _enter = span.enter();
             // Get the configuration for this act
             let config = narrative
                 .get_act_config(act_name)
@@ -522,12 +552,25 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     })?;
 
                 // Call the LLM
-                let response = self.driver.generate(&request).await?;
-
-                tracing::debug!(
-                    outputs_count = response.outputs.len(),
-                    "LLM response received"
+                let llm_span = tracing::info_span!(
+                    "llm_call",
+                    act = %act_name,
+                    model = ?request.model(),
+                    temperature = ?request.temperature(),
+                    max_tokens = ?request.max_tokens(),
+                    message_count = request.messages().len(),
                 );
+
+                let response = {
+                    let _enter = llm_span.enter();
+                    tracing::info!("Calling LLM API");
+                    let result = self.driver.generate(&request).await?;
+                    tracing::info!(
+                        outputs_count = result.outputs.len(),
+                        "LLM response received"
+                    );
+                    result
+                };
 
                 // Debug log the output types
                 for (idx, output) in response.outputs.iter().enumerate() {
@@ -598,11 +641,14 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
             // Process with registered processors
             if let Some(registry) = &self.processor_registry {
-                tracing::info!(
+                let processor_span = tracing::info_span!(
+                    "process_act",
                     act = %act_name,
                     processors = registry.len(),
-                    "Processing act with registered processors"
                 );
+                let _enter = processor_span.enter();
+
+                tracing::info!("Processing act with registered processors");
 
                 // Determine if this is the last act in the narrative
                 let is_last_act = sequence_number == narrative.act_names().len() - 1;
@@ -613,7 +659,6 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 let should_extract_output = config.extract_output().unwrap_or(is_last_act);
 
                 tracing::debug!(
-                    act = %act_name,
                     is_last_act,
                     extract_config = ?config.extract_output(),
                     should_extract_output,
@@ -631,7 +676,6 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
 
                 if let Err(e) = registry.process(&context).await {
                     tracing::error!(
-                        act = %act_name,
                         error = %e,
                         "Act processing failed, continuing execution"
                     );
@@ -828,6 +872,14 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
             tables = 0
         )
     )]
+    #[tracing::instrument(
+        skip(self, narrative, inputs, act_executions),
+        fields(
+            narrative_name = narrative.name(),
+            input_count = inputs.len(),
+            act_index = current_index,
+        )
+    )]
     async fn process_inputs<N: NarrativeProvider + ?Sized>(
         &self,
         narrative: &N,
@@ -835,6 +887,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         act_executions: &[ActExecution],
         current_index: usize,
     ) -> BotticelliResult<(Vec<Input>, Option<JsonValue>)> {
+        tracing::debug!("Processing inputs for act");
         let mut processed = Vec::new();
         let mut bot_command_count = 0;
         let mut table_count = 0;

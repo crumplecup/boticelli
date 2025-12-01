@@ -227,42 +227,75 @@ fn init_metrics(
     resource: &Resource,
     config: &ObservabilityConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    use tracing::{debug, info};
+
+    info!("Initializing metrics provider");
+    debug!(exporter = ?config.exporter, "Metrics exporter configuration");
+
     // Use the configured exporter backend
     match &config.exporter {
         ExporterBackend::Stdout => {
+            info!("Using stdout metrics exporter (development mode)");
             // Stdout exporter for metrics (development)
+            debug!("Creating stdout metric exporter");
             let exporter = opentelemetry_stdout::MetricExporter::default();
+            debug!("Creating periodic reader for stdout exporter");
             let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
 
+            debug!("Building meter provider with stdout reader");
             let meter_provider = SdkMeterProvider::builder()
                 .with_reader(reader)
                 .with_resource(resource.clone())
                 .build();
 
+            debug!("Setting global meter provider");
             global::set_meter_provider(meter_provider);
+            info!("Stdout metrics provider initialized successfully");
         }
         #[cfg(feature = "otel-otlp")]
         ExporterBackend::Otlp { endpoint } => {
-            use opentelemetry_otlp::WithExportConfig;
+            use opentelemetry_otlp::{Protocol, WithExportConfig};
+            use tracing::{debug, info};
 
-            // Build OTLP metric exporter with tonic
+            info!(endpoint = %endpoint, "Using OTLP metrics exporter");
+
+            // For Prometheus with --web.enable-otlp-receiver, use HTTP binary protocol
+            // Endpoint should be: http://prometheus:9090/api/v1/otlp/v1/metrics
+            // Check both standard OTLP env var and custom metrics-specific var
+            let metrics_endpoint = env::var("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
+                .or_else(|_| env::var("OTEL_METRICS_ENDPOINT"))
+                .unwrap_or_else(|_| format!("{}/api/v1/otlp/v1/metrics", endpoint));
+
+            info!(
+                metrics_endpoint = %metrics_endpoint,
+                "Metrics will be sent via OTLP HTTP binary protocol"
+            );
+
+            debug!("Building OTLP metric exporter");
             let exporter = opentelemetry_otlp::MetricExporter::builder()
-                .with_tonic()
-                .with_endpoint(endpoint.clone())
+                .with_http()
+                .with_protocol(Protocol::HttpBinary)
+                .with_endpoint(&metrics_endpoint)
                 .build()
-                .map_err(|e| format!("Failed to build OTLP metric exporter: {}", e))?;
+                .map_err(|e| {
+                    tracing::error!(error = %e, "Failed to build OTLP metric exporter");
+                    format!("Failed to build OTLP metric exporter: {}", e)
+                })?;
+            debug!("OTLP metric exporter built successfully");
 
-            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
-
+            debug!("Building meter provider with periodic exporter");
             let meter_provider = SdkMeterProvider::builder()
-                .with_reader(reader)
+                .with_periodic_exporter(exporter)
                 .with_resource(resource.clone())
                 .build();
 
+            debug!("Setting global meter provider");
             global::set_meter_provider(meter_provider);
+            info!("OTLP metrics provider initialized successfully");
         }
     }
 
+    info!("Metrics initialization complete");
     Ok(())
 }
 

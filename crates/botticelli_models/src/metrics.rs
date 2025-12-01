@@ -8,6 +8,7 @@ use opentelemetry::{
     metrics::{Counter, Histogram, Meter},
 };
 use std::sync::OnceLock;
+use tracing::{debug, info, instrument};
 
 static METRICS: OnceLock<LlmMetrics> = OnceLock::new();
 
@@ -34,10 +35,13 @@ pub struct LlmMetrics {
 }
 
 impl LlmMetrics {
+    #[instrument]
     fn init() -> Self {
+        info!("Initializing LLM metrics");
         let meter = global::meter("botticelli_llm");
+        debug!("Got global meter for botticelli_llm");
 
-        Self {
+        let metrics = Self {
             _meter: meter.clone(),
             requests: meter
                 .u64_counter("llm.requests")
@@ -64,35 +68,56 @@ impl LlmMetrics {
                 .u64_counter("llm.tokens.completion")
                 .with_description("Completion tokens used")
                 .build(),
-        }
+        };
+        info!("LLM metrics initialized successfully");
+        metrics
     }
 
     /// Get the global LLM metrics instance.
+    #[instrument]
     pub fn get() -> &'static Self {
+        debug!("Getting LLM metrics instance");
         METRICS.get_or_init(Self::init)
     }
 
     /// Record a successful LLM API request.
+    #[instrument(skip(self))]
     pub fn record_request(&self, provider: &str, model: &str, duration_secs: f64) {
+        debug!(
+            provider = provider,
+            model = model,
+            duration_secs = duration_secs,
+            "Recording LLM request"
+        );
         let labels = &[
             KeyValue::new("provider", provider.to_string()),
             KeyValue::new("model", model.to_string()),
         ];
         self.requests.add(1, labels);
         self.duration.record(duration_secs, labels);
+        debug!("LLM request recorded");
     }
 
     /// Record a failed LLM API request.
+    #[instrument(skip(self))]
     pub fn record_error(&self, provider: &str, model: &str, error_type: &str) {
+        debug!(
+            provider = provider,
+            model = model,
+            error_type = error_type,
+            "Recording LLM error"
+        );
         let labels = &[
             KeyValue::new("provider", provider.to_string()),
             KeyValue::new("model", model.to_string()),
             KeyValue::new("error_type", error_type.to_string()),
         ];
         self.errors.add(1, labels);
+        debug!("LLM error recorded");
     }
 
     /// Record token usage from an LLM response.
+    #[instrument(skip(self))]
     pub fn record_tokens(
         &self,
         model: &str,
@@ -100,10 +125,18 @@ impl LlmMetrics {
         completion_tokens: u64,
         total_tokens: u64,
     ) {
+        debug!(
+            model = model,
+            prompt_tokens = prompt_tokens,
+            completion_tokens = completion_tokens,
+            total_tokens = total_tokens,
+            "Recording token usage"
+        );
         let labels = &[KeyValue::new("model", model.to_string())];
         self.tokens_used.add(total_tokens, labels);
         self.prompt_tokens.add(prompt_tokens, labels);
         self.completion_tokens.add(completion_tokens, labels);
+        debug!("Token usage recorded");
     }
 }
 

@@ -145,10 +145,14 @@ impl BotticelliDriver for OllamaClient {
         );
 
         let output = response_to_output(response);
-        Ok(GenerateResponse::builder()
+        GenerateResponse::builder()
             .outputs(vec![output])
             .build()
-            .expect("Valid response"))
+            .map_err(|e| {
+                botticelli_error::BotticelliError::from(botticelli_error::ModelsError::new(
+                    botticelli_error::ModelsErrorKind::Builder(e.to_string()),
+                ))
+            })
     }
 
     fn provider_name(&self) -> &'static str {

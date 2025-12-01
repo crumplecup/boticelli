@@ -115,10 +115,10 @@ default_tier = "local"
 
 [providers.ollama.tiers.local]
 name = "Local"
-# No rate limits for local execution (null = unlimited)
-rpm = null
-tpm = null
-rpd = null
+# No rate limits for local execution (0 = unlimited)
+rpm = 0
+tpm = 0
+rpd = 0
 # Limit concurrent requests to avoid overwhelming local hardware
 max_concurrent = 4
 cost_per_million_input_tokens = 0.0

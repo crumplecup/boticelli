@@ -3,6 +3,7 @@ mod test_utils;
 
 // Tests for the Gemini client implementation.
 
+use botticelli_core::{GenerateRequest, Input, Message, Role};
 use botticelli_error::{BotticelliError, GeminiError, GeminiErrorKind};
 use botticelli_interface::{BotticelliDriver, Metadata, Vision};
 use botticelli_models::GeminiClient;
@@ -73,7 +74,7 @@ fn test_gemini_error_source_location_tracking() {
 
 #[test]
 fn test_simple_text_request_structure() -> anyhow::Result<()> {
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Hello, world!".to_string())])
         .build()
@@ -95,7 +96,7 @@ fn test_simple_text_request_structure() -> anyhow::Result<()> {
 
 #[test]
 fn test_multi_message_request_structure() {
-    let message1 = MessageBuilder::default()
+    let message1 = Message::builder()
         .role(Role::System)
         .content(vec![Input::Text(
             "You are a helpful assistant.".to_string(),
@@ -103,7 +104,7 @@ fn test_multi_message_request_structure() {
         .build()
         .expect("Failed to build message");
 
-    let message2 = MessageBuilder::default()
+    let message2 = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("What is Rust?".to_string())])
         .build()
@@ -168,7 +169,7 @@ fn test_real_api_call() {
         }
     };
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()
@@ -192,7 +193,7 @@ fn test_real_api_call() {
 
     let response = result.unwrap();
     assert!(
-        !response.outputs.is_empty(),
+        !response.outputs().is_empty(),
         "Should have at least one output"
     );
 }

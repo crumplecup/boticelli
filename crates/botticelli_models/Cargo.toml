@@ -18,7 +18,9 @@ botticelli_rate_limit = { workspace = true, features = [] }
 # Async runtime
 tokio = { workspace = true }
 async-trait = { workspace = true }
+async-stream = { workspace = true }
 futures-util = { workspace = true }
+tokio-stream = { workspace = true }
 
 # HTTP and serialization
 reqwest = { workspace = true }
@@ -43,7 +45,7 @@ tokio-tungstenite = { workspace = true }
 
 # Feature-gated provider SDKs
 gemini-rust = { workspace = true, optional = true }
-ollama-rs = { version = "0.3", optional = true }
+ollama-rs = { version = "0.3", optional = true, features = ["stream"] }
 
 [features]
 default = []

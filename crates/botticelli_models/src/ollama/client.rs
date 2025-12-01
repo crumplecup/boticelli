@@ -167,3 +167,81 @@ impl BotticelliDriver for OllamaClient {
             .get_or_init(|| botticelli_rate_limit::RateLimitConfig::unlimited("ollama-local"))
     }
 }
+
+#[async_trait::async_trait]
+impl botticelli_interface::Streaming for OllamaClient {
+    #[instrument(skip(self, request))]
+    async fn generate_stream(
+        &self,
+        request: &GenerateRequest,
+    ) -> BotticelliResult<
+        std::pin::Pin<
+            Box<
+                dyn futures_util::Stream<Item = BotticelliResult<botticelli_interface::StreamChunk>>
+                    + Send,
+            >,
+        >,
+    > {
+        debug!("Starting streaming generation with Ollama");
+
+        // Convert messages to prompt
+        let prompt = messages_to_prompt(request.messages());
+
+        debug!(prompt_length = prompt.len(), "Converted messages to prompt");
+
+        // Create Ollama request
+        let ollama_req = OllamaRequest::new(self.model_name.clone(), prompt);
+
+        // Execute streaming generation
+        let mut stream = self.client.generate_stream(ollama_req).await.map_err(|e| {
+            botticelli_error::BotticelliError::from(OllamaError::new(OllamaErrorKind::ApiError(
+                e.to_string(),
+            )))
+        })?;
+
+        // Convert Ollama stream to Botticelli StreamChunk
+        // ollama-rs returns a stream of Vec<GenerationResponse>
+        let mapped_stream = async_stream::stream! {
+            while let Some(responses) = tokio_stream::StreamExt::next(&mut stream).await {
+                match responses {
+                    Ok(generation_responses) => {
+                        for response in generation_responses {
+                            let is_final = response.done;
+
+                            let chunk_result = if is_final {
+                                botticelli_interface::StreamChunk::builder()
+                                    .content(botticelli_core::Output::Text(response.response.clone()))
+                                    .is_final(is_final)
+                                    .finish_reason(Some(botticelli_interface::FinishReason::Stop))
+                                    .build()
+                            } else {
+                                botticelli_interface::StreamChunk::builder()
+                                    .content(botticelli_core::Output::Text(response.response.clone()))
+                                    .is_final(is_final)
+                                    .build()
+                            };
+
+                            match chunk_result {
+                                Ok(chunk) => yield Ok(chunk),
+                                Err(e) => {
+                                    yield Err(botticelli_error::BotticelliError::from(
+                                        OllamaError::new(OllamaErrorKind::ConversionError(e.to_string()))
+                                    ));
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        yield Err(botticelli_error::BotticelliError::from(
+                            OllamaError::new(OllamaErrorKind::ApiError(e.to_string()))
+                        ));
+                        return;
+                    }
+                }
+            }
+        };
+
+        Ok(Box::pin(mapped_stream))
+    }
+}

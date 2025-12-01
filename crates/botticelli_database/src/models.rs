@@ -6,7 +6,7 @@ use serde::de::Error as _;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use botticelli_core::{GenerateRequest, GenerateResponse};
+use botticelli_core::{GenerateRequest, GenerateResponse, Output};
 
 use super::schema::model_responses;
 
@@ -59,7 +59,7 @@ impl NewModelResponse {
             request_temperature: *request.temperature(),
             request_max_tokens: request.max_tokens().map(|t| t as i32),
             request_model: request.model().clone(),
-            response_outputs: serde_json::to_value(&response.outputs)?,
+            response_outputs: serde_json::to_value(&response.outputs())?,
             duration_ms,
             error_message: None,
         })
@@ -112,9 +112,13 @@ impl ModelResponse {
             .map_err(|e| serde_json::Error::custom(e.to_string()))?;
 
         let response = if self.error_message.is_none() {
-            Some(GenerateResponse {
-                outputs: serde_json::from_value(self.response_outputs.clone())?,
-            })
+            let outputs: Vec<Output> = serde_json::from_value(self.response_outputs.clone())?;
+            Some(
+                GenerateResponse::builder()
+                    .outputs(outputs)
+                    .build()
+                    .map_err(|e| serde_json::Error::custom(e.to_string()))?,
+            )
         } else {
             None
         };

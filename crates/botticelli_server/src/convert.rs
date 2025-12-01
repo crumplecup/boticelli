@@ -1,7 +1,7 @@
 //! Conversion between botticelli and server API types
 
 use botticelli_core::{GenerateRequest, GenerateResponse, Input, Message, Output};
-use botticelli_error::{ServerError, ServerErrorKind};
+use botticelli_error::{ModelsError, ModelsErrorKind, ServerError, ServerErrorKind};
 use botticelli_interface::{FinishReason, StreamChunk};
 
 use crate::{
@@ -95,9 +95,13 @@ pub fn from_chat_response(
     let text = choice.message().content().clone();
     let output = Output::Text(text);
 
-    Ok(GenerateResponse {
-        outputs: vec![output],
-    })
+    GenerateResponse::builder()
+        .outputs(vec![output])
+        .build()
+        .map_err(|e| {
+            let models_error = ModelsError::new(ModelsErrorKind::Builder(e.to_string()));
+            ServerError::new(ServerErrorKind::Models(models_error))
+        })
 }
 
 /// Map OpenAI finish reason to botticelli FinishReason
@@ -124,9 +128,13 @@ pub fn chunk_to_stream_chunk(chunk: ChatCompletionChunk) -> Result<StreamChunk, 
         .as_ref()
         .map(|r| map_finish_reason(r));
 
-    Ok(StreamChunk {
-        content: Output::Text(text),
-        is_final,
-        finish_reason,
-    })
+    StreamChunk::builder()
+        .content(Output::Text(text))
+        .is_final(is_final)
+        .finish_reason(finish_reason)
+        .build()
+        .map_err(|e| {
+            let models_error = ModelsError::new(ModelsErrorKind::Builder(e.to_string()));
+            ServerError::new(ServerErrorKind::Models(models_error))
+        })
 }

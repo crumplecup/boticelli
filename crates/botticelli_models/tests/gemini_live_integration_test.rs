@@ -15,7 +15,7 @@ mod test_utils;
 // This appears to be a timing or protocol issue with the Live API handshake.
 // Tests are currently ignored until the handshake issue is resolved.
 
-use botticelli_core::{GenerateRequest, Input, Role};
+use botticelli_core::{GenerateRequest, Input, Message, Role};
 
 use botticelli_interface::{BotticelliDriver, Streaming};
 use botticelli_models::GeminiClient;
@@ -31,7 +31,7 @@ async fn test_gemini_client_routes_to_live_api() -> botticelli_error::Botticelli
     let client = GeminiClient::new()?;
 
     // Create request for a live model (experimental model)
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'Hello from Live API'".to_string())])
         .build()
@@ -48,8 +48,8 @@ async fn test_gemini_client_routes_to_live_api() -> botticelli_error::Botticelli
     let response = client.generate(&request).await?;
 
     // Verify we got a response
-    assert!(!response.outputs.is_empty());
-    println!("Live API response: {:?}", response.outputs);
+    assert!(!response.outputs().is_empty());
+    println!("Live API response: {:?}", response.outputs());
 
     Ok(())
 }
@@ -63,7 +63,7 @@ async fn test_gemini_client_streaming_routes_to_live_api() -> botticelli_error::
     let client = GeminiClient::new()?;
 
     // Create request for live model with streaming
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Count from 1 to 3".to_string())])
         .build()
@@ -84,10 +84,10 @@ async fn test_gemini_client_streaming_routes_to_live_api() -> botticelli_error::
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result?;
-        println!("Chunk: {:?}", chunk.content);
+        println!("Chunk: {:?}", chunk.content());
         chunks.push(chunk.clone());
 
-        if chunk.is_final {
+        if *chunk.is_final() {
             found_final = true;
             break;
         }
@@ -112,7 +112,7 @@ async fn test_gemini_client_detects_live_models() -> botticelli_error::Botticell
     let client = GeminiClient::new()?;
 
     // Test with "-exp" model (should use Live API)
-    let message_exp = MessageBuilder::default()
+    let message_exp = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()
@@ -126,11 +126,11 @@ async fn test_gemini_client_detects_live_models() -> botticelli_error::Botticell
         .map_err(|e| botticelli_error::BuilderError::from(e.to_string()))?;
 
     let response_exp = client.generate(&request_exp).await?;
-    assert!(!response_exp.outputs.is_empty());
+    assert!(!response_exp.outputs().is_empty());
 
     // Test with "-live" model (should use Live API)
     // Note: This may fail if the model doesn't exist, but it tests the routing logic
-    let message_live = MessageBuilder::default()
+    let message_live = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()

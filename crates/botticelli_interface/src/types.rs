@@ -3,15 +3,32 @@
 use serde::{Deserialize, Serialize};
 
 /// A single chunk from a streaming response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    derive_builder::Builder,
+    derive_getters::Getters,
+)]
+#[builder(setter(into))]
 pub struct StreamChunk {
     /// Incremental content (usually partial text).
-    pub content: botticelli_core::Output,
+    content: botticelli_core::Output,
     /// Whether this is the final chunk.
-    pub is_final: bool,
+    is_final: bool,
     /// Optional finish reason if final.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub finish_reason: Option<FinishReason>,
+    #[builder(default)]
+    finish_reason: Option<FinishReason>,
+}
+
+impl StreamChunk {
+    /// Creates a builder for StreamChunk.
+    pub fn builder() -> StreamChunkBuilder {
+        StreamChunkBuilder::default()
+    }
 }
 
 /// Why generation stopped.

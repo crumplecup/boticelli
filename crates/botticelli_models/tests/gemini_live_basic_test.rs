@@ -100,11 +100,11 @@ async fn test_live_api_streaming() {
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.expect("Failed to get chunk");
-        println!("Chunk: {:?}", chunk.content);
+        println!("Chunk: {:?}", chunk.content());
 
         chunks.push(chunk.clone());
 
-        if chunk.is_final {
+        if *chunk.is_final() {
             found_final = true;
             break;
         }
@@ -119,7 +119,7 @@ async fn test_live_api_streaming() {
     // Verify final chunk has finish reason
     let final_chunk = chunks.last().unwrap();
     assert!(
-        final_chunk.finish_reason.is_some(),
+        final_chunk.finish_reason().is_some(),
         "Final chunk should have finish reason"
     );
 

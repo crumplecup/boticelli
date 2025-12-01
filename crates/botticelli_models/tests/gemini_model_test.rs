@@ -16,7 +16,7 @@
 
 mod test_utils;
 
-use botticelli_core::{GenerateRequest, Input, Role};
+use botticelli_core::{GenerateRequest, Input, Message, Role};
 use botticelli_interface::BotticelliDriver;
 use botticelli_models::GeminiClient;
 use test_utils::MockGeminiClient;
@@ -32,7 +32,7 @@ use botticelli_error::{BotticelliResult, BuilderError, BuilderErrorKind};
 async fn test_mock_model_basic_generate() -> BotticelliResult<()> {
     let mock = MockGeminiClient::new_success("Mock response");
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()
@@ -45,7 +45,7 @@ async fn test_mock_model_basic_generate() -> BotticelliResult<()> {
         .map_err(|e| BuilderError::new(BuilderErrorKind::ValidationFailed(e)))?;
 
     let response = mock.generate(&request).await?;
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     Ok(())
 }
 
@@ -76,7 +76,7 @@ async fn test_default_model_usage() -> anyhow::Result<()> {
     // The default model should be gemini-2.0-flash-lite (for development)
     assert_eq!(client.model_name(), "gemini-2.0-flash-lite");
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()?;
@@ -91,7 +91,7 @@ async fn test_default_model_usage() -> anyhow::Result<()> {
     let response = client.generate(&request).await?;
 
     // Should get a response (validates default model works)
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     Ok(())
 }
 
@@ -104,7 +104,7 @@ async fn test_model_override_in_request() -> anyhow::Result<()> {
     let client = GeminiClient::new()?;
 
     // Request should use gemini-2.5-flash-lite, not the default
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()?;
@@ -119,7 +119,7 @@ async fn test_model_override_in_request() -> anyhow::Result<()> {
     let response = client.generate(&request).await?;
 
     // Verify we got a response
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     Ok(())
 
     // TODO: Once fixed, this should validate the correct model was used.
@@ -136,7 +136,7 @@ async fn test_model_override_in_request() -> anyhow::Result<()> {
 async fn test_gemini_2_5_model_override() -> BotticelliResult<()> {
     let client = GeminiClient::new()?;
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()
@@ -151,7 +151,7 @@ async fn test_gemini_2_5_model_override() -> BotticelliResult<()> {
 
     let response = client.generate(&request).await?;
 
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     Ok(())
 }
 
@@ -164,7 +164,7 @@ async fn test_multiple_model_requests() -> BotticelliResult<()> {
     let client = GeminiClient::new()?;
 
     // Request 1: Use lite model
-    let message1 = MessageBuilder::default()
+    let message1 = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'one'".to_string())])
         .build()
@@ -181,7 +181,7 @@ async fn test_multiple_model_requests() -> BotticelliResult<()> {
     assert!(!response1.outputs().is_empty());
 
     // Request 2: Use standard model
-    let message2 = MessageBuilder::default()
+    let message2 = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'two'".to_string())])
         .build()
@@ -195,10 +195,10 @@ async fn test_multiple_model_requests() -> BotticelliResult<()> {
         .map_err(|e| BuilderError::new(BuilderErrorKind::ValidationFailed(e)))?;
 
     let response2 = client.generate(&request2).await?;
-    assert!(!response2.outputs.is_empty());
+    assert!(!response2.outputs().is_empty());
 
     // Request 3: Use pro model
-    let message3 = MessageBuilder::default()
+    let message3 = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'three'".to_string())])
         .build()
@@ -212,6 +212,6 @@ async fn test_multiple_model_requests() -> BotticelliResult<()> {
         .map_err(|e| BuilderError::new(BuilderErrorKind::ValidationFailed(e)))?;
 
     let response3 = client.generate(&request3).await?;
-    assert!(!response3.outputs.is_empty());
+    assert!(!response3.outputs().is_empty());
     Ok(())
 }

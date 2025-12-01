@@ -43,6 +43,12 @@ use botticelli_interface::{FinishReason, StreamChunk};
 
 use super::{GeminiResult, live_protocol::*, live_rate_limit::LiveRateLimiter};
 
+/// Helper to convert builder errors to GeminiError
+fn builder_error(e: impl std::fmt::Display) -> botticelli_error::GeminiError {
+    use botticelli_error::{GeminiError, GeminiErrorKind};
+    GeminiError::new(GeminiErrorKind::BuilderError(e.to_string()))
+}
+
 /// WebSocket endpoint for Gemini Live API.
 const LIVE_API_ENDPOINT: &str = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 
@@ -435,8 +441,8 @@ impl LiveSession {
     ///
     /// while let Some(chunk_result) = stream.next().await {
     ///     let chunk = chunk_result?;
-    ///     print!("{:?}", chunk.content);
-    ///     if chunk.is_final {
+    ///     print!("{:?}", chunk.content());
+    ///     if *chunk.is_final() {
     ///         break;
     ///     }
     /// }
@@ -537,15 +543,18 @@ impl LiveSession {
                     if let Some(text) = server_msg.extract_text() {
                         let is_final = server_msg.is_turn_complete();
 
-                        let chunk = StreamChunk {
-                            content: Output::Text(text),
-                            is_final,
-                            finish_reason: if is_final {
-                                Some(FinishReason::Stop)
-                            } else {
-                                None
-                            },
+                        let finish_reason = if is_final {
+                            Some(FinishReason::Stop)
+                        } else {
+                            None
                         };
+
+                        let chunk = StreamChunk::builder()
+                            .content(Output::Text(text))
+                            .is_final(is_final)
+                            .finish_reason(finish_reason)
+                            .build()
+                            .map_err(builder_error)?;
 
                         return Ok(Some((chunk, (ws, is_final))));
                     }

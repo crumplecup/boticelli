@@ -5,11 +5,13 @@
 // Test utilities may not be used by all test files
 #![allow(dead_code)]
 
-
 pub mod mock_gemini;
 
 #[allow(unused_imports)]
 pub use mock_gemini::{MockBehavior, MockGeminiClient, MockResponse};
+
+#[cfg(feature = "gemini")]
+use botticelli_core::{GenerateRequest, Input, Message, Role};
 
 /// Creates a test GenerateRequest with the given prompt.
 ///
@@ -21,7 +23,7 @@ pub fn create_test_request(
     model: Option<String>,
     max_tokens: Option<u32>,
 ) -> GenerateRequest {
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text(prompt.to_string())])
         .build()

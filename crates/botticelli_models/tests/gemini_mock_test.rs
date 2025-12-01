@@ -7,7 +7,7 @@
 
 mod test_utils;
 
-use botticelli_core::{GenerateRequest, Input, Role};
+use botticelli_core::{GenerateRequest, Input, Message, Role};
 use botticelli_error::GeminiErrorKind;
 use botticelli_interface::BotticelliDriver;
 use test_utils::{MockGeminiClient, MockResponse};
@@ -16,7 +16,7 @@ use test_utils::{MockGeminiClient, MockResponse};
 async fn test_mock_basic_generate() -> anyhow::Result<()> {
     let mock = MockGeminiClient::new_success("Hello from mock!");
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say hello".to_string())])
         .build()?;
@@ -29,7 +29,7 @@ async fn test_mock_basic_generate() -> anyhow::Result<()> {
 
     let response = mock.generate(&request).await?;
 
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     assert_eq!(mock.call_count(), 1);
     Ok(())
 }
@@ -38,7 +38,7 @@ async fn test_mock_basic_generate() -> anyhow::Result<()> {
 async fn test_mock_multiple_requests() -> anyhow::Result<()> {
     let mock = MockGeminiClient::new_success("Response");
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;
@@ -70,7 +70,7 @@ async fn test_mock_error_503() -> anyhow::Result<()> {
         message: "Model is overloaded".to_string(),
     });
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;
@@ -99,7 +99,7 @@ async fn test_mock_retry_behavior() -> anyhow::Result<()> {
         "Success after retries",
     );
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;
@@ -116,7 +116,7 @@ async fn test_mock_retry_behavior() -> anyhow::Result<()> {
 
     // Third call succeeds
     let response = mock.generate(&request).await?;
-    assert!(!response.outputs.is_empty());
+    assert!(!response.outputs().is_empty());
     assert_eq!(mock.call_count(), 3);
     Ok(())
 }
@@ -128,7 +128,7 @@ async fn test_mock_rate_limit_error() -> anyhow::Result<()> {
         message: "Rate limit exceeded".to_string(),
     });
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;
@@ -155,7 +155,7 @@ async fn test_mock_sequence_mixed_responses() -> anyhow::Result<()> {
         MockResponse::Success("Third response".to_string()),
     ]);
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;
@@ -201,7 +201,7 @@ async fn test_mock_different_error_types() -> anyhow::Result<()> {
         message: "Invalid API key".to_string(),
     });
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()?;

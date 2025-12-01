@@ -2,7 +2,9 @@
 
 use async_trait::async_trait;
 use botticelli_core::{GenerateRequest, GenerateResponse, Output};
-use botticelli_error::{BotticelliError, BotticelliResult, GeminiError, GeminiErrorKind};
+use botticelli_error::{
+    BotticelliError, BotticelliResult, GeminiError, GeminiErrorKind, ModelsError, ModelsErrorKind,
+};
 use botticelli_interface::{
     BotticelliDriver, FinishReason, Metadata, ModelMetadata, StreamChunk, Streaming, Vision,
 };
@@ -253,15 +255,20 @@ impl Streaming for MockGeminiClient {
         let response = self.next_response()?;
 
         // Convert to a single-chunk stream
-        let chunks = response.outputs().iter().map(|output| {
-            Ok(StreamChunk {
-                content: output.clone(),
-                is_final: true,
-                finish_reason: Some(FinishReason::Stop),
+        let chunks: Vec<_> = response
+            .outputs()
+            .iter()
+            .map(|output| {
+                StreamChunk::builder()
+                    .content(output.clone())
+                    .is_final(true)
+                    .finish_reason(Some(FinishReason::Stop))
+                    .build()
+                    .map_err(|e| ModelsError::new(ModelsErrorKind::Builder(e.to_string())))
             })
-        });
+            .collect::<Result<_, _>>()?;
 
-        Ok(Box::pin(stream::iter(chunks)))
+        Ok(Box::pin(stream::iter(chunks.into_iter().map(Ok))))
     }
 }
 

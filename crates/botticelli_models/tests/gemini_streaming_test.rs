@@ -31,10 +31,10 @@ async fn test_streaming_basic() -> botticelli_error::BotticelliResult<()> {
         let chunk = chunk_result?;
         chunks.push(chunk.clone());
 
-        if chunk.is_final {
+        if *chunk.is_final() {
             saw_final = true;
             assert!(
-                chunk.finish_reason.is_some(),
+                chunk.finish_reason().is_some(),
                 "Final chunk should have finish_reason"
             );
             break;
@@ -47,7 +47,7 @@ async fn test_streaming_basic() -> botticelli_error::BotticelliResult<()> {
     // Concatenate all text
     let full_text: String = chunks
         .iter()
-        .filter_map(|c| match &c.content {
+        .filter_map(|c| match c.content() {
             Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
@@ -79,7 +79,7 @@ async fn test_streaming_with_standard_model() -> botticelli_error::BotticelliRes
         let chunk = chunk_result?;
         chunks.push(chunk.clone());
 
-        if chunk.is_final {
+        if *chunk.is_final() {
             break;
         }
     }
@@ -88,7 +88,7 @@ async fn test_streaming_with_standard_model() -> botticelli_error::BotticelliRes
 
     let full_text: String = chunks
         .iter()
-        .filter_map(|c| match &c.content {
+        .filter_map(|c| match c.content() {
             Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
@@ -122,7 +122,7 @@ async fn test_streaming_with_live_model() -> botticelli_error::BotticelliResult<
         let chunk = chunk_result?;
         chunks.push(chunk.clone());
 
-        if chunk.is_final {
+        if *chunk.is_final() {
             break;
         }
     }
@@ -131,7 +131,7 @@ async fn test_streaming_with_live_model() -> botticelli_error::BotticelliResult<
 
     let full_text: String = chunks
         .iter()
-        .filter_map(|c| match &c.content {
+        .filter_map(|c| match c.content() {
             Output::Text(t) => Some(t.as_str()),
             _ => None,
         })
@@ -159,7 +159,7 @@ async fn test_streaming_finish_reasons() -> botticelli_error::BotticelliResult<(
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result?;
 
-        if chunk.is_final {
+        if *chunk.is_final() {
             final_chunk = Some(chunk);
             break;
         }
@@ -169,11 +169,11 @@ async fn test_streaming_finish_reasons() -> botticelli_error::BotticelliResult<(
 
     let final_chunk = final_chunk.unwrap();
     assert!(
-        final_chunk.finish_reason.is_some(),
+        final_chunk.finish_reason().is_some(),
         "Final chunk should have finish reason"
     );
 
-    println!("Finish reason: {:?}", final_chunk.finish_reason);
+    println!("Finish reason: {:?}", final_chunk.finish_reason());
     Ok(())
 }
 
@@ -192,10 +192,10 @@ async fn test_streaming_vs_non_streaming_consistency() -> botticelli_error::Bott
     let mut streaming_text = String::new();
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result?;
-        if let Output::Text(t) = &chunk.content {
+        if let Output::Text(t) = chunk.content() {
             streaming_text.push_str(t);
         }
-        if chunk.is_final {
+        if *chunk.is_final() {
             break;
         }
     }
@@ -203,7 +203,7 @@ async fn test_streaming_vs_non_streaming_consistency() -> botticelli_error::Bott
     // Get non-streaming response
     let response = client.generate(&request).await?;
     let non_streaming_text = response
-        .outputs
+        .outputs()
         .iter()
         .filter_map(|o| match o {
             Output::Text(t) => Some(t.clone()),

@@ -59,6 +59,12 @@ use botticelli_rate_limit::{BotticelliConfig, RateLimiter, Tier, TierConfig};
 
 use super::GeminiResult;
 
+/// Helper to convert builder errors to GeminiError
+fn builder_error(e: impl std::fmt::Display) -> botticelli_error::GeminiError {
+    use botticelli_error::{GeminiError, GeminiErrorKind};
+    GeminiError::new(GeminiErrorKind::BuilderError(e.to_string()))
+}
+
 //
 // ─── TIERED GEMINI ──────────────────────────────────────────────────────────────
 //
@@ -497,10 +503,10 @@ impl GeminiClient {
             let response_text = session.send_text(&combined_text).await?;
             let _ = session.close().await;
 
-            return Ok(GenerateResponse::builder()
+            return GenerateResponse::builder()
                 .outputs(vec![Output::Text(response_text)])
                 .build()
-                .expect("Valid response"));
+                .map_err(builder_error);
         }
 
         // Determine retry strategy from first error or use defaults
@@ -519,10 +525,10 @@ impl GeminiClient {
                 let response_text = session.send_text(&combined_text).await?;
                 let _ = session.close().await;
 
-                return Ok(GenerateResponse::builder()
+                return GenerateResponse::builder()
                     .outputs(vec![Output::Text(response_text)])
                     .build()
-                    .expect("Valid response"));
+                    .map_err(builder_error);
             }
             Err(e) => {
                 if !e.kind.is_retryable() {
@@ -596,10 +602,10 @@ impl GeminiClient {
         let _ = session.close().await; // Ignore close errors
 
         // Return response in GenerateResponse format
-        Ok(GenerateResponse::builder()
+        GenerateResponse::builder()
             .outputs(vec![Output::Text(response_text)])
             .build()
-            .expect("Valid response"))
+            .map_err(builder_error)
     }
 
     /// Helper to combine all message content into a single text string.
@@ -671,7 +677,7 @@ impl GeminiClient {
 
                     // Create new Gemini client for this model
                     let client = Gemini::with_model(&self.api_key, model_enum)
-                        .expect("Failed to create Gemini client for model");
+                        .expect("Failed to create Gemini client - invalid API key or model");
 
                     // Get model-specific tier configuration
                     // This applies model-specific overrides if they exist in the config
@@ -792,7 +798,7 @@ impl GeminiClient {
                 Ok(GenerateResponse::builder()
                     .outputs(vec![Output::Text(text)])
                     .build()
-                    .expect("Valid response"))
+                    .map_err(builder_error)?)
             }
             Err(e) => {
                 // Record error
@@ -1084,11 +1090,12 @@ impl GeminiClient {
             None
         };
 
-        Ok(StreamChunk {
-            content: Output::Text(text),
-            is_final,
-            finish_reason,
-        })
+        Ok(StreamChunk::builder()
+            .content(Output::Text(text))
+            .is_final(is_final)
+            .finish_reason(finish_reason)
+            .build()
+            .map_err(builder_error)?)
     }
 }
 

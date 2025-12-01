@@ -16,6 +16,7 @@ mod test_utils;
 // This appears to be a timing or protocol issue with the Live API handshake.
 // Tests that connect to Live API are currently ignored until the handshake issue is resolved.
 
+use botticelli_core::{GenerateRequest, Input, Message, Role};
 use botticelli_interface::{BotticelliDriver, Streaming};
 use botticelli_models::{GeminiClient, GeminiLiveClient, GenerationConfig, LiveRateLimiter};
 use futures_util::StreamExt;
@@ -29,7 +30,7 @@ async fn test_live_api_invalid_model() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Try to use a non-existent model
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()
@@ -190,7 +191,7 @@ async fn test_unified_client_handles_live_model_errors() {
     let client = GeminiClient::new().expect("Failed to create client");
 
     // Test with invalid configuration (negative max_tokens isn't possible, but we can test zero)
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Test".to_string())])
         .build()
@@ -259,7 +260,7 @@ async fn test_streaming_error_recovery() {
 
     let client = GeminiClient::new().expect("Failed to create client");
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Count to 5".to_string())])
         .build()
@@ -284,7 +285,7 @@ async fn test_streaming_error_recovery() {
         match chunk_result {
             Ok(chunk) => {
                 chunk_count += 1;
-                if chunk.is_final {
+                if *chunk.is_final() {
                     break;
                 }
             }

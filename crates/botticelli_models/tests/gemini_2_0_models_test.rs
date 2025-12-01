@@ -5,6 +5,7 @@
 // These tests validate that older Gemini 2.0 models work correctly
 // via the Model::Custom() variant with proper "models/" prefix.
 
+use botticelli_core::{GenerateRequest, Input, Message, Role};
 use botticelli_error::BotticelliResult;
 use botticelli_interface::BotticelliDriver;
 use botticelli_models::GeminiClient;
@@ -15,7 +16,7 @@ use botticelli_models::GeminiClient;
 async fn test_gemini_2_0_flash() -> BotticelliResult<()> {
     let client = GeminiClient::new()?;
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()
@@ -47,7 +48,7 @@ async fn test_gemini_2_0_flash() -> BotticelliResult<()> {
 async fn test_gemini_2_0_flash_lite() -> BotticelliResult<()> {
     let client = GeminiClient::new()?;
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'ok'".to_string())])
         .build()
@@ -80,7 +81,7 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
     let client = GeminiClient::new()?;
 
     // Request 1: Use Gemini 2.0 Flash
-    let message1 = MessageBuilder::default()
+    let message1 = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'one'".to_string())])
         .build()
@@ -102,10 +103,10 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         })?;
 
     let response1 = client.generate(&request1).await?;
-    assert!(!response1.outputs.is_empty());
+    assert!(!response1.outputs().is_empty());
 
     // Request 2: Use Gemini 2.5 Flash (should use enum variant)
-    let message2 = MessageBuilder::default()
+    let message2 = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'two'".to_string())])
         .build()
@@ -130,7 +131,7 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
     assert!(!response2.outputs().is_empty());
 
     // Request 3: Use Gemini 2.0 Flash Lite
-    let message3 = MessageBuilder::default()
+    let message3 = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Say 'three'".to_string())])
         .build()
@@ -152,7 +153,7 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
         })?;
 
     let response3 = client.generate(&request3).await?;
-    assert!(!response3.outputs.is_empty());
+    assert!(!response3.outputs().is_empty());
     Ok(())
 }
 
@@ -162,7 +163,7 @@ async fn test_mixed_2_0_and_2_5_models() -> BotticelliResult<()> {
 async fn test_explicit_models_prefix() -> BotticelliResult<()> {
     let client = GeminiClient::new()?;
 
-    let message = MessageBuilder::default()
+    let message = Message::builder()
         .role(Role::User)
         .content(vec![Input::Text("Hello".to_string())])
         .build()

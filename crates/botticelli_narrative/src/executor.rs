@@ -566,14 +566,14 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     tracing::info!("Calling LLM API");
                     let result = self.driver.generate(&request).await?;
                     tracing::info!(
-                        outputs_count = result.outputs.len(),
+                        outputs_count = result.outputs().len(),
                         "LLM response received"
                     );
                     result
                 };
 
                 // Debug log the output types
-                for (idx, output) in response.outputs.iter().enumerate() {
+                for (idx, output) in response.outputs().iter().enumerate() {
                     match output {
                         botticelli_core::Output::Text(text) => {
                             let preview: String = text.chars().take(100).collect();
@@ -596,7 +596,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                 }
 
                 // Extract text from response
-                let response_text = extract_text_from_outputs(&response.outputs)?;
+                let response_text = extract_text_from_outputs(&response.outputs())?;
 
                 let preview = response_text.chars().take(200).collect::<String>();
                 tracing::debug!(

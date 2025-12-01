@@ -25,6 +25,10 @@ pub enum OllamaErrorKind {
     /// Invalid Ollama client configuration
     #[display("Invalid configuration: {}", _0)]
     InvalidConfiguration(String),
+
+    /// Error converting between Ollama and Botticelli types
+    #[display("Conversion error: {}", _0)]
+    ConversionError(String),
 }
 
 /// Model provider-specific error conditions.
@@ -33,6 +37,10 @@ pub enum ModelsErrorKind {
     /// Gemini-specific error
     #[display("Gemini: {}", _0)]
     Gemini(GeminiErrorKind),
+
+    /// Builder error (derive_builder failures)
+    #[display("Builder error: {}", _0)]
+    Builder(String),
 
     /// Ollama-specific error (will be populated when ollama feature is enabled)
     #[cfg(feature = "ollama")]

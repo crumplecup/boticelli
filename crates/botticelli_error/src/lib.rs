@@ -54,6 +54,8 @@ pub use error::{BotticelliError, BotticelliErrorKind, BotticelliResult};
 pub use gemini::{GeminiError, GeminiErrorKind, RetryableError};
 pub use http::HttpError;
 pub use json::JsonError;
+#[cfg(feature = "anthropic")]
+pub use models::AnthropicErrorKind;
 #[cfg(feature = "ollama")]
 pub use models::OllamaErrorKind;
 #[cfg(feature = "models")]

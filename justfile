@@ -204,6 +204,28 @@ test-api-gemini:
         exit 1
     fi
 
+# Run API tests for Anthropic (requires ANTHROPIC_API_KEY)
+test-api-anthropic:
+    #!/usr/bin/env bash
+    set +u
+    test -n "${ANTHROPIC_API_KEY}" || (echo "❌ ANTHROPIC_API_KEY not set. API tests require this environment variable." && exit 1)
+    
+    LOG_FILE="/tmp/botticelli-test-api-anthropic.log"
+    rm -f "$LOG_FILE"
+    
+    if cargo test --workspace --features anthropic,api 2>&1 | tee "$LOG_FILE"; then
+        if [ -s "$LOG_FILE" ] && grep -qE "^(warning:|error:|\s+\^|error\[|test result:.*FAILED)" "$LOG_FILE"; then
+            echo "⚠️  API tests completed with warnings/errors. See: $LOG_FILE"
+            exit 1
+        else
+            echo "✅ All API tests passed!"
+            rm -f "$LOG_FILE"
+        fi
+    else
+        echo "❌ API tests failed. See: $LOG_FILE"
+        exit 1
+    fi
+
 # Run ALL API tests (requires all API keys, expensive!)
 test-api-all:
     #!/usr/bin/env bash

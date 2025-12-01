@@ -46,8 +46,8 @@ mod gemini;
 #[cfg(feature = "ollama")]
 mod ollama;
 
-// #[cfg(feature = "anthropic")]
-// mod anthropic;
+#[cfg(feature = "anthropic")]
+mod anthropic;
 
 #[cfg(feature = "gemini")]
 pub use gemini::{
@@ -62,5 +62,5 @@ pub use gemini::{
 #[cfg(feature = "ollama")]
 pub use ollama::{OllamaClient, OllamaError, OllamaErrorKind, OllamaResult};
 
-// #[cfg(feature = "anthropic")]
-// pub use anthropic::AnthropicClient;
+#[cfg(feature = "anthropic")]
+pub use anthropic::AnthropicClient;

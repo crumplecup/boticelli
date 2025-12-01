@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod anthropic;
 mod budget;
 mod input;
 mod media;
@@ -14,6 +15,10 @@ mod output;
 mod request;
 mod role;
 
+pub use anthropic::{
+    AnthropicContentBlock, AnthropicMessage, AnthropicRequest, AnthropicResponse,
+    AnthropicResponseContent, AnthropicUsage,
+};
 pub use budget::{BudgetConfig, BudgetConfigBuilder};
 pub use input::{HistoryRetention, Input, TableFormat};
 pub use media::MediaSource;

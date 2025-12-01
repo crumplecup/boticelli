@@ -33,7 +33,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Cacher stage - build dependencies only (cached layer)
 FROM base AS cacher
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json --bin actor-server --features discord,observability,otel-otlp
+RUN cargo chef cook --release --recipe-path recipe.json --bin actor-server --features discord
 
 # Builder stage - build application code
 FROM base AS builder
@@ -55,7 +55,7 @@ COPY diesel.toml ./
 COPY botticelli.toml actor_server.toml bot_server.toml actor.toml ./
 
 # Build release binary (dependencies already built)
-RUN cargo build --release --bin actor-server --features discord,observability,otel-otlp
+RUN cargo build --release --bin actor-server --features discord
 
 # Runtime stage
 FROM registry.fedoraproject.org/fedora:latest

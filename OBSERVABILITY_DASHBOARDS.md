@@ -1,501 +1,259 @@
-# Botticelli Observability Dashboards
+# Observability Dashboards Guide
 
-Complete guide to monitoring Botticelli with traces, metrics, and dashboards.
+## Overview
 
-## Quick Start
+This guide shows how to use Jaeger's UI to monitor actors and narratives in the Botticelli system. Since we use trace-based observability, all our insights come from spans with rich attributes.
 
-### 1. Start the Full Observability Stack
+## Accessing Jaeger
 
-```bash
-# With Podman
-podman-compose -f docker-compose.observability.yml up -d
+1. Ensure containers are running: `just bot-up`
+2. Open Jaeger UI: http://localhost:16686
+3. Select service: `actor-server`
 
-# With Docker
-docker-compose -f docker-compose.observability.yml up -d
+## Dashboard Queries
+
+### Actor Performance
+
+**Query: All Actor Executions**
+- Service: `actor-server`
+- Operation: `execute`
+- Tags: `actor_name=*`
+
+**Query: Specific Actor**
+- Service: `actor-server`
+- Operation: `execute`
+- Tags: `actor_name="Content Generator"`
+
+**Key Metrics to Watch:**
+- Duration: How long each actor execution takes
+- Error status: Look for `error=true` tag
+- Frequency: How often actors execute
+
+### Narrative Execution
+
+**Query: All Narrative Executions**
+- Service: `actor-server`
+- Operation: `execute_impl_with_multi`
+- Tags: `narrative_name=*`
+
+**Query: Specific Narrative**
+- Service: `actor-server`
+- Operation: `execute_impl_with_multi`
+- Tags: `narrative_name="batch_generate"`
+
+**Key Span Attributes:**
+- `narrative_name`: Which narrative ran
+- `act_count`: How many acts in the composition
+- `current_act`: Which act is executing
+- `act_name`: Name of the current act
+
+### Act-Level Detail
+
+**Query: Individual Acts**
+- Service: `actor-server`
+- Operation: `execute_impl`
+- Tags: `act_name=*`
+
+**Key Attributes:**
+- `act_name`: The specific act
+- `act_type`: single_turn, multi_turn, etc.
+- `context_size`: Token count in context
+- `max_tokens`: Generation limit
+
+### Error Analysis
+
+**Query: Failed Executions**
+- Service: `actor-server`
+- Tags: `error=true`
+
+**Common Error Patterns:**
+- Actor execution failures (skill errors)
+- Narrative parsing issues
+- LLM API errors
+- Rate limit hits
+
+## Understanding Trace Structure
+
+### Typical Trace Hierarchy
+
+```
+actor.execute (actor_name="Content Generator")
+  ├─ execute_skill_with_retry (skill="narrative_execution")
+  │   └─ narrative_execution.execute
+  │       └─ executor.execute_impl_with_multi (narrative_name="batch_generate")
+  │           ├─ executor.execute_impl (act_name="feature")
+  │           │   └─ gemini.generate
+  │           ├─ executor.execute_impl (act_name="tutorial")
+  │           │   └─ gemini.generate
+  │           └─ executor.execute_impl (act_name="social")
+  │               └─ gemini.generate
 ```
 
-This starts:
-- **Jaeger** (traces): http://localhost:16686
-- **Prometheus** (metrics): http://localhost:9090
-- **Grafana** (dashboards): http://localhost:3000
-- **PostgreSQL** (database): localhost:5433
+### Span Attributes Reference
+
+**Actor Spans:**
+- `actor_name`: Name from config
+- `skill`: Which skill executed
+- `recoverable`: Can retry on failure
+- `attempt`: Retry attempt number
 
-### 2. Access Grafana
+**Narrative Spans:**
+- `narrative_name`: Narrative identifier
+- `narrative_path`: TOML file path
+- `act_count`: Number of acts
+- `current_act`: Current position in sequence
+
+**Act Spans:**
+- `act_name`: Act identifier
+- `act_type`: Execution pattern
+- `context_size`: Input token count
+- `max_tokens`: Output limit
+- `temperature`: Sampling parameter
 
-1. Open http://localhost:3000
-2. Login: `admin` / `admin` (change on first login)
-3. Navigate to **Dashboards** → **Botticelli Overview**
+**LLM Spans:**
+- `model`: Model identifier
+- `provider`: gemini/anthropic
+- `response_tokens`: Generated token count
+- `finish_reason`: Why generation stopped
 
-### 3. Run Your Bot with Tracing
+## Common Monitoring Scenarios
 
-**Containerized (recommended):**
-```bash
-just bot-build    # Build image
-just bot-up       # Start container
-just bot-logs     # View logs
-```
+### 1. Actor Health Check
+
+**Goal:** Verify all actors are executing regularly
 
-**Local development:**
-```bash
-# Bot automatically loads .env with OTEL_EXPORTER settings
-just run-actor-server
-
-# Or with cargo directly
-cargo run --release -p botticelli_actor --bin actor-server --features otel-otlp,discord
-```
-
-Traces will flow to Jaeger, and you'll see them in Grafana!
-
-## What You Get Out of the Box
-
-### Trace Visualization (Jaeger)
-- Request traces with timing breakdowns
-- Service dependency maps
-- Error traces highlighted
-
-### Basic Metrics (Jaeger-derived)
-- Trace ingestion rate
-- Error rate (from trace spans)
-- Service health
-
-### Starter Dashboard (Grafana)
-- Trace error rate gauge
-- Traces received rate graph
-- Recent traces panel
-
-## Adding Application Metrics
-
-The starter setup uses **trace-derived metrics** from Jaeger. For the specific metrics you want (LLM API failures, JSON parsing failures), you need to add **custom metrics** to your code.
-
-### Good News: You Already Have Metrics Infrastructure! ✅
-
-Your codebase already has:
-- ✅ OpenTelemetry v0.31 configured in `crates/botticelli/src/observability.rs`
-- ✅ Metrics collection in `crates/botticelli_server/src/metrics.rs`
-- ✅ Automatic OTLP export when `OTEL_EXPORTER=otlp`
-
-**Current metrics you already collect**:
-- `narrative.json.success` - JSON extraction successes
-- `narrative.json.failures` - JSON extraction failures
-- `narrative.executions` - Narrative execution count
-- `narrative.duration` - Narrative execution duration
-- `bot.executions` - Bot execution count
-- `bot.failures` - Bot failure count
-
-### Step 1: Verify Metrics Export is Enabled
-
-Your observability is already initialized! Just make sure metrics are enabled:
-
-```rust
-// In your main.rs or server initialization:
-use botticelli::observability::{init_observability_with_config, ObservabilityConfig, ExporterBackend};
-
-// Initialize with OTLP and metrics enabled
-let config = ObservabilityConfig::new("bot-server")
-    .with_exporter(ExporterBackend::Otlp {
-        endpoint: "http://localhost:4317".to_string(),
-    })
-    .with_metrics(true);  // This is already the default!
-
-init_observability_with_config(config)?;
-```
-
-Or just use environment variables (easier):
-
-```bash
-export OTEL_EXPORTER=otlp
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-cargo run --features otel-otlp
-```
-
-### Step 2: Add LLM API Metrics
-
-The one missing piece is LLM API call tracking. Add to `botticelli_models`:
-
-Create `crates/botticelli_models/src/metrics.rs`:
-
-```rust
-//! Metrics for LLM API calls.
-
-use opentelemetry::{global, metrics::{Counter, Histogram, Meter}, KeyValue};
-use std::sync::OnceLock;
-
-static METRICS: OnceLock<LlmMetrics> = OnceLock::new();
-
-/// Metrics for LLM API interactions.
-pub struct LlmMetrics {
-    _meter: Meter,
-    pub requests: Counter<u64>,
-    pub errors: Counter<u64>,
-    pub duration: Histogram<f64>,
-    pub tokens_used: Counter<u64>,
-}
-
-impl LlmMetrics {
-    fn init() -> Self {
-        let meter = global::meter("botticelli_llm");
-        
-        Self {
-            _meter: meter.clone(),
-            requests: meter
-                .u64_counter("llm.requests")
-                .with_description("Total LLM API requests")
-                .build(),
-            errors: meter
-                .u64_counter("llm.errors")
-                .with_description("Failed LLM API requests")
-                .build(),
-            duration: meter
-                .f64_histogram("llm.duration")
-                .with_unit("seconds")
-                .with_description("LLM API call duration")
-                .build(),
-            tokens_used: meter
-                .u64_counter("llm.tokens")
-                .with_description("Total tokens used")
-                .build(),
-        }
-    }
-    
-    pub fn get() -> &'static Self {
-        METRICS.get_or_init(Self::init)
-    }
-}
-```
-
-### Step 3: Instrument LLM Calls
-
-Add to `crates/botticelli_models/src/lib.rs`:
-
-```rust
-mod metrics;
-pub use metrics::LlmMetrics;
-```
-
-In your Gemini client `generate()` method:
-
-```rust
-use crate::LlmMetrics;
-
-pub async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse> {
-    let metrics = LlmMetrics::get();
-    let start = std::time::Instant::now();
-    
-    let labels = &[
-        KeyValue::new("model", request.model().to_string()),
-        KeyValue::new("provider", "gemini"),
-    ];
-    
-    metrics.requests.add(1, labels);
-    
-    let result = self.generate_impl(request).await;
-    
-    let duration = start.elapsed().as_secs_f64();
-    metrics.duration.record(duration, labels);
-    
-    match &result {
-        Ok(response) => {
-            // Track token usage if available
-            if let Some(usage) = response.usage() {
-                metrics.tokens_used.add(
-                    usage.total_tokens as u64,
-                    &[KeyValue::new("model", request.model().to_string())]
-                );
-            }
-        }
-        Err(e) => {
-            let error_labels = &[
-                KeyValue::new("model", request.model().to_string()),
-                KeyValue::new("provider", "gemini"),
-                KeyValue::new("error_type", classify_error(e)),
-            ];
-            metrics.errors.add(1, error_labels);
-        }
-    }
-    
-    result
-}
-
-fn classify_error(e: &Error) -> String {
-    // Classify error: "rate_limit", "auth", "network", "unknown"
-    // Based on error type
-    "unknown".to_string()  // Implement based on your error types
-}
-```
-
-### Step 4: JSON Parsing Metrics (Already Done!)
-
-Good news: JSON parsing metrics are **already implemented** in `botticelli_server/src/metrics.rs`:
-
-```rust
-// Already exists!
-pub fn record_json_extraction(&self, narrative_name: &str, success: bool) {
-    let labels = &[KeyValue::new("narrative_name", narrative_name.to_string())];
-    if success {
-        self.json_success.add(1, labels);
-    } else {
-        self.json_failures.add(1, labels);
-    }
-}
-```
-
-Just make sure you're calling it in your extraction code!
-
-### Step 5: Verify Metrics are Flowing
-
-Your observability setup **already handles metrics export**! The code in `observability.rs` does this:
-
-```rust
-// This already exists in your codebase!
-fn init_metrics(resource: &Resource, exporter: &ExporterBackend) -> Result<...> {
-    match exporter {
-        ExporterBackend::Otlp { endpoint } => {
-            let exporter = opentelemetry_otlp::MetricExporter::builder()
-                .with_tonic()
-                .with_endpoint(endpoint.clone())
-                .build()?;
-
-            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
-                .build();
-
-            let meter_provider = SdkMeterProvider::builder()
-                .with_reader(reader)
-                .with_resource(resource.clone())
-                .build();
-
-            global::set_meter_provider(meter_provider);
-        }
-        // ... stdout exporter for dev
-    }
-}
-```
-
-**To verify metrics are working:**
-
-1. Start the observability stack:
-   ```bash
-   podman-compose -f docker-compose.observability.yml up -d
-   ```
-
-2. Run your bot with OTLP export:
-   ```bash
-   OTEL_EXPORTER=otlp cargo run --release --features otel-otlp
-   ```
-
-3. Check Prometheus targets:
-   - Visit http://localhost:9090/targets
-   - Should see `jaeger` target UP
-
-4. Query metrics in Prometheus:
-   - Visit http://localhost:9090/graph
-   - Try query: `narrative_json_failures`
-   - Or: `bot_executions`
-
-### Step 6: Create Dashboards with Your Actual Metrics
-
-Once metrics are flowing, create dashboards in Grafana using **your actual metric names**:
-
-**LLM API Health Dashboard**:
-```promql
-# Error rate (after you add LlmMetrics)
-rate(llm_errors[5m]) / rate(llm_requests[5m]) * 100
-
-# Request rate by model
-sum(rate(llm_requests[1m])) by (model)
-
-# P95 latency
-histogram_quantile(0.95, rate(llm_duration_bucket[5m]))
-
-# Token usage by model
-sum(rate(llm_tokens[1m])) by (model)
-```
-
-**JSON Parsing Dashboard** (using existing metrics):
-```promql
-# Failure rate
-rate(narrative_json_failures[5m]) / (rate(narrative_json_success[5m]) + rate(narrative_json_failures[5m])) * 100
-
-# Failure count by narrative
-sum(rate(narrative_json_failures[1m])) by (narrative_name)
-
-# Success count by narrative
-sum(rate(narrative_json_success[1m])) by (narrative_name)
-```
-
-**Narrative Performance Dashboard** (using existing metrics):
-```promql
-# Execution time P95 by narrative
-histogram_quantile(0.95, rate(narrative_duration_bucket[5m]))
-
-# Success rate
-sum(rate(narrative_executions{success="true"}[5m])) / sum(rate(narrative_executions[5m])) * 100
-
-# Act duration P95
-histogram_quantile(0.95, rate(narrative_act_duration_bucket[5m]))
-```
-
-**Bot Health Dashboard** (using existing metrics):
-```promql
-# Bot failure rate
-rate(bot_failures[5m]) / rate(bot_executions[5m]) * 100
-
-# Bot execution rate by type
-sum(rate(bot_executions[1m])) by (bot_type)
-
-# Queue depth
-bot_queue_depth
-
-# Time since last success
-bot_time_since_success
-```
-
-**Pipeline Dashboard** (using existing metrics):
-```promql
-# Content generation rate
-rate(pipeline_generated[5m])
-
-# Content publication rate
-rate(pipeline_published[5m])
-
-# Pipeline stage latency P95
-histogram_quantile(0.95, rate(pipeline_stage_latency_bucket[5m]))
-```
-
-## Dashboard Examples
-
-### Creating a Custom Dashboard
-
-1. Go to http://localhost:3000
-2. Click **Dashboards** → **New** → **New Dashboard**
-3. Click **Add visualization**
-4. Select **Prometheus** data source
-5. Enter PromQL query (see examples above)
-6. Configure visualization type (Graph, Gauge, Stat, etc.)
-7. Click **Save**
-
-### Example: LLM Error Rate Panel
-
-```json
-{
-  "title": "LLM API Error Rate",
-  "targets": [
-    {
-      "expr": "(rate(llm_errors_total[5m]) / rate(llm_requests_total[5m])) * 100",
-      "legendFormat": "{{model}}"
-    }
-  ],
-  "type": "timeseries",
-  "fieldConfig": {
-    "defaults": {
-      "unit": "percent",
-      "color": { "mode": "thresholds" },
-      "thresholds": {
-        "steps": [
-          { "value": 0, "color": "green" },
-          { "value": 5, "color": "yellow" },
-          { "value": 10, "color": "red" }
-        ]
-      }
-    }
-  }
-}
-```
-
-## Alerting
-
-### Set Up Alerts in Grafana
-
-1. Create alert rules based on metrics
-2. Example: Alert when LLM error rate > 10%
-
-```yaml
-# Alert condition
-expr: (rate(llm_errors_total[5m]) / rate(llm_requests_total[5m])) * 100 > 10
-
-# For: 5m (sustained for 5 minutes)
-```
-
-3. Configure notification channels (email, Slack, Discord)
-
-## What You Already Have vs What's Missing
-
-**✅ Already Implemented** (in your codebase):
-- ✅ OpenTelemetry v0.31 observability infrastructure
-- ✅ Automatic OTLP export (traces + metrics)
-- ✅ JSON parsing metrics (`narrative.json.success/failures`)
-- ✅ Narrative execution metrics (`narrative.executions/duration`)
-- ✅ Bot execution metrics (`bot.executions/failures/duration`)
-- ✅ Pipeline metrics (`pipeline.generated/curated/published`)
-- ✅ Queue depth tracking (`bot.queue_depth`)
-
-**❌ Missing** (need to add):
-- ❌ LLM API call metrics (`llm.requests/errors/duration`)
-- ❌ LLM token usage tracking (`llm.tokens`)
-- ❌ Error classification by type
-- ❌ Grafana dashboards (but infrastructure is ready!)
-
-**Your metrics are already being collected!** You just need to:
-1. Start the observability stack
-2. Run your bot with `OTEL_EXPORTER=otlp`
-3. Create Grafana dashboards with the PromQL queries above
-
-## Next Steps (Revised Based on Your Code)
-
-### Immediate (5 minutes):
-```bash
-# Start the full stack
-podman-compose -f docker-compose.observability.yml up -d
-
-# Build and run bot container
-just bot-build
-just bot-up
-
-# Check metrics are flowing
-open http://localhost:9090  # Query: narrative_json_failures
-open http://localhost:3000  # Grafana dashboards
-
-# View bot logs
-just bot-logs
-```
-
-### Short Term (1-2 hours):
-1. Add `LlmMetrics` to `botticelli_models` (code provided above)
-2. Instrument Gemini client `generate()` method
-3. Create custom Grafana dashboards using your actual metric names
-
-### Medium Term (this week):
-1. Build dashboards for:
-   - LLM API health (error rates, latency, token usage)
-   - JSON parsing success/failure rates
-   - Narrative execution performance
-   - Bot health and queue depth
-2. Set up alerting rules (LLM error rate > 10%, JSON parse failures spike, etc.)
-3. Add error classification (rate limit, auth, network, unknown)
-
-## Troubleshooting
-
-### No traces showing up in Grafana
-- Check OTEL_EXPORTER_OTLP_ENDPOINT is set correctly
-- Verify Jaeger is running: `podman logs botticelli-jaeger`
-- Check network: `curl http://localhost:4317`
-
-### No metrics in Prometheus
-- Metrics export requires custom instrumentation (see Step 2-4 above)
-- Check Prometheus targets: http://localhost:9090/targets
-- Verify Jaeger metrics endpoint: `curl http://localhost:14269/metrics`
-
-### Grafana can't connect to datasources
-- Check containers are on same network
-- Verify datasource URLs use container names (`http://prometheus:9090`)
-- Check health: `podman-compose ps`
-
-## Resources
-
-- [OpenTelemetry Rust SDK](https://docs.rs/opentelemetry/)
-- [Prometheus PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-- [Grafana Dashboards](https://grafana.com/docs/grafana/latest/dashboards/)
-- [Jaeger Documentation](https://www.jaegertracing.io/docs/)
-
----
-
-**Pro Tip**: Start with trace-only observability (what you have), then gradually add metrics as you identify bottlenecks. Don't try to instrument everything at once!
+**Steps:**
+1. Set time range to last hour
+2. Search for operation: `execute`
+3. Group by `actor_name` tag
+4. Look for:
+   - Regular execution intervals
+   - No persistent errors
+   - Reasonable durations
+
+### 2. Narrative Bottleneck Detection
+
+**Goal:** Find slow acts in narratives
+
+**Steps:**
+1. Find a narrative execution trace
+2. Expand the full trace tree
+3. Compare act durations
+4. Identify outliers
+5. Check `context_size` and `response_tokens` for large values
+
+### 3. Error Root Cause Analysis
+
+**Goal:** Understand why an execution failed
+
+**Steps:**
+1. Query for `error=true`
+2. Open failed trace
+3. Find the deepest span with error
+4. Check span logs for error messages
+5. Review parent spans for context
+
+### 4. Rate Limit Monitoring
+
+**Goal:** Track API rate limiting
+
+**Steps:**
+1. Search for operation: `generate`
+2. Look for error spans
+3. Check logs for "rate limit" messages
+4. Correlate with actor execution patterns
+
+## Tips and Best Practices
+
+### Effective Time Ranges
+
+- **Real-time monitoring:** Last 15 minutes
+- **Debugging:** Last hour
+- **Pattern analysis:** Last 24 hours
+- **Historical review:** Custom range
+
+### Using Trace Comparison
+
+1. Find a successful trace
+2. Find a failed trace for same operation
+3. Use "Compare" feature
+4. Look for differences in:
+   - Duration
+   - Child span count
+   - Attribute values
+
+### Search Tips
+
+- Use wildcards: `actor_name=*Generator*`
+- Combine tags: `error=true narrative_name=batch_generate`
+- Sort by duration to find slowest traces
+- Use "Find Similar Traces" for patterns
+
+### Performance Baselines
+
+Establish normal ranges:
+- Actor execution: 30-120 seconds typical
+- Single act: 5-30 seconds typical
+- LLM generation: 2-15 seconds typical
+
+Flag when:
+- Duration > 2x baseline
+- Error rate > 5%
+- Missing expected executions
+
+## Integration with Development
+
+### Adding New Instrumentation
+
+When adding spans, include:
+- Operation name (consistent naming)
+- Key identifying attributes
+- Context size when relevant
+- Error status and messages
+
+### Debugging Workflow
+
+1. Reproduce issue locally with `just bot-up`
+2. Check Jaeger for traces around issue time
+3. Identify failing span
+4. Check span attributes and logs
+5. Add more instrumentation if needed
+6. Verify fix in Jaeger
+
+### Documentation Workflow
+
+When adding features:
+1. Add appropriate instrumentation
+2. Test that spans appear in Jaeger
+3. Document expected span structure
+4. Add to this guide if monitoring pattern changes
+
+## Limitations
+
+**What Jaeger Doesn't Show:**
+- Aggregate metrics over time (use Prometheus/Grafana when metrics re-enabled)
+- Long-term trends
+- Percentiles across traces
+- Custom visualizations
+
+**Workarounds:**
+- Export trace data for analysis
+- Use Jaeger API for programmatic queries
+- Sample traces for representative patterns
+
+## Future Enhancements
+
+When metrics are re-enabled:
+1. Grafana dashboards for aggregates
+2. Alert rules for anomalies
+3. SLO tracking
+4. Correlation with traces
+
+## Support
+
+For issues:
+1. Check span instrumentation in code
+2. Verify OTEL_EXPORTER_OTLP_ENDPOINT
+3. Check container logs: `podman logs botticelli-actor-server`
+4. Verify Jaeger is receiving traces: Check Jaeger UI health
+

@@ -189,3 +189,59 @@ let error_rate = error_count as f64 / traces.len() as f64;
 - [Grafana Jaeger Data Source](https://grafana.com/docs/grafana/latest/datasources/jaeger/)
 - Existing: `OBSERVABILITY_SETUP.md`
 - Related: `METRICS_GRAFANA_FIX.md` (blocked on OpenTelemetry v0.31 issues)
+
+## Diagnostic: No Traces Appearing (2025-12-01)
+
+### Current Status
+- Container crash-looping on database migrations
+- Actor-server never initializes observability
+- No traces reaching Jaeger
+
+### Root Cause Analysis
+
+**Problem**: Actor-server fails to start, never reaches observability initialization
+
+**Evidence**:
+```
+podman logs botticelli-actor-server | grep observability
+# NO OUTPUT - observability never initialized
+```
+
+**Impact**: 
+- No traces generated because server crashes before init
+- Database migration errors block startup
+- Container restarts continuously
+
+### Investigation Steps
+
+1. **Check full container logs for crash reason**
+   ```bash
+   podman logs botticelli-actor-server 2>&1 | tail -100
+   ```
+
+2. **Verify DATABASE_URL in container**
+   ```bash
+   podman exec botticelli-actor-server env | grep DATABASE
+   ```
+
+3. **Test database connectivity**
+   ```bash
+   podman exec botticelli-actor-server pg_isready -h postgres -p 5432
+   ```
+
+### Solution Path
+
+**Priority 1**: Make observability initialize BEFORE database connection
+- Move `init_observability()` to very first line of main()
+- This ensures we get traces even if database fails
+- Add spans around database initialization
+
+**Priority 2**: Fix or bypass problematic diesel migration
+- Either fix the empty query issue
+- Or make database fully optional for actor-server
+
+**Priority 3**: Improve container error visibility
+- Add explicit logging in entrypoint script
+- Capture actor-server stderr
+- Add health check endpoint
+

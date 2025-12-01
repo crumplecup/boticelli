@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize observability
     #[cfg(feature = "observability")]
     {
-        botticelli::init_observability()?;
+        botticelli_core::init_observability()?;
     }
 
     #[cfg(not(feature = "observability"))]

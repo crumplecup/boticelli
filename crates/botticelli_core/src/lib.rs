@@ -18,7 +18,10 @@ pub use budget::{BudgetConfig, BudgetConfigBuilder};
 pub use input::{HistoryRetention, Input, TableFormat};
 pub use media::MediaSource;
 pub use message::{Message, MessageBuilder};
-pub use observability::{init_observability, shutdown_observability};
+pub use observability::{
+    ExporterBackend, ObservabilityConfig, init_observability, init_observability_with_config,
+    shutdown_observability,
+};
 pub use output::{Output, ToolCall, ToolCallBuilder};
 pub use request::{GenerateRequest, GenerateRequestBuilder, GenerateResponse};
 pub use role::Role;

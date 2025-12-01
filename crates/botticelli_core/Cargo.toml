@@ -12,6 +12,7 @@ categories.workspace = true
 [features]
 default = []
 metrics = []
+otel-otlp = []
 
 [dependencies]
 serde = { workspace = true }

@@ -12,9 +12,9 @@ use std::sync::Arc;
 use std::time::Duration;
 #[cfg(feature = "metrics")]
 use tokio::task::JoinHandle;
-use tracing::{error, info, instrument};
 #[cfg(not(feature = "metrics"))]
 use tracing::warn;
+use tracing::{error, info, instrument};
 
 /// Bot server that orchestrates generation, curation, and posting actors.
 pub struct BotServer {
@@ -81,7 +81,7 @@ impl BotServer {
             self.metrics_server_handle = Some(handle);
             info!(port = port, "Metrics HTTP server started");
         }
-        
+
         #[cfg(not(feature = "metrics"))]
         if metrics_port.is_some() {
             warn!("Metrics port specified but metrics feature not enabled");

@@ -56,9 +56,7 @@ impl AnthropicClient {
             .await
             .map_err(|e| {
                 error!(error = ?e, "Failed to send request to Anthropic API");
-                ModelsError::new(
-                    AnthropicErrorKind::ApiError(format!("Request failed: {}", e)).into(),
-                )
+                ModelsError::new(AnthropicErrorKind::Http(format!("Request failed: {}", e)).into())
             })?;
 
         if !response.status().is_success() {
@@ -66,14 +64,18 @@ impl AnthropicClient {
             let body = response.text().await.unwrap_or_default();
             error!(status = %status, body = %body, "Anthropic API returned error");
             return Err(ModelsError::new(
-                AnthropicErrorKind::ApiError(format!("API error {}: {}", status, body)).into(),
+                AnthropicErrorKind::ApiError {
+                    status: status.as_u16(),
+                    message: body,
+                }
+                .into(),
             ));
         }
 
         let anthropic_response: AnthropicResponse = response.json().await.map_err(|e| {
             error!(error = ?e, "Failed to parse Anthropic response");
             ModelsError::new(
-                AnthropicErrorKind::ApiError(format!("Failed to parse response: {}", e)).into(),
+                AnthropicErrorKind::Parse(format!("Failed to parse response: {}", e)).into(),
             )
         })?;
 

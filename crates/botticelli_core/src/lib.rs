@@ -15,8 +15,11 @@ mod output;
 mod request;
 mod role;
 
+#[cfg(feature = "anthropic")]
+pub use anthropic::AnthropicClient;
 pub use anthropic::{
-    AnthropicContentBlock, AnthropicMessage, AnthropicRequest, AnthropicResponse,
+    AnthropicConfig, AnthropicConfigBuilder, AnthropicContentBlock, AnthropicMessage,
+    AnthropicMessageBuilder, AnthropicRequest, AnthropicRequestBuilder, AnthropicResponse,
     AnthropicResponseContent, AnthropicUsage,
 };
 pub use budget::{BudgetConfig, BudgetConfigBuilder};

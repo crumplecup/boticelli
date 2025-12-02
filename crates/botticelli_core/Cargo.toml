@@ -14,7 +14,7 @@ default = []
 metrics = []
 otel-otlp = []
 models = ["dep:botticelli_error", "dep:futures"]
-anthropic = ["models", "dep:claude-client"]
+anthropic = ["models", "dep:reqwest"]
 
 [dependencies]
 serde = { workspace = true }
@@ -32,4 +32,4 @@ tracing-opentelemetry = "0.32"
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 botticelli_error = { workspace = true, features = ["models"], optional = true }
 futures = { version = "0.3", optional = true }
-claude-client = { version = "0.3.1", optional = true }
+reqwest = { workspace = true, features = ["json"], optional = true }

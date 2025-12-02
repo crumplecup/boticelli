@@ -39,9 +39,17 @@ pub enum OllamaErrorKind {
 #[cfg(feature = "anthropic")]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
 pub enum AnthropicErrorKind {
+    /// HTTP error (connection, timeout, etc.)
+    #[display("HTTP error: {}", _0)]
+    Http(String),
+
     /// Anthropic API returned an error
-    #[display("API error: {}", _0)]
-    ApiError(String),
+    #[display("API error (status {}): {message}", status)]
+    ApiError { status: u16, message: String },
+
+    /// Failed to parse response
+    #[display("Parse error: {}", _0)]
+    Parse(String),
 
     /// Invalid API key
     #[display("Invalid API key")]

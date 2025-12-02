@@ -1,3 +1,5 @@
+//! Anthropic API types and client.
+
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 
@@ -88,4 +90,79 @@ pub struct AnthropicResponse {
     model: String,
     stop_reason: Option<String>,
     usage: AnthropicUsage,
+}
+
+/// Anthropic API configuration.
+#[derive(Debug, Clone, Getters, derive_builder::Builder)]
+#[builder(setter(into))]
+pub struct AnthropicConfig {
+    api_key: String,
+    #[builder(default = "\"https://api.anthropic.com\".to_string()")]
+    endpoint: String,
+}
+
+impl AnthropicConfig {
+    /// Creates a builder for AnthropicConfig.
+    pub fn builder() -> AnthropicConfigBuilder {
+        AnthropicConfigBuilder::default()
+    }
+}
+
+#[cfg(feature = "anthropic")]
+use botticelli_error::{AnthropicErrorKind, ModelsError, ModelsResult};
+
+/// Anthropic HTTP client.
+#[cfg(feature = "anthropic")]
+#[derive(Debug, Clone)]
+pub struct AnthropicClient {
+    client: reqwest::Client,
+    config: AnthropicConfig,
+}
+
+#[cfg(feature = "anthropic")]
+impl AnthropicClient {
+    /// Creates a new Anthropic client.
+    #[tracing::instrument(skip(config))]
+    pub fn new(config: AnthropicConfig) -> ModelsResult<Self> {
+        use std::time::Duration;
+
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .build()
+            .map_err(|e| AnthropicErrorKind::Http(e.to_string()))?;
+
+        Ok(Self { client, config })
+    }
+
+    /// Sends a generation request to Anthropic API.
+    #[tracing::instrument(skip(self, request), fields(model = %request.model()))]
+    pub async fn generate(&self, request: AnthropicRequest) -> ModelsResult<AnthropicResponse> {
+        let url = format!("{}/v1/messages", self.config.endpoint());
+
+        let response = self
+            .client
+            .post(&url)
+            .header("x-api-key", self.config.api_key())
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AnthropicErrorKind::Http(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AnthropicErrorKind::ApiError {
+                status: status.as_u16(),
+                message: body,
+            }
+            .into());
+        }
+
+        response
+            .json::<AnthropicResponse>()
+            .await
+            .map_err(|e| AnthropicErrorKind::Parse(e.to_string()).into())
+    }
 }

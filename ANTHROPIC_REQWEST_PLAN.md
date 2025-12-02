@@ -64,7 +64,7 @@ Add to `ModelsErrorKind`:
 Anthropic(AnthropicErrorKind),
 ```
 
-### Phase 3: Request/Response DTOs
+### Phase 3: Request/Response DTOs ✅ (Complete)
 
 **File**: `crates/botticelli_core/src/anthropic.rs`
 
@@ -126,7 +126,7 @@ pub enum ContentBlock {
 - Response has structured content blocks
 - No streaming in initial implementation
 
-### Phase 4: HTTP Client Implementation
+### Phase 4: HTTP Client Implementation ✅ (Complete)
 
 **File**: `crates/botticelli_core/src/anthropic.rs`
 

@@ -84,7 +84,20 @@ pub use botticelli_storage::*;
 
 // Re-export optional crates based on features
 #[cfg(feature = "gemini")]
-pub use botticelli_models::*;
+pub use botticelli_models::{
+    ClientContent, ClientContentMessage, FunctionCall, FunctionResponse, GeminiClient,
+    GeminiLiveClient, GenerationConfig, GoAway, InlineData, InlineDataPart, LiveRateLimiter,
+    LiveSession, LiveToolCall, LiveToolCallCancellation, MediaChunk, ModelTurn, Part,
+    RealtimeInput, RealtimeInputMessage, ServerContent, ServerMessage, SetupComplete, SetupConfig,
+    SetupMessage, SystemInstruction, TextPart, TieredGemini, Tool, ToolResponse,
+    ToolResponseMessage, Turn, UsageMetadata,
+};
+
+#[cfg(feature = "ollama")]
+pub use botticelli_models::{OllamaClient, OllamaError, OllamaErrorKind, OllamaResult};
+
+#[cfg(feature = "anthropic")]
+pub use botticelli_models::AnthropicClient;
 
 #[cfg(feature = "database")]
 pub use botticelli_database::*;

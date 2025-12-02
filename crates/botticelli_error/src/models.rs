@@ -45,7 +45,13 @@ pub enum AnthropicErrorKind {
 
     /// Anthropic API returned an error
     #[display("API error (status {}): {message}", status)]
-    ApiError { status: u16, message: String },
+    /// API error with HTTP status and message
+    ApiError {
+        /// HTTP status code
+        status: u16,
+        /// Error message from API
+        message: String,
+    },
 
     /// Failed to parse response
     #[display("Parse error: {}", _0)]
@@ -74,6 +80,10 @@ pub enum AnthropicErrorKind {
     /// Builder error when constructing responses
     #[display("Builder error: {}", _0)]
     Builder(String),
+
+    /// Feature not supported
+    #[display("Unsupported: {}", _0)]
+    Unsupported(String),
 }
 
 /// Model provider-specific error conditions.

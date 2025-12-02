@@ -55,6 +55,8 @@ default = []
 
 # LLM provider features
 gemini = ["botticelli_models", "botticelli_models/gemini"]
+ollama = ["botticelli_models", "botticelli_models/ollama"]
+anthropic = ["botticelli_models", "botticelli_models/anthropic"]
 
 # Database feature
 database = ["botticelli_database", "botticelli_narrative/database", "dep:ractor"]
@@ -83,12 +85,14 @@ otel-otlp = [
 ]
 
 # Convenience feature for all providers
-all-providers = ["gemini"]
+all-providers = ["gemini", "ollama", "anthropic"]
 
 # Testing feature flags
 api = [] # Empty marker feature to gate API-consuming tests
 local = [
   "gemini",
+  "ollama",
+  "anthropic",
   "database",
   "discord",
   "tui",

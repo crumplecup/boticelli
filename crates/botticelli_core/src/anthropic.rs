@@ -109,7 +109,7 @@ impl AnthropicConfig {
 }
 
 #[cfg(feature = "anthropic")]
-use botticelli_error::{AnthropicErrorKind, ModelsError, ModelsResult};
+use botticelli_error::{AnthropicErrorKind, ModelsError, ModelsErrorKind, ModelsResult};
 
 /// Anthropic HTTP client.
 #[cfg(feature = "anthropic")]
@@ -129,7 +129,11 @@ impl AnthropicClient {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
             .build()
-            .map_err(|e| AnthropicErrorKind::Http(e.to_string()))?;
+            .map_err(|e| {
+                ModelsError::new(ModelsErrorKind::Anthropic(AnthropicErrorKind::Http(
+                    e.to_string(),
+                )))
+            })?;
 
         Ok(Self { client, config })
     }
@@ -148,21 +152,27 @@ impl AnthropicClient {
             .json(&request)
             .send()
             .await
-            .map_err(|e| AnthropicErrorKind::Http(e.to_string()))?;
+            .map_err(|e| {
+                ModelsError::new(ModelsErrorKind::Anthropic(AnthropicErrorKind::Http(
+                    e.to_string(),
+                )))
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AnthropicErrorKind::ApiError {
-                status: status.as_u16(),
-                message: body,
-            }
-            .into());
+            return Err(ModelsError::new(ModelsErrorKind::Anthropic(
+                AnthropicErrorKind::ApiError {
+                    status: status.as_u16(),
+                    message: body,
+                },
+            )));
         }
 
-        response
-            .json::<AnthropicResponse>()
-            .await
-            .map_err(|e| AnthropicErrorKind::Parse(e.to_string()).into())
+        response.json::<AnthropicResponse>().await.map_err(|e| {
+            ModelsError::new(ModelsErrorKind::Anthropic(AnthropicErrorKind::Parse(
+                e.to_string(),
+            )))
+        })
     }
 }

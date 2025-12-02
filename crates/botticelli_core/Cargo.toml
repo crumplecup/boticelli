@@ -13,7 +13,7 @@ categories.workspace = true
 default = []
 metrics = []
 otel-otlp = []
-models = ["dep:botticelli_error", "dep:futures"]
+models = ["dep:botticelli_error", "dep:futures", "dep:async-trait"]
 anthropic = ["models", "dep:reqwest"]
 
 [dependencies]
@@ -32,4 +32,5 @@ tracing-opentelemetry = "0.32"
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 botticelli_error = { workspace = true, features = ["models"], optional = true }
 futures = { version = "0.3", optional = true }
+async-trait = { version = "0.1", optional = true }
 reqwest = { workspace = true, features = ["json"], optional = true }

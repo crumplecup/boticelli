@@ -34,7 +34,7 @@ async fn test_groq_small_models() -> Result<(), Box<dyn std::error::Error>> {
     
     let models = vec![
         "llama-3.1-8b-instant",
-        "llama-3.2-1b-preview",
+        "llama-3.3-70b-versatile",
     ];
     
     for model in models {

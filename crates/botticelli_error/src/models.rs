@@ -213,7 +213,3 @@ impl ModelsError {
 
 /// Result type for model operations.
 pub type ModelsResult<T> = Result<T, ModelsError>;
-
-/// Errors specific to Groq models.
-#[cfg(feature = "groq")]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]

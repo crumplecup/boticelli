@@ -37,7 +37,7 @@ impl AnthropicClient {
 
     /// Sends a request to the Anthropic API.
     #[instrument(skip(self, request), fields(model = %request.model()))]
-    async fn generate_anthropic(
+    pub async fn generate_anthropic(
         &self,
         request: &AnthropicRequest,
     ) -> Result<AnthropicResponse, ModelsError> {

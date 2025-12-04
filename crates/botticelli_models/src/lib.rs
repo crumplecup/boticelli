@@ -63,4 +63,8 @@ pub use gemini::{
 pub use ollama::{OllamaClient, OllamaError, OllamaErrorKind, OllamaResult};
 
 #[cfg(feature = "anthropic")]
-pub use anthropic::AnthropicClient;
+pub use anthropic::{
+    AnthropicClient, AnthropicContent, AnthropicContentBlock, AnthropicImageSource,
+    AnthropicMessage, AnthropicMessageBuilder, AnthropicRequest, AnthropicRequestBuilder,
+    AnthropicResponse, AnthropicResponseBuilder, AnthropicUsage,
+};

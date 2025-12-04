@@ -5,7 +5,6 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-mod anthropic;
 mod budget;
 mod input;
 mod media;
@@ -15,13 +14,6 @@ mod output;
 mod request;
 mod role;
 
-#[cfg(feature = "anthropic")]
-pub use anthropic::AnthropicClient;
-pub use anthropic::{
-    AnthropicConfig, AnthropicConfigBuilder, AnthropicContentBlock, AnthropicMessage,
-    AnthropicMessageBuilder, AnthropicRequest, AnthropicRequestBuilder, AnthropicResponse,
-    AnthropicResponseContent, AnthropicUsage,
-};
 pub use budget::{BudgetConfig, BudgetConfigBuilder};
 pub use input::{HistoryRetention, Input, TableFormat};
 pub use media::MediaSource;

@@ -84,6 +84,10 @@ pub enum AnthropicErrorKind {
     /// Feature not supported
     #[display("Unsupported: {}", _0)]
     Unsupported(String),
+
+    /// Invalid role for message
+    #[display("Invalid role: {}", _0)]
+    InvalidRole(String),
 }
 
 /// Model provider-specific error conditions.
@@ -105,7 +109,12 @@ pub enum ModelsErrorKind {
     /// Anthropic-specific error (will be populated when anthropic feature is enabled)
     #[cfg(feature = "anthropic")]
     #[display("Anthropic: {}", _0)]
+    #[from(AnthropicErrorKind)]
     Anthropic(AnthropicErrorKind),
+
+    /// Invalid role for message
+    #[display("Invalid role: {}", _0)]
+    InvalidRole(String),
 }
 
 /// Model provider error with location tracking.

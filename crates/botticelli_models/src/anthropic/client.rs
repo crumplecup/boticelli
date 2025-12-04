@@ -1,7 +1,5 @@
-use botticelli_core::{
-    AnthropicContentBlock, AnthropicMessage, AnthropicRequest, AnthropicResponse, GenerateRequest,
-    GenerateResponse, Input, Output, Role,
-};
+use crate::{AnthropicContentBlock, AnthropicMessage, AnthropicRequest, AnthropicResponse};
+use botticelli_core::{GenerateRequest, GenerateResponse, Input, Output, Role};
 use botticelli_error::{AnthropicErrorKind, ModelsError};
 use botticelli_interface::BotticelliDriver;
 use botticelli_rate_limit::RateLimitConfig;
@@ -96,7 +94,9 @@ impl AnthropicClient {
                     .content()
                     .iter()
                     .filter_map(|input| match input {
-                        Input::Text(text) => Some(AnthropicContentBlock::text(text)),
+                        Input::Text(text) => {
+                            Some(AnthropicContentBlock::Text { text: text.clone() })
+                        }
                         _ => {
                             debug!("Skipping non-text input (not supported by Anthropic)");
                             None
@@ -139,14 +139,13 @@ impl AnthropicClient {
 
         let messages = messages?;
 
-        let mut builder = AnthropicRequest::builder();
-        builder
+        let mut builder = AnthropicRequest::builder()
             .model(&self.model)
             .max_tokens(4096u32) // Default, could be configurable
             .messages(messages);
 
         if let Some(temp) = request.temperature() {
-            builder.temperature(*temp);
+            builder = builder.temperature(*temp);
         }
 
         builder
@@ -162,7 +161,7 @@ impl AnthropicClient {
         let outputs: Vec<Output> = response
             .content()
             .iter()
-            .map(|content| Output::Text(content.text().to_string()))
+            .map(|content| Output::Text(content.text().clone()))
             .collect();
 
         GenerateResponse::builder()

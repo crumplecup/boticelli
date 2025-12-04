@@ -29,6 +29,8 @@ serde_json = { workspace = true }
 
 # Error handling
 derive_more = { workspace = true, features = ["display", "error"] }
+derive-getters = { workspace = true }
+derive_builder = { workspace = true }
 
 # Logging and metrics
 tracing = { workspace = true }

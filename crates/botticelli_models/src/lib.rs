@@ -6,7 +6,7 @@
 //! # Available Providers
 //!
 //! - **Gemini** (Google) - Enable with `gemini` feature
-//! - **Anthropic** (Claude) - Enable with `anthropic` feature  
+//! - **Anthropic** (Claude) - Enable with `anthropic` feature
 //! - **HuggingFace** - Enable with `huggingface` feature
 //! - **Groq** - Enable with `groq` feature
 //! - **Perplexity** - Enable with `perplexity` feature
@@ -74,7 +74,7 @@ pub use anthropic::{
 
 #[cfg(feature = "huggingface")]
 pub use huggingface::{
-    HuggingFaceClient, HuggingFaceMessage, HuggingFaceMessageBuilder, HuggingFaceRequest,
-    HuggingFaceRequestBuilder, HuggingFaceResponse, HuggingFaceResponseBuilder,
-    HuggingFaceUsage,
+    HuggingFaceDriver, HuggingFaceMetadata, HuggingFaceParameters, HuggingFaceParametersBuilder,
+    HuggingFaceRequest, HuggingFaceRequestBuilder, HuggingFaceResponse,
+    HuggingFaceResponseBuilder,
 };

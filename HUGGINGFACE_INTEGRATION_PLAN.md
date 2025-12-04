@@ -2,20 +2,21 @@
 
 ## Overview
 
-Integrate HuggingFace Inference API support into Botticelli using the `huggingface_inference_rs` crate as the foundation. HuggingFace provides $0.10/month in free credits for all users, making it excellent for testing and prototyping.
+Integrate HuggingFace Inference API support into Botticelli using a custom `reqwest`-based implementation, following the same pattern as the Anthropic integration. HuggingFace provides $0.10/month in free credits for all users, making it excellent for testing and prototyping.
 
-## Selected Crate: huggingface_inference_rs
+## Implementation Approach: Custom Reqwest Client
 
 **Rationale:**
-- Dedicated Rust wrapper for HuggingFace Inference API
-- Actively maintained and documented
-- Supports various NLP tasks (text generation, Q&A, NER, etc.)
-- Straightforward API for basic inference tasks
+- Follow established Anthropic pattern for consistency
+- Direct API control and error handling
+- No dependencies on incomplete/experimental crates
+- Simple, maintainable implementation
 
-**Alternatives considered:**
-- `hf-hub`: Model download/cache only, not inference API
-- `hugging-face-client`: Experimental/nightly, less mature
-- Custom reqwest implementation: More maintenance burden
+**API Details:**
+- Base URL: `https://api-inference.huggingface.co/models/{model_id}`
+- Authentication: `Authorization: Bearer {token}` header
+- Endpoint: POST with JSON body
+- Response: JSON with `generated_text` field
 
 ## Free Tier Details
 
@@ -26,57 +27,57 @@ Integrate HuggingFace Inference API support into Botticelli using the `huggingfa
 
 ## Implementation Phases
 
-### Phase 1: Feature Gates and Dependencies
+### Phase 1: Feature Gates and Dependencies ✅
 
-**Tasks:**
-1. Add `huggingface` feature gate to workspace
-2. Update `local` feature to include `huggingface`
-3. Add `huggingface_inference_rs` dependency to `botticelli_models`
-4. Update all Cargo.toml files with feature flags
+**Status:** Complete - feature gates already in place
 
 **Files:**
 - `Cargo.toml` (workspace root)
-- `crates/botticelli_models/Cargo.toml`
-- `crates/botticelli_error/Cargo.toml`
+- `crates/botticelli_models/Cargo.toml` - uses reqwest (already present)
+- `crates/botticelli_error/Cargo.toml` - has `huggingface` feature
 - `crates/botticelli/Cargo.toml`
 
-### Phase 2: Error Types
+### Phase 2: Error Types ✅
 
-**Tasks:**
-1. Create `HuggingFaceErrorKind` enum in `botticelli_error`
-2. Add API error variants (rate limit, model not found, invalid request)
-3. Add conversion errors (request/response mapping)
-4. Integrate into `ModelsErrorKind` with `#[from]`
+**Status:** Complete
 
 **Files:**
-- `crates/botticelli_error/src/models.rs`
+- `crates/botticelli_error/src/models.rs` - `HuggingFaceErrorKind` defined
+- `crates/botticelli_error/src/lib.rs` - exported
 
-**Error variants:**
-```rust
-#[cfg(feature = "huggingface")]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
-pub enum HuggingFaceErrorKind {
-    #[display("API error: {}", _0)]
-    Api(String),
-    
-    #[display("Rate limit exceeded")]
-    RateLimit,
-    
-    #[display("Model not found: {}", _0)]
-    ModelNotFound(String),
-    
-    #[display("Invalid request: {}", _0)]
-    InvalidRequest(String),
-    
-    #[display("Request conversion failed: {}", _0)]
-    RequestConversion(String),
-    
-    #[display("Response conversion failed: {}", _0)]
-    ResponseConversion(String),
-}
-```
+### Phase 3: DTOs (Request/Response Types) ✅
 
-### Phase 3: DTOs (Request/Response Types)
+**Status:** Complete
+
+**Files:**
+- `crates/botticelli_models/src/huggingface/dto.rs` - All DTOs with builders
+
+### Phase 4: Type Conversions ✅
+
+**Status:** Complete
+
+**Files:**
+- `crates/botticelli_models/src/huggingface/conversions.rs`
+
+### Phase 5: Driver Implementation ✅
+
+**Status:** Complete - Using reqwest following Anthropic pattern
+
+**Files:**
+- `crates/botticelli_models/src/huggingface/driver.rs`
+- `crates/botticelli_models/src/huggingface/mod.rs`
+- `crates/botticelli_models/src/lib.rs` - exports
+
+**Key implementation details:**
+- Base URL: `https://api-inference.huggingface.co/models/{model_id}`
+- Authentication via `Authorization: Bearer {token}` header
+- POST requests with JSON body
+- Response parsing handles both array and object formats
+- Streaming falls back to non-streaming (placeholder for future)
+
+### Phase 6: Configuration Integration
+
+**Status:** Not yet implemented
 
 **Tasks:**
 1. Create `crates/botticelli_models/src/huggingface/` module
@@ -204,7 +205,20 @@ model = "meta-llama/Llama-2-7b-chat-hf"  # Or other available models
 api_key_env = "HUGGINGFACE_API_TOKEN"
 ```
 
-### Phase 7: Testing
+### Phase 7: Testing ✅
+
+**Status:** Complete
+
+**Files:**
+- `crates/botticelli_models/tests/huggingface_api_test.rs`
+
+**Tests:**
+- Basic generation test with gpt2
+- Multiple small model test (gpt2, distilgpt2)
+- All tests feature-gated with `#[cfg_attr(not(feature = "api"), ignore)]`
+- Minimal token usage (5-10 tokens per request)
+
+### Phase 8: Documentation
 
 **Tasks:**
 1. Create unit tests for conversions

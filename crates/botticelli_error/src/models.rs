@@ -90,51 +90,33 @@ pub enum AnthropicErrorKind {
     InvalidRole(String),
 }
 
-/// HuggingFace-specific error conditions (re-exported when huggingface feature is enabled).
+/// HuggingFace-specific error conditions.
 #[cfg(feature = "huggingface")]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
 pub enum HuggingFaceErrorKind {
-    /// HTTP error (connection, timeout, etc.)
-    #[display("HTTP error: {}", _0)]
-    Http(String),
-
-    /// HuggingFace API returned an error
-    #[display("API error (status {}): {message}", status)]
-    /// API error with HTTP status and message
-    ApiError {
-        /// HTTP status code
-        status: u16,
-        /// Error message
-        message: String,
-    },
+    /// API error from HuggingFace
+    #[display("API error: {}", _0)]
+    Api(String),
 
     /// Rate limit exceeded
-    #[display("Rate limit exceeded: {}", _0)]
-    RateLimitExceeded(String),
+    #[display("Rate limit exceeded")]
+    RateLimit,
 
-    /// Requested model not found
+    /// Model not found
     #[display("Model not found: {}", _0)]
     ModelNotFound(String),
 
-    /// Invalid HuggingFace client configuration
-    #[display("Invalid configuration: {}", _0)]
-    InvalidConfiguration(String),
+    /// Invalid request
+    #[display("Invalid request: {}", _0)]
+    InvalidRequest(String),
 
-    /// Error converting between HuggingFace and Botticelli types
-    #[display("Conversion error: {}", _0)]
-    ConversionError(String),
+    /// Request conversion failed
+    #[display("Request conversion failed: {}", _0)]
+    RequestConversion(String),
 
-    /// Builder error when constructing responses
-    #[display("Builder error: {}", _0)]
-    Builder(String),
-
-    /// Feature not supported
-    #[display("Unsupported: {}", _0)]
-    Unsupported(String),
-
-    /// Invalid input
-    #[display("Invalid input: {}", _0)]
-    InvalidInput(String),
+    /// Response conversion failed
+    #[display("Response conversion failed: {}", _0)]
+    ResponseConversion(String),
 }
 
 /// Model provider-specific error conditions.
@@ -159,7 +141,7 @@ pub enum ModelsErrorKind {
     #[from(AnthropicErrorKind)]
     Anthropic(AnthropicErrorKind),
 
-    /// HuggingFace-specific error (will be populated when huggingface feature is enabled)
+    /// HuggingFace-specific error
     #[cfg(feature = "huggingface")]
     #[display("HuggingFace: {}", _0)]
     #[from(HuggingFaceErrorKind)]

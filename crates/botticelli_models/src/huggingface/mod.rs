@@ -1,11 +1,12 @@
 //! HuggingFace Inference API integration.
 
-mod client;
-mod conversion;
 mod dto;
+mod conversions;
+mod driver;
 
-pub use client::HuggingFaceClient;
 pub use dto::{
-    HuggingFaceMessage, HuggingFaceMessageBuilder, HuggingFaceRequest, HuggingFaceRequestBuilder,
-    HuggingFaceResponse, HuggingFaceResponseBuilder, HuggingFaceUsage,
+    HuggingFaceRequest, HuggingFaceRequestBuilder, HuggingFaceResponse,
+    HuggingFaceResponseBuilder, HuggingFaceParameters, HuggingFaceParametersBuilder,
+    HuggingFaceMetadata,
 };
+pub use driver::HuggingFaceDriver;

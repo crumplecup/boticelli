@@ -37,8 +37,10 @@
 //! ```
 
 mod metrics;
+mod openai_compat;
 
 pub use metrics::{LlmMetrics, classify_error};
+pub use openai_compat::OpenAICompatibleClient;
 
 #[cfg(feature = "gemini")]
 mod gemini;

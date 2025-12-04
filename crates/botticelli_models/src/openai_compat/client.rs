@@ -1,0 +1,134 @@
+//! Generic client for OpenAI-compatible APIs.
+
+use crate::openai_compat::{conversions, ChatResponse, OpenAICompatError};
+use botticelli_core::{GenerateRequest, GenerateResponse};
+use botticelli_rate_limit::RateLimitConfig;
+use reqwest::Client;
+use tracing::{debug, error, instrument};
+
+/// Generic client for any OpenAI-compatible API.
+///
+/// This client handles the common OpenAI chat completions format used by
+/// HuggingFace, Groq, and potentially other providers.
+#[derive(Debug, Clone)]
+pub struct OpenAICompatibleClient {
+    client: Client,
+    api_key: String,
+    model: String,
+    base_url: String,
+    provider_name: &'static str,
+    rate_limits: RateLimitConfig,
+}
+
+impl OpenAICompatibleClient {
+    /// Creates a new OpenAI-compatible client.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_key` - API key for authentication
+    /// * `model` - Model identifier
+    /// * `base_url` - Base URL for the API endpoint
+    /// * `provider_name` - Name of the provider (for logging/tracing)
+    #[instrument(skip(api_key), fields(provider = provider_name, model = %model))]
+    pub fn new(
+        api_key: String,
+        model: String,
+        base_url: String,
+        provider_name: &'static str,
+    ) -> Self {
+        let client = Client::new();
+        let rate_limits = RateLimitConfig::unlimited(provider_name);
+
+        debug!(
+            provider = provider_name,
+            model = %model,
+            url = %base_url,
+            "Created OpenAI-compatible client"
+        );
+
+        Self {
+            client,
+            api_key,
+            model,
+            base_url,
+            provider_name,
+            rate_limits,
+        }
+    }
+
+    /// Generates a response from the API.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the request fails or the response cannot be parsed.
+    #[instrument(skip(self, req), fields(provider = self.provider_name, model = %self.model))]
+    pub async fn generate(
+        &self,
+        req: &GenerateRequest,
+    ) -> Result<GenerateResponse, OpenAICompatError> {
+        let chat_request = conversions::to_chat_request(req, &self.model)?;
+
+        debug!(
+            provider = self.provider_name,
+            model = %self.model,
+            message_count = chat_request.messages().len(),
+            "Sending request"
+        );
+
+        let response = self
+            .client
+            .post(&self.base_url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&chat_request)
+            .send()
+            .await
+            .map_err(|e| {
+                error!(provider = self.provider_name, error = ?e, "HTTP request failed");
+                OpenAICompatError::Http(format!("Request failed: {}", e))
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            error!(
+                provider = self.provider_name,
+                status = %status,
+                error = %error_text,
+                "API error"
+            );
+
+            return Err(OpenAICompatError::Api {
+                status: status.as_u16(),
+                message: error_text,
+            });
+        }
+
+        let chat_response: ChatResponse = response.json().await.map_err(|e| {
+            error!(provider = self.provider_name, error = ?e, "Failed to parse response");
+            OpenAICompatError::ResponseParsing(format!("Failed to parse JSON: {}", e))
+        })?;
+
+        debug!(
+            provider = self.provider_name,
+            choices = chat_response.choices.len(),
+            "Received response"
+        );
+
+        conversions::from_chat_response(&chat_response)
+    }
+
+    /// Returns the provider name.
+    pub fn provider_name(&self) -> &'static str {
+        self.provider_name
+    }
+
+    /// Returns the model name.
+    pub fn model_name(&self) -> &str {
+        &self.model
+    }
+
+    /// Returns the rate limits configuration.
+    pub fn rate_limits(&self) -> &RateLimitConfig {
+        &self.rate_limits
+    }
+}

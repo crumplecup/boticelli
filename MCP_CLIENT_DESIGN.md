@@ -456,3 +456,22 @@ Design and implement an MCP client that enables Botticelli to become self-drivin
 - LlmBackend trait requires Debug for instrumentation
 
 **Next**: Implement LLM backend adapters (Phase 2)
+
+### Phase 10: Testing ⏸️ DEFERRED
+
+**Status**: Awaiting actual usage patterns
+
+**Reasoning**:
+- MCP client has complex API with LlmBackend trait requirement
+- No clear integration point yet (needs Phase 8 Discord bot)
+- Better to test in context of real usage
+- Unit tests would require extensive mocking of MCP protocol
+
+**Future Tasks**:
+1. Integration tests with real Discord bot workflows
+2. Tool execution tests with actual MCP servers  
+3. Error handling and retry logic validation
+4. Performance benchmarks with token counting
+5. Context management strategy validation
+
+**Next**: Implement Phase 8 (Discord Bot Integration) to provide testing context

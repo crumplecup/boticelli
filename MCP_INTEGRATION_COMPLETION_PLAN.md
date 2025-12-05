@@ -238,16 +238,24 @@
 
 **Goal:** Enable end-to-end content generation → posting workflows.
 
+**Note:** Discord HTTP API tools already exist in `tools/discord.rs`:
+- ✅ `DiscordPostMessageTool` - Post messages
+- ✅ `DiscordGetGuildInfoTool` - Query guild info
+- ✅ `DiscordGetChannelsTool` - List channels  
+- ✅ `DiscordGetMessagesTool` - Retrieve messages
+
+These provide the foundation for Discord workflows.
+
 #### Features to Implement
 
 1. **Narrative → Discord Pipeline**
    - Execute narrative
    - Extract structured output
-   - Post to Discord channel
+   - Post to Discord channel (tool exists)
    - Store content in database
 
 2. **Template Variables from Discord**
-   - Fetch guild/channel context
+   - Fetch guild/channel context (tools exist)
    - Pass as narrative variables
    - Enable context-aware generation
 
@@ -257,7 +265,7 @@
    - Steps:
      1. Execute narrative
      2. Extract content
-     3. Post to Discord
+     3. Post to Discord (existing tool)
      4. Log result
    - Output: Message ID, metrics
 

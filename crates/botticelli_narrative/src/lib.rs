@@ -47,6 +47,7 @@ mod provider;
 mod state;
 mod table_reference;
 mod toml_parser;
+pub mod validator;
 
 #[cfg(feature = "database")]
 mod content_generation;

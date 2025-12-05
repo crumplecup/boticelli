@@ -1,13 +1,13 @@
 //! MCP server implementation.
 
-use crate::{ResourceRegistry, tools::ToolRegistry};
-use mcp_server::Router;
+use crate::{tools::ToolRegistry, ResourceRegistry};
 use mcp_server::router::CapabilitiesBuilder;
+use mcp_server::Router;
 use mcp_spec::{
     content::Content,
     handler::{PromptError, ResourceError, ToolError},
-    protocol::ServerCapabilities,
     prompt::Prompt,
+    protocol::ServerCapabilities,
     resource::Resource,
     tool::Tool,
 };

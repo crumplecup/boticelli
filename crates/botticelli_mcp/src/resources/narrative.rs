@@ -32,12 +32,16 @@ impl NarrativeResource {
 
     /// Parses a narrative URI into a name.
     fn parse_uri(&self, uri: &str) -> McpResult<String> {
-        let name = uri
-            .strip_prefix("narrative://")
-            .ok_or_else(|| McpError::ResourceNotFound("Invalid narrative URI: missing narrative:// scheme".to_string()))?;
+        let name = uri.strip_prefix("narrative://").ok_or_else(|| {
+            McpError::ResourceNotFound(
+                "Invalid narrative URI: missing narrative:// scheme".to_string(),
+            )
+        })?;
 
         if name.is_empty() {
-            return Err(McpError::InvalidInput("Invalid narrative URI: empty name".to_string()));
+            return Err(McpError::InvalidInput(
+                "Invalid narrative URI: empty name".to_string(),
+            ));
         }
 
         Ok(name.to_string())
@@ -81,7 +85,9 @@ impl NarrativeResource {
 
         let mut narratives = Vec::new();
         for entry in entries {
-            let entry = entry.map_err(|e| McpError::ToolExecutionFailed(format!("Failed to read entry: {}", e)))?;
+            let entry = entry.map_err(|e| {
+                McpError::ToolExecutionFailed(format!("Failed to read entry: {}", e))
+            })?;
             let path = entry.path();
 
             if path.extension().and_then(|s| s.to_str()) == Some("toml") {

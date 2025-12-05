@@ -38,6 +38,7 @@ derive-getters.workspace = true
 botticelli_rate_limit = { version = "0.2.0", path = "../botticelli_rate_limit" }
 regex = { workspace = true }
 derive_setters.workspace = true
+petgraph = "0.6"
 
 [features]
 default = []

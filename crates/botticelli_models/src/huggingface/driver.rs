@@ -28,10 +28,7 @@ impl HuggingFaceDriver {
     pub fn new(model: String) -> ModelsResult<Self> {
         let api_token = std::env::var("HUGGINGFACE_API_KEY").map_err(|e| {
             ModelsError::new(botticelli_error::ModelsErrorKind::HuggingFace(
-                HuggingFaceErrorKind::InvalidRequest(format!(
-                    "HUGGINGFACE_API_KEY not set: {}",
-                    e
-                )),
+                HuggingFaceErrorKind::InvalidRequest(format!("HUGGINGFACE_API_KEY not set: {}", e)),
             ))
         })?;
 
@@ -118,10 +115,8 @@ impl Streaming for HuggingFaceDriver {
                     .is_final(true)
                     .build()
                     .map_err(|e| {
-                        ModelsError::new(botticelli_error::ModelsErrorKind::Builder(
-                            e.to_string(),
-                        ))
-                        .into()
+                        ModelsError::new(botticelli_error::ModelsErrorKind::Builder(e.to_string()))
+                            .into()
                     })
             })
             .collect();

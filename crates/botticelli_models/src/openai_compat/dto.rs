@@ -43,35 +43,70 @@ impl ChatRequest {
 }
 
 /// A choice in the OpenAI response.
-#[derive(Debug, Clone, Deserialize)]
+///
+/// Represents one possible completion from the model. In non-streaming mode,
+/// typically contains a single choice with the complete response.
+#[derive(Debug, Clone, Deserialize, derive_getters::Getters)]
 pub struct ChatChoice {
-    /// The message content
+    /// The message content returned by the model
     pub message: ChatMessage,
-    /// Reason for finishing
+    
+    /// Reason the model stopped generating
+    ///
+    /// Common values: "stop" (natural completion), "length" (max tokens reached),
+    /// "content_filter" (filtered by safety systems).
+    /// Deserialized from API response.
     #[serde(default)]
     pub finish_reason: Option<String>,
 }
 
-/// Token usage statistics.
-#[derive(Debug, Clone, Deserialize)]
+/// Token usage statistics for a completion request.
+///
+/// Tracks token consumption for billing and rate limiting purposes.
+/// All providers return slightly different formats, so fields are optional.
+/// All fields are public as this is a DTO deserialized from API responses.
+#[derive(Debug, Clone, Deserialize, derive_getters::Getters)]
 pub struct ChatUsage {
-    /// Tokens in the prompt
+    /// Number of tokens in the input prompt
+    ///
+    /// Used to calculate input costs and track rate limits.
+    /// Deserialized from API response.
     #[serde(default)]
     pub prompt_tokens: Option<usize>,
-    /// Tokens in the completion
+    
+    /// Number of tokens in the generated completion
+    ///
+    /// Used to calculate output costs (typically higher than input).
+    /// Deserialized from API response.
     #[serde(default)]
     pub completion_tokens: Option<usize>,
-    /// Total tokens
+    
+    /// Total tokens used (prompt + completion)
+    ///
+    /// May differ slightly from sum due to provider-specific counting.
+    /// Deserialized from API response.
     #[serde(default)]
     pub total_tokens: Option<usize>,
 }
 
 /// OpenAI chat completion response.
-#[derive(Debug, Clone, Deserialize)]
+///
+/// Returned by OpenAI-compatible APIs after a successful completion request.
+/// Contains the generated text and metadata about token usage.
+/// All fields are public as this is a DTO deserialized from API responses.
+#[derive(Debug, Clone, Deserialize, derive_getters::Getters)]
 pub struct ChatResponse {
-    /// Response choices
+    /// One or more completion choices
+    ///
+    /// Non-streaming requests typically return a single choice.
+    /// The `n` parameter in the request controls how many choices are returned.
     pub choices: Vec<ChatChoice>,
-    /// Token usage
+    
+    /// Token usage statistics for this request
+    ///
+    /// Used for billing calculations and rate limit tracking.
+    /// May be absent in streaming responses or error cases.
+    /// Deserialized from API response.
     #[serde(default)]
     pub usage: Option<ChatUsage>,
 }

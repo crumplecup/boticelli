@@ -56,9 +56,7 @@ pub fn from_chat_response(response: &ChatResponse) -> Result<GenerateResponse, O
         .choices
         .first()
         .map(|choice| choice.message.content.clone())
-        .ok_or_else(|| {
-            OpenAICompatError::ResponseParsing("No choices in response".to_string())
-        })?;
+        .ok_or_else(|| OpenAICompatError::ResponseParsing("No choices in response".to_string()))?;
 
     let output = Output::Text(content);
 

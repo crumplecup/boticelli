@@ -20,9 +20,9 @@ impl ContentResource {
 
     /// Parses a content URI into (table, id).
     fn parse_uri(&self, uri: &str) -> McpResult<(String, i32)> {
-        let without_scheme = uri
-            .strip_prefix("content://")
-            .ok_or_else(|| McpError::ResourceNotFound("Invalid content URI: missing content:// scheme".to_string()))?;
+        let without_scheme = uri.strip_prefix("content://").ok_or_else(|| {
+            McpError::ResourceNotFound("Invalid content URI: missing content:// scheme".to_string())
+        })?;
 
         let parts: Vec<&str> = without_scheme.split('/').collect();
         if parts.len() != 2 {
@@ -43,8 +43,9 @@ impl ContentResource {
     /// Queries content from database.
     #[instrument(skip(self))]
     fn query_content(&self, table: &str, id: i32) -> McpResult<serde_json::Value> {
-        let mut conn = establish_connection()
-            .map_err(|e| McpError::ToolExecutionFailed(format!("Database connection failed: {}", e)))?;
+        let mut conn = establish_connection().map_err(|e| {
+            McpError::ToolExecutionFailed(format!("Database connection failed: {}", e))
+        })?;
 
         get_content_by_id(&mut conn, table, id as i64)
             .map_err(|e| McpError::ResourceNotFound(format!("Content not found: {}", e)))
@@ -75,14 +76,16 @@ impl McpResource for ContentResource {
         let content = self.query_content(&table, id)?;
 
         // Format as JSON
-        serde_json::to_string_pretty(&content)
-            .map_err(|e| McpError::ToolExecutionFailed(format!("Failed to serialize content: {}", e)))
+        serde_json::to_string_pretty(&content).map_err(|e| {
+            McpError::ToolExecutionFailed(format!("Failed to serialize content: {}", e))
+        })
     }
 
     #[instrument(skip(self))]
     async fn list(&self) -> McpResult<Vec<ResourceInfo>> {
-        let mut conn = establish_connection()
-            .map_err(|e| McpError::ToolExecutionFailed(format!("Database connection failed: {}", e)))?;
+        let mut conn = establish_connection().map_err(|e| {
+            McpError::ToolExecutionFailed(format!("Database connection failed: {}", e))
+        })?;
 
         // List recent content (limit 20 for performance)
         let rows = list_content(&mut conn, "content", None, 20)
@@ -93,7 +96,7 @@ impl McpResource for ContentResource {
             .filter_map(|row| {
                 let id = row.get("id")?.as_i64()? as i32;
                 let text = row.get("text_content")?.as_str()?;
-                
+
                 let preview = if text.len() > 50 {
                     format!("{}...", &text[..50])
                 } else {

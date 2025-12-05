@@ -85,7 +85,9 @@ impl ResourceRegistry {
         for resource in self.resources.as_ref() {
             match resource.list().await {
                 Ok(resources) => all_resources.extend(resources),
-                Err(e) => debug!(error = %e, pattern = %resource.uri_pattern(), "Failed to list resources"),
+                Err(e) => {
+                    debug!(error = %e, pattern = %resource.uri_pattern(), "Failed to list resources")
+                }
             }
         }
 
@@ -102,6 +104,9 @@ impl ResourceRegistry {
             }
         }
 
-        Err(crate::McpError::ResourceNotFound(format!("No resource handler for URI: {}", uri)))
+        Err(crate::McpError::ResourceNotFound(format!(
+            "No resource handler for URI: {}",
+            uri
+        )))
     }
 }

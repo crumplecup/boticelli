@@ -35,16 +35,31 @@
 mod error;
 mod resources;
 mod server;
-mod tools;
+pub mod tools;
 
 pub use error::{McpError, McpResult};
-pub use resources::{ResourceRegistry, McpResource, ResourceInfo, NarrativeResource};
+pub use resources::{McpResource, NarrativeResource, ResourceInfo, ResourceRegistry};
 pub use server::{BotticelliRouter, BotticelliRouterBuilder};
-pub use tools::{ToolRegistry, McpTool, QueryContentTool, EchoTool, ServerInfoTool};
+pub use tools::{
+    EchoTool, ExecuteNarrativeTool, GenerateTool, McpTool, QueryContentTool, ServerInfoTool,
+    ToolRegistry, ValidateNarrativeTool,
+};
+
+// Export LLM tools based on features
+#[cfg(feature = "gemini")]
+pub use tools::GenerateGeminiTool;
+#[cfg(feature = "anthropic")]
+pub use tools::GenerateAnthropicTool;
+#[cfg(feature = "ollama")]
+pub use tools::GenerateOllamaTool;
+#[cfg(feature = "huggingface")]
+pub use tools::GenerateHuggingFaceTool;
+#[cfg(feature = "groq")]
+pub use tools::GenerateGroqTool;
 
 #[cfg(feature = "database")]
 pub use resources::ContentResource;
 
 // Re-export key mcp-server types for convenience
-pub use mcp_server::{ByteTransport, Router, Server};
 pub use mcp_server::router::RouterService;
+pub use mcp_server::{ByteTransport, Router, Server};

@@ -60,8 +60,9 @@ impl McpTool for QueryContentTool {
         #[cfg(feature = "database")]
         {
             // Query the database
-            let mut conn = establish_connection()
-                .map_err(|e| McpError::ToolExecutionFailed(format!("Database connection failed: {}", e)))?;
+            let mut conn = establish_connection().map_err(|e| {
+                McpError::ToolExecutionFailed(format!("Database connection failed: {}", e))
+            })?;
 
             let rows = list_content(&mut conn, table, None, limit as usize)
                 .map_err(|e| McpError::ToolExecutionFailed(format!("Query failed: {}", e)))?;

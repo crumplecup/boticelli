@@ -79,6 +79,45 @@ pub enum Commands {
         #[arg(long)]
         only: Option<String>,
     },
+
+    /// Validate narrative TOML files
+    Validate {
+        /// Path to narrative file or directory to validate
+        path: PathBuf,
+
+        /// Check that media files exist
+        #[arg(long, default_value = "true")]
+        validate_files: bool,
+
+        /// Warn on unknown model names
+        #[arg(long, default_value = "true")]
+        validate_models: bool,
+
+        /// Base directory for relative paths
+        #[arg(long)]
+        base_dir: Option<PathBuf>,
+
+        /// Output format (human or json)
+        #[arg(long, default_value = "human")]
+        format: ValidationOutputFormat,
+
+        /// Treat warnings as errors
+        #[arg(long)]
+        strict: bool,
+
+        /// Only show errors, not warnings
+        #[arg(long)]
+        quiet: bool,
+    },
+}
+
+/// Output format for validation results
+#[derive(ValueEnum, Clone, Debug)]
+pub enum ValidationOutputFormat {
+    /// Human-readable format
+    Human,
+    /// JSON format
+    Json,
 }
 
 /// Content management subcommands

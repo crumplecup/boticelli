@@ -40,7 +40,9 @@ mod metrics;
 mod openai_compat;
 
 pub use metrics::{LlmMetrics, classify_error};
-pub use openai_compat::OpenAICompatibleClient;
+pub use openai_compat::{
+    ChatMessage, ChatRequest, ChatResponse, OpenAICompatError, OpenAICompatibleClient,
+};
 
 #[cfg(feature = "gemini")]
 mod gemini;

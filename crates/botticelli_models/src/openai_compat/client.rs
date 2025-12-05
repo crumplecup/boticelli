@@ -1,6 +1,6 @@
 //! Generic client for OpenAI-compatible APIs.
 
-use crate::openai_compat::{conversions, ChatResponse, OpenAICompatError};
+use crate::openai_compat::{ChatResponse, OpenAICompatError, conversions};
 use botticelli_core::{GenerateRequest, GenerateResponse};
 use botticelli_rate_limit::RateLimitConfig;
 use reqwest::Client;

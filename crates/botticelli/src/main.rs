@@ -136,6 +136,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Server { config, only } => {
             handle_server_command(config, only).await?;
         }
+
+        Commands::Validate {
+            path,
+            validate_files,
+            validate_models,
+            base_dir,
+            format,
+            strict,
+            quiet,
+        } => {
+            use cli::handle_validate_command;
+
+            handle_validate_command(
+                path,
+                validate_files,
+                validate_models,
+                base_dir,
+                format,
+                strict,
+                quiet,
+            )?;
+        }
     }
 
     // Graceful shutdown of observability

@@ -113,10 +113,8 @@ impl Streaming for GroqDriver {
                     .is_final(true)
                     .build()
                     .map_err(|e| {
-                        ModelsError::new(botticelli_error::ModelsErrorKind::Builder(
-                            e.to_string(),
-                        ))
-                        .into()
+                        ModelsError::new(botticelli_error::ModelsErrorKind::Builder(e.to_string()))
+                            .into()
                     })
             })
             .collect();

@@ -32,7 +32,10 @@ chrono = "0.4"
 # Internal dependencies
 botticelli_core = { path = "../botticelli_core", version = "0.2.0" }
 botticelli_error = { path = "../botticelli_error", version = "0.2.0" }
+botticelli_interface = { path = "../botticelli_interface", version = "0.2.0", optional = true }
+botticelli_narrative = { path = "../botticelli_narrative", version = "0.2.0" }
 botticelli_database = { path = "../botticelli_database", version = "0.2.0", optional = true }
+botticelli_models = { path = "../botticelli_models", version = "0.2.0", optional = true }
 mcp-spec = "0.1.0"
 
 # Database (only when feature enabled)
@@ -44,6 +47,17 @@ tokio-test = "0.4"
 [features]
 default = []
 database = ["dep:botticelli_database", "dep:diesel"]
+
+# LLM backend features
+gemini = ["dep:botticelli_interface", "dep:botticelli_models", "botticelli_models/gemini"]
+anthropic = ["dep:botticelli_interface", "dep:botticelli_models", "botticelli_models/anthropic"]
+ollama = ["dep:botticelli_interface", "dep:botticelli_models", "botticelli_models/ollama"]
+huggingface = ["dep:botticelli_interface", "dep:botticelli_models", "botticelli_models/huggingface"]
+groq = ["dep:botticelli_interface", "dep:botticelli_models", "botticelli_models/groq"]
+
+# Combined LLM features
+llm = ["gemini", "anthropic", "ollama", "huggingface", "groq"]
+execution = ["llm"]  # Enable execution features
 
 [package.metadata.docs.rs]
 all-features = true

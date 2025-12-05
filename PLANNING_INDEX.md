@@ -45,6 +45,12 @@ This index tracks all planning documents in the workspace. When documents are co
   - Analysis and fix strategy for narrative composition loading
 - **PODMAN_CONTAINERIZATION.md** - `current` (2025-11-30)
   - Strategy for containerizing bot-server with Podman
+- **NARRATIVE_VALIDATOR_DESIGN.md** - `current` (2025-12-05)
+  - Comprehensive design for narrative TOML validation with actionable error messages
+  - Phases 1-6 complete: validator infrastructure, CLI integration, MCP tools
+- **MCP_MULTI_LLM_IMPLEMENTATION.md** - `current` (2025-12-05)
+  - Multi-backend LLM implementation strategy for MCP server
+  - Replaces macro approach with explicit per-backend tools
 
 ### Testing & Quality
 - **TESTING_PATTERNS.md** - `718bf35` (2025-11-22)
@@ -248,3 +254,4 @@ This index tracks all planning documents in the workspace. When documents are co
 5. Plan Phase 2 (if validated)
 
 **Status:** Ready for testing and validation
+- [MCP Multi-LLM Implementation](MCP_MULTI_LLM_IMPLEMENTATION.md) - Strategy for implementing multiple LLM backends

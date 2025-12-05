@@ -2,11 +2,30 @@
 
 mod database;
 mod echo;
+mod execute_narrative;
+mod generate;
+mod generate_llm;
 mod server_info;
+mod validate_narrative;
 
 pub use database::QueryContentTool;
 pub use echo::EchoTool;
+pub use execute_narrative::ExecuteNarrativeTool;
+pub use generate::GenerateTool;
 pub use server_info::ServerInfoTool;
+pub use validate_narrative::ValidateNarrativeTool;
+
+// Export LLM tools based on features
+#[cfg(feature = "gemini")]
+pub use generate_llm::GenerateGeminiTool;
+#[cfg(feature = "anthropic")]
+pub use generate_llm::GenerateAnthropicTool;
+#[cfg(feature = "ollama")]
+pub use generate_llm::GenerateOllamaTool;
+#[cfg(feature = "huggingface")]
+pub use generate_llm::GenerateHuggingFaceTool;
+#[cfg(feature = "groq")]
+pub use generate_llm::GenerateGroqTool;
 
 use crate::{McpError, McpResult};
 use async_trait::async_trait;
@@ -72,9 +91,77 @@ impl ToolRegistry {
 impl Default for ToolRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
+        
+        // Core tools
         registry.register(Arc::new(EchoTool));
         registry.register(Arc::new(ServerInfoTool));
+        
+        // Validation tool
+        registry.register(Arc::new(ValidateNarrativeTool));
+        
+        // Execution tools (Phase 3 - Framework)
+        registry.register(Arc::new(GenerateTool));
+        registry.register(Arc::new(ExecuteNarrativeTool::new()));
+        
+        // Execution tools (Phase 4 - Multi-backend LLM integration)
+        #[cfg(feature = "gemini")]
+        if let Ok(tool) = GenerateGeminiTool::new() {
+            registry.register(Arc::new(tool));
+            tracing::info!("Gemini generation tool registered");
+        } else {
+            tracing::warn!("Gemini not available (check GEMINI_API_KEY)");
+        }
+        
+        #[cfg(feature = "anthropic")]
+        if let Ok(tool) = GenerateAnthropicTool::new() {
+            registry.register(Arc::new(tool));
+            tracing::info!("Anthropic generation tool registered");
+        } else {
+            tracing::warn!("Anthropic not available (check ANTHROPIC_API_KEY)");
+        }
+        
+        #[cfg(feature = "ollama")]
+        if let Ok(tool) = GenerateOllamaTool::new() {
+            registry.register(Arc::new(tool));
+            tracing::info!("Ollama generation tool registered");
+        } else {
+            tracing::warn!("Ollama not available (check OLLAMA_HOST)");
+        }
+        
+        #[cfg(feature = "huggingface")]
+        if let Ok(tool) = GenerateHuggingFaceTool::new() {
+            registry.register(Arc::new(tool));
+            tracing::info!("HuggingFace generation tool registered");
+        } else {
+            tracing::warn!("HuggingFace not available (check HUGGINGFACE_API_KEY)");
+        }
+        
+        #[cfg(feature = "groq")]
+        if let Ok(tool) = GenerateGroqTool::new() {
+            registry.register(Arc::new(tool));
+            tracing::info!("Groq generation tool registered");
+        } else {
+            tracing::warn!("Groq not available (check GROQ_API_KEY)");
+        }
+        
+        // Database tool (feature-gated)
+        #[cfg(feature = "database")]
         registry.register(Arc::new(QueryContentTool));
+        
+        tracing::info!("ToolRegistry initialized with {} tools", registry.tools.len());
         registry
+    }
+}
+
+/// Returns the number of registered tools.
+impl ToolRegistry {
+    /// Gets the number of registered tools.
+    pub fn len(&self) -> usize {
+        self.tools.len()
+    }
+
+    /// Returns true if no tools are registered.
+    pub fn is_empty(&self) -> bool {
+        self.tools.is_empty()
     }
 }

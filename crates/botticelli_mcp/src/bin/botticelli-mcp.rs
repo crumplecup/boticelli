@@ -16,9 +16,7 @@ use botticelli_mcp::ContentResource;
 async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()),
-        )
+        .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
         .with_target(false)
         .with_thread_ids(false)
         .with_file(true)

@@ -265,8 +265,8 @@ test-db:
     test -n "${DATABASE_URL}" || (echo "❌ DATABASE_URL not set. Database tests require a PostgreSQL database." && exit 1)
     cargo test --workspace --features database
 
-# Run the full test suite: local + doc tests
-test-all: test test-doc
+# Run local + doc tests (no linting)
+test-full: test test-doc
 
 # Run tests and show coverage (requires cargo-tarpaulin)
 test-coverage:
@@ -468,7 +468,7 @@ check-features:
     fi
 
 # Run all checks (lint, format check, tests)
-check-all package='':
+test-all package='':
     #!/usr/bin/env bash
     set -uo pipefail  # Removed -e so we can capture exit codes
     LOG_FILE="/tmp/botticelli_check_all.log"
@@ -841,7 +841,7 @@ ci: fmt-check lint check-features test-pre-merge audit
     @echo "✅ CI pipeline completed successfully!"
 
 # Prepare for commit (format, lint, local tests, feature checks)
-pre-commit: fix-all check-features test-all
+pre-commit: fix-all check-features test-full
     @echo "✅ Ready to commit!"
 
 # Prepare for merge (all checks including API tests)
@@ -1032,7 +1032,7 @@ alias b := build
 alias t := test
 alias l := lint
 alias f := fmt
-alias c := check-all
+alias c := check
 alias r := run
 alias d := docs
 

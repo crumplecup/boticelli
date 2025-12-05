@@ -2,7 +2,7 @@
 
 **Status:** In Progress  
 **Created:** 2025-12-05  
-**Last Updated:** 2025-12-05
+**Last Updated:** 2025-12-05 20:16 UTC
 
 ## Progress Summary
 
@@ -39,8 +39,10 @@
 - ✅ Created `processors/` module with Discord data extraction processors
 - ✅ Implemented `DiscordGuildProcessor` for guild data storage
 - ✅ Implemented `DiscordChannelProcessor` for channel data storage
-- ⏳ Integration with execute_narrative tool
+- ⏳ Integration with execute_narrative tool (NEXT STEP)
 - ⏳ Testing of processors
+- ⏳ State management across executions
+- ⏳ Carousel execution (looping narratives)
 
 **Phase 6: Discord MCP Tools** - 🚧 IN PROGRESS
 - Discord tools implemented and registered
@@ -112,9 +114,13 @@
 - ✅ Duration tracking per act and total narrative execution
 - ✅ Performance metrics recorded in tracing spans
 - ✅ Summary logging with act count and timing statistics
-- ✅ Token counting trait implemented for all LLM backends (Dec 5, 2024)
-- ⏳ Token usage tracking integration with narrative execution
-- ⏳ Cost monitoring (depends on token tracking integration)
+- ✅ TokenCounting trait implemented in botticelli_core (Dec 5, 2024)
+  - Provides `count_tokens()` for pre-flight estimation
+  - `TokenUsage` struct with cost calculation
+  - `get_tokenizer()` helper using tiktoken-rs
+- ⏳ Integrate TokenCounting with LLM clients (BLOCKED: needs compilation fixes)
+- ⏳ Token usage tracking in narrative execution
+- ⏳ Cost monitoring per narrative/act
 
 **Phase 8: Social Media Integration** (✅ Complete - Bot Commands)
 - ✅ Post to Discord via MCP tools (`DiscordPostTool`)
@@ -415,6 +421,34 @@ Completed Phase 3 observability by implementing token usage tracking:
 - Feature-gate compatible
 
 **Commit:** `180ea34` - feat(core,models): Add token usage tracking to GenerateResponse
+
+---
+
+### TokenCounting Trait Implementation 🚧
+
+Started Phase 7 token counting trait for pre-flight estimation:
+
+**What was implemented:**
+- Created `TokenCounting` trait in `botticelli_core::traits`
+- Added `TokenUsage` struct with cost calculation
+- Implemented `get_tokenizer()` helper using tiktoken-rs
+- Added tiktoken-rs dependency to botticelli_core
+
+**Status:** ⚠️ COMPILATION BLOCKED
+- Multiple trait implementation errors in LLM drivers
+- Need to resolve before committing
+- Code staged but NOT committed per user requirement
+
+**Next Steps:**
+1. Fix compilation errors in LLM clients
+2. Implement TokenCounting for all backends
+3. Integrate with narrative execution
+4. Add cost monitoring to MCP tools
+
+**Current blockers:**
+- Trait lifetime issues in implementations
+- Missing encoder methods
+- Feature gate coordination needed
 
 ---
 

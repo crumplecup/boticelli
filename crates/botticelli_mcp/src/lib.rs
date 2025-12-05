@@ -47,21 +47,20 @@ pub use tools::{
 
 #[cfg(feature = "discord")]
 pub use tools::{
-    DiscordGetChannelsTool, DiscordGetGuildInfoTool, DiscordGetMessagesTool,
-    DiscordPostMessageTool,
+    DiscordGetChannelsTool, DiscordGetGuildInfoTool, DiscordGetMessagesTool, DiscordPostMessageTool,
 };
 
 // Export LLM tools based on features
-#[cfg(feature = "gemini")]
-pub use tools::GenerateGeminiTool;
 #[cfg(feature = "anthropic")]
 pub use tools::GenerateAnthropicTool;
-#[cfg(feature = "ollama")]
-pub use tools::GenerateOllamaTool;
-#[cfg(feature = "huggingface")]
-pub use tools::GenerateHuggingFaceTool;
+#[cfg(feature = "gemini")]
+pub use tools::GenerateGeminiTool;
 #[cfg(feature = "groq")]
 pub use tools::GenerateGroqTool;
+#[cfg(feature = "huggingface")]
+pub use tools::GenerateHuggingFaceTool;
+#[cfg(feature = "ollama")]
+pub use tools::GenerateOllamaTool;
 
 #[cfg(feature = "database")]
 pub use resources::ContentResource;

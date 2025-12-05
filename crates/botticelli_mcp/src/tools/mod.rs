@@ -17,15 +17,12 @@ mod validate_narrative;
 pub use database::QueryContentTool;
 #[cfg(feature = "discord")]
 pub use discord::{
-    DiscordGetChannelsTool, DiscordGetGuildInfoTool, DiscordGetMessagesTool,
-    DiscordPostMessageTool,
+    DiscordGetChannelsTool, DiscordGetGuildInfoTool, DiscordGetMessagesTool, DiscordPostMessageTool,
 };
 pub use echo::EchoTool;
 pub use execute_act::ExecuteActTool;
 pub use execute_narrative::ExecuteNarrativeTool;
 pub use generate::GenerateTool;
-#[cfg(feature = "discord")]
-pub use social::{DiscordBotCommandTool, DiscordPostTool};
 #[cfg(any(
     feature = "gemini",
     feature = "anthropic",
@@ -35,19 +32,21 @@ pub use social::{DiscordBotCommandTool, DiscordPostTool};
 ))]
 pub use narrative_processor::McpProcessorCollector;
 pub use server_info::ServerInfoTool;
+#[cfg(feature = "discord")]
+pub use social::{DiscordBotCommandTool, DiscordPostTool};
 pub use validate_narrative::ValidateNarrativeTool;
 
 // Export LLM tools based on features
-#[cfg(feature = "gemini")]
-pub use generate_llm::GenerateGeminiTool;
 #[cfg(feature = "anthropic")]
 pub use generate_llm::GenerateAnthropicTool;
-#[cfg(feature = "ollama")]
-pub use generate_llm::GenerateOllamaTool;
-#[cfg(feature = "huggingface")]
-pub use generate_llm::GenerateHuggingFaceTool;
+#[cfg(feature = "gemini")]
+pub use generate_llm::GenerateGeminiTool;
 #[cfg(feature = "groq")]
 pub use generate_llm::GenerateGroqTool;
+#[cfg(feature = "huggingface")]
+pub use generate_llm::GenerateHuggingFaceTool;
+#[cfg(feature = "ollama")]
+pub use generate_llm::GenerateOllamaTool;
 
 use crate::{McpError, McpResult};
 use async_trait::async_trait;
@@ -113,19 +112,19 @@ impl ToolRegistry {
 impl Default for ToolRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
-        
+
         // Core tools
         registry.register(Arc::new(EchoTool));
         registry.register(Arc::new(ServerInfoTool));
-        
+
         // Validation tool
         registry.register(Arc::new(ValidateNarrativeTool));
-        
+
         // Execution tools (Phase 2 & 3)
         registry.register(Arc::new(GenerateTool));
         registry.register(Arc::new(ExecuteActTool::new()));
         registry.register(Arc::new(ExecuteNarrativeTool::new()));
-        
+
         // Execution tools (Phase 4 - Multi-backend LLM integration)
         #[cfg(feature = "gemini")]
         if let Ok(tool) = GenerateGeminiTool::new() {
@@ -134,7 +133,7 @@ impl Default for ToolRegistry {
         } else {
             tracing::warn!("Gemini not available (check GEMINI_API_KEY)");
         }
-        
+
         #[cfg(feature = "anthropic")]
         if let Ok(tool) = GenerateAnthropicTool::new() {
             registry.register(Arc::new(tool));
@@ -142,7 +141,7 @@ impl Default for ToolRegistry {
         } else {
             tracing::warn!("Anthropic not available (check ANTHROPIC_API_KEY)");
         }
-        
+
         #[cfg(feature = "ollama")]
         if let Ok(tool) = GenerateOllamaTool::new() {
             registry.register(Arc::new(tool));
@@ -150,7 +149,7 @@ impl Default for ToolRegistry {
         } else {
             tracing::warn!("Ollama not available (check OLLAMA_HOST)");
         }
-        
+
         #[cfg(feature = "huggingface")]
         if let Ok(tool) = GenerateHuggingFaceTool::new() {
             registry.register(Arc::new(tool));
@@ -158,7 +157,7 @@ impl Default for ToolRegistry {
         } else {
             tracing::warn!("HuggingFace not available (check HUGGINGFACE_API_KEY)");
         }
-        
+
         #[cfg(feature = "groq")]
         if let Ok(tool) = GenerateGroqTool::new() {
             registry.register(Arc::new(tool));
@@ -166,11 +165,11 @@ impl Default for ToolRegistry {
         } else {
             tracing::warn!("Groq not available (check GROQ_API_KEY)");
         }
-        
+
         // Database tool (feature-gated)
         #[cfg(feature = "database")]
         registry.register(Arc::new(QueryContentTool));
-        
+
         // Discord tools (feature-gated)
         #[cfg(feature = "discord")]
         {
@@ -178,42 +177,42 @@ impl Default for ToolRegistry {
                 DiscordGetChannelsTool, DiscordGetGuildInfoTool, DiscordGetMessagesTool,
                 DiscordPostMessageTool,
             };
-            
+
             if let Ok(tool) = DiscordPostMessageTool::new() {
                 registry.register(Arc::new(tool));
                 tracing::info!("Discord post message tool registered");
             } else {
                 tracing::warn!("Discord post message not available (check DISCORD_TOKEN)");
             }
-            
+
             if let Ok(tool) = DiscordGetMessagesTool::new() {
                 registry.register(Arc::new(tool));
                 tracing::info!("Discord get messages tool registered");
             } else {
                 tracing::warn!("Discord get messages not available (check DISCORD_TOKEN)");
             }
-            
+
             if let Ok(tool) = DiscordGetGuildInfoTool::new() {
                 registry.register(Arc::new(tool));
                 tracing::info!("Discord get guild info tool registered");
             } else {
                 tracing::warn!("Discord get guild info not available (check DISCORD_TOKEN)");
             }
-            
+
             if let Ok(tool) = DiscordGetChannelsTool::new() {
                 registry.register(Arc::new(tool));
                 tracing::info!("Discord get channels tool registered");
             } else {
                 tracing::warn!("Discord get channels not available (check DISCORD_TOKEN)");
             }
-            
+
             // Social media integration tools (Phase 5)
             if let Ok(discord_token) = std::env::var("DISCORD_TOKEN") {
                 if let Ok(tool) = DiscordBotCommandTool::new(discord_token.clone()) {
                     registry.register(Arc::new(tool));
                     tracing::info!("Discord bot command tool registered");
                 }
-                
+
                 if let Ok(tool) = DiscordPostTool::new(discord_token) {
                     registry.register(Arc::new(tool));
                     tracing::info!("Discord post tool registered");
@@ -222,8 +221,11 @@ impl Default for ToolRegistry {
                 tracing::warn!("Discord bot tools not available (check DISCORD_TOKEN)");
             }
         }
-        
-        tracing::info!("ToolRegistry initialized with {} tools", registry.tools.len());
+
+        tracing::info!(
+            "ToolRegistry initialized with {} tools",
+            registry.tools.len()
+        );
         registry
     }
 }

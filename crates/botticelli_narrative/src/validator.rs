@@ -3,10 +3,10 @@
 //! This module provides comprehensive validation for narrative TOML files,
 //! catching common syntax errors and providing specific fix suggestions.
 
+use petgraph::algo::kosaraju_scc;
+use petgraph::graph::{DiGraph, NodeIndex};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use petgraph::graph::{DiGraph, NodeIndex};
-use petgraph::algo::kosaraju_scc;
 
 /// Result of validating a narrative TOML file.
 #[derive(Debug, Clone)]
@@ -184,31 +184,26 @@ const KNOWN_MODELS: &[&str] = &[
     "gemini-1.5-flash-8b",
     "gemini-1.5-pro",
     "gemini-exp-1206",
-    
     // OpenAI models
     "gpt-4",
     "gpt-4-turbo",
     "gpt-4o",
     "gpt-4o-mini",
     "gpt-3.5-turbo",
-    
     // Anthropic models
     "claude-3-5-sonnet-20241022",
     "claude-3-5-sonnet-20240620",
     "claude-3-opus-20240229",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
-    
     // Groq models
     "llama-3.3-70b-versatile",
     "llama-3.1-70b-versatile",
     "llama-3.1-8b-instant",
     "mixtral-8x7b-32768",
-    
     // HuggingFace (common examples)
     "meta-llama/Meta-Llama-3-8B-Instruct",
     "mistralai/Mistral-7B-Instruct-v0.2",
-    
     // Ollama (common models)
     "llama3.2",
     "llama3.1",
@@ -328,7 +323,8 @@ fn detect_syntax_patterns(parsed: &toml::Value, result: &mut ValidationResult) {
     if let Some(table) = parsed.as_table() {
         // Check for [[acts]] (array of tables instead of table of tables)
         if let Some(acts_value) = table.get("acts")
-            && acts_value.is_array() {
+            && acts_value.is_array()
+        {
             result.add_error(ValidationError {
                 kind: ValidationErrorKind::InvalidSyntax,
                 location: None,
@@ -350,7 +346,8 @@ fn detect_syntax_patterns(parsed: &toml::Value, result: &mut ValidationResult) {
 
         // Check for [[narrative]] (multiple narrative sections)
         if let Some(narrative_value) = table.get("narrative")
-            && narrative_value.is_array() {
+            && narrative_value.is_array()
+        {
             result.add_error(ValidationError {
                 kind: ValidationErrorKind::InvalidSyntax,
                 location: None,
@@ -396,18 +393,19 @@ fn validate_structure(
 
     // Validate model names if enabled
     if config.warn_unknown_models {
-        if has_narrative
-            && let Some(narrative) = table.get("narrative").and_then(|v| v.as_table()) {
-                validate_model_name(narrative, "narrative", result);
-            }
+        if has_narrative && let Some(narrative) = table.get("narrative").and_then(|v| v.as_table())
+        {
+            validate_model_name(narrative, "narrative", result);
+        }
         if has_narratives
-            && let Some(narratives) = table.get("narratives").and_then(|v| v.as_table()) {
-                for (name, narrative_value) in narratives {
-                    if let Some(narrative_table) = narrative_value.as_table() {
-                        validate_model_name(narrative_table, &format!("narratives.{}", name), result);
-                    }
+            && let Some(narratives) = table.get("narratives").and_then(|v| v.as_table())
+        {
+            for (name, narrative_value) in narratives {
+                if let Some(narrative_table) = narrative_value.as_table() {
+                    validate_model_name(narrative_table, &format!("narratives.{}", name), result);
                 }
             }
+        }
         // Check acts for model overrides
         if let Some(acts) = table.get("acts").and_then(|v| v.as_table()) {
             for (act_name, act_value) in acts {
@@ -585,7 +583,8 @@ fn extract_toc_order(toc_value: Option<&toml::Value>) -> Vec<String> {
 
     // Handle table format: [toc] with order field
     if let Some(table) = toc_value.as_table()
-        && let Some(order) = table.get("order").and_then(|v| v.as_array()) {
+        && let Some(order) = table.get("order").and_then(|v| v.as_array())
+    {
         return order
             .iter()
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
@@ -692,7 +691,10 @@ fn validate_reference(
 
         if exists {
             // Track usage
-            resources.used_resources.borrow_mut().insert(reference.to_string());
+            resources
+                .used_resources
+                .borrow_mut()
+                .insert(reference.to_string());
         } else {
             let available = match resource_type {
                 "bots" => &resources.bots,
@@ -740,11 +742,12 @@ fn validate_model_name(
     result: &mut ValidationResult,
 ) {
     if let Some(model) = section.get("model").and_then(|v| v.as_str())
-        && !KNOWN_MODELS.contains(&model) {
-            // Try to find a close match for suggestions
-            let suggestion = find_closest_model(model);
+        && !KNOWN_MODELS.contains(&model)
+    {
+        // Try to find a close match for suggestions
+        let suggestion = find_closest_model(model);
 
-            result.add_warning(ValidationWarning {
+        result.add_warning(ValidationWarning {
                 kind: ValidationWarningKind::UnknownModel,
                 location: Some(ValidationLocation {
                     line: 0,
@@ -760,7 +763,7 @@ fn validate_model_name(
                     )
                 },
             });
-        }
+    }
 }
 
 /// Finds the closest matching model name using simple string distance.
@@ -892,30 +895,35 @@ fn check_circular_dependencies(
 
     // For single narrative files, check if it references itself
     if let Some(narrative) = table.get("narrative").and_then(|v| v.as_table())
-        && let Some(name) = narrative.get("name").and_then(|v| v.as_str()) {
-            let narrative_node = get_node(&mut graph, name);
-            
-            // Check all acts for self-references
-            if let Some(acts) = table.get("acts").and_then(|v| v.as_table()) {
-                for act_value in acts.values() {
-                    extract_narrative_refs(act_value).into_iter().for_each(|ref_name| {
+        && let Some(name) = narrative.get("name").and_then(|v| v.as_str())
+    {
+        let narrative_node = get_node(&mut graph, name);
+
+        // Check all acts for self-references
+        if let Some(acts) = table.get("acts").and_then(|v| v.as_table()) {
+            for act_value in acts.values() {
+                extract_narrative_refs(act_value)
+                    .into_iter()
+                    .for_each(|ref_name| {
                         let ref_node = get_node(&mut graph, &ref_name);
                         graph.add_edge(narrative_node, ref_node, ());
                     });
-                }
             }
         }
+    }
 
     // Collect all narrative references from top-level acts (for multi-narrative or nested)
     if let Some(acts) = table.get("acts").and_then(|v| v.as_table()) {
         for (act_name, act_value) in acts {
             let act_node = get_node(&mut graph, act_name);
-            
+
             // Check for narrative.* references in the act
-            extract_narrative_refs(act_value).into_iter().for_each(|ref_name| {
-                let ref_node = get_node(&mut graph, &ref_name);
-                graph.add_edge(act_node, ref_node, ());
-            });
+            extract_narrative_refs(act_value)
+                .into_iter()
+                .for_each(|ref_name| {
+                    let ref_node = get_node(&mut graph, &ref_name);
+                    graph.add_edge(act_node, ref_node, ());
+                });
         }
     }
 
@@ -923,15 +931,17 @@ fn check_circular_dependencies(
     if let Some(narratives) = table.get("narratives").and_then(|v| v.as_table()) {
         for (narrative_name, narrative_value) in narratives {
             let narrative_node = get_node(&mut graph, narrative_name);
-            
+
             if let Some(narrative_table) = narrative_value.as_table() {
                 // Check acts within this narrative
                 if let Some(acts) = narrative_table.get("acts").and_then(|v| v.as_table()) {
                     for act_value in acts.values() {
-                        extract_narrative_refs(act_value).into_iter().for_each(|ref_name| {
-                            let ref_node = get_node(&mut graph, &ref_name);
-                            graph.add_edge(narrative_node, ref_node, ());
-                        });
+                        extract_narrative_refs(act_value)
+                            .into_iter()
+                            .for_each(|ref_name| {
+                                let ref_node = get_node(&mut graph, &ref_name);
+                                graph.add_edge(narrative_node, ref_node, ());
+                            });
                     }
                 }
             }
@@ -940,15 +950,12 @@ fn check_circular_dependencies(
 
     // Find strongly connected components (cycles)
     let sccs = kosaraju_scc(&graph);
-    
+
     for scc in sccs {
         if scc.len() > 1 {
             // This is a cycle involving multiple nodes
-            let cycle_names: Vec<String> = scc
-                .iter()
-                .map(|&idx| graph[idx].clone())
-                .collect();
-            
+            let cycle_names: Vec<String> = scc.iter().map(|&idx| graph[idx].clone()).collect();
+
             result.add_error(ValidationError {
                 kind: ValidationErrorKind::CircularDependency,
                 location: None,
@@ -967,13 +974,8 @@ fn check_circular_dependencies(
                 result.add_error(ValidationError {
                     kind: ValidationErrorKind::CircularDependency,
                     location: None,
-                    message: format!(
-                        "Self-referencing circular dependency in '{}'",
-                        graph[node]
-                    ),
-                    suggestion: Some(
-                        "Remove the self-reference to break the cycle.".to_string()
-                    ),
+                    message: format!("Self-referencing circular dependency in '{}'", graph[node]),
+                    suggestion: Some("Remove the self-reference to break the cycle.".to_string()),
                 });
             }
         }
@@ -983,23 +985,25 @@ fn check_circular_dependencies(
 /// Extracts narrative references from an act value.
 fn extract_narrative_refs(act_value: &toml::Value) -> Vec<String> {
     let mut refs = Vec::new();
-    
+
     // Check string values for narrative.* references
     if let Some(s) = act_value.as_str()
-        && let Some(name) = s.strip_prefix("narrative.") {
-            refs.push(name.to_string());
-        }
-    
+        && let Some(name) = s.strip_prefix("narrative.")
+    {
+        refs.push(name.to_string());
+    }
+
     // Check arrays for narrative references
     if let Some(arr) = act_value.as_array() {
         for item in arr {
             if let Some(s) = item.as_str()
-                && let Some(name) = s.strip_prefix("narrative.") {
-                    refs.push(name.to_string());
-                }
+                && let Some(name) = s.strip_prefix("narrative.")
+            {
+                refs.push(name.to_string());
+            }
         }
     }
-    
+
     // Check table format (act with prompt field)
     if let Some(table) = act_value.as_table() {
         if let Some(prompt) = table.get("prompt") {
@@ -1009,12 +1013,13 @@ fn extract_narrative_refs(act_value: &toml::Value) -> Vec<String> {
         if let Some(inputs) = table.get("inputs").and_then(|v| v.as_array()) {
             for input in inputs {
                 if let Some(s) = input.as_str()
-                    && let Some(name) = s.strip_prefix("narrative.") {
-                        refs.push(name.to_string());
-                    }
+                    && let Some(name) = s.strip_prefix("narrative.")
+                {
+                    refs.push(name.to_string());
+                }
             }
         }
     }
-    
+
     refs
 }

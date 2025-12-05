@@ -90,15 +90,26 @@ impl ExecuteNarrativeTool {
             #[cfg(feature = "gemini")]
             gemini_driver: botticelli_models::GeminiClient::new().ok().map(Arc::new),
             #[cfg(feature = "anthropic")]
-            anthropic_driver: std::env::var("ANTHROPIC_API_KEY")
-                .ok()
-                .map(|key| Arc::new(botticelli_models::AnthropicClient::new(key, "claude-3-5-sonnet-20241022".to_string()))),
+            anthropic_driver: std::env::var("ANTHROPIC_API_KEY").ok().map(|key| {
+                Arc::new(botticelli_models::AnthropicClient::new(
+                    key,
+                    "claude-3-5-sonnet-20241022".to_string(),
+                ))
+            }),
             #[cfg(feature = "ollama")]
-            ollama_driver: botticelli_models::OllamaClient::new("llama3.2").ok().map(Arc::new),
+            ollama_driver: botticelli_models::OllamaClient::new("llama3.2")
+                .ok()
+                .map(Arc::new),
             #[cfg(feature = "huggingface")]
-            huggingface_driver: botticelli_models::HuggingFaceDriver::new("meta-llama/Meta-Llama-3-8B-Instruct".to_string()).ok().map(Arc::new),
+            huggingface_driver: botticelli_models::HuggingFaceDriver::new(
+                "meta-llama/Meta-Llama-3-8B-Instruct".to_string(),
+            )
+            .ok()
+            .map(Arc::new),
             #[cfg(feature = "groq")]
-            groq_driver: botticelli_models::GroqDriver::new("llama-3.3-70b-versatile".to_string()).ok().map(Arc::new),
+            groq_driver: botticelli_models::GroqDriver::new("llama-3.3-70b-versatile".to_string())
+                .ok()
+                .map(Arc::new),
         }
     }
 
@@ -111,7 +122,7 @@ impl ExecuteNarrativeTool {
     ) -> McpResult<Value> {
         debug!("Starting narrative execution");
         let executor = NarrativeExecutor::new(driver);
-        
+
         let execution = executor
             .execute_narrative_by_name(file_path, narrative_name)
             .await
@@ -119,8 +130,11 @@ impl ExecuteNarrativeTool {
                 error!(error = ?e, "Narrative execution failed");
                 McpError::ToolExecutionFailed(format!("Narrative execution failed: {}", e))
             })?;
-        
-        debug!(act_count = execution.act_executions.len(), "Narrative execution completed");
+
+        debug!(
+            act_count = execution.act_executions.len(),
+            "Narrative execution completed"
+        );
 
         let acts: Vec<Value> = execution
             .act_executions
@@ -228,7 +242,7 @@ impl McpTool for ExecuteNarrativeTool {
             .get("backend")
             .and_then(|v| v.as_str())
             .unwrap_or("gemini");
-        
+
         debug!(file_path, backend, "Processing narrative execution request");
 
         // Determine narrative name from file path (use filename without extension)
@@ -242,44 +256,62 @@ impl McpTool for ExecuteNarrativeTool {
             #[cfg(feature = "gemini")]
             "gemini" => {
                 if let Some(driver) = self.gemini_driver.clone() {
-                    self.execute_with_driver(driver, file_path, narrative_name).await
+                    self.execute_with_driver(driver, file_path, narrative_name)
+                        .await
                 } else {
-                    Err(McpError::ToolExecutionFailed("Gemini backend not available (check GEMINI_API_KEY)".to_string()))
+                    Err(McpError::ToolExecutionFailed(
+                        "Gemini backend not available (check GEMINI_API_KEY)".to_string(),
+                    ))
                 }
             }
             #[cfg(feature = "anthropic")]
             "anthropic" => {
                 if let Some(driver) = self.anthropic_driver.clone() {
-                    self.execute_with_driver(driver, file_path, narrative_name).await
+                    self.execute_with_driver(driver, file_path, narrative_name)
+                        .await
                 } else {
-                    Err(McpError::ToolExecutionFailed("Anthropic backend not available (check ANTHROPIC_API_KEY)".to_string()))
+                    Err(McpError::ToolExecutionFailed(
+                        "Anthropic backend not available (check ANTHROPIC_API_KEY)".to_string(),
+                    ))
                 }
             }
             #[cfg(feature = "ollama")]
             "ollama" => {
                 if let Some(driver) = self.ollama_driver.clone() {
-                    self.execute_with_driver(driver, file_path, narrative_name).await
+                    self.execute_with_driver(driver, file_path, narrative_name)
+                        .await
                 } else {
-                    Err(McpError::ToolExecutionFailed("Ollama backend not available (check Ollama server)".to_string()))
+                    Err(McpError::ToolExecutionFailed(
+                        "Ollama backend not available (check Ollama server)".to_string(),
+                    ))
                 }
             }
             #[cfg(feature = "huggingface")]
             "huggingface" => {
                 if let Some(driver) = self.huggingface_driver.clone() {
-                    self.execute_with_driver(driver, file_path, narrative_name).await
+                    self.execute_with_driver(driver, file_path, narrative_name)
+                        .await
                 } else {
-                    Err(McpError::ToolExecutionFailed("HuggingFace backend not available (check HUGGINGFACE_API_KEY)".to_string()))
+                    Err(McpError::ToolExecutionFailed(
+                        "HuggingFace backend not available (check HUGGINGFACE_API_KEY)".to_string(),
+                    ))
                 }
             }
             #[cfg(feature = "groq")]
             "groq" => {
                 if let Some(driver) = self.groq_driver.clone() {
-                    self.execute_with_driver(driver, file_path, narrative_name).await
+                    self.execute_with_driver(driver, file_path, narrative_name)
+                        .await
                 } else {
-                    Err(McpError::ToolExecutionFailed("Groq backend not available (check GROQ_API_KEY)".to_string()))
+                    Err(McpError::ToolExecutionFailed(
+                        "Groq backend not available (check GROQ_API_KEY)".to_string(),
+                    ))
                 }
             }
-            _ => Err(McpError::InvalidInput(format!("Unknown or unavailable backend: {}", backend))),
+            _ => Err(McpError::InvalidInput(format!(
+                "Unknown or unavailable backend: {}",
+                backend
+            ))),
         }
     }
 

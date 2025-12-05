@@ -124,9 +124,7 @@ async fn execute_generation<D: BotticelliDriver>(
         .max_tokens(Some(max_tokens))
         .temperature(Some(temperature))
         .build()
-        .map_err(|e| {
-            McpError::ToolExecutionFailed(format!("Failed to build request: {}", e))
-        })?;
+        .map_err(|e| McpError::ToolExecutionFailed(format!("Failed to build request: {}", e)))?;
 
     // Execute
     let response = driver
@@ -172,8 +170,7 @@ pub struct GenerateGeminiTool {
 impl GenerateGeminiTool {
     /// Creates a new Gemini generation tool.
     pub fn new() -> Result<Self, String> {
-        let client = GeminiClient::new()
-            .map_err(|e| format!("Gemini client error: {}", e))?;
+        let client = GeminiClient::new().map_err(|e| format!("Gemini client error: {}", e))?;
         Ok(Self { client })
     }
 }
@@ -322,8 +319,8 @@ pub struct GenerateOllamaTool {
 impl GenerateOllamaTool {
     /// Creates a new Ollama generation tool.
     pub fn new() -> Result<Self, String> {
-        let client = OllamaClient::new("llama3.2")
-            .map_err(|e| format!("Ollama client error: {}", e))?;
+        let client =
+            OllamaClient::new("llama3.2").map_err(|e| format!("Ollama client error: {}", e))?;
         Ok(Self { client })
     }
 }

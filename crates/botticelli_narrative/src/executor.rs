@@ -571,7 +571,7 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
                     let act_start = Instant::now();
                     let result = self.driver.generate(&request).await?;
                     let act_duration = act_start.elapsed();
-                    
+
                     tracing::info!(
                         outputs_count = result.outputs().len(),
                         duration_ms = act_duration.as_millis(),
@@ -755,10 +755,10 @@ impl<D: BotticelliDriver> NarrativeExecutor<D> {
         }
 
         let total_duration = start_time.elapsed();
-        
+
         // Record metrics in span
         tracing::Span::current().record("total_duration_ms", total_duration.as_millis() as u64);
-        
+
         tracing::info!(
             total_acts = act_executions.len(),
             total_duration_ms = total_duration.as_millis(),

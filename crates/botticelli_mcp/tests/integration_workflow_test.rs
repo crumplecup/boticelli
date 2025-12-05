@@ -54,9 +54,7 @@ question = "Ask about the weather"
     if execution_result.is_err() {
         let err_msg = execution_result.unwrap_err().to_string();
         assert!(
-            err_msg.contains("backend")
-                || err_msg.contains("available")
-                || err_msg.contains("API")
+            err_msg.contains("backend") || err_msg.contains("available") || err_msg.contains("API")
         );
     }
 

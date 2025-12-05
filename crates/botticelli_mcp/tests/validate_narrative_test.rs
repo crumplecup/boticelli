@@ -6,7 +6,7 @@ use serde_json::json;
 #[tokio::test]
 async fn test_validate_valid_narrative() {
     let tool = ValidateNarrativeTool;
-    
+
     let input = json!({
         "content": r#"
 [narrative]
@@ -20,7 +20,7 @@ order = ["act1"]
 act1 = "Hello world"
         "#
     });
-    
+
     let result = tool.execute(input).await.unwrap();
     assert_eq!(result["valid"], true);
     assert_eq!(result["errors"].as_array().unwrap().len(), 0);
@@ -30,7 +30,7 @@ act1 = "Hello world"
 #[tokio::test]
 async fn test_validate_invalid_syntax() {
     let tool = ValidateNarrativeTool;
-    
+
     let input = json!({
         "content": r#"
 [narrative]
@@ -44,11 +44,11 @@ name = "act1"
 prompt = "Hello"
         "#
     });
-    
+
     let result = tool.execute(input).await.unwrap();
     assert_eq!(result["valid"], false);
     assert!(!result["errors"].as_array().unwrap().is_empty());
-    
+
     let error_msg = result["errors"][0]["message"].as_str().unwrap();
     assert!(error_msg.contains("[[acts]]"));
 }
@@ -56,7 +56,7 @@ prompt = "Hello"
 #[tokio::test]
 async fn test_validate_unknown_model() {
     let tool = ValidateNarrativeTool;
-    
+
     let input = json!({
         "content": r#"
 [narrative]
@@ -72,11 +72,11 @@ act1 = "Hello"
         "#,
         "validate_models": true
     });
-    
+
     let result = tool.execute(input).await.unwrap();
-    assert_eq!(result["valid"], true);  // Warnings don't fail validation
+    assert_eq!(result["valid"], true); // Warnings don't fail validation
     assert!(!result["warnings"].as_array().unwrap().is_empty());
-    
+
     let warning_msg = result["warnings"][0]["message"].as_str().unwrap();
     assert!(warning_msg.contains("gpt-5-turbo"));
     assert!(warning_msg.contains("gpt-4-turbo"));
@@ -85,7 +85,7 @@ act1 = "Hello"
 #[tokio::test]
 async fn test_validate_unused_resources() {
     let tool = ValidateNarrativeTool;
-    
+
     let input = json!({
         "content": r#"
 [narrative]
@@ -103,11 +103,11 @@ act1 = "Hello"
         "#,
         "warn_unused": true
     });
-    
+
     let result = tool.execute(input).await.unwrap();
     assert_eq!(result["valid"], true);
     assert!(!result["warnings"].as_array().unwrap().is_empty());
-    
+
     let warning_msg = result["warnings"][0]["message"].as_str().unwrap();
     assert!(warning_msg.contains("unused"));
 }
@@ -115,7 +115,7 @@ act1 = "Hello"
 #[tokio::test]
 async fn test_validate_circular_dependency() {
     let tool = ValidateNarrativeTool;
-    
+
     let input = json!({
         "content": r#"
 [narratives.first]
@@ -133,11 +133,11 @@ toc = ["step2"]
 step2 = "narrative.first"
         "#
     });
-    
+
     let result = tool.execute(input).await.unwrap();
     assert_eq!(result["valid"], false);
     assert!(!result["errors"].as_array().unwrap().is_empty());
-    
+
     let error_msg = result["errors"][0]["message"].as_str().unwrap();
     assert!(error_msg.contains("Circular dependency"));
 }
@@ -145,7 +145,7 @@ step2 = "narrative.first"
 #[tokio::test]
 async fn test_validate_strict_mode() {
     let tool = ValidateNarrativeTool;
-    
+
     let input = json!({
         "content": r#"
 [narrative]
@@ -160,7 +160,7 @@ act1 = "Hello"
         "#,
         "strict": true
     });
-    
+
     let result = tool.execute(input).await.unwrap();
     // Strict mode treats warnings as errors
     assert_eq!(result["valid"], false);

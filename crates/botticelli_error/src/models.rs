@@ -149,7 +149,7 @@ pub enum GroqErrorKind {
 }
 
 /// Model provider-specific error conditions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
 pub enum ModelsErrorKind {
     /// Gemini-specific error
     #[display("Gemini: {}", _0)]

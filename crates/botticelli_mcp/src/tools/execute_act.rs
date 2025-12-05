@@ -89,9 +89,7 @@ impl ExecuteActTool {
             #[cfg(feature = "gemini")]
             gemini_driver: botticelli_models::GeminiClient::new().ok().map(Arc::new),
             #[cfg(feature = "anthropic")]
-            anthropic_driver: botticelli_models::AnthropicClient::new()
-                .ok()
-                .map(Arc::new),
+            anthropic_driver: botticelli_models::AnthropicClient::new().ok().map(Arc::new),
             #[cfg(feature = "ollama")]
             ollama_driver: botticelli_models::OllamaClient::new().ok().map(Arc::new),
             #[cfg(feature = "huggingface")]
@@ -104,10 +102,7 @@ impl ExecuteActTool {
     }
 
     /// Select the appropriate driver based on model prefix.
-    fn select_driver(
-        &self,
-        model: &str,
-    ) -> Result<Arc<dyn BotticelliDriver>, McpError> {
+    fn select_driver(&self, model: &str) -> Result<Arc<dyn BotticelliDriver>, McpError> {
         #[cfg(feature = "gemini")]
         if model.starts_with("gemini") || model.starts_with("models/gemini") {
             return self
@@ -125,7 +120,10 @@ impl ExecuteActTool {
         }
 
         #[cfg(feature = "ollama")]
-        if model.starts_with("llama") || model.starts_with("mistral") || model.starts_with("codellama") {
+        if model.starts_with("llama")
+            || model.starts_with("mistral")
+            || model.starts_with("codellama")
+        {
             return self
                 .ollama_driver
                 .clone()
@@ -308,7 +306,10 @@ impl McpTool for ExecuteActTool {
         // Execute
         match driver.generate(&request).await {
             Ok(response) => {
-                debug!(response_len = response.text().len(), "Act executed successfully");
+                debug!(
+                    response_len = response.text().len(),
+                    "Act executed successfully"
+                );
 
                 Ok(json!({
                     "success": true,
@@ -318,7 +319,10 @@ impl McpTool for ExecuteActTool {
             }
             Err(e) => {
                 error!(error = ?e, "Failed to execute act");
-                Err(McpError::ExecutionError(format!("LLM execution failed: {}", e)))
+                Err(McpError::ExecutionError(format!(
+                    "LLM execution failed: {}",
+                    e
+                )))
             }
         }
     }

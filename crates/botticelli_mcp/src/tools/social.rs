@@ -31,12 +31,12 @@ impl DiscordBotCommandTool {
     #[instrument(skip(token))]
     pub fn new(token: String) -> McpResult<Self> {
         debug!("Creating Discord bot command tool");
-        
+
         let executor = DiscordCommandExecutor::new(token);
-        
+
         let mut registry = BotCommandRegistryImpl::new();
         registry.register(executor);
-        
+
         Ok(Self {
             registry: Arc::new(registry),
         })
@@ -121,12 +121,12 @@ impl DiscordPostTool {
     #[instrument(skip(token))]
     pub fn new(token: String) -> McpResult<Self> {
         debug!("Creating Discord post tool");
-        
+
         let executor = DiscordCommandExecutor::new(token);
-        
+
         let mut registry = BotCommandRegistryImpl::new();
         registry.register(executor);
-        
+
         Ok(Self {
             registry: Arc::new(registry),
         })
@@ -199,10 +199,10 @@ mod tests {
     fn test_discord_bot_command_tool_schema() {
         let token = "test_token".to_string();
         let tool = DiscordBotCommandTool::new(token).expect("Tool creation failed");
-        
+
         assert_eq!(tool.name(), "discord_bot_command");
         assert!(!tool.description().is_empty());
-        
+
         let schema = tool.input_schema();
         assert!(schema.get("properties").is_some());
     }
@@ -211,10 +211,10 @@ mod tests {
     fn test_discord_post_tool_schema() {
         let token = "test_token".to_string();
         let tool = DiscordPostTool::new(token).expect("Tool creation failed");
-        
+
         assert_eq!(tool.name(), "discord_post");
         assert!(!tool.description().is_empty());
-        
+
         let schema = tool.input_schema();
         assert!(schema.get("properties").is_some());
     }

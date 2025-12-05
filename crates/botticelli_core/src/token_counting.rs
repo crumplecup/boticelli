@@ -50,7 +50,9 @@ impl TokenUsage {
 /// # Errors
 ///
 /// Returns an error if the tokenizer cannot be loaded for the specified model.
-pub fn get_tokenizer(model: &str) -> Result<Arc<CoreBPE>, Box<dyn std::error::Error + Send + Sync>> {
+pub fn get_tokenizer(
+    model: &str,
+) -> Result<Arc<CoreBPE>, Box<dyn std::error::Error + Send + Sync>> {
     tiktoken_rs::get_bpe_from_model(model)
         .map(Arc::new)
         .map_err(|e| format!("Failed to get tokenizer for {}: {}", model, e).into())

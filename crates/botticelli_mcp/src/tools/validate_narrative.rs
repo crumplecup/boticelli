@@ -3,9 +3,7 @@
 use crate::tools::McpTool;
 use crate::{McpError, McpResult};
 use async_trait::async_trait;
-use botticelli_narrative::validator::{
-    validate_narrative_toml_with_config, ValidationConfig,
-};
+use botticelli_narrative::validator::{validate_narrative_toml_with_config, ValidationConfig};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -105,11 +103,8 @@ impl McpTool for ValidateNarrativeTool {
             validate_media_files: validate_files,
             warn_unknown_models: validate_models,
             warn_unused_resources: warn_unused,
-            base_dir: file_path.and_then(|p| {
-                PathBuf::from(p)
-                    .parent()
-                    .map(|parent| parent.to_path_buf())
-            }),
+            base_dir: file_path
+                .and_then(|p| PathBuf::from(p).parent().map(|parent| parent.to_path_buf())),
         };
 
         // Validate

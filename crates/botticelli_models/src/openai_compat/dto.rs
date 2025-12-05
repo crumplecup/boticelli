@@ -50,7 +50,7 @@ impl ChatRequest {
 pub struct ChatChoice {
     /// The message content returned by the model
     pub message: ChatMessage,
-    
+
     /// Reason the model stopped generating
     ///
     /// Common values: "stop" (natural completion), "length" (max tokens reached),
@@ -73,14 +73,14 @@ pub struct ChatUsage {
     /// Deserialized from API response.
     #[serde(default)]
     pub prompt_tokens: Option<usize>,
-    
+
     /// Number of tokens in the generated completion
     ///
     /// Used to calculate output costs (typically higher than input).
     /// Deserialized from API response.
     #[serde(default)]
     pub completion_tokens: Option<usize>,
-    
+
     /// Total tokens used (prompt + completion)
     ///
     /// May differ slightly from sum due to provider-specific counting.
@@ -101,7 +101,7 @@ pub struct ChatResponse {
     /// Non-streaming requests typically return a single choice.
     /// The `n` parameter in the request controls how many choices are returned.
     pub choices: Vec<ChatChoice>,
-    
+
     /// Token usage statistics for this request
     ///
     /// Used for billing calculations and rate limit tracking.

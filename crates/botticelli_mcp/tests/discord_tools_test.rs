@@ -111,9 +111,7 @@ async fn test_discord_post_message_validation() {
     assert!(result.is_err(), "Should fail without channel_id");
 
     // Test missing content
-    let result = tool
-        .execute(json!({"channel_id": "123456789"}))
-        .await;
+    let result = tool.execute(json!({"channel_id": "123456789"})).await;
     assert!(result.is_err(), "Should fail without content");
 
     // Test content too long

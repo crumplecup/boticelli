@@ -8,8 +8,13 @@
 
 mod client;
 mod error;
+mod schema;
 mod tool_executor;
 
 pub use client::{LlmBackend, McpClient};
 pub use error::{McpClientError, McpClientErrorKind, McpClientResult};
+pub use schema::{
+    AnthropicToolSchema, GeminiToolSchema, GroqToolSchema, HuggingFaceToolSchema,
+    OllamaToolSchema, OpenAIToolSchema, ToolSchema, ToolSchemaConverter,
+};
 pub use tool_executor::ToolDefinition;

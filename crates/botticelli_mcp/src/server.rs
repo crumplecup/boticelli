@@ -1,48 +1,151 @@
 //! MCP server implementation.
 
 use crate::tools::ToolRegistry;
-use crate::McpResult;
-use tracing::{info, instrument};
+use mcp_server::Router;
+use mcp_server::router::CapabilitiesBuilder;
+use mcp_spec::{
+    content::Content,
+    handler::{PromptError, ResourceError, ToolError},
+    protocol::ServerCapabilities,
+    prompt::Prompt,
+    resource::Resource,
+    tool::Tool,
+};
+use serde_json::Value;
+use std::future::Future;
+use std::pin::Pin;
+use tracing::{debug, info, instrument};
 
-/// MCP server for Botticelli.
-pub struct McpServer {
+/// MCP server for Botticelli implementing the Router trait.
+#[derive(Clone)]
+pub struct BotticelliRouter {
     name: String,
     version: String,
     tools: ToolRegistry,
 }
 
-impl McpServer {
-    /// Creates a new server builder.
-    pub fn builder() -> McpServerBuilder {
-        McpServerBuilder::default()
-    }
-
-    /// Runs the server using stdio transport.
-    #[instrument(skip(self))]
-    pub async fn run_stdio(self) -> McpResult<()> {
-        info!(
-            name = %self.name,
-            version = %self.version,
-            tools = self.tools.list().len(),
-            "MCP server ready (stdio transport not yet fully implemented)"
-        );
-
-        // TODO: Integrate with rust-mcp-sdk stdio transport
-        // For now, just log that we're ready
-        
-        Ok(())
+impl BotticelliRouter {
+    /// Creates a new router builder.
+    pub fn builder() -> BotticelliRouterBuilder {
+        BotticelliRouterBuilder::default()
     }
 }
 
-/// Builder for MCP server.
+impl Router for BotticelliRouter {
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn instructions(&self) -> String {
+        format!(
+            "Botticelli MCP Server v{}\n\n\
+            This server provides tools for interacting with the Botticelli LLM orchestration platform. \
+            You can query databases, execute narratives, and interact with social media through these tools.\n\n\
+            Available tools: {}",
+            self.version,
+            self.tools
+                .list()
+                .iter()
+                .map(|t| t.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+
+    fn capabilities(&self) -> ServerCapabilities {
+        CapabilitiesBuilder::new()
+            .with_tools(false) // tools don't change dynamically (yet)
+            .build()
+    }
+
+    fn list_tools(&self) -> Vec<Tool> {
+        self.tools
+            .list()
+            .iter()
+            .map(|tool| {
+                Tool::new(
+                    tool.name().to_string(),
+                    tool.description().to_string(),
+                    tool.input_schema(),
+                )
+            })
+            .collect()
+    }
+
+    #[instrument(skip(self, arguments), fields(tool = %tool_name))]
+    fn call_tool(
+        &self,
+        tool_name: &str,
+        arguments: Value,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Content>, ToolError>> + Send + 'static>> {
+        debug!(tool = %tool_name, args = ?arguments, "Tool called");
+
+        let tools = self.tools.clone();
+        let tool_name = tool_name.to_string();
+
+        Box::pin(async move {
+            match tools.execute(&tool_name, arguments).await {
+                Ok(result) => {
+                    info!(tool = %tool_name, "Tool executed successfully");
+                    // Convert JSON result to Content
+                    let text = serde_json::to_string_pretty(&result)
+                        .unwrap_or_else(|_| result.to_string());
+                    Ok(vec![Content::text(text)])
+                }
+                Err(e) => {
+                    debug!(tool = %tool_name, error = %e, "Tool execution failed");
+                    Err(ToolError::ExecutionError(e.to_string()))
+                }
+            }
+        })
+    }
+
+    fn list_resources(&self) -> Vec<Resource> {
+        // Resources not yet implemented
+        vec![]
+    }
+
+    fn read_resource(
+        &self,
+        uri: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<String, ResourceError>> + Send + 'static>> {
+        let uri = uri.to_string();
+        Box::pin(async move {
+            Err(ResourceError::NotFound(format!(
+                "Resource {} not found - resources not yet implemented",
+                uri
+            )))
+        })
+    }
+
+    fn list_prompts(&self) -> Vec<Prompt> {
+        // Prompts not yet implemented
+        vec![]
+    }
+
+    fn get_prompt(
+        &self,
+        prompt_name: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<String, PromptError>> + Send + 'static>> {
+        let prompt_name = prompt_name.to_string();
+        Box::pin(async move {
+            Err(PromptError::NotFound(format!(
+                "Prompt {} not found - prompts not yet implemented",
+                prompt_name
+            )))
+        })
+    }
+}
+
+/// Builder for Botticelli MCP router.
 #[derive(Default)]
-pub struct McpServerBuilder {
+pub struct BotticelliRouterBuilder {
     name: Option<String>,
     version: Option<String>,
     tools: Option<ToolRegistry>,
 }
 
-impl McpServerBuilder {
+impl BotticelliRouterBuilder {
     /// Sets the server name.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
@@ -61,12 +164,12 @@ impl McpServerBuilder {
         self
     }
 
-    /// Builds the server.
-    pub fn build(self) -> McpResult<McpServer> {
-        Ok(McpServer {
+    /// Builds the router.
+    pub fn build(self) -> BotticelliRouter {
+        BotticelliRouter {
             name: self.name.unwrap_or_else(|| "botticelli".to_string()),
             version: self.version.unwrap_or_else(|| "0.1.0".to_string()),
             tools: self.tools.unwrap_or_default(),
-        })
+        }
     }
 }

@@ -1,0 +1,15 @@
+//! MCP client for tool-enabled LLM interactions.
+//!
+//! This crate provides a client that connects LLM backends with MCP tools,
+//! enabling autonomous agent behavior.
+
+#![warn(missing_docs)]
+#![forbid(unsafe_code)]
+
+mod client;
+mod error;
+mod tool_executor;
+
+pub use client::{LlmBackend, McpClient};
+pub use error::{McpClientError, McpClientErrorKind, McpClientResult};
+pub use tool_executor::ToolDefinition;

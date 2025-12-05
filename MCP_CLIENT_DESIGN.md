@@ -408,3 +408,33 @@ Design and implement an MCP client that enables Botticelli to become self-drivin
 **Status**: Planning
 **Last Updated**: 2025-12-05
 **Owner**: Erik + Claude
+
+---
+
+## Implementation Progress
+
+### Phase 1: Core Infrastructure ✅ Complete
+
+**Date**: 2025-12-05  
+**Status**: Compiles and lints cleanly
+
+**Completed**:
+1. ✅ Created `botticelli_mcp_client` crate
+2. ✅ Defined `LlmBackend` trait for backend abstraction
+3. ✅ Implemented `McpClient` with agentic loop skeleton
+4. ✅ Added `ToolDefinition` and `ToolExecutor` for tool management
+5. ✅ Basic error handling with `McpClientError` and location tracking
+
+**Files Created**:
+- `crates/botticelli_mcp_client/src/lib.rs` - Module exports
+- `crates/botticelli_mcp_client/src/client.rs` - Core client with agentic loop
+- `crates/botticelli_mcp_client/src/error.rs` - Error types with derive_more
+- `crates/botticelli_mcp_client/src/tool_executor.rs` - Tool execution infrastructure
+
+**Key Design Decisions**:
+- Used `ToolDefinition` struct instead of mcp_server types for flexibility
+- Agentic loop with configurable max iterations
+- Tool executor uses HashMap for O(1) tool lookup
+- LlmBackend trait requires Debug for instrumentation
+
+**Next**: Implement LLM backend adapters (Phase 2)

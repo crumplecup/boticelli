@@ -234,56 +234,39 @@
 
 These provide the foundation for Discord workflows.
 
-#### Features to Implement
+#### Implemented Features ✅
 
-1. **Narrative → Discord Pipeline**
+1. **Narrative → Discord Pipeline** ✅
    - Execute narrative
    - Extract structured output
-   - Post to Discord channel (tool exists)
-   - Store content in database
+   - Post to Discord channel
+   - Orchestrated workflow
 
-2. **Template Variables from Discord**
-   - Fetch guild/channel context (tools exist)
-   - Pass as narrative variables
-   - Enable context-aware generation
+2. **DiscordContentWorkflowTool** ✅
+   - Created `src/tools/discord_workflow.rs`
+   - Combines execution + posting in single operation
+   - Multiple content extraction strategies
+   - Error handling and logging
+   - Returns combined results with metrics
 
-3. **Multi-Step Workflows**
-   - Tool: `discord_content_workflow`
-   - Input: narrative path, channel ID
-   - Steps:
-     1. Execute narrative
-     2. Extract content
-     3. Post to Discord (existing tool)
-     4. Log result
-   - Output: Message ID, metrics
+3. **Content Extraction** ✅
+   - Multi-strategy extraction (content, output, text fields)
+   - Fallback to full result serialization
+   - Structured data support
 
-4. **Scheduled Execution**
-   - Tool: `schedule_narrative`
-   - Input: narrative path, cron expression
-   - Requires: Persistent scheduler (future)
-   - For now: Document manual scheduling
+4. **Integration** ✅
+   - Feature-gated with `discord` feature
+   - Uses existing Discord HTTP API tools
+   - Proper instrumentation and tracing
+   - Async/await throughout
 
-#### Implementation Steps
+#### Future Enhancements
 
-1. **Workflow Tool**
-   - Create `src/tools/discord_workflow.rs`
-   - Combine execution + posting
-   - Handle errors gracefully
-
-2. **Content Extraction**
-   - Parse narrative output for structured data
-   - Support JSON/TOML sections
-   - Extract for posting
-
-3. **Database Logging**
-   - Store execution records
-   - Link to Discord messages
-   - Track success/failure
-
-4. **Documentation**
-   - End-to-end examples
-   - Common patterns
-   - Error handling
+- Template variables from Discord context (fetch guild/channel data)
+- Database logging of workflow executions
+- Scheduled execution (requires persistent scheduler)
+- Advanced retry logic and error recovery
+- Content format validation
 
 ## Success Criteria
 

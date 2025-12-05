@@ -4,6 +4,8 @@ mod bot_commands;
 mod database;
 #[cfg(feature = "discord")]
 mod discord;
+#[cfg(feature = "discord")]
+mod discord_workflow;
 mod echo;
 mod execute_act;
 mod execute_narrative;
@@ -24,6 +26,8 @@ pub use database::QueryContentTool;
 pub use discord::{
     DiscordGetChannelsTool, DiscordGetGuildInfoTool, DiscordGetMessagesTool, DiscordPostMessageTool,
 };
+#[cfg(feature = "discord")]
+pub use discord_workflow::DiscordContentWorkflowTool;
 pub use echo::EchoTool;
 pub use execute_act::ExecuteActTool;
 pub use execute_narrative::ExecuteNarrativeTool;

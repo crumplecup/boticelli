@@ -123,10 +123,7 @@ impl ActProcessor for McpProcessorCollector {
     }
 
     #[instrument(skip(self, _context), fields(processor = "mcp_collector"))]
-    async fn process(
-        &self,
-        _context: &ProcessorContext<'_>,
-    ) -> BotticelliResult<()> {
+    async fn process(&self, _context: &ProcessorContext<'_>) -> BotticelliResult<()> {
         debug!("MCP processor collector called (passthrough)");
         // This processor doesn't transform data, it just collects from others
         Ok(())

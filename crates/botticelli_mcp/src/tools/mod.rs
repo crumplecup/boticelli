@@ -8,6 +8,7 @@ mod execute_act;
 mod execute_narrative;
 mod generate;
 mod generate_llm;
+mod metrics;
 mod narrative_processor;
 mod server_info;
 #[cfg(feature = "discord")]
@@ -31,6 +32,7 @@ pub use generate::GenerateTool;
     feature = "groq"
 ))]
 pub use narrative_processor::McpProcessorCollector;
+pub use metrics::{ActMetrics, ExecutionMetrics};
 pub use server_info::ServerInfoTool;
 #[cfg(feature = "discord")]
 pub use social::{DiscordBotCommandTool, DiscordPostTool};

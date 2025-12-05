@@ -349,10 +349,7 @@ impl McpTool for ExecuteActTool {
                     .collect::<Vec<_>>()
                     .join("\n");
 
-                debug!(
-                    response_len = text.len(),
-                    "Act executed successfully"
-                );
+                debug!(response_len = text.len(), "Act executed successfully");
 
                 Ok(json!({
                     "success": true,

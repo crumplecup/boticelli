@@ -161,28 +161,29 @@ Design and implement an MCP client that enables Botticelli to become self-drivin
 - `crates/botticelli_ollama/src/tools.rs` - Ollama implementation
 - `crates/botticelli_huggingface/src/tools.rs` - HuggingFace implementation
 
-### Phase 4: Agentic Executor
+### Phase 4: Agentic Executor ⚠️ IN PROGRESS
 
 **Goal**: Orchestrate multi-turn tool-calling workflows
 
-**Tasks**:
-1. Create `AgenticExecutor`:
-   - Initialize with LLM provider + MCP client
-   - Manage conversation state
-   - Execute tool call loop
-   - Handle max iterations / timeouts
-2. Implement execution strategies:
-   - **Autonomous**: Model decides when to stop
-   - **Single-shot**: One tool call, then return
-   - **Guided**: User approves each tool call
-3. Result formatting and streaming
-4. Error handling and recovery
-5. Comprehensive tests
+**Status**: Started 2025-12-05 - Needs refactoring to match existing `McpClient.execute()` API
+
+**Completed Tasks**:
+1. ✅ Created `AgenticExecutor` with execution strategies
+2. ✅ Implemented multi-turn conversation loop
+3. ✅ Added timeout and max iteration handling
+4. ✅ Execution strategies defined (Autonomous, SingleShot, Guided)
+
+**Remaining Work**:
+- ⚠️ Refactor executor to work with existing `LlmBackend` trait in `client.rs`
+- ⚠️ Reconcile with existing `McpClient.execute()` method
+- ⚠️ Consider whether to enhance existing implementation or create separate executor
+- 🔲 Add comprehensive tests
+- 🔲 Implement guided mode approval mechanism
 
 **Files**:
-- `crates/botticelli_mcp_client/src/executor.rs`
-- `crates/botticelli_mcp_client/src/strategy.rs`
-- `crates/botticelli_mcp_client/tests/executor_test.rs`
+- `crates/botticelli_mcp_client/src/executor.rs` - Initial implementation (needs refactor)
+- `crates/botticelli_mcp_client/src/client.rs` - Existing execute method
+- `crates/botticelli_mcp_client/tests/executor_test.rs` - TODO
 
 ### Phase 5: Context Management
 

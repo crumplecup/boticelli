@@ -1,8 +1,10 @@
 //! Tool implementations for MCP server.
 
+mod database;
 mod echo;
 mod server_info;
 
+pub use database::QueryContentTool;
 pub use echo::EchoTool;
 pub use server_info::ServerInfoTool;
 
@@ -72,6 +74,7 @@ impl Default for ToolRegistry {
         let mut registry = Self::new();
         registry.register(Arc::new(EchoTool));
         registry.register(Arc::new(ServerInfoTool));
+        registry.register(Arc::new(QueryContentTool));
         registry
     }
 }

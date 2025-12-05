@@ -33,12 +33,17 @@
 #![warn(missing_docs)]
 
 mod error;
+mod resources;
 mod server;
 mod tools;
 
 pub use error::{McpError, McpResult};
+pub use resources::{ResourceRegistry, McpResource, ResourceInfo, NarrativeResource};
 pub use server::{BotticelliRouter, BotticelliRouterBuilder};
 pub use tools::{ToolRegistry, McpTool, QueryContentTool, EchoTool, ServerInfoTool};
+
+#[cfg(feature = "database")]
+pub use resources::ContentResource;
 
 // Re-export key mcp-server types for convenience
 pub use mcp_server::{ByteTransport, Router, Server};

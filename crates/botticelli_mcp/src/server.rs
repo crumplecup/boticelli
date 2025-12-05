@@ -1,6 +1,6 @@
 //! MCP server implementation.
 
-use crate::tools::ToolRegistry;
+use crate::{ResourceRegistry, tools::ToolRegistry};
 use mcp_server::Router;
 use mcp_server::router::CapabilitiesBuilder;
 use mcp_spec::{
@@ -22,6 +22,7 @@ pub struct BotticelliRouter {
     name: String,
     version: String,
     tools: ToolRegistry,
+    resources: ResourceRegistry,
 }
 
 impl BotticelliRouter {
@@ -55,6 +56,7 @@ impl Router for BotticelliRouter {
     fn capabilities(&self) -> ServerCapabilities {
         CapabilitiesBuilder::new()
             .with_tools(false) // tools don't change dynamically (yet)
+            .with_resources(false, false) // resources don't change dynamically (yet)
             .build()
     }
 
@@ -100,21 +102,34 @@ impl Router for BotticelliRouter {
         })
     }
 
+    #[instrument(skip(self))]
     fn list_resources(&self) -> Vec<Resource> {
-        // Resources not yet implemented
+        // For Phase 2, return empty list as resource listing requires async context
+        // Resources are still readable via read_resource()
+        // TODO: Pre-compute resource list during server initialization
         vec![]
     }
 
+    #[instrument(skip(self), fields(uri))]
     fn read_resource(
         &self,
         uri: &str,
     ) -> Pin<Box<dyn Future<Output = Result<String, ResourceError>> + Send + 'static>> {
+        debug!(uri, "Reading resource");
+        let resources = self.resources.clone();
         let uri = uri.to_string();
+
         Box::pin(async move {
-            Err(ResourceError::NotFound(format!(
-                "Resource {} not found - resources not yet implemented",
-                uri
-            )))
+            match resources.read(&uri).await {
+                Ok(content) => {
+                    info!(uri, "Resource read successfully");
+                    Ok(content)
+                }
+                Err(e) => {
+                    debug!(uri, error = %e, "Resource read failed");
+                    Err(ResourceError::NotFound(e.to_string()))
+                }
+            }
         })
     }
 
@@ -143,6 +158,7 @@ pub struct BotticelliRouterBuilder {
     name: Option<String>,
     version: Option<String>,
     tools: Option<ToolRegistry>,
+    resources: Option<ResourceRegistry>,
 }
 
 impl BotticelliRouterBuilder {
@@ -164,12 +180,19 @@ impl BotticelliRouterBuilder {
         self
     }
 
+    /// Sets the resource registry.
+    pub fn resources(mut self, resources: ResourceRegistry) -> Self {
+        self.resources = Some(resources);
+        self
+    }
+
     /// Builds the router.
     pub fn build(self) -> BotticelliRouter {
         BotticelliRouter {
             name: self.name.unwrap_or_else(|| "botticelli".to_string()),
             version: self.version.unwrap_or_else(|| "0.1.0".to_string()),
             tools: self.tools.unwrap_or_default(),
+            resources: self.resources.unwrap_or_default(),
         }
     }
 }

@@ -131,6 +131,51 @@ Query database tables for content.
 - `table` (required): Table name to query
 - `limit` (optional): Max rows to return (default: 10, max: 100)
 
+## Available Resources
+
+### 1. Narrative Resources (`narrative://`)
+
+Read narrative TOML configuration files.
+
+**URI Format:** `narrative://{name}`
+
+**Example:**
+```
+narrative://curate_content
+```
+
+**Response:**
+```toml
+[narrative]
+name = "curate_content"
+description = "Content curation pipeline"
+
+[[acts]]
+name = "generate"
+system_prompt = "You are a content curator..."
+```
+
+### 2. Content Resources (`content://`)
+
+Read database content by table and ID.
+
+**URI Format:** `content://{table}/{id}`
+
+**Example:**
+```
+content://content/123
+```
+
+**Response:**
+```json
+{
+  "id": 123,
+  "text_content": "...",
+  "content_type": "discord_post",
+  "generated_at": "2024-12-05T00:00:00Z"
+}
+```
+
 ## Architecture
 
 ```
@@ -151,7 +196,7 @@ Database Social   Templates
 
 **Server (`src/server.rs`):**
 - Implements `Router` trait from mcp-server SDK
-- Manages tool registry
+- Manages tool and resource registries
 - Handles JSON-RPC protocol
 
 **Tools (`src/tools/`):**
@@ -159,6 +204,12 @@ Database Social   Templates
 - Async execution
 - JSON Schema validation
 - Feature-gated capabilities
+
+**Resources (`src/resources/`):**
+- Trait-based resource system
+- URI-based addressing
+- Async content reading
+- Feature-gated (database resources)
 
 **Binary (`src/bin/botticelli-mcp.rs`):**
 - Standalone executable
@@ -186,10 +237,12 @@ Database Social   Templates
 
 ### Planned (Phases 2-5)
 
-⏳ **Phase 2: Resources**
-- Read narratives as resources
-- Content templates
-- Schema documentation
+✅ **Phase 2: Resources** (Complete)
+- ✅ Resource system (trait-based, extensible)
+- ✅ NarrativeResource (`narrative://` URIs)
+- ✅ ContentResource (`content://` URIs)  
+- ✅ Async resource reading
+- ⏳ Resource listing (requires pre-computation)
 
 ⏳ **Phase 3: Execution Tools**
 - Execute narratives
@@ -365,10 +418,16 @@ The server should log: `Router initialized tools=3`
 - Core server functional
 - 3 tools implemented
 - Database integration working
-- Tests passing
+- Tests passing (8 total)
 - Ready for Claude Desktop
 
-**Next:** Phase 2 - Resources + Prompts (see [MCP_INTEGRATION_STRATEGIC_PLAN.md](./MCP_INTEGRATION_STRATEGIC_PLAN.md))
+**Phase 2: Resources** ✅ Complete
+- Resource system trait-based and extensible
+- NarrativeResource reads TOML files (`narrative://name`)
+- ContentResource reads database content (`content://table/id`)
+- All tests passing, zero clippy warnings
+
+**Next:** Phase 3 - Execution tools (see [MCP_INTEGRATION_STRATEGIC_PLAN.md](./MCP_INTEGRATION_STRATEGIC_PLAN.md))
 
 ---
 

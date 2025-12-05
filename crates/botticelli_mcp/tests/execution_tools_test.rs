@@ -151,13 +151,11 @@ async fn test_tool_registry_includes_execution_tools() {
     assert!(registry.get("generate").is_some());
     assert!(registry.get("execute_narrative").is_some());
     
-    // Verify count (should be 5 without database, 6 with)
-    // echo, server_info, validate_narrative, generate, execute_narrative (+ query_content with database)
-    #[cfg(feature = "database")]
-    assert_eq!(registry.len(), 6);
-    
-    #[cfg(not(feature = "database"))]
-    assert_eq!(registry.len(), 5);
+    // Verify minimum count
+    // Core: echo, server_info, validate_narrative, generate, execute_narrative
+    // Optional: query_content (database), discord tools (discord + token)
+    let count = registry.len();
+    assert!(count >= 5, "Should have at least 5 core tools, got {}", count);
 }
 
 #[tokio::test]

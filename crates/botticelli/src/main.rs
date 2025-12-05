@@ -158,6 +158,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 quiet,
             )?;
         }
+
+        #[cfg(feature = "mcp")]
+        Commands::Mcp {
+            prompt,
+            backend,
+            model,
+            server,
+            server_args,
+            max_turns,
+            max_tools_per_turn,
+            verbose,
+        } => {
+            use cli::handle_mcp_command;
+
+            handle_mcp_command(
+                prompt,
+                backend,
+                model,
+                server,
+                server_args,
+                max_turns,
+                max_tools_per_turn,
+                verbose,
+            )
+            .await?;
+        }
     }
 
     // Graceful shutdown of observability

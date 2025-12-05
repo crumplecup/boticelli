@@ -24,6 +24,8 @@ botticelli_database = { workspace = true, optional = true }
 botticelli_social = { workspace = true, optional = true }
 botticelli_tui = { workspace = true, optional = true }
 botticelli_bot = { workspace = true, optional = true }
+botticelli_mcp = { workspace = true, optional = true }
+botticelli_mcp_client = { workspace = true, optional = true }
 
 # Binary dependencies
 clap = { version = "4", features = ["derive"] }
@@ -34,6 +36,7 @@ serde_json = { workspace = true }
 dirs = { workspace = true }
 ractor = { workspace = true, optional = true }
 diesel = { workspace = true, optional = true }
+anyhow = "1.0"
 
 # OpenTelemetry dependencies (optional)
 opentelemetry = { version = "0.31", optional = true }
@@ -71,6 +74,9 @@ tui = ["botticelli_tui", "botticelli_database", "dep:ratatui", "dep:crossterm"]
 
 # Bot server feature (generation/curation/posting actors)
 bots = ["botticelli_bot", "gemini", "database", "discord", "dep:diesel"]
+
+# MCP client feature
+mcp = ["botticelli_mcp", "botticelli_mcp_client", "botticelli_models", "botticelli_models/gemini"]
 
 # Observability feature (OpenTelemetry integration)
 observability = [

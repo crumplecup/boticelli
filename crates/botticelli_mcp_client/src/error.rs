@@ -28,6 +28,22 @@ pub enum McpClientErrorKind {
     /// Maximum iterations exceeded.
     #[display("Maximum iterations exceeded: {}", _0)]
     MaxIterationsExceeded(usize),
+
+    /// Connection error.
+    #[display("Connection error: {}", _0)]
+    ConnectionError(String),
+
+    /// Timeout error.
+    #[display("Timeout: {}", _0)]
+    Timeout(String),
+
+    /// Rate limit exceeded.
+    #[display("Rate limit exceeded: {}", _0)]
+    RateLimitExceeded(String),
+
+    /// Circuit breaker open.
+    #[display("Circuit breaker open for: {}", _0)]
+    CircuitBreakerOpen(String),
 }
 
 /// MCP client error with location tracking.
@@ -57,3 +73,18 @@ impl McpClientError {
 
 /// Result type for MCP client operations.
 pub type McpClientResult<T> = Result<T, McpClientError>;
+
+impl McpClientErrorKind {
+    /// Returns true if this error is retryable.
+    pub fn is_retryable(&self) -> bool {
+        matches!(
+            self,
+            Self::ConnectionError(_) | Self::Timeout(_) | Self::ToolExecutionFailed(_)
+        )
+    }
+
+    /// Returns true if this error should trigger backoff.
+    pub fn should_backoff(&self) -> bool {
+        matches!(self, Self::RateLimitExceeded(_))
+    }
+}

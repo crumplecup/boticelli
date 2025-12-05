@@ -9,6 +9,7 @@
 mod client;
 mod error;
 mod llm_adapter;
+mod retry;
 mod schema;
 mod tool_executor;
 
@@ -19,6 +20,7 @@ pub use llm_adapter::{
     GroqAdapter, LlmAdapter, Message, MessageRole, OllamaAdapter, ToolCall, ToolResult,
     TokenUsage,
 };
+pub use retry::{retry_with_backoff, CircuitBreaker, CircuitState, RetryConfig};
 pub use schema::{
     AnthropicToolSchema, GeminiToolSchema, GroqToolSchema, HuggingFaceToolSchema,
     OllamaToolSchema, OpenAIToolSchema, ToolSchema, ToolSchemaConverter,

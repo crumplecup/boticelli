@@ -164,8 +164,18 @@ impl AnthropicClient {
             .map(|content| Output::Text(content.text().clone()))
             .collect();
 
+        // Extract token usage if available
+        let usage = response.usage().as_ref().map(|u| {
+            botticelli_core::TokenUsageData::new(
+                *u.input_tokens() as u64,
+                *u.output_tokens() as u64,
+                (*u.input_tokens() + *u.output_tokens()) as u64,
+            )
+        });
+
         GenerateResponse::builder()
             .outputs(outputs)
+            .usage(usage)
             .build()
             .map_err(|e| ModelsError::new(AnthropicErrorKind::Builder(e.to_string()).into()))
     }

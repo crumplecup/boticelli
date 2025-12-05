@@ -505,6 +505,7 @@ impl GeminiClient {
 
             return GenerateResponse::builder()
                 .outputs(vec![Output::Text(response_text)])
+                .usage(None) // Live API doesn't expose usage data
                 .build()
                 .map_err(builder_error);
         }
@@ -527,6 +528,7 @@ impl GeminiClient {
 
                 return GenerateResponse::builder()
                     .outputs(vec![Output::Text(response_text)])
+                    .usage(None) // Live API doesn't expose usage data
                     .build()
                     .map_err(builder_error);
             }
@@ -791,12 +793,14 @@ impl GeminiClient {
                 let duration = start.elapsed().as_secs_f64();
                 metrics.record_request("gemini", model_name, duration);
 
-                // TODO: Track token usage when available from gemini-rust response
-                // The gemini-rust crate doesn't currently expose UsageMetadata in REST API responses
-                // This would require updating the gemini-rust dependency or using direct API calls
+                // NOTE: Token usage not available from gemini-rust REST API
+                // The gemini-rust crate doesn't currently expose UsageMetadata in REST API responses.
+                // This would require updating the gemini-rust dependency or using direct API calls.
+                // Usage tracking is available through OpenTelemetry metrics but not per-request.
 
                 Ok(GenerateResponse::builder()
                     .outputs(vec![Output::Text(text)])
+                    .usage(None)
                     .build()
                     .map_err(builder_error)?)
             }

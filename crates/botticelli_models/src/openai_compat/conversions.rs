@@ -60,8 +60,21 @@ pub fn from_chat_response(response: &ChatResponse) -> Result<GenerateResponse, O
 
     let output = Output::Text(content);
 
+    // Extract token usage if available
+    let usage = response.usage.as_ref().and_then(|u| {
+        match (u.prompt_tokens, u.completion_tokens, u.total_tokens) {
+            (Some(input), Some(output), Some(total)) => Some(botticelli_core::TokenUsageData::new(
+                input as u64,
+                output as u64,
+                total as u64,
+            )),
+            _ => None,
+        }
+    });
+
     GenerateResponse::builder()
         .outputs(vec![output])
+        .usage(usage)
         .build()
         .map_err(|e| OpenAICompatError::Builder(format!("Failed to build response: {}", e)))
 }

@@ -13,6 +13,7 @@ mod observability;
 mod output;
 mod request;
 mod role;
+mod token_usage;
 
 pub use budget::{BudgetConfig, BudgetConfigBuilder};
 pub use input::{HistoryRetention, Input, TableFormat};
@@ -28,3 +29,4 @@ pub use request::{
     GenerateResponseBuilderError,
 };
 pub use role::Role;
+pub use token_usage::{TokenUsageData, TokenUsageDataBuilder};

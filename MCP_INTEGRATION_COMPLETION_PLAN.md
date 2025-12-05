@@ -22,7 +22,10 @@
 - Track execution duration per act and total narrative duration
 - Record performance data in OpenTelemetry spans for dashboard integration
 - Summary logging includes: total acts, duration, average per-act timing
-- Infrastructure ready for token counting when drivers implement TokenCounting trait
+- ✅ Token usage tracking implemented in GenerateResponse
+- ✅ Anthropic driver populates usage from API responses
+- ✅ OpenAI-compatible drivers (Groq, HuggingFace, Ollama) populate usage
+- ⚠️ Gemini driver: Usage data not available from gemini-rust SDK (documented limitation)
 
 **Phase 4: Advanced Execution - Processors** - 🚧 IN PROGRESS
 - ✅ Created `McpProcessorCollector` for collecting processor outputs

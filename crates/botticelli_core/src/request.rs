@@ -125,6 +125,9 @@ impl GenerateRequestBuilder {
 pub struct GenerateResponse {
     /// The generated outputs from the model
     outputs: Vec<Output>,
+    /// Token usage information (if available from provider)
+    #[builder(default)]
+    usage: Option<crate::TokenUsageData>,
 }
 
 impl GenerateResponse {

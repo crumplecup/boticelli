@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "botticelli": {
+      "command": "/absolute/path/to/botticelli/target/release/botticelli-mcp",
+      "env": {
+        "DATABASE_URL": "postgres://boticelli:renaissance@localhost:5432/boticelli",
+        "RUST_LOG": "info"
+      }
+    }
+  }
+}

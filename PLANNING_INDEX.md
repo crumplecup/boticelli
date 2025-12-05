@@ -207,3 +207,21 @@ This index tracks all planning documents in the workspace. When documents are co
 *Last Updated: 2025-11-30*
 *OpenTelemetry Integration: COMPLETE (Phases 1-6)*
 *Generated automatically - see git log for detailed history*
+
+## MCP Integration (Dec 2024)
+
+### Documents
+- [MCP_INTEGRATION_STRATEGIC_PLAN.md](./MCP_INTEGRATION_STRATEGIC_PLAN.md) - Complete 5-phase strategy
+- [MCP.md](./MCP.md) - User guide and reference
+
+### Status: Phase 1 MVP Complete ✅
+- Core MCP server functional
+- 3 tools implemented (echo, get_server_info, query_content)  
+- Database integration working
+- Tests passing
+- Ready for Claude Desktop
+
+### Next Steps
+- Test with Claude Desktop
+- User feedback
+- Phase 2: Resources & Prompts (if validated)

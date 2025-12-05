@@ -12,9 +12,7 @@
 //! # Usage
 //!
 //! ```no_run
-//! use botticelli_mcp::{BotticelliRouter, run_server};
-//! use mcp_server::{Server, ByteTransport};
-//! use mcp_server::router::RouterService;
+//! use botticelli_mcp::{BotticelliRouter, ByteTransport, Server, RouterService};
 //! use tokio::io::{stdin, stdout};
 //!
 //! #[tokio::main]
@@ -40,7 +38,7 @@ mod tools;
 
 pub use error::{McpError, McpResult};
 pub use server::{BotticelliRouter, BotticelliRouterBuilder};
-pub use tools::{ToolRegistry, McpTool};
+pub use tools::{ToolRegistry, McpTool, QueryContentTool, EchoTool, ServerInfoTool};
 
 // Re-export key mcp-server types for convenience
 pub use mcp_server::{ByteTransport, Router, Server};

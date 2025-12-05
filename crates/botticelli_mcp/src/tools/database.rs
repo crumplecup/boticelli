@@ -6,6 +6,9 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use tracing::{debug, instrument};
 
+#[cfg(feature = "database")]
+use botticelli_database::{establish_connection, list_content};
+
 /// Tool for querying content from database tables.
 pub struct QueryContentTool;
 
@@ -54,16 +57,36 @@ impl McpTool for QueryContentTool {
 
         debug!(table = %table, limit, "Querying content");
 
-        // TODO: Actually query the database once we add the database dependency
-        // For now, return a mock response
-        Ok(json!({
-            "status": "not_yet_implemented",
-            "message": "Database tool stub - will query actual database once dependency is added",
-            "requested": {
+        #[cfg(feature = "database")]
+        {
+            // Query the database
+            let mut conn = establish_connection()
+                .map_err(|e| McpError::ToolExecutionFailed(format!("Database connection failed: {}", e)))?;
+
+            let rows = list_content(&mut conn, table, None, limit as usize)
+                .map_err(|e| McpError::ToolExecutionFailed(format!("Query failed: {}", e)))?;
+
+            debug!(count = rows.len(), "Retrieved rows from database");
+
+            Ok(json!({
+                "status": "success",
                 "table": table,
-                "limit": limit
-            },
-            "note": "This tool will query PostgreSQL and return actual content in the next iteration"
-        }))
+                "count": rows.len(),
+                "limit": limit,
+                "rows": rows
+            }))
+        }
+
+        #[cfg(not(feature = "database"))]
+        {
+            Ok(json!({
+                "status": "not_available",
+                "message": "Database feature not enabled. Build with --features database",
+                "requested": {
+                    "table": table,
+                    "limit": limit
+                }
+            }))
+        }
     }
 }

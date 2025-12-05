@@ -32,6 +32,7 @@ chrono = "0.4"
 # Internal dependencies
 botticelli_core = { path = "../botticelli_core", version = "0.2.0" }
 botticelli_error = { path = "../botticelli_error", version = "0.2.0" }
+botticelli_database = { path = "../botticelli_database", version = "0.2.0", optional = true }
 mcp-spec = "0.1.0"
 
 [dev-dependencies]
@@ -39,6 +40,7 @@ tokio-test = "0.4"
 
 [features]
 default = []
+database = ["dep:botticelli_database"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -26,6 +26,11 @@
 - ✅ Anthropic driver populates usage from API responses
 - ✅ OpenAI-compatible drivers (Groq, HuggingFace, Ollama) populate usage
 - ⚠️ Gemini driver: Usage data not available from gemini-rust SDK (documented limitation)
+- ✅ **TokenCounting trait added** to botticelli_core (2025-12-05)
+  - Provides `count_tokens()` and `get_encoder()` for pre-flight token estimation
+  - `TokenUsage` struct with cost calculation via `calculate_cost()`
+  - Helper function `get_tokenizer(model)` using tiktoken-rs
+  - Ready for LLM client integration
 
 **Phase 4: Advanced Execution - Processors** - 🚧 IN PROGRESS
 - ✅ Created `McpProcessorCollector` for collecting processor outputs

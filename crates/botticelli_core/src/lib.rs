@@ -13,6 +13,7 @@ mod observability;
 mod output;
 mod request;
 mod role;
+mod token_counting;
 mod token_usage;
 
 pub use budget::{BudgetConfig, BudgetConfigBuilder};
@@ -29,4 +30,5 @@ pub use request::{
     GenerateResponseBuilderError,
 };
 pub use role::Role;
+pub use token_counting::{TokenCounting, TokenUsage, get_tokenizer};
 pub use token_usage::{TokenUsageData, TokenUsageDataBuilder};
